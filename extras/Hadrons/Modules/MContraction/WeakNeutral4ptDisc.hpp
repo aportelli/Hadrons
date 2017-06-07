@@ -2,11 +2,11 @@
 
 Grid physics library, www.github.com/paboyle/Grid 
 
-Source file: extras/Hadrons/Modules/MGauge/StochEm.hpp
+Source file: extras/Hadrons/Modules/MContraction/WeakNeutral4ptDisc.hpp
 
-Copyright (C) 2015
-Copyright (C) 2016
+Copyright (C) 2017
 
+Author: Andrew Lawson    <andrew.lawson1991@gmail.com>
 
 This program is free software; you can redistribute it and/or modify
 it under the terms of the GNU General Public License as published by
@@ -25,51 +25,35 @@ with this program; if not, write to the Free Software Foundation, Inc.,
 See the full license in the file "LICENSE" in the top level distribution directory
 *************************************************************************************/
 /*  END LEGAL */
-#ifndef Hadrons_MGauge_StochEm_hpp_
-#define Hadrons_MGauge_StochEm_hpp_
 
-#include <Grid/Hadrons/Global.hpp>
-#include <Grid/Hadrons/Module.hpp>
-#include <Grid/Hadrons/ModuleFactory.hpp>
+#ifndef Hadrons_MContraction_WeakNeutral4ptDisc_hpp_
+#define Hadrons_MContraction_WeakNeutral4ptDisc_hpp_
+
+#include <Grid/Hadrons/Modules/MContraction/WeakHamiltonian.hpp>
 
 BEGIN_HADRONS_NAMESPACE
 
 /******************************************************************************
- *                         StochEm                                 *
+ *                         WeakNeutral4ptDisc                                 *
  ******************************************************************************/
-BEGIN_MODULE_NAMESPACE(MGauge)
+BEGIN_MODULE_NAMESPACE(MContraction)
 
-class StochEmPar: Serializable
+enum
 {
-public:
-    GRID_SERIALIZABLE_CLASS_MEMBERS(StochEmPar,
-                                    PhotonR::Gauge,    gauge,
-                                    PhotonR::ZmScheme, zmScheme);
+    neut_disc_1_diag = 0,
+    neut_disc_2_diag = 1,
+    n_neut_disc_diag = 2
 };
 
-class TStochEm: public Module<StochEmPar>
-{
-public:
-    typedef PhotonR::GaugeField     EmField;
-    typedef PhotonR::GaugeLinkField EmComp;
-public:
-    // constructor
-    TStochEm(const std::string name);
-    // destructor
-    virtual ~TStochEm(void) = default;
-    // dependency relation
-    virtual std::vector<std::string> getInput(void);
-    virtual std::vector<std::string> getOutput(void);
-    // setup
-    virtual void setup(void);
-    // execution
-    virtual void execute(void);
-};
+// Neutral 4pt disconnected subdiagram contractions.
+#define MAKE_DISC_MESON(Q_1, Q_2, gamma) (Q_1*adj(Q_2)*g5*gamma)
+#define MAKE_DISC_LOOP(Q_LOOP, gamma) (Q_LOOP*gamma)
+#define MAKE_DISC_CURR(Q_c, gamma) (trace(Q_c*gamma))
 
-MODULE_REGISTER_NS(StochEm, TStochEm, MGauge);
+MAKE_WEAK_MODULE(WeakNeutral4ptDisc)
 
 END_MODULE_NAMESPACE
 
 END_HADRONS_NAMESPACE
 
-#endif // Hadrons_MGauge_StochEm_hpp_
+#endif // Hadrons_MContraction_WeakNeutral4ptDisc_hpp_

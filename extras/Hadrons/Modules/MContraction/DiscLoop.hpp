@@ -2,12 +2,11 @@
 
 Grid physics library, www.github.com/paboyle/Grid 
 
-Source file: extras/Hadrons/Modules/MSource/Point.hpp
+Source file: extras/Hadrons/Modules/MContraction/DiscLoop.hpp
 
-Copyright (C) 2015
-Copyright (C) 2016
+Copyright (C) 2017
 
-Author: Antonin Portelli <antonin.portelli@me.com>
+Author: Andrew Lawson    <andrew.lawson1991@gmail.com>
 
 This program is free software; you can redistribute it and/or modify
 it under the terms of the GNU General Public License as published by
@@ -27,8 +26,8 @@ See the full license in the file "LICENSE" in the top level distribution directo
 *************************************************************************************/
 /*  END LEGAL */
 
-#ifndef Hadrons_MSource_Point_hpp_
-#define Hadrons_MSource_Point_hpp_
+#ifndef Hadrons_MContraction_DiscLoop_hpp_
+#define Hadrons_MContraction_DiscLoop_hpp_
 
 #include <Grid/Hadrons/Global.hpp>
 #include <Grid/Hadrons/Module.hpp>
@@ -36,39 +35,36 @@ See the full license in the file "LICENSE" in the top level distribution directo
 
 BEGIN_HADRONS_NAMESPACE
 
-/*
- 
- Point source
- ------------
- * src_x = delta_x,position
- 
- * options:
- - position: space-separated integer sequence (e.g. "0 1 1 0")
- 
- */
-
 /******************************************************************************
- *                                  TPoint                                     *
+ *                                DiscLoop                                    *
  ******************************************************************************/
-BEGIN_MODULE_NAMESPACE(MSource)
+BEGIN_MODULE_NAMESPACE(MContraction)
 
-class PointPar: Serializable
+class DiscLoopPar: Serializable
 {
 public:
-    GRID_SERIALIZABLE_CLASS_MEMBERS(PointPar,
-                                    std::string, position);
+    GRID_SERIALIZABLE_CLASS_MEMBERS(DiscLoopPar,
+                                    std::string,    q_loop,
+                                    Gamma::Algebra, gamma,
+                                    std::string,    output);
 };
 
 template <typename FImpl>
-class TPoint: public Module<PointPar>
+class TDiscLoop: public Module<DiscLoopPar>
 {
-public:
     FERM_TYPE_ALIASES(FImpl,);
+    class Result: Serializable
+    {
+    public:
+        GRID_SERIALIZABLE_CLASS_MEMBERS(Result,
+                                        Gamma::Algebra, gamma,
+                                        std::vector<Complex>, corr);
+    };
 public:
     // constructor
-    TPoint(const std::string name);
+    TDiscLoop(const std::string name);
     // destructor
-    virtual ~TPoint(void) = default;
+    virtual ~TDiscLoop(void) = default;
     // dependency relation
     virtual std::vector<std::string> getInput(void);
     virtual std::vector<std::string> getOutput(void);
@@ -78,29 +74,28 @@ public:
     virtual void execute(void);
 };
 
-MODULE_REGISTER_NS(Point,       TPoint<FIMPL>,        MSource);
-MODULE_REGISTER_NS(ScalarPoint, TPoint<ScalarImplCR>, MSource);
+MODULE_REGISTER_NS(DiscLoop, TDiscLoop<FIMPL>, MContraction);
 
 /******************************************************************************
- *                       TPoint template implementation                       *
+ *                       TDiscLoop implementation                             *
  ******************************************************************************/
 // constructor /////////////////////////////////////////////////////////////////
 template <typename FImpl>
-TPoint<FImpl>::TPoint(const std::string name)
-: Module<PointPar>(name)
+TDiscLoop<FImpl>::TDiscLoop(const std::string name)
+: Module<DiscLoopPar>(name)
 {}
 
 // dependencies/products ///////////////////////////////////////////////////////
 template <typename FImpl>
-std::vector<std::string> TPoint<FImpl>::getInput(void)
+std::vector<std::string> TDiscLoop<FImpl>::getInput(void)
 {
-    std::vector<std::string> in;
+    std::vector<std::string> in = {par().q_loop};
     
     return in;
 }
 
 template <typename FImpl>
-std::vector<std::string> TPoint<FImpl>::getOutput(void)
+std::vector<std::string> TDiscLoop<FImpl>::getOutput(void)
 {
     std::vector<std::string> out = {getName()};
     
@@ -109,28 +104,41 @@ std::vector<std::string> TPoint<FImpl>::getOutput(void)
 
 // setup ///////////////////////////////////////////////////////////////////////
 template <typename FImpl>
-void TPoint<FImpl>::setup(void)
+void TDiscLoop<FImpl>::setup(void)
 {
-    env().template registerLattice<PropagatorField>(getName());
+    
 }
 
 // execution ///////////////////////////////////////////////////////////////////
 template <typename FImpl>
-void TPoint<FImpl>::execute(void)
+void TDiscLoop<FImpl>::execute(void)
 {
-    std::vector<int> position = strToVec<int>(par().position);
-    typename SitePropagator::scalar_object id;
-    
-    LOG(Message) << "Creating point source at position [" << par().position
-                 << "]" << std::endl;
-    PropagatorField &src = *env().template createLattice<PropagatorField>(getName());
-    id  = 1.;
-    src = zero;
-    pokeSite(id, src, position);
+    LOG(Message) << "Computing disconnected loop contraction '" << getName() 
+                 << "' using '" << par().q_loop << "' with " << par().gamma 
+                 << " insertion." << std::endl;
+
+    CorrWriter            writer(par().output);
+    PropagatorField       &q_loop = *env().template getObject<PropagatorField>(par().q_loop);
+    LatticeComplex        c(env().getGrid());
+    Gamma                 gamma(par().gamma);
+    std::vector<TComplex> buf;
+    Result                result;
+
+    c = trace(gamma*q_loop);
+    sliceSum(c, buf, Tp);
+
+    result.gamma = par().gamma;
+    result.corr.resize(buf.size());
+    for (unsigned int t = 0; t < buf.size(); ++t)
+    {
+        result.corr[t] = TensorRemove(buf[t]);
+    }
+
+    write(writer, "disc", result);
 }
 
 END_MODULE_NAMESPACE
 
 END_HADRONS_NAMESPACE
 
-#endif // Hadrons_MSource_Point_hpp_
+#endif // Hadrons_MContraction_DiscLoop_hpp_
