@@ -2,11 +2,12 @@
 
 Grid physics library, www.github.com/paboyle/Grid 
 
-Source file: extras/Hadrons/Modules/MSource/Z2.hpp
+Source file: extras/Hadrons/Modules/MUtilities/TestSeqGamma.hpp
 
 Copyright (C) 2015-2018
 
 Author: Antonin Portelli <antonin.portelli@me.com>
+Author: Lanny91 <andrew.lawson@gmail.com>
 
 This program is free software; you can redistribute it and/or modify
 it under the terms of the GNU General Public License as published by
@@ -26,8 +27,8 @@ See the full license in the file "LICENSE" in the top level distribution directo
 *************************************************************************************/
 /*  END LEGAL */
 
-#ifndef Hadrons_MSource_Z2_hpp_
-#define Hadrons_MSource_Z2_hpp_
+#ifndef Hadrons_MUtilities_TestSeqGamma_hpp_
+#define Hadrons_MUtilities_TestSeqGamma_hpp_
 
 #include <Grid/Hadrons/Global.hpp>
 #include <Grid/Hadrons/Module.hpp>
@@ -35,43 +36,32 @@ See the full license in the file "LICENSE" in the top level distribution directo
 
 BEGIN_HADRONS_NAMESPACE
 
-/*
- 
- Z_2 stochastic source
- -----------------------------
- * src_x = eta_x * theta(x_3 - tA) * theta(tB - x_3)
- 
- the eta_x are independent uniform random numbers in {+/- 1 +/- i}
- 
- * options:
- - tA: begin timeslice (integer)
- - tB: end timesilce (integer)
- 
- */
- 
 /******************************************************************************
- *                          Z2 stochastic source                              *
+ *                              TestSeqGamma                                  *
  ******************************************************************************/
-BEGIN_MODULE_NAMESPACE(MSource)
+BEGIN_MODULE_NAMESPACE(MUtilities)
 
-class Z2Par: Serializable
+class TestSeqGammaPar: Serializable
 {
 public:
-    GRID_SERIALIZABLE_CLASS_MEMBERS(Z2Par,
-                                    unsigned int, tA,
-                                    unsigned int, tB);
+    GRID_SERIALIZABLE_CLASS_MEMBERS(TestSeqGammaPar,
+                                    std::string,    q,
+                                    std::string,    qSeq,
+                                    std::string,    origin,
+                                    Gamma::Algebra, gamma,
+                                    unsigned int,   t_g);
 };
 
 template <typename FImpl>
-class TZ2: public Module<Z2Par>
+class TTestSeqGamma: public Module<TestSeqGammaPar>
 {
 public:
     FERM_TYPE_ALIASES(FImpl,);
 public:
     // constructor
-    TZ2(const std::string name);
+    TTestSeqGamma(const std::string name);
     // destructor
-    virtual ~TZ2(void) = default;
+    virtual ~TTestSeqGamma(void) = default;
     // dependency relation
     virtual std::vector<std::string> getInput(void);
     virtual std::vector<std::string> getOutput(void);
@@ -80,35 +70,30 @@ protected:
     virtual void setup(void);
     // execution
     virtual void execute(void);
-private:
-    bool        hasT_{false};
-    std::string tName_;
 };
 
-MODULE_REGISTER_NS(Z2,       TZ2<FIMPL>,        MSource);
-MODULE_REGISTER_NS(ScalarZ2, TZ2<ScalarImplCR>, MSource);
+MODULE_REGISTER_NS(TestSeqGamma, TTestSeqGamma<FIMPL>, MUtilities);
 
 /******************************************************************************
- *                       TZ2 template implementation                          *
+ *                      TTestSeqGamma implementation                          *
  ******************************************************************************/
 // constructor /////////////////////////////////////////////////////////////////
 template <typename FImpl>
-TZ2<FImpl>::TZ2(const std::string name)
-: Module<Z2Par>(name)
-, tName_ (name + "_t")
+TTestSeqGamma<FImpl>::TTestSeqGamma(const std::string name)
+: Module<TestSeqGammaPar>(name)
 {}
 
 // dependencies/products ///////////////////////////////////////////////////////
 template <typename FImpl>
-std::vector<std::string> TZ2<FImpl>::getInput(void)
+std::vector<std::string> TTestSeqGamma<FImpl>::getInput(void)
 {
-    std::vector<std::string> in;
+    std::vector<std::string> in = {par().q, par().qSeq};
     
     return in;
 }
 
 template <typename FImpl>
-std::vector<std::string> TZ2<FImpl>::getOutput(void)
+std::vector<std::string> TTestSeqGamma<FImpl>::getOutput(void)
 {
     std::vector<std::string> out = {getName()};
     
@@ -117,47 +102,49 @@ std::vector<std::string> TZ2<FImpl>::getOutput(void)
 
 // setup ///////////////////////////////////////////////////////////////////////
 template <typename FImpl>
-void TZ2<FImpl>::setup(void)
+void TTestSeqGamma<FImpl>::setup(void)
 {
-    envCreateLat(PropagatorField, getName());
-    envCacheLat(Lattice<iScalar<vInteger>>, tName_);
-    envTmpLat(LatticeComplex, "eta");
+    envTmpLat(LatticeComplex, "c");
 }
 
 // execution ///////////////////////////////////////////////////////////////////
 template <typename FImpl>
-void TZ2<FImpl>::execute(void)
+void TTestSeqGamma<FImpl>::execute(void)
 {
-    if (par().tA == par().tB)
-    {
-        LOG(Message) << "Generating Z_2 wall source at t= " << par().tA
-                     << std::endl;
-    }
-    else
-    {
-        LOG(Message) << "Generating Z_2 band for " << par().tA << " <= t <= "
-                     << par().tB << std::endl;
-    }
-    
-    auto    &src = envGet(PropagatorField, getName());
-    auto    &t   = envGet(Lattice<iScalar<vInteger>>, tName_);
-    Complex shift(1., 1.);
+    auto                  &q    = envGet(PropagatorField, par().q);
+    auto                  &qSeq = envGet(PropagatorField, par().qSeq);
+    Gamma                 g5(Gamma::Algebra::Gamma5);
+    Gamma                 g(par().gamma);
+    SitePropagator        qSite;
+    Complex               test, check;
+    std::vector<TComplex> check_buf;
+    std::vector<int>      siteCoord;
 
-    if (!hasT_)
-    {
-        LatticeCoordinate(t, Tp);
-        hasT_ = true;
-    }
-    envGetTmp(LatticeComplex, eta);
-    bernoulli(*env().get4dRng(), eta);
-    eta = (2.*eta - shift)*(1./::sqrt(2.));
-    eta = where((t >= par().tA) and (t <= par().tB), eta, 0.*eta);
-    src = 1.;
-    src = src*eta;
+    // Check sequential insertion of gamma matrix gives same result as 
+    // insertion of gamma at sink upon contraction. Assume q uses a point 
+    // source.
+    
+    envGetTmp(LatticeComplex, c);
+    siteCoord = strToVec<int>(par().origin);
+    peekSite(qSite, qSeq, siteCoord);
+    test = trace(g*qSite);
+
+    c = trace(adj(g)*g5*adj(q)*g5*g*q);
+    sliceSum(c, check_buf, Tp);
+    check = TensorRemove(check_buf[par().t_g]);
+
+    LOG(Message) << "Seq Result = " << abs(test)  << std::endl;
+    LOG(Message) << "Reference  = " << abs(check) << std::endl;
+
+    // Check difference = 0
+    check -= test;
+
+    LOG(Message) << "Consistency check for sequential " << par().gamma  
+                 << " insertion = " << abs(check) << std::endl;
 }
 
 END_MODULE_NAMESPACE
 
 END_HADRONS_NAMESPACE
 
-#endif // Hadrons_MSource_Z2_hpp_
+#endif // Hadrons_TestSeqGamma_hpp_
