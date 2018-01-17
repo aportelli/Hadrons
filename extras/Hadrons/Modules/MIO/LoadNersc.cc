@@ -2,7 +2,7 @@
 
 Grid physics library, www.github.com/paboyle/Grid 
 
-Source file: extras/Hadrons/Modules/MGauge/StochEm.cc
+Source file: extras/Hadrons/Modules/MIO/LoadNersc.cc
 
 Copyright (C) 2015-2018
 
@@ -25,29 +25,29 @@ with this program; if not, write to the Free Software Foundation, Inc.,
 See the full license in the file "LICENSE" in the top level distribution directory
 *************************************************************************************/
 /*  END LEGAL */
-#include <Grid/Hadrons/Modules/MGauge/StochEm.hpp>
+#include <Grid/Hadrons/Modules/MIO/LoadNersc.hpp>
 
 using namespace Grid;
 using namespace Hadrons;
-using namespace MGauge;
+using namespace MIO;
 
 /******************************************************************************
-*                  TStochEm implementation                             *
+*                       TLoadNersc implementation                             *
 ******************************************************************************/
 // constructor /////////////////////////////////////////////////////////////////
-TStochEm::TStochEm(const std::string name)
-: Module<StochEmPar>(name)
+TLoadNersc::TLoadNersc(const std::string name)
+: Module<LoadNerscPar>(name)
 {}
 
 // dependencies/products ///////////////////////////////////////////////////////
-std::vector<std::string> TStochEm::getInput(void)
+std::vector<std::string> TLoadNersc::getInput(void)
 {
     std::vector<std::string> in;
     
     return in;
 }
 
-std::vector<std::string> TStochEm::getOutput(void)
+std::vector<std::string> TLoadNersc::getOutput(void)
 {
     std::vector<std::string> out = {getName()};
     
@@ -55,30 +55,22 @@ std::vector<std::string> TStochEm::getOutput(void)
 }
 
 // setup ///////////////////////////////////////////////////////////////////////
-void TStochEm::setup(void)
+void TLoadNersc::setup(void)
 {
-    if (!env().hasCreatedObject("_" + getName() + "_weight"))
-    {
-        envCacheLat(EmComp, "_" + getName() + "_weight");
-    }
-    envCreateLat(EmField, getName());
+    envCreateLat(LatticeGaugeField, getName());
 }
 
 // execution ///////////////////////////////////////////////////////////////////
-void TStochEm::execute(void)
+void TLoadNersc::execute(void)
 {
-    LOG(Message) << "Generating stochatic EM potential..." << std::endl;
+    FieldMetaData header;
+    std::string   fileName = par().file + "."
+                             + std::to_string(vm().getTrajectory());
+    LOG(Message) << "Loading NERSC configuration from file '" << fileName
+                 << "'" << std::endl;
 
-    PhotonR photon(par().gauge, par().zmScheme);
-    auto    &a = envGet(EmField, getName());
-    auto    &w = envGet(EmComp, "_" + getName() + "_weight");
-    
-    if (!env().hasCreatedObject("_" + getName() + "_weight"))
-    {
-        LOG(Message) << "Caching stochatic EM potential weight (gauge: "
-                     << par().gauge << ", zero-mode scheme: "
-                     << par().zmScheme << ")..." << std::endl;
-        photon.StochasticWeight(w);
-    }
-    photon.StochasticField(a, *env().get4dRng(), w);
+    auto &U = envGet(LatticeGaugeField, getName());
+    NerscIO::readConfiguration(U, header, fileName);
+    LOG(Message) << "NERSC header:" << std::endl;
+    dump_meta_data(header, LOG(Message));
 }
