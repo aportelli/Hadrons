@@ -2,12 +2,11 @@
 
 Grid physics library, www.github.com/paboyle/Grid 
 
-Source file: extras/Hadrons/Modules/MContraction/DiscLoop.hpp
+Source file: extras/Hadrons/Modules/MScalarSUN/TrMag.hpp
 
 Copyright (C) 2015-2018
 
 Author: Antonin Portelli <antonin.portelli@me.com>
-Author: Lanny91 <andrew.lawson@gmail.com>
 
 This program is free software; you can redistribute it and/or modify
 it under the terms of the GNU General Public License as published by
@@ -26,9 +25,8 @@ with this program; if not, write to the Free Software Foundation, Inc.,
 See the full license in the file "LICENSE" in the top level distribution directory
 *************************************************************************************/
 /*  END LEGAL */
-
-#ifndef Hadrons_MContraction_DiscLoop_hpp_
-#define Hadrons_MContraction_DiscLoop_hpp_
+#ifndef Hadrons_MScalarSUN_TrMag_hpp_
+#define Hadrons_MScalarSUN_TrMag_hpp_
 
 #include <Grid/Hadrons/Global.hpp>
 #include <Grid/Hadrons/Module.hpp>
@@ -37,67 +35,72 @@ See the full license in the file "LICENSE" in the top level distribution directo
 BEGIN_HADRONS_NAMESPACE
 
 /******************************************************************************
- *                                DiscLoop                                    *
+ *                       Module to compute tr(mag^n)                          *
  ******************************************************************************/
-BEGIN_MODULE_NAMESPACE(MContraction)
+BEGIN_MODULE_NAMESPACE(MScalarSUN)
 
-class DiscLoopPar: Serializable
+class TrMagPar: Serializable
 {
 public:
-    GRID_SERIALIZABLE_CLASS_MEMBERS(DiscLoopPar,
-                                    std::string,    q_loop,
-                                    Gamma::Algebra, gamma,
-                                    std::string,    output);
+    GRID_SERIALIZABLE_CLASS_MEMBERS(TrMagPar,
+                                    std::string,  field,
+                                    unsigned int, maxPow,
+                                    std::string,  output);
 };
 
-template <typename FImpl>
-class TDiscLoop: public Module<DiscLoopPar>
+template <typename SImpl>
+class TTrMag: public Module<TrMagPar>
 {
-    FERM_TYPE_ALIASES(FImpl,);
+public:
+    typedef typename SImpl::Field        Field;
+    typedef typename SImpl::ComplexField ComplexField;
     class Result: Serializable
     {
     public:
         GRID_SERIALIZABLE_CLASS_MEMBERS(Result,
-                                        Gamma::Algebra, gamma,
-                                        std::vector<Complex>, corr);
+                                        std::string, op,
+                                        Real,        value);
     };
 public:
     // constructor
-    TDiscLoop(const std::string name);
+    TTrMag(const std::string name);
     // destructor
-    virtual ~TDiscLoop(void) = default;
+    virtual ~TTrMag(void) = default;
     // dependency relation
     virtual std::vector<std::string> getInput(void);
     virtual std::vector<std::string> getOutput(void);
-protected:
     // setup
     virtual void setup(void);
     // execution
     virtual void execute(void);
 };
 
-MODULE_REGISTER_NS(DiscLoop, TDiscLoop<FIMPL>, MContraction);
+MODULE_REGISTER_NS(TrMagSU2, TTrMag<ScalarNxNAdjImplR<2>>, MScalarSUN);
+MODULE_REGISTER_NS(TrMagSU3, TTrMag<ScalarNxNAdjImplR<3>>, MScalarSUN);
+MODULE_REGISTER_NS(TrMagSU4, TTrMag<ScalarNxNAdjImplR<4>>, MScalarSUN);
+MODULE_REGISTER_NS(TrMagSU5, TTrMag<ScalarNxNAdjImplR<5>>, MScalarSUN);
+MODULE_REGISTER_NS(TrMagSU6, TTrMag<ScalarNxNAdjImplR<6>>, MScalarSUN);
 
 /******************************************************************************
- *                       TDiscLoop implementation                             *
+ *                         TTrMag implementation                              *
  ******************************************************************************/
 // constructor /////////////////////////////////////////////////////////////////
-template <typename FImpl>
-TDiscLoop<FImpl>::TDiscLoop(const std::string name)
-: Module<DiscLoopPar>(name)
+template <typename SImpl>
+TTrMag<SImpl>::TTrMag(const std::string name)
+: Module<TrMagPar>(name)
 {}
 
 // dependencies/products ///////////////////////////////////////////////////////
-template <typename FImpl>
-std::vector<std::string> TDiscLoop<FImpl>::getInput(void)
+template <typename SImpl>
+std::vector<std::string> TTrMag<SImpl>::getInput(void)
 {
-    std::vector<std::string> in = {par().q_loop};
+    std::vector<std::string> in = {par().field};
     
     return in;
 }
 
-template <typename FImpl>
-std::vector<std::string> TDiscLoop<FImpl>::getOutput(void)
+template <typename SImpl>
+std::vector<std::string> TTrMag<SImpl>::getOutput(void)
 {
     std::vector<std::string> out = {};
     
@@ -105,39 +108,38 @@ std::vector<std::string> TDiscLoop<FImpl>::getOutput(void)
 }
 
 // setup ///////////////////////////////////////////////////////////////////////
-template <typename FImpl>
-void TDiscLoop<FImpl>::setup(void)
-{
-    envTmpLat(LatticeComplex, "c");
-}
+template <typename SImpl>
+void TTrMag<SImpl>::setup(void)
+{}
 
 // execution ///////////////////////////////////////////////////////////////////
-template <typename FImpl>
-void TDiscLoop<FImpl>::execute(void)
+template <typename SImpl>
+void TTrMag<SImpl>::execute(void)
 {
-    LOG(Message) << "Computing disconnected loop contraction '" << getName() 
-                 << "' using '" << par().q_loop << "' with " << par().gamma 
-                 << " insertion." << std::endl;
+    LOG(Message) << "Computing tr(mag^n) for n even up to " << par().maxPow
+                 << "..." << std::endl;
 
-    auto                  &q_loop = envGet(PropagatorField, par().q_loop);
-    Gamma                 gamma(par().gamma);
-    std::vector<TComplex> buf;
-    Result                result;
+    std::vector<Result> result;
+    auto                &phi = envGet(Field, par().field);
 
-    envGetTmp(LatticeComplex, c);
-    c = trace(gamma*q_loop);
-    sliceSum(c, buf, Tp);
-    result.gamma = par().gamma;
-    result.corr.resize(buf.size());
-    for (unsigned int t = 0; t < buf.size(); ++t)
+    auto m2 = sum(phi), mn = m2;
+
+    m2 = -m2*m2;
+    mn = 1.;
+    for (unsigned int n = 2; n <= par().maxPow; n += 2)
     {
-        result.corr[t] = TensorRemove(buf[t]);
+        Result r;
+
+        mn = mn*m2;
+        r.op    = "tr(mag^" + std::to_string(n) + ")";
+        r.value = TensorRemove(trace(mn)).real();
+        result.push_back(r);
     }
-    saveResult(par().output, "disc", result);
+    saveResult(par().output, "trmag", result);
 }
 
 END_MODULE_NAMESPACE
 
 END_HADRONS_NAMESPACE
 
-#endif // Hadrons_MContraction_DiscLoop_hpp_
+#endif // Hadrons_MScalarSUN_TrMag_hpp_

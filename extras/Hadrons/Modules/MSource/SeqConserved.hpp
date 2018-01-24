@@ -2,7 +2,7 @@
 
 Grid physics library, www.github.com/paboyle/Grid 
 
-Source file: extras/Hadrons/Modules/MSource/SeqGamma.hpp
+Source file: extras/Hadrons/Modules/MSource/SeqConserved.hpp
 
 Copyright (C) 2015-2018
 
@@ -27,8 +27,8 @@ See the full license in the file "LICENSE" in the top level distribution directo
 *************************************************************************************/
 /*  END LEGAL */
 
-#ifndef Hadrons_MSource_SeqGamma_hpp_
-#define Hadrons_MSource_SeqGamma_hpp_
+#ifndef Hadrons_MSource_SeqConserved_hpp_
+#define Hadrons_MSource_SeqConserved_hpp_
 
 #include <Grid/Hadrons/Global.hpp>
 #include <Grid/Hadrons/Module.hpp>
@@ -40,43 +40,47 @@ BEGIN_HADRONS_NAMESPACE
  
  Sequential source
  -----------------------------
- * src_x = q_x * theta(x_3 - tA) * theta(tB - x_3) * gamma * exp(i x.mom)
+ * src_x = q_x * theta(x_3 - tA) * theta(tB - x_3) * J_mu * exp(i x.mom)
  
  * options:
  - q: input propagator (string)
+ - action: fermion action used for propagator q (string)
  - tA: begin timeslice (integer)
  - tB: end timesilce (integer)
- - gamma: gamma product to insert (integer)
+ - curr_type: type of conserved current to insert (Current)
+ - mu: Lorentz index of current to insert (integer)
  - mom: momentum insertion, space-separated float sequence (e.g ".1 .2 1. 0.")
  
  */
 
 /******************************************************************************
- *                         SeqGamma                                 *
+ *                              SeqConserved                                  *
  ******************************************************************************/
 BEGIN_MODULE_NAMESPACE(MSource)
 
-class SeqGammaPar: Serializable
+class SeqConservedPar: Serializable
 {
 public:
-    GRID_SERIALIZABLE_CLASS_MEMBERS(SeqGammaPar,
-                                    std::string,    q,
-                                    unsigned int,   tA,
-                                    unsigned int,   tB,
-                                    Gamma::Algebra, gamma,
-                                    std::string,    mom);
+    GRID_SERIALIZABLE_CLASS_MEMBERS(SeqConservedPar,
+                                    std::string,  q,
+                                    std::string,  action,
+                                    unsigned int, tA,
+                                    unsigned int, tB,
+                                    Current,      curr_type,
+                                    unsigned int, mu,
+                                    std::string,  mom);
 };
 
 template <typename FImpl>
-class TSeqGamma: public Module<SeqGammaPar>
+class TSeqConserved: public Module<SeqConservedPar>
 {
 public:
-    FGS_TYPE_ALIASES(FImpl,);
+    FERM_TYPE_ALIASES(FImpl,);
 public:
     // constructor
-    TSeqGamma(const std::string name);
+    TSeqConserved(const std::string name);
     // destructor
-    virtual ~TSeqGamma(void) = default;
+    virtual ~TSeqConserved(void) = default;
     // dependency relation
     virtual std::vector<std::string> getInput(void);
     virtual std::vector<std::string> getOutput(void);
@@ -85,35 +89,30 @@ protected:
     virtual void setup(void);
     // execution
     virtual void execute(void);
-private:
-    bool        hasPhase_{false};
-    std::string momphName_, tName_;
 };
 
-MODULE_REGISTER_NS(SeqGamma, TSeqGamma<FIMPL>, MSource);
+MODULE_REGISTER_NS(SeqConserved, TSeqConserved<FIMPL>, MSource);
 
 /******************************************************************************
- *                         TSeqGamma implementation                           *
+ *                      TSeqConserved implementation                          *
  ******************************************************************************/
 // constructor /////////////////////////////////////////////////////////////////
 template <typename FImpl>
-TSeqGamma<FImpl>::TSeqGamma(const std::string name)
-: Module<SeqGammaPar>(name)
-, momphName_ (name + "_momph")
-, tName_ (name + "_t")
+TSeqConserved<FImpl>::TSeqConserved(const std::string name)
+: Module<SeqConservedPar>(name)
 {}
 
 // dependencies/products ///////////////////////////////////////////////////////
 template <typename FImpl>
-std::vector<std::string> TSeqGamma<FImpl>::getInput(void)
+std::vector<std::string> TSeqConserved<FImpl>::getInput(void)
 {
-    std::vector<std::string> in = {par().q};
+    std::vector<std::string> in = {par().q, par().action};
     
     return in;
 }
 
 template <typename FImpl>
-std::vector<std::string> TSeqGamma<FImpl>::getOutput(void)
+std::vector<std::string> TSeqConserved<FImpl>::getOutput(void)
 {
     std::vector<std::string> out = {getName()};
     
@@ -122,57 +121,40 @@ std::vector<std::string> TSeqGamma<FImpl>::getOutput(void)
 
 // setup ///////////////////////////////////////////////////////////////////////
 template <typename FImpl>
-void TSeqGamma<FImpl>::setup(void)
+void TSeqConserved<FImpl>::setup(void)
 {
-    envCreateLat(PropagatorField, getName());
-    envCacheLat(Lattice<iScalar<vInteger>>, tName_);
-    envCacheLat(LatticeComplex, momphName_);
-    envTmpLat(LatticeComplex, "coor");
+    auto Ls_ = env().getObjectLs(par().action);
+    envCreateLat(PropagatorField, getName(), Ls_);
 }
 
 // execution ///////////////////////////////////////////////////////////////////
 template <typename FImpl>
-void TSeqGamma<FImpl>::execute(void)
+void TSeqConserved<FImpl>::execute(void)
 {
     if (par().tA == par().tB)
     {
-        LOG(Message) << "Generating gamma_" << par().gamma
-                     << " sequential source at t= " << par().tA << std::endl;
+        LOG(Message) << "Generating sequential source with conserved "
+                     << par().curr_type << " current insertion (mu = " 
+                     << par().mu << ") at " << "t = " << par().tA << std::endl;
     }
     else
     {
-        LOG(Message) << "Generating gamma_" << par().gamma
-                     << " sequential source for "
-                     << par().tA << " <= t <= " << par().tB << std::endl;
+        LOG(Message) << "Generating sequential source with conserved "
+                     << par().curr_type << " current insertion (mu = " 
+                     << par().mu << ") for " << par().tA << " <= t <= " 
+                     << par().tB << std::endl;
     }
-    auto  &src = envGet(PropagatorField, getName());
-    auto  &q   = envGet(PropagatorField, par().q);
-    auto  &ph  = envGet(LatticeComplex, momphName_);
-    auto  &t   = envGet(Lattice<iScalar<vInteger>>, tName_);
-    Gamma g(par().gamma);
-    
-    if (!hasPhase_)
-    {
-        Complex           i(0.0,1.0);
-        std::vector<Real> p;
+    auto &src = envGet(PropagatorField, getName());
+    auto &q   = envGet(PropagatorField, par().q);
+    auto &mat = envGet(FMat, par().action);
 
-        envGetTmp(LatticeComplex, coor);
-        p  = strToVec<Real>(par().mom);
-        ph = zero;
-        for(unsigned int mu = 0; mu < env().getNd(); mu++)
-        {
-            LatticeCoordinate(coor, mu);
-            ph = ph + (p[mu]/env().getGrid()->_fdimensions[mu])*coor;
-        }
-        ph = exp((Real)(2*M_PI)*i*ph);
-        LatticeCoordinate(t, Tp);
-        hasPhase_ = true;
-    }
-    src = where((t >= par().tA) and (t <= par().tB), ph*(g*q), 0.*q);
+    std::vector<Real> mom = strToVec<Real>(par().mom);
+    mat.SeqConservedCurrent(q, src, par().curr_type, par().mu, 
+                            mom, par().tA, par().tB);
 }
 
 END_MODULE_NAMESPACE
 
 END_HADRONS_NAMESPACE
 
-#endif // Hadrons_MSource_SeqGamma_hpp_
+#endif // Hadrons_SeqConserved_hpp_

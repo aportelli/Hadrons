@@ -2,11 +2,12 @@
 
 Grid physics library, www.github.com/paboyle/Grid 
 
-Source file: extras/Hadrons/Modules/MSource/Z2.hpp
+Source file: extras/Hadrons/Modules/MSink/Smear.hpp
 
 Copyright (C) 2015-2018
 
 Author: Antonin Portelli <antonin.portelli@me.com>
+Author: Lanny91 <andrew.lawson@gmail.com>
 
 This program is free software; you can redistribute it and/or modify
 it under the terms of the GNU General Public License as published by
@@ -26,8 +27,8 @@ See the full license in the file "LICENSE" in the top level distribution directo
 *************************************************************************************/
 /*  END LEGAL */
 
-#ifndef Hadrons_MSource_Z2_hpp_
-#define Hadrons_MSource_Z2_hpp_
+#ifndef Hadrons_MSink_Smear_hpp_
+#define Hadrons_MSink_Smear_hpp_
 
 #include <Grid/Hadrons/Global.hpp>
 #include <Grid/Hadrons/Module.hpp>
@@ -35,43 +36,30 @@ See the full license in the file "LICENSE" in the top level distribution directo
 
 BEGIN_HADRONS_NAMESPACE
 
-/*
- 
- Z_2 stochastic source
- -----------------------------
- * src_x = eta_x * theta(x_3 - tA) * theta(tB - x_3)
- 
- the eta_x are independent uniform random numbers in {+/- 1 +/- i}
- 
- * options:
- - tA: begin timeslice (integer)
- - tB: end timesilce (integer)
- 
- */
- 
 /******************************************************************************
- *                          Z2 stochastic source                              *
+ *                                 Smear                                      *
  ******************************************************************************/
-BEGIN_MODULE_NAMESPACE(MSource)
+BEGIN_MODULE_NAMESPACE(MSink)
 
-class Z2Par: Serializable
+class SmearPar: Serializable
 {
 public:
-    GRID_SERIALIZABLE_CLASS_MEMBERS(Z2Par,
-                                    unsigned int, tA,
-                                    unsigned int, tB);
+    GRID_SERIALIZABLE_CLASS_MEMBERS(SmearPar,
+                                    std::string, q,
+                                    std::string, sink);
 };
 
 template <typename FImpl>
-class TZ2: public Module<Z2Par>
+class TSmear: public Module<SmearPar>
 {
 public:
     FERM_TYPE_ALIASES(FImpl,);
+    SINK_TYPE_ALIASES();
 public:
     // constructor
-    TZ2(const std::string name);
+    TSmear(const std::string name);
     // destructor
-    virtual ~TZ2(void) = default;
+    virtual ~TSmear(void) = default;
     // dependency relation
     virtual std::vector<std::string> getInput(void);
     virtual std::vector<std::string> getOutput(void);
@@ -80,35 +68,30 @@ protected:
     virtual void setup(void);
     // execution
     virtual void execute(void);
-private:
-    bool        hasT_{false};
-    std::string tName_;
 };
 
-MODULE_REGISTER_NS(Z2,       TZ2<FIMPL>,        MSource);
-MODULE_REGISTER_NS(ScalarZ2, TZ2<ScalarImplCR>, MSource);
+MODULE_REGISTER_NS(Smear, TSmear<FIMPL>, MSink);
 
 /******************************************************************************
- *                       TZ2 template implementation                          *
+ *                          TSmear implementation                             *
  ******************************************************************************/
 // constructor /////////////////////////////////////////////////////////////////
 template <typename FImpl>
-TZ2<FImpl>::TZ2(const std::string name)
-: Module<Z2Par>(name)
-, tName_ (name + "_t")
+TSmear<FImpl>::TSmear(const std::string name)
+: Module<SmearPar>(name)
 {}
 
 // dependencies/products ///////////////////////////////////////////////////////
 template <typename FImpl>
-std::vector<std::string> TZ2<FImpl>::getInput(void)
+std::vector<std::string> TSmear<FImpl>::getInput(void)
 {
-    std::vector<std::string> in;
+    std::vector<std::string> in = {par().q, par().sink};
     
     return in;
 }
 
 template <typename FImpl>
-std::vector<std::string> TZ2<FImpl>::getOutput(void)
+std::vector<std::string> TSmear<FImpl>::getOutput(void)
 {
     std::vector<std::string> out = {getName()};
     
@@ -117,47 +100,28 @@ std::vector<std::string> TZ2<FImpl>::getOutput(void)
 
 // setup ///////////////////////////////////////////////////////////////////////
 template <typename FImpl>
-void TZ2<FImpl>::setup(void)
+void TSmear<FImpl>::setup(void)
 {
-    envCreateLat(PropagatorField, getName());
-    envCacheLat(Lattice<iScalar<vInteger>>, tName_);
-    envTmpLat(LatticeComplex, "eta");
+    envCreate(SlicedPropagator, getName(), 1, env().getDim(Tp));
 }
 
 // execution ///////////////////////////////////////////////////////////////////
 template <typename FImpl>
-void TZ2<FImpl>::execute(void)
+void TSmear<FImpl>::execute(void)
 {
-    if (par().tA == par().tB)
-    {
-        LOG(Message) << "Generating Z_2 wall source at t= " << par().tA
-                     << std::endl;
-    }
-    else
-    {
-        LOG(Message) << "Generating Z_2 band for " << par().tA << " <= t <= "
-                     << par().tB << std::endl;
-    }
-    
-    auto    &src = envGet(PropagatorField, getName());
-    auto    &t   = envGet(Lattice<iScalar<vInteger>>, tName_);
-    Complex shift(1., 1.);
+    LOG(Message) << "Sink smearing propagator '" << par().q
+                 << "' using sink function '" << par().sink << "'."
+                 << std::endl;
 
-    if (!hasT_)
-    {
-        LatticeCoordinate(t, Tp);
-        hasT_ = true;
-    }
-    envGetTmp(LatticeComplex, eta);
-    bernoulli(*env().get4dRng(), eta);
-    eta = (2.*eta - shift)*(1./::sqrt(2.));
-    eta = where((t >= par().tA) and (t <= par().tB), eta, 0.*eta);
-    src = 1.;
-    src = src*eta;
+    auto &sink = envGet(SinkFn, par().sink);
+    auto &q    = envGet(PropagatorField, par().q);
+    auto &out  = envGet(SlicedPropagator, getName());
+    
+    out = sink(q);
 }
 
 END_MODULE_NAMESPACE
 
 END_HADRONS_NAMESPACE
 
-#endif // Hadrons_MSource_Z2_hpp_
+#endif // Hadrons_MSink_Smear_hpp_

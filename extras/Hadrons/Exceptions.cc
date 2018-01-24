@@ -2,12 +2,11 @@
 
 Grid physics library, www.github.com/paboyle/Grid 
 
-Source file: extras/Hadrons/Modules/MContraction/WeakHamiltonianEye.hpp
+Source file: extras/Hadrons/Exceptions.cc
 
 Copyright (C) 2015-2018
 
 Author: Antonin Portelli <antonin.portelli@me.com>
-Author: Lanny91 <andrew.lawson@gmail.com>
 
 This program is free software; you can redistribute it and/or modify
 it under the terms of the GNU General Public License as published by
@@ -27,33 +26,32 @@ See the full license in the file "LICENSE" in the top level distribution directo
 *************************************************************************************/
 /*  END LEGAL */
 
-#ifndef Hadrons_MContraction_WeakHamiltonianEye_hpp_
-#define Hadrons_MContraction_WeakHamiltonianEye_hpp_
+#include <Grid/Hadrons/Exceptions.hpp>
 
-#include <Grid/Hadrons/Modules/MContraction/WeakHamiltonian.hpp>
+#ifndef ERR_SUFF
+#define ERR_SUFF " (" + loc + ")"
+#endif
 
-BEGIN_HADRONS_NAMESPACE
+#define CONST_EXC(name, init) \
+name::name(std::string msg, std::string loc)\
+:init\
+{}
 
-/******************************************************************************
- *                         WeakHamiltonianEye                                 *
- ******************************************************************************/
-BEGIN_MODULE_NAMESPACE(MContraction)
+using namespace Grid;
+using namespace Hadrons;
+using namespace Exceptions;
 
-enum
-{
-    S_diag = 0,
-    E_diag = 1,
-    n_eye_diag = 2
-};
-
-// Saucer and Eye subdiagram contractions.
-#define MAKE_SE_BODY(Q_1, Q_2, Q_3, gamma) (Q_3*g5*Q_1*adj(Q_2)*g5*gamma)
-#define MAKE_SE_LOOP(Q_loop, gamma) (Q_loop*gamma)
-
-MAKE_WEAK_MODULE(WeakHamiltonianEye)
-
-END_MODULE_NAMESPACE
-
-END_HADRONS_NAMESPACE
-
-#endif // Hadrons_MContraction_WeakHamiltonianEye_hpp_
+// logic errors
+CONST_EXC(Logic, logic_error(msg + ERR_SUFF))
+CONST_EXC(Definition, Logic("definition error: " + msg, loc))
+CONST_EXC(Implementation, Logic("implementation error: " + msg, loc))
+CONST_EXC(Range, Logic("range error: " + msg, loc))
+CONST_EXC(Size, Logic("size error: " + msg, loc))
+// runtime errors
+CONST_EXC(Runtime, runtime_error(msg + ERR_SUFF))
+CONST_EXC(Argument, Runtime("argument error: " + msg, loc))
+CONST_EXC(Io, Runtime("IO error: " + msg, loc))
+CONST_EXC(Memory, Runtime("memory error: " + msg, loc))
+CONST_EXC(Parsing, Runtime("parsing error: " + msg, loc))
+CONST_EXC(Program, Runtime("program error: " + msg, loc))
+CONST_EXC(System, Runtime("system error: " + msg, loc))
