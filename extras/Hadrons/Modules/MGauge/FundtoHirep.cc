@@ -2,11 +2,11 @@
 
 Grid physics library, www.github.com/paboyle/Grid 
 
-Source file: extras/Hadrons/Modules/MIO/LoadNersc.cc
+Source file: extras/Hadrons/Modules/MGauge/FundtoHirep.cc
 
-Copyright (C) 2015-2018
+Copyright (C) 2015
+Copyright (C) 2016
 
-Author: Antonin Portelli <antonin.portelli@me.com>
 
 This program is free software; you can redistribute it and/or modify
 it under the terms of the GNU General Public License as published by
@@ -25,50 +25,53 @@ with this program; if not, write to the Free Software Foundation, Inc.,
 See the full license in the file "LICENSE" in the top level distribution directory
 *************************************************************************************/
 /*  END LEGAL */
-#include <Grid/Hadrons/Modules/MIO/LoadNersc.hpp>
+
+#include <Grid/Hadrons/Modules/MGauge/FundtoHirep.hpp>
 
 using namespace Grid;
 using namespace Hadrons;
-using namespace MIO;
+using namespace MGauge;
 
-/******************************************************************************
-*                       TLoadNersc implementation                             *
-******************************************************************************/
 // constructor /////////////////////////////////////////////////////////////////
-TLoadNersc::TLoadNersc(const std::string name)
-: Module<LoadNerscPar>(name)
+template <class Rep>
+TFundtoHirep<Rep>::TFundtoHirep(const std::string name)
+: Module<FundtoHirepPar>(name)
 {}
 
 // dependencies/products ///////////////////////////////////////////////////////
-std::vector<std::string> TLoadNersc::getInput(void)
+template <class Rep>
+std::vector<std::string> TFundtoHirep<Rep>::getInput(void)
 {
-    std::vector<std::string> in;
-    
+    std::vector<std::string> in = {par().gaugeconf};
+
     return in;
 }
 
-std::vector<std::string> TLoadNersc::getOutput(void)
+template <class Rep>
+std::vector<std::string> TFundtoHirep<Rep>::getOutput(void)
 {
     std::vector<std::string> out = {getName()};
-    
+
     return out;
 }
 
 // setup ///////////////////////////////////////////////////////////////////////
-void TLoadNersc::setup(void)
+template <typename Rep>
+void TFundtoHirep<Rep>::setup(void)
 {
-    envCreateLat(LatticeGaugeField, getName());
+    envCreateLat(Rep::LatticeField, getName());
 }
 
 // execution ///////////////////////////////////////////////////////////////////
-void TLoadNersc::execute(void)
+template <class Rep>
+void TFundtoHirep<Rep>::execute(void)
 {
-    FieldMetaData header;
-    std::string   fileName = par().file + "."
-                             + std::to_string(vm().getTrajectory());
-    LOG(Message) << "Loading NERSC configuration from file '" << fileName
-                 << "'" << std::endl;
+    LOG(Message) << "Transforming Representation" << std::endl;
 
-    auto &U = envGet(LatticeGaugeField, getName());
-    NerscIO::readConfiguration(U, header, fileName);
+    auto &U    = envGet(LatticeGaugeField, par().gaugeconf);
+    auto &URep = envGet(Rep::LatticeField, getName());
+
+    Rep TargetRepresentation(U._grid);
+    TargetRepresentation.update_representation(U);
+    URep = TargetRepresentation.U;
 }

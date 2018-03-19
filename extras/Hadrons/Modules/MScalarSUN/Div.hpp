@@ -2,7 +2,7 @@
 
 Grid physics library, www.github.com/paboyle/Grid 
 
-Source file: extras/Hadrons/Modules/MScalarSUN/TrMag.hpp
+Source file: extras/Hadrons/Modules/MScalarSUN/Div.hpp
 
 Copyright (C) 2015-2018
 
@@ -25,8 +25,8 @@ with this program; if not, write to the Free Software Foundation, Inc.,
 See the full license in the file "LICENSE" in the top level distribution directory
 *************************************************************************************/
 /*  END LEGAL */
-#ifndef Hadrons_MScalarSUN_TrMag_hpp_
-#define Hadrons_MScalarSUN_TrMag_hpp_
+#ifndef Hadrons_MScalarSUN_Div_hpp_
+#define Hadrons_MScalarSUN_Div_hpp_
 
 #include <Grid/Hadrons/Global.hpp>
 #include <Grid/Hadrons/Module.hpp>
@@ -36,21 +36,21 @@ See the full license in the file "LICENSE" in the top level distribution directo
 BEGIN_HADRONS_NAMESPACE
 
 /******************************************************************************
- *                     Trace of powers of the magnetisation                   *
+ *                       Divergence of a vector field                         *
  ******************************************************************************/
 BEGIN_MODULE_NAMESPACE(MScalarSUN)
 
-class TrMagPar: Serializable
+class DivPar: Serializable
 {
 public:
-    GRID_SERIALIZABLE_CLASS_MEMBERS(TrMagPar,
-                                    std::string,  field,
-                                    unsigned int, maxPow,
-                                    std::string,  output);
+    GRID_SERIALIZABLE_CLASS_MEMBERS(DivPar,
+                                    std::vector<std::string>, op,
+                                    DiffType,                 type,
+                                    std::string,              output);
 };
 
 template <typename SImpl>
-class TTrMag: public Module<TrMagPar>
+class TDiv: public Module<DivPar>
 {
 public:
     typedef typename SImpl::Field        Field;
@@ -59,14 +59,14 @@ public:
     {
     public:
         GRID_SERIALIZABLE_CLASS_MEMBERS(Result,
-                                        std::string, op,
-                                        Real,        value);
+                                        DiffType, type,
+                                        Complex,  value);
     };
 public:
     // constructor
-    TTrMag(const std::string name);
+    TDiv(const std::string name);
     // destructor
-    virtual ~TTrMag(void) = default;
+    virtual ~TDiv(void) = default;
     // dependency relation
     virtual std::vector<std::string> getInput(void);
     virtual std::vector<std::string> getOutput(void);
@@ -76,71 +76,79 @@ public:
     virtual void execute(void);
 };
 
-MODULE_REGISTER_NS(TrMagSU2, TTrMag<ScalarNxNAdjImplR<2>>, MScalarSUN);
-MODULE_REGISTER_NS(TrMagSU3, TTrMag<ScalarNxNAdjImplR<3>>, MScalarSUN);
-MODULE_REGISTER_NS(TrMagSU4, TTrMag<ScalarNxNAdjImplR<4>>, MScalarSUN);
-MODULE_REGISTER_NS(TrMagSU5, TTrMag<ScalarNxNAdjImplR<5>>, MScalarSUN);
-MODULE_REGISTER_NS(TrMagSU6, TTrMag<ScalarNxNAdjImplR<6>>, MScalarSUN);
+MODULE_REGISTER_NS(DivSU2, TDiv<ScalarNxNAdjImplR<2>>, MScalarSUN);
+MODULE_REGISTER_NS(DivSU3, TDiv<ScalarNxNAdjImplR<3>>, MScalarSUN);
+MODULE_REGISTER_NS(DivSU4, TDiv<ScalarNxNAdjImplR<4>>, MScalarSUN);
+MODULE_REGISTER_NS(DivSU5, TDiv<ScalarNxNAdjImplR<5>>, MScalarSUN);
+MODULE_REGISTER_NS(DivSU6, TDiv<ScalarNxNAdjImplR<6>>, MScalarSUN);
 
 /******************************************************************************
- *                         TTrMag implementation                              *
+ *                           TDiv implementation                              *
  ******************************************************************************/
 // constructor /////////////////////////////////////////////////////////////////
 template <typename SImpl>
-TTrMag<SImpl>::TTrMag(const std::string name)
-: Module<TrMagPar>(name)
+TDiv<SImpl>::TDiv(const std::string name)
+: Module<DivPar>(name)
 {}
 
 // dependencies/products ///////////////////////////////////////////////////////
 template <typename SImpl>
-std::vector<std::string> TTrMag<SImpl>::getInput(void)
+std::vector<std::string> TDiv<SImpl>::getInput(void)
 {
-    std::vector<std::string> in = {par().field};
-    
-    return in;
+    return par().op;
 }
 
 template <typename SImpl>
-std::vector<std::string> TTrMag<SImpl>::getOutput(void)
+std::vector<std::string> TDiv<SImpl>::getOutput(void)
 {
-    std::vector<std::string> out = {};
-    
+    std::vector<std::string> out = {getName()};
+
     return out;
 }
 
 // setup ///////////////////////////////////////////////////////////////////////
 template <typename SImpl>
-void TTrMag<SImpl>::setup(void)
-{}
+void TDiv<SImpl>::setup(void)
+{
+    if (par().op.size() != env().getNd())
+    {
+        HADRON_ERROR(Size, "the number of components differs from number of dimensions");
+    }
+    envCreateLat(ComplexField, getName());
+}
 
 // execution ///////////////////////////////////////////////////////////////////
 template <typename SImpl>
-void TTrMag<SImpl>::execute(void)
+void TDiv<SImpl>::execute(void)
 {
-    LOG(Message) << "Computing tr(mag^n) for n even up to " << par().maxPow
-                 << std::endl;
+    const auto nd = env().getNd();
 
-    std::vector<Result> result;
-    auto                &phi = envGet(Field, par().field);
-
-    auto m2 = sum(phi), mn = m2;
-
-    m2 = -m2*m2;
-    mn = 1.;
-    for (unsigned int n = 2; n <= par().maxPow; n += 2)
+    LOG(Message) << "Computing the " << par().type << " divergence of [";
+    for (unsigned int mu = 0; mu < nd; ++mu)
     {
-        Result r;
-
-        mn = mn*m2;
-        r.op    = "tr(mag^" + std::to_string(n) + ")";
-        r.value = TensorRemove(trace(mn)).real();
-        result.push_back(r);
+        std::cout << par().op[mu] << ((mu == nd - 1) ? "]" : ", ");
     }
-    saveResult(par().output, "trmag", result);
+    std::cout << std::endl;
+
+    auto &div = envGet(ComplexField, getName());
+    div = zero;
+    for (unsigned int mu = 0; mu < nd; ++mu)
+    {
+        auto &op = envGet(ComplexField, par().op[mu]);
+        dmuAcc(div, op, mu, par().type);
+    }
+    if (!par().output.empty())
+    {
+        Result       r;
+
+        r.type  = par().type;
+        r.value = TensorRemove(sum(div));
+        saveResult(par().output, "div", r);
+    }
 }
 
 END_MODULE_NAMESPACE
 
 END_HADRONS_NAMESPACE
 
-#endif // Hadrons_MScalarSUN_TrMag_hpp_
+#endif // Hadrons_MScalarSUN_Div_hpp_

@@ -2,12 +2,12 @@
 
 Grid physics library, www.github.com/paboyle/Grid 
 
-Source file: extras/Hadrons/Modules/MGauge/StochEm.hpp
+Source file: extras/Hadrons/Modules/MGauge/FundtoHirep.hpp
 
 Copyright (C) 2015-2018
 
 Author: Antonin Portelli <antonin.portelli@me.com>
-Author: Vera Guelpers <vmg1n14@soton.ac.uk>
+Author: pretidav <david.preti@csic.es>
 
 This program is free software; you can redistribute it and/or modify
 it under the terms of the GNU General Public License as published by
@@ -26,8 +26,9 @@ with this program; if not, write to the Free Software Foundation, Inc.,
 See the full license in the file "LICENSE" in the top level distribution directory
 *************************************************************************************/
 /*  END LEGAL */
-#ifndef Hadrons_MGauge_StochEm_hpp_
-#define Hadrons_MGauge_StochEm_hpp_
+
+#ifndef Hadrons_MGauge_FundtoHirep_hpp_
+#define Hadrons_MGauge_FundtoHirep_hpp_
 
 #include <Grid/Hadrons/Global.hpp>
 #include <Grid/Hadrons/Module.hpp>
@@ -36,44 +37,40 @@ See the full license in the file "LICENSE" in the top level distribution directo
 BEGIN_HADRONS_NAMESPACE
 
 /******************************************************************************
- *                         StochEm                                 *
+ *                         Load a NERSC configuration                         *
  ******************************************************************************/
 BEGIN_MODULE_NAMESPACE(MGauge)
 
-class StochEmPar: Serializable
+class FundtoHirepPar: Serializable
 {
 public:
-    GRID_SERIALIZABLE_CLASS_MEMBERS(StochEmPar,
-                                    PhotonR::Gauge,    gauge,
-                                    PhotonR::ZmScheme, zmScheme);
+    GRID_SERIALIZABLE_CLASS_MEMBERS(FundtoHirepPar,
+                                    std::string, gaugeconf);
 };
 
-class TStochEm: public Module<StochEmPar>
+template <class Rep>
+class TFundtoHirep: public Module<FundtoHirepPar>
 {
 public:
-    typedef PhotonR::GaugeField     EmField;
-    typedef PhotonR::GaugeLinkField EmComp;
-public:
     // constructor
-    TStochEm(const std::string name);
+    TFundtoHirep(const std::string name);
     // destructor
-    virtual ~TStochEm(void) = default;
+    virtual ~TFundtoHirep(void) = default;
     // dependency relation
     virtual std::vector<std::string> getInput(void);
     virtual std::vector<std::string> getOutput(void);
-private:
-    bool create_weight;
-protected:
     // setup
-    virtual void setup(void);
+    void setup(void);
     // execution
-    virtual void execute(void);
+    void execute(void);
 };
 
-MODULE_REGISTER_NS(StochEm, TStochEm, MGauge);
+//MODULE_REGISTER_NS(FundtoAdjoint,   TFundtoHirep<AdjointRepresentation>, MGauge);
+//MODULE_REGISTER_NS(FundtoTwoIndexSym, TFundtoHirep<TwoIndexSymmetricRepresentation>, MGauge);
+//MODULE_REGISTER_NS(FundtoTwoIndexAsym, TFundtoHirep<TwoIndexAntiSymmetricRepresentation>, MGauge);
 
 END_MODULE_NAMESPACE
 
 END_HADRONS_NAMESPACE
 
-#endif // Hadrons_MGauge_StochEm_hpp_
+#endif // Hadrons_MGauge_FundtoHirep_hpp_
