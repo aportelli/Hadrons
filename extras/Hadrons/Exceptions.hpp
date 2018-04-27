@@ -2,12 +2,11 @@
 
 Grid physics library, www.github.com/paboyle/Grid 
 
-Source file: extras/Hadrons/Modules/MContraction/WeakHamiltonianEye.hpp
+Source file: extras/Hadrons/Exceptions.hpp
 
 Copyright (C) 2015-2018
 
 Author: Antonin Portelli <antonin.portelli@me.com>
-Author: Lanny91 <andrew.lawson@gmail.com>
 
 This program is free software; you can redistribute it and/or modify
 it under the terms of the GNU General Public License as published by
@@ -27,33 +26,47 @@ See the full license in the file "LICENSE" in the top level distribution directo
 *************************************************************************************/
 /*  END LEGAL */
 
-#ifndef Hadrons_MContraction_WeakHamiltonianEye_hpp_
-#define Hadrons_MContraction_WeakHamiltonianEye_hpp_
+#ifndef Hadrons_Exceptions_hpp_
+#define Hadrons_Exceptions_hpp_
 
-#include <Grid/Hadrons/Modules/MContraction/WeakHamiltonian.hpp>
+#include <stdexcept>
+#ifndef Hadrons_Global_hpp_
+#include <Grid/Hadrons/Global.hpp>
+#endif
+
+#define SRC_LOC std::string(__FUNCTION__) + " at " + std::string(__FILE__) + ":"\
+                + std::to_string(__LINE__)
+#define HADRON_ERROR(exc, msg)\
+LOG(Error) << msg << std::endl;\
+throw(Exceptions::exc(msg, SRC_LOC));
+
+#define DECL_EXC(name, base) \
+class name: public base\
+{\
+public:\
+    name(std::string msg, std::string loc);\
+}
 
 BEGIN_HADRONS_NAMESPACE
 
-/******************************************************************************
- *                         WeakHamiltonianEye                                 *
- ******************************************************************************/
-BEGIN_MODULE_NAMESPACE(MContraction)
-
-enum
+namespace Exceptions
 {
-    S_diag = 0,
-    E_diag = 1,
-    n_eye_diag = 2
-};
-
-// Saucer and Eye subdiagram contractions.
-#define MAKE_SE_BODY(Q_1, Q_2, Q_3, gamma) (Q_3*g5*Q_1*adj(Q_2)*g5*gamma)
-#define MAKE_SE_LOOP(Q_loop, gamma) (Q_loop*gamma)
-
-MAKE_WEAK_MODULE(WeakHamiltonianEye)
-
-END_MODULE_NAMESPACE
+    // logic errors
+    DECL_EXC(Logic, std::logic_error);
+    DECL_EXC(Definition, Logic);
+    DECL_EXC(Implementation, Logic);
+    DECL_EXC(Range, Logic);
+    DECL_EXC(Size, Logic);
+    // runtime errors
+    DECL_EXC(Runtime, std::runtime_error);
+    DECL_EXC(Argument, Runtime);
+    DECL_EXC(Io, Runtime);
+    DECL_EXC(Memory, Runtime);
+    DECL_EXC(Parsing, Runtime);
+    DECL_EXC(Program, Runtime);
+    DECL_EXC(System, Runtime);
+}
 
 END_HADRONS_NAMESPACE
 
-#endif // Hadrons_MContraction_WeakHamiltonianEye_hpp_
+#endif // Hadrons_Exceptions_hpp_
