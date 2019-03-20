@@ -2,7 +2,7 @@
 
 Grid physics library, www.github.com/paboyle/Grid 
 
-Source file: Hadrons/Modules/MAction/MobiusDWF.cc
+Source file: Hadrons/Archive/Modules/TestSeqGamma.cc
 
 Copyright (C) 2015-2019
 
@@ -25,13 +25,11 @@ with this program; if not, write to the Free Software Foundation, Inc.,
 See the full license in the file "LICENSE" in the top level distribution directory
 *************************************************************************************/
 /*  END LEGAL */
-#include <Hadrons/Modules/MAction/MobiusDWF.hpp>
+#include <Hadrons/Modules/MUtilities/TestSeqGamma.hpp>
 
 using namespace Grid;
 using namespace Hadrons;
-using namespace MAction;
+using namespace MUtilities;
 
-template class Grid::Hadrons::MAction::TMobiusDWF<FIMPL>;
-#ifdef GRID_DEFAULT_PRECISION_DOUBLE
-template class Grid::Hadrons::MAction::TMobiusDWF<FIMPLF>;
-#endif
+template class Grid::Hadrons::MUtilities::TTestSeqGamma<FIMPL>;
+
