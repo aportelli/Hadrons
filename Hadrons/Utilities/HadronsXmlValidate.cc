@@ -2,9 +2,9 @@
 
 Grid physics library, www.github.com/paboyle/Grid 
 
-Source file: Hadrons/Modules/MUtilities/TestSeqGamma.cc
+Source file: Hadrons/Utilities/HadronsXmlValidate.cc
 
-Copyright (C) 2015-2018
+Copyright (C) 2015-2019
 
 Author: Antonin Portelli <antonin.portelli@me.com>
 
@@ -25,11 +25,40 @@ with this program; if not, write to the Free Software Foundation, Inc.,
 See the full license in the file "LICENSE" in the top level distribution directory
 *************************************************************************************/
 /*  END LEGAL */
-#include <Hadrons/Modules/MUtilities/TestSeqGamma.hpp>
+
+#include <Hadrons/Application.hpp>
 
 using namespace Grid;
+using namespace QCD;
 using namespace Hadrons;
-using namespace MUtilities;
 
-template class Grid::Hadrons::MUtilities::TTestSeqGamma<FIMPL>;
-
+int main(int argc, char *argv[])
+{
+    // parse command line
+    std::string parameterFileName;
+    
+    if (argc != 2)
+    {
+        std::cerr << "usage: " << argv[0] << " <parameter file>";
+        std::cerr << std::endl;
+        std::exit(EXIT_FAILURE);
+    }
+    parameterFileName = argv[1];
+    
+    try
+    {
+        Application application(parameterFileName);
+        
+        application.parseParameterFile(parameterFileName);
+        auto &vm = VirtualMachine::getInstance();
+        vm.getModuleGraph();
+        LOG(Message) << "Application valid (check XML warnings though)" 
+                     << std::endl;
+    }
+    catch (const std::exception& e)
+    {
+        Exceptions::abort(e);
+    }
+    
+    return EXIT_SUCCESS;
+}
