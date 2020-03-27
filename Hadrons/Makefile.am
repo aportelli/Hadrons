@@ -1,18 +1,18 @@
-SUBDIRS = . Utilities
+AM_CXXFLAGS += -I$(top_srcdir)
 
 lib_LIBRARIES = libHadrons.a
 
 include modules.inc
 
 libHadrons_a_SOURCES = \
-    Application.cc     \
-    Environment.cc     \
-	Exceptions.cc      \
-    Global.cc          \
-    Module.cc		   \
-	TimerArray.cc      \
-	VirtualMachine.cc  \
-	$(modules_cc)
+  Application.cpp     \
+  Environment.cpp     \
+	Exceptions.cpp      \
+  Global.cpp          \
+  Module.cpp		      \
+	TimerArray.cpp      \
+	VirtualMachine.cpp  \
+	$(modules_cpp)
 	
 libHadrons_adir = $(includedir)/Hadrons
 nobase_libHadrons_a_HEADERS = \
@@ -31,7 +31,7 @@ nobase_libHadrons_a_HEADERS = \
 	Module.hpp                \
 	Modules.hpp               \
 	ModuleFactory.hpp         \
-        NamedTensor.hpp           \
+  NamedTensor.hpp           \
 	Solver.hpp                \
 	TimerArray.hpp            \
 	VirtualMachine.hpp        \
