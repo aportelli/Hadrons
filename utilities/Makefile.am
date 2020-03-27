@@ -1,7 +1,12 @@
 AM_LDFLAGS += -L$(top_builddir)/Hadrons
 AM_CXXFLAGS += -I$(top_srcdir)
 
-bin_PROGRAMS = HadronsXmlRun HadronsXmlValidate HadronsFermionEP64To32 HadronsContractor HadronsContractorBenchmark
+bin_PROGRAMS = \
+  HadronsContractor          \
+  HadronsContractorBenchmark \
+  HadronsXmlRun              \
+  HadronsXmlValidate         \
+  HadronsFermionEP64To32 
 
 HadronsXmlRun_SOURCES = HadronsXmlRun.cpp
 HadronsXmlRun_LDADD   = -lHadrons -lGrid

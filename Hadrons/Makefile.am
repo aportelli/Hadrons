@@ -1,3 +1,5 @@
+AM_CXXFLAGS += -I$(top_srcdir)
+
 lib_LIBRARIES = libHadrons.a
 
 include modules.inc
@@ -7,7 +9,7 @@ libHadrons_a_SOURCES = \
   Environment.cpp     \
 	Exceptions.cpp      \
   Global.cpp          \
-  Module.cpp		       \
+  Module.cpp		      \
 	TimerArray.cpp      \
 	VirtualMachine.cpp  \
 	$(modules_cpp)

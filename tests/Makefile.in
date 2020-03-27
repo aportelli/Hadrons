@@ -301,6 +301,7 @@ target_vendor = @target_vendor@
 top_build_prefix = @top_build_prefix@
 top_builddir = @top_builddir@
 top_srcdir = @top_srcdir@
+CLEANFILES = $(EXTRA_PROGRAMS)
 Test_QED_SOURCES = Test_QED.cpp
 Test_QED_LDADD = -lHadrons -lGrid
 Test_diskvector_SOURCES = Test_diskvector.cpp
@@ -315,7 +316,6 @@ Test_hadrons_spectrum_SOURCES = Test_hadrons_spectrum.cpp
 Test_hadrons_spectrum_LDADD = -lHadrons -lGrid
 Test_sigma_to_nucleon_SOURCES = Test_sigma_to_nucleon.cpp
 Test_sigma_to_nucleon_LDADD = -lHadrons -lGrid
-CLEANFILES = Test_QED Test_diskvector Test_distil Test_free_prop Test_hadrons_meson_3pt Test_hadrons_spectrum Test_sigma_to_nucleon
 all: all-am
 
 .SUFFIXES:
@@ -638,7 +638,7 @@ uninstall-am:
 .PRECIOUS: Makefile
 
 
-tests-local: Test_QED Test_diskvector Test_distil Test_free_prop Test_hadrons_meson_3pt Test_hadrons_spectrum Test_sigma_to_nucleon 
+tests-local: $(EXTRA_PROGRAMS)
 
 # Tell versions [3.59,3.63) of GNU make to not export all variables.
 # Otherwise a system limit (for SysV at least) may be exceeded.
