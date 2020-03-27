@@ -1,94 +1,94 @@
-modules_cc =\
-  Modules/MAction/DWF.cc \
-  Modules/MAction/MobiusDWF.cc \
-  Modules/MAction/ScaledDWF.cc \
-  Modules/MAction/Wilson.cc \
-  Modules/MAction/WilsonClover.cc \
-  Modules/MAction/ZMobiusDWF.cc \
-  Modules/MContraction/A2AAslashField.cc \
-  Modules/MContraction/A2AFourQuarkContraction.cc \
-  Modules/MContraction/A2ALoop.cc \
-  Modules/MContraction/A2AMesonField.cc \
-  Modules/MContraction/Baryon.cc \
-  Modules/MContraction/DiscLoop.cc \
-  Modules/MContraction/Gamma3pt.cc \
-  Modules/MContraction/Meson.cc \
-  Modules/MContraction/SigmaToNucleonEye.cc \
-  Modules/MContraction/SigmaToNucleonNonEye.cc \
-  Modules/MContraction/WeakEye3pt.cc \
-  Modules/MContraction/WeakMesonDecayKl2.cc \
-  Modules/MContraction/WeakNonEye3pt.cc \
-  Modules/MDistil/DistilPar.cc \
-  Modules/MDistil/DistilVectors.cc \
-  Modules/MDistil/LapEvec.cc \
-  Modules/MDistil/Noises.cc \
-  Modules/MDistil/PerambFromSolve.cc \
-  Modules/MDistil/Perambulator.cc \
-  Modules/MFermion/EMLepton.cc \
-  Modules/MFermion/FreeProp.cc \
-  Modules/MFermion/GaugeProp.cc \
-  Modules/MGauge/Electrify.cc \
-  Modules/MGauge/FundtoHirep.cc \
-  Modules/MGauge/GaugeFix.cc \
-  Modules/MGauge/Random.cc \
-  Modules/MGauge/StochEm.cc \
-  Modules/MGauge/StoutSmearing.cc \
-  Modules/MGauge/Unit.cc \
-  Modules/MGauge/UnitEm.cc \
-  Modules/MIO/LoadA2AMatrixDiskVector.cc \
-  Modules/MIO/LoadA2AVectors.cc \
-  Modules/MIO/LoadBinary.cc \
-  Modules/MIO/LoadCoarseEigenPack.cc \
-  Modules/MIO/LoadCosmHol.cc \
-  Modules/MIO/LoadDistilNoise.cc \
-  Modules/MIO/LoadEigenPack.cc \
-  Modules/MIO/LoadNersc.cc \
-  Modules/MIO/LoadPerambulator.cc \
-  Modules/MNoise/FullVolumeSpinColorDiagonal.cc \
-  Modules/MNoise/SparseSpinColorDiagonal.cc \
-  Modules/MNoise/TimeDilutedSpinColorDiagonal.cc \
-  Modules/MNPR/Amputate.cc \
-  Modules/MNPR/Bilinear.cc \
-  Modules/MNPR/FourQuark.cc \
-  Modules/MScalar/ChargedProp.cc \
-  Modules/MScalar/FreeProp.cc \
-  Modules/MScalarSUN/Div.cc \
-  Modules/MScalarSUN/EMT.cc \
-  Modules/MScalarSUN/Grad.cc \
-  Modules/MScalarSUN/StochFreeField.cc \
-  Modules/MScalarSUN/TransProj.cc \
-  Modules/MScalarSUN/TrKinetic.cc \
-  Modules/MScalarSUN/TrMag.cc \
-  Modules/MScalarSUN/TrPhi.cc \
-  Modules/MScalarSUN/TwoPoint.cc \
-  Modules/MScalarSUN/TwoPointNPR.cc \
-  Modules/MSink/Point.cc \
-  Modules/MSink/Smear.cc \
-  Modules/MSolver/A2AAslashVectors.cc \
-  Modules/MSolver/A2AVectors.cc \
-  Modules/MSolver/LocalCoherenceLanczos.cc \
-  Modules/MSolver/MixedPrecisionRBPrecCG.cc \
-  Modules/MSolver/RBPrecCG.cc \
-  Modules/MSource/Convolution.cc \
-  Modules/MSource/Gauss.cc \
-  Modules/MSource/JacobiSmear.cc \
-  Modules/MSource/Momentum.cc \
-  Modules/MSource/MomentumPhase.cc \
-  Modules/MSource/Point.cc \
-  Modules/MSource/SeqAslash.cc \
-  Modules/MSource/SeqConserved.cc \
-  Modules/MSource/SeqGamma.cc \
-  Modules/MSource/Wall.cc \
-  Modules/MSource/Z2.cc \
-  Modules/MUtilities/PrecisionCast.cc \
-  Modules/MUtilities/RandomVectors.cc
+modules_cpp =\
+  Modules/MAction/DWF.cpp \
+  Modules/MAction/MobiusDWF.cpp \
+  Modules/MAction/ScaledDWF.cpp \
+  Modules/MAction/Wilson.cpp \
+  Modules/MAction/WilsonClover.cpp \
+  Modules/MAction/ZMobiusDWF.cpp \
+  Modules/MContraction/A2AAslashField.cpp \
+  Modules/MContraction/A2AFourQuarkContraction.cpp \
+  Modules/MContraction/A2ALoop.cpp \
+  Modules/MContraction/A2AMesonField.cpp \
+  Modules/MContraction/Baryon.cpp \
+  Modules/MContraction/DiscLoop.cpp \
+  Modules/MContraction/Gamma3pt.cpp \
+  Modules/MContraction/Meson.cpp \
+  Modules/MContraction/SigmaToNucleonEye.cpp \
+  Modules/MContraction/SigmaToNucleonNonEye.cpp \
+  Modules/MContraction/WeakEye3pt.cpp \
+  Modules/MContraction/WeakMesonDecayKl2.cpp \
+  Modules/MContraction/WeakNonEye3pt.cpp \
+  Modules/MDistil/DistilPar.cpp \
+  Modules/MDistil/DistilVectors.cpp \
+  Modules/MDistil/LapEvec.cpp \
+  Modules/MDistil/Noises.cpp \
+  Modules/MDistil/PerambFromSolve.cpp \
+  Modules/MDistil/Perambulator.cpp \
+  Modules/MFermion/EMLepton.cpp \
+  Modules/MFermion/FreeProp.cpp \
+  Modules/MFermion/GaugeProp.cpp \
+  Modules/MGauge/Electrify.cpp \
+  Modules/MGauge/FundtoHirep.cpp \
+  Modules/MGauge/GaugeFix.cpp \
+  Modules/MGauge/Random.cpp \
+  Modules/MGauge/StochEm.cpp \
+  Modules/MGauge/StoutSmearing.cpp \
+  Modules/MGauge/Unit.cpp \
+  Modules/MGauge/UnitEm.cpp \
+  Modules/MIO/LoadA2AMatrixDiskVector.cpp \
+  Modules/MIO/LoadA2AVectors.cpp \
+  Modules/MIO/LoadBinary.cpp \
+  Modules/MIO/LoadCoarseEigenPack.cpp \
+  Modules/MIO/LoadCosmHol.cpp \
+  Modules/MIO/LoadDistilNoise.cpp \
+  Modules/MIO/LoadEigenPack.cpp \
+  Modules/MIO/LoadNersc.cpp \
+  Modules/MIO/LoadPerambulator.cpp \
+  Modules/MNPR/Amputate.cpp \
+  Modules/MNPR/Bilinear.cpp \
+  Modules/MNPR/FourQuark.cpp \
+  Modules/MNoise/FullVolumeSpinColorDiagonal.cpp \
+  Modules/MNoise/SparseSpinColorDiagonal.cpp \
+  Modules/MNoise/TimeDilutedSpinColorDiagonal.cpp \
+  Modules/MScalar/ChargedProp.cpp \
+  Modules/MScalar/FreeProp.cpp \
+  Modules/MScalarSUN/Div.cpp \
+  Modules/MScalarSUN/EMT.cpp \
+  Modules/MScalarSUN/Grad.cpp \
+  Modules/MScalarSUN/StochFreeField.cpp \
+  Modules/MScalarSUN/TrKinetic.cpp \
+  Modules/MScalarSUN/TrMag.cpp \
+  Modules/MScalarSUN/TrPhi.cpp \
+  Modules/MScalarSUN/TransProj.cpp \
+  Modules/MScalarSUN/TwoPoint.cpp \
+  Modules/MScalarSUN/TwoPointNPR.cpp \
+  Modules/MSink/Point.cpp \
+  Modules/MSink/Smear.cpp \
+  Modules/MSolver/A2AAslashVectors.cpp \
+  Modules/MSolver/A2AVectors.cpp \
+  Modules/MSolver/LocalCoherenceLanczos.cpp \
+  Modules/MSolver/MixedPrecisionRBPrecCG.cpp \
+  Modules/MSolver/RBPrecCG.cpp \
+  Modules/MSource/Convolution.cpp \
+  Modules/MSource/Gauss.cpp \
+  Modules/MSource/JacobiSmear.cpp \
+  Modules/MSource/Momentum.cpp \
+  Modules/MSource/MomentumPhase.cpp \
+  Modules/MSource/Point.cpp \
+  Modules/MSource/SeqAslash.cpp \
+  Modules/MSource/SeqConserved.cpp \
+  Modules/MSource/SeqGamma.cpp \
+  Modules/MSource/Wall.cpp \
+  Modules/MSource/Z2.cpp \
+  Modules/MUtilities/PrecisionCast.cpp \
+  Modules/MUtilities/RandomVectors.cpp
 
 modules_hpp =\
   Modules/MAction/DWF.hpp \
   Modules/MAction/MobiusDWF.hpp \
   Modules/MAction/ScaledDWF.hpp \
-  Modules/MAction/WilsonClover.hpp \
   Modules/MAction/Wilson.hpp \
+  Modules/MAction/WilsonClover.hpp \
   Modules/MAction/ZMobiusDWF.hpp \
   Modules/MContraction/A2AAslashField.hpp \
   Modules/MContraction/A2AFourQuarkContraction.hpp \
@@ -119,8 +119,8 @@ modules_hpp =\
   Modules/MGauge/Random.hpp \
   Modules/MGauge/StochEm.hpp \
   Modules/MGauge/StoutSmearing.hpp \
-  Modules/MGauge/UnitEm.hpp \
   Modules/MGauge/Unit.hpp \
+  Modules/MGauge/UnitEm.hpp \
   Modules/MIO/LoadA2AMatrixDiskVector.hpp \
   Modules/MIO/LoadA2AVectors.hpp \
   Modules/MIO/LoadBinary.hpp \
@@ -130,12 +130,12 @@ modules_hpp =\
   Modules/MIO/LoadEigenPack.hpp \
   Modules/MIO/LoadNersc.hpp \
   Modules/MIO/LoadPerambulator.hpp \
-  Modules/MNoise/FullVolumeSpinColorDiagonal.hpp \
-  Modules/MNoise/SparseSpinColorDiagonal.hpp \
-  Modules/MNoise/TimeDilutedSpinColorDiagonal.hpp \
   Modules/MNPR/Amputate.hpp \
   Modules/MNPR/Bilinear.hpp \
   Modules/MNPR/FourQuark.hpp \
+  Modules/MNoise/FullVolumeSpinColorDiagonal.hpp \
+  Modules/MNoise/SparseSpinColorDiagonal.hpp \
+  Modules/MNoise/TimeDilutedSpinColorDiagonal.hpp \
   Modules/MScalar/ChargedProp.hpp \
   Modules/MScalar/FreeProp.hpp \
   Modules/MScalar/Scalar.hpp \
@@ -143,10 +143,10 @@ modules_hpp =\
   Modules/MScalarSUN/EMT.hpp \
   Modules/MScalarSUN/Grad.hpp \
   Modules/MScalarSUN/StochFreeField.hpp \
-  Modules/MScalarSUN/TransProj.hpp \
   Modules/MScalarSUN/TrKinetic.hpp \
   Modules/MScalarSUN/TrMag.hpp \
   Modules/MScalarSUN/TrPhi.hpp \
+  Modules/MScalarSUN/TransProj.hpp \
   Modules/MScalarSUN/TwoPoint.hpp \
   Modules/MScalarSUN/TwoPointNPR.hpp \
   Modules/MScalarSUN/Utils.hpp \
