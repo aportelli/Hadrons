@@ -35,127 +35,197 @@ See the full license in the file "LICENSE" in the top level distribution directo
 BEGIN_HADRONS_NAMESPACE
 
 /******************************************************************************
- *                   Abstract container for diluted noise                     *
+ *              Abstract container for spin color diagonal noise              *
  ******************************************************************************/
 template <typename FImpl>
-class DilutedNoise
+class SpinColorDiagonalNoise
 {
 public:
     typedef typename FImpl::FermionField FermionField;
+    typedef typename FImpl::PropagatorField PropagatorField;
 public:
     // constructor/destructor
-    DilutedNoise(GridCartesian *g);
-    DilutedNoise(GridCartesian *g, const unsigned int nNoise);
-    virtual ~DilutedNoise(void) = default;
+    SpinColorDiagonalNoise(GridCartesian *g);
+    SpinColorDiagonalNoise(GridCartesian *g, const int nNoise);
+    virtual ~SpinColorDiagonalNoise(void) = default;
     // access
-    std::vector<FermionField> &       getNoise(void);
-    const std::vector<FermionField> & getNoise(void) const;
-    const FermionField &              operator[](const unsigned int i) const;
-    FermionField &                    operator[](const unsigned int i);
-    void                              normalise(Real norm);
-    void                              resize(const unsigned int nNoise);
-    unsigned int                      size(void) const;
-    GridCartesian                     *getGrid(void) const;
-    // generate noise (pure virtual)
-    virtual void generateNoise(GridParallelRNG &rng) = 0;
+    std::vector<LatticeComplex> &       getNoise(void);
+    const std::vector<LatticeComplex> & getNoise(void) const;
+    FermionField &                      getFerm(const int i);
+    PropagatorField &                   getProp(const int i);
+    void                                normalise(Real norm);
+    void                                resize(const int nNoise);
+    int                                 size(void) const;
+    GridCartesian                       *getGrid(void) const;
+    // generate noise
+    void generateNoise(GridParallelRNG &rng);
 private:
-    std::vector<FermionField> noise_;
-    GridCartesian             *grid_;
-    unsigned int              nNoise_;
+    void         setFerm(const int i);
+    virtual void setProp(const int i) = 0;
+    LatticeComplex                 eta_;
+    FermionField                   ferm_;
+    GridCartesian                  *grid_;
+    std::vector<LatticeComplex>    noise_;
+    PropagatorField                prop_;
+    int size_, nNoise_, nd_, nc_, nsc_;
+protected:
+    LatticeComplex &  getEta(void);
+    FermionField &    getFerm(void);
+    int               getNd(void);
+    int               getNsc(void);
+    PropagatorField & getProp(void);
+    void              setPropagator(LatticeComplex & eta);
+    void              setSize(const int size);
 };
 
 template <typename FImpl>
-class TimeDilutedSpinColorDiagonalNoise: public DilutedNoise<FImpl>
+class TimeDilutedNoise: public SpinColorDiagonalNoise<FImpl>
 {
 public:
     typedef typename FImpl::FermionField FermionField;
+    typedef typename FImpl::PropagatorField PropagatorField;
 public:
     // constructor/destructor
-    TimeDilutedSpinColorDiagonalNoise(GridCartesian *g);
-    virtual ~TimeDilutedSpinColorDiagonalNoise(void) = default;
-    // generate noise
-    virtual void generateNoise(GridParallelRNG &rng);
+    TimeDilutedNoise(GridCartesian *g);
+    TimeDilutedNoise(GridCartesian *g, const int nNoise);
+    virtual ~TimeDilutedNoise(void) = default;
 private:
-    unsigned int nt_;
+    // void setFerm(const int i);
+    void setProp(const int i);
+    int nt_, nsct_;
+    Lattice<iScalar<vInteger>> tLat_;
 };
 
 template <typename FImpl>
-class FullVolumeSpinColorDiagonalNoise: public DilutedNoise<FImpl>
+class FullVolumeNoise: public SpinColorDiagonalNoise<FImpl>
 {
 public:
     typedef typename FImpl::FermionField FermionField;
+    typedef typename FImpl::PropagatorField PropagatorField;
 public:
     // constructor/destructor
-    FullVolumeSpinColorDiagonalNoise(GridCartesian *g, unsigned int n_src);
-    virtual ~FullVolumeSpinColorDiagonalNoise(void) = default;
-    // generate noise
-    virtual void generateNoise(GridParallelRNG &rng);
+    FullVolumeNoise(GridCartesian *g, const int nNoise);
+    virtual ~FullVolumeNoise(void) = default;
 private:
-    unsigned int nSrc_;
+    void setProp(const int i);
 };
 
 template <typename FImpl>
-class SparseSpinColorDiagonalNoise: public DilutedNoise<FImpl>
+class CheckerboardNoise: public SpinColorDiagonalNoise<FImpl>
 {
 public:
     typedef typename FImpl::FermionField FermionField;
+    typedef typename FImpl::PropagatorField PropagatorField;
 public:
     // constructor/destructor
-    SparseSpinColorDiagonalNoise(GridCartesian *g, unsigned int n_src, unsigned int n_sparse);
-    virtual ~SparseSpinColorDiagonalNoise(void) = default;
-    // generate noise
-    virtual void generateNoise(GridParallelRNG &rng);
+    CheckerboardNoise(GridCartesian *g, const int nNoise, const int nSparse);
+    virtual ~CheckerboardNoise(void) = default;
 private:
-    unsigned int nSrc_;
-    unsigned int nSparse_;
+    void setProp(const int i);
+    int nSparse_, nSrc_ec_;
+    LatticeInteger coor_, coorTot_;
 };
 
+template <typename FImpl>
+class SparseNoise: public SpinColorDiagonalNoise<FImpl>
+{
+public:
+    typedef typename FImpl::FermionField FermionField;
+    typedef typename FImpl::PropagatorField PropagatorField;
+public:
+    // constructor/destructor
+    SparseNoise(GridCartesian *g, const int nNoise, const int nSparse);
+    virtual ~SparseNoise(void) = default;
+private:
+    void setProp(const int i);
+    int nSparse_;
+    LatticeInteger coor_;
+};
 /******************************************************************************
- *                    DilutedNoise template implementation                    *
+ *               SpinColorDiagonalNoise template implementation               *
  ******************************************************************************/
 template <typename FImpl>
-DilutedNoise<FImpl>::DilutedNoise(GridCartesian *g)
-: grid_(g)
-{}
+SpinColorDiagonalNoise<FImpl>::SpinColorDiagonalNoise(GridCartesian *g)
+: grid_(g), ferm_(g), prop_(g), eta_(g)
+{
+    nc_  = FImpl::Dimension;
+    nd_  = g->GlobalDimensions().size();
+    nsc_ = Ns*nc_;
+}
 
 template <typename FImpl>
-DilutedNoise<FImpl>::DilutedNoise(GridCartesian *g,
-                                  const unsigned int nNoise)
-: DilutedNoise(g)
+SpinColorDiagonalNoise<FImpl>::SpinColorDiagonalNoise(GridCartesian *g,
+                                                      const int nNoise)
+: SpinColorDiagonalNoise(g)
 {
     resize(nNoise);
 }
 
 template <typename FImpl>
-std::vector<typename DilutedNoise<FImpl>::FermionField> & DilutedNoise<FImpl>::
+std::vector<LatticeComplex> & SpinColorDiagonalNoise<FImpl>::
 getNoise(void)
 {
     return noise_;
 }
 
 template <typename FImpl>
-const std::vector<typename DilutedNoise<FImpl>::FermionField> & DilutedNoise<FImpl>::
+const std::vector<LatticeComplex> & SpinColorDiagonalNoise<FImpl>::
 getNoise(void) const
 {
     return noise_;
 }
 
 template <typename FImpl>
-const typename DilutedNoise<FImpl>::FermionField & 
-DilutedNoise<FImpl>::operator[](const unsigned int i) const
+void SpinColorDiagonalNoise<FImpl>::setFerm(const int i)
 {
-    return noise_[i];
+    std::div_t divs;
+    divs = std::div(i, nsc_);
+    divs = std::div(divs.rem, nc_);
+
+    ferm_ = Zero();
+    PropToFerm<FImpl>(ferm_, prop_, divs.quot, divs.rem);
 }
 
 template <typename FImpl>
-typename DilutedNoise<FImpl>::FermionField & 
-DilutedNoise<FImpl>::operator[](const unsigned int i)
+typename SpinColorDiagonalNoise<FImpl>::FermionField & 
+SpinColorDiagonalNoise<FImpl>::getFerm(void)
 {
-    return noise_[i];
+    return ferm_;
 }
 
 template <typename FImpl>
-void DilutedNoise<FImpl>::normalise(Real norm)
+typename SpinColorDiagonalNoise<FImpl>::FermionField & 
+SpinColorDiagonalNoise<FImpl>::getFerm(const int i)
+{
+    this->setProp(i);
+    this->setFerm(i);
+    return this->getFerm();
+}
+
+template <typename FImpl>
+void SpinColorDiagonalNoise<FImpl>::setPropagator(LatticeComplex & eta)
+{
+    prop_ = 1.;
+    prop_ = prop_*eta;
+}
+
+template <typename FImpl>
+typename SpinColorDiagonalNoise<FImpl>::PropagatorField & 
+SpinColorDiagonalNoise<FImpl>::getProp(void)
+{
+    return prop_;
+}
+
+template <typename FImpl>
+typename SpinColorDiagonalNoise<FImpl>::PropagatorField & 
+SpinColorDiagonalNoise<FImpl>::getProp(const int i)
+{
+    this->setProp(i);
+    return this->getProp();
+}
+
+template <typename FImpl>
+void SpinColorDiagonalNoise<FImpl>::normalise(Real norm)
 {
     for(int i=0;i<noise_.size();i++)
     {
@@ -164,191 +234,188 @@ void DilutedNoise<FImpl>::normalise(Real norm)
 }
 
 template <typename FImpl>
-void DilutedNoise<FImpl>::resize(const unsigned int nNoise)
+int SpinColorDiagonalNoise<FImpl>::size(void) const
+{  
+    return size_;
+}
+
+template <typename FImpl>
+void SpinColorDiagonalNoise<FImpl>::setSize(const int size)
+{  
+    size_ = size*nsc_;
+}
+
+template <typename FImpl>
+LatticeComplex & SpinColorDiagonalNoise<FImpl>::getEta(void)
 {
+    return eta_;
+}
+
+template <typename FImpl>
+int SpinColorDiagonalNoise<FImpl>::getNd(void)
+{
+    return nd_;
+}
+
+template <typename FImpl>
+int SpinColorDiagonalNoise<FImpl>::getNsc(void)
+{
+    return nsc_;
+}
+
+template <typename FImpl>
+void SpinColorDiagonalNoise<FImpl>::resize(const int nNoise)
+{  
     nNoise_ = nNoise;
     noise_.resize(nNoise, grid_);
 }
 
 template <typename FImpl>
-unsigned int DilutedNoise<FImpl>::size(void) const
-{  
-    return noise_.size();
-}
-
-template <typename FImpl>
-GridCartesian * DilutedNoise<FImpl>::getGrid(void) const
+GridCartesian * SpinColorDiagonalNoise<FImpl>::getGrid(void) const
 {
     return grid_;
 }
 
-/******************************************************************************
- *        TimeDilutedSpinColorDiagonalNoise template implementation           *
- ******************************************************************************/
 template <typename FImpl>
-TimeDilutedSpinColorDiagonalNoise<FImpl>::
-TimeDilutedSpinColorDiagonalNoise(GridCartesian *g)
-: DilutedNoise<FImpl>(g)
+void SpinColorDiagonalNoise<FImpl>::generateNoise(GridParallelRNG &rng)
 {
-    nt_ = this->getGrid()->GlobalDimensions().size();
-    this->resize(nt_*Ns*FImpl::Dimension);
-}
-
-template <typename FImpl>
-void TimeDilutedSpinColorDiagonalNoise<FImpl>::generateNoise(GridParallelRNG &rng)
-{
-    typedef decltype(peekColour((*this)[0], 0)) SpinField;
-
-    auto                       &noise = *this;
-    auto                       g      = this->getGrid();
-    auto                       nd     = g->GlobalDimensions().size();
-    auto                       nc     = FImpl::Dimension;
-    Complex                    shift(1., 1.);
-    Lattice<iScalar<vInteger>> tLat(g);
-    LatticeComplex             eta(g), etaCut(g);
-    SpinField                  etas(g);
-    unsigned int               i = 0;
-
-    LatticeCoordinate(tLat, nd - 1);
-    bernoulli(rng, eta);
-    eta = (2.*eta - shift)*(1./::sqrt(2.));
-    for (unsigned int t = 0; t < nt_; ++t)
+    Complex        shift(1., 1.);
+    for (int n = 0; n < nNoise_; ++n)
     {
-        etaCut = where((tLat == t), eta, 0.*eta);
-        for (unsigned int s = 0; s < Ns; ++s)
-        {
-	    etas = Zero();
-	    pokeSpin(etas, etaCut, s);
-            for (unsigned int c = 0; c < nc; ++c)
-            {
-  	        noise[i] = Zero();
-                pokeColour(noise[i], etas, c);
-                i++;
-            }
-        }
+        bernoulli(rng, eta_);
+        eta_ = (2.*eta_ - shift)*(1./::sqrt(2.));
+        noise_[n] = eta_;
     }
 }
 
 /******************************************************************************
- *        FullVolumeSpinColorDiagonalNoise template implementation           *
+ *                  TimeDilutedNoise template implementation                  *
  ******************************************************************************/
 template <typename FImpl>
-FullVolumeSpinColorDiagonalNoise<FImpl>::
-FullVolumeSpinColorDiagonalNoise(GridCartesian *g, unsigned int nSrc)
-: DilutedNoise<FImpl>(g, nSrc*Ns*FImpl::Dimension), nSrc_(nSrc)
-{}
+TimeDilutedNoise<FImpl>::
+TimeDilutedNoise(GridCartesian *g, int nNoise)
+: SpinColorDiagonalNoise<FImpl>(g, nNoise), tLat_(g)
+{
+    nt_   = g->GlobalDimensions().size();
+    this->setSize(nNoise*nt_);
+    auto nd = this->getNd();
+    LatticeCoordinate(tLat_, nd - 1);
+    auto nsc   = this->getNsc();
+    nsct_ = nt_*nsc;
+}
 
 template <typename FImpl>
-void FullVolumeSpinColorDiagonalNoise<FImpl>::generateNoise(GridParallelRNG &rng)
+void TimeDilutedNoise<FImpl>::setProp(const int i)
 {
-    typedef decltype(peekColour((*this)[0], 0)) SpinField;
+    auto eta   = this->getEta();
+    auto noise = this->getNoise();
+    auto nsc   = this->getNsc();
 
-    auto                       &noise = *this;
-    auto                       g      = this->getGrid();
-    auto                       nd     = g->GlobalDimensions().size();
-    auto                       nc     = FImpl::Dimension;
-    Complex                    shift(1., 1.);
-    LatticeComplex             eta(g);
-    SpinField                  etas(g);
-    unsigned int               i = 0;
+    std::div_t divs = std::div(i, nsct_);
+    int t = divs.rem/nsc;
 
-    bernoulli(rng, eta);
-    eta = (2.*eta - shift)*(1./::sqrt(2.));
-    for (unsigned int n = 0; n < nSrc_; ++n)
-    {
-        for (unsigned int s = 0; s < Ns; ++s)
-        {
-  	    etas = Zero();
-            pokeSpin(etas, eta, s);
-            for (unsigned int c = 0; c < nc; ++c)
-            {
-	        noise[i] = Zero();
-                pokeColour(noise[i], etas, c);
-                i++;
-            }
-        }
-    }
+    eta = where((tLat_ == t), noise[divs.quot], 0.*noise[divs.quot]);
+    this->setPropagator(eta);
 }
 
 /******************************************************************************
- *        SparseSpinColorDiagonalNoise template implementation           *
+ *                   FullVolumeNoise template implementation                  *
  ******************************************************************************/
 template <typename FImpl>
-SparseSpinColorDiagonalNoise<FImpl>::
-SparseSpinColorDiagonalNoise(GridCartesian *g, unsigned int nSrc, unsigned int nSparse)
-: DilutedNoise<FImpl>(g, nSrc*Ns*FImpl::Dimension), nSrc_(nSrc), nSparse_(nSparse)
-{}
+FullVolumeNoise<FImpl>::
+FullVolumeNoise(GridCartesian *g, int nNoise)
+: SpinColorDiagonalNoise<FImpl>(g, nNoise)
+{
+    this->setSize(nNoise);
+}
 
 template <typename FImpl>
-void SparseSpinColorDiagonalNoise<FImpl>::generateNoise(GridParallelRNG &rng)
+void FullVolumeNoise<FImpl>::setProp(const int i)
 {
-    typedef decltype(peekColour((*this)[0], 0)) SpinField;
+    auto noise = this->getNoise();
+    auto nsc   = this->getNsc();
+    int n;
+    n   = i/nsc;
+    this->setPropagator(noise[n]);
+}
 
-    auto                       &noise = *this;
-    auto                       g      = this->getGrid();
-    auto                       nd     = g->GlobalDimensions().size();
-    auto                       nc     = FImpl::Dimension;
-    LatticeInteger             coor(g), coorTot(g); coorTot = 0.;
-    Complex                    shift(1., 1.);
-    LatticeComplex             eta(g), etaSparse(g);
-    SpinField                  etas(g);
-    unsigned int               i = 0;
-    unsigned int               j = 0;
-    unsigned int               nSrc_ec;
-    
-    if(nSrc_%nSparse_==0)
+/******************************************************************************
+ *                CheckerboardNoise template implementation                   *
+ ******************************************************************************/
+template <typename FImpl>
+CheckerboardNoise<FImpl>::
+CheckerboardNoise(GridCartesian *g, int nNoise, int nSparse)
+: SpinColorDiagonalNoise<FImpl>(g, nNoise), nSparse_(nSparse),
+  coor_(g), coorTot_(g)
+{
+    this->setSize(nNoise);
+    if(nNoise%nSparse_==0)
     {
-         nSrc_ec = nSrc_/nSparse_;
+         nSrc_ec_ = nNoise/nSparse_;
     }
     else
     {
-         nSrc_ec = (nSrc_ - nSrc_%nSparse_)/nSparse_;
+         nSrc_ec_ = (nNoise - nNoise%nSparse_)/nSparse_;
     }
+}
 
-    for (unsigned int n = 0; n < nSrc_; ++n)
+template <typename FImpl>
+void CheckerboardNoise<FImpl>::setProp(const int i)
+{
+    auto eta   = this->getEta();
+    auto nd    = this->getNd();
+    auto noise = this->getNoise();
+    auto nsc   = this->getNsc();
+    unsigned int n, j;
+    n   = i/nsc;
+    eta = noise[n];
+    j   = n/nSrc_ec_;
+
+    coorTot_ = 0.;
+    for(int d = 0; d < nd; ++d) 
     {
-        bernoulli(rng, eta);
-        eta = (2.*eta - shift)*(1./::sqrt(2.));
-
-        if(nSparse_ != 1)
-        { 
-        assert(g->GlobalDimensions()[1]%nSparse_ == 0);
-        // # 0 # 0
-        // 0 # 0 #
-        // # 0 # 0
-        // 0 # 0 #
-
-        coorTot = 0;
-
-            for(unsigned int d = 0; d < nd; ++d) 
-            {
-                LatticeCoordinate(coor, d);
-                coorTot = coorTot + coor;
-            }
-            coorTot = coorTot + j;
-            eta = where(mod(coorTot,nSparse_), 0.*eta, eta);
-            
-        }
-        
-        for (unsigned int s = 0; s < Ns; ++s)
-        {
-            etas = Zero();
-            pokeSpin(etas, eta, s);
-            for (unsigned int c = 0; c < nc; ++c)
-            {
-                noise[i] = Zero();
-                pokeColour(noise[i], etas, c);
-                
-                i++;
-                
-                /**/ 
-            
-            }
-        }
-        ((n+1)%nSrc_ec == 0) ? j++: 0;
+        LatticeCoordinate(coor_, d);
+        coorTot_ = coorTot_ + coor_;
     }
-    Real norm = sqrt(1./nSrc_ec);
-    this->normalise(norm);
+    coorTot_ = coorTot_ + j;
+    eta = where(mod(coorTot_,nSparse_), 0.*eta, eta);
+    this->setPropagator(eta);
+}
+
+/******************************************************************************
+ *                SparseNoise template implementation                   *
+ ******************************************************************************/
+template <typename FImpl>
+SparseNoise<FImpl>::
+SparseNoise(GridCartesian *g, int nNoise, int nSparse)
+: SpinColorDiagonalNoise<FImpl>(g, nNoise), nSparse_(nSparse), coor_(g)
+{
+    auto nd  = this->getNd();
+    this->setSize(nNoise*pow(nSparse, nd));
+}
+
+template <typename FImpl>
+void SparseNoise<FImpl>::setProp(const int i)
+{
+    auto eta   = this->getEta();
+    auto nd    = this->getNd();
+    auto noise = this->getNoise();
+    auto nsc   = this->getNsc();
+
+    std::div_t divs = std::div(i, nsc*pow(nSparse_, nd));
+    eta = noise[divs.quot];
+    for(int d = 0; d < nd; ++d) 
+    {
+        LatticeCoordinate(coor_, d);
+        eta = where(mod(coor_,nSparse_), 0.*eta, eta);
+    }
+
+    for (int d = 0; d < nd; ++d)
+    {
+        divs = std::div(divs.rem, nsc*pow(nSparse_, nd-(d+1)));
+        eta = Cshift(eta, d, divs.quot);
+    }
+    this->setPropagator(eta);
 }
 
 END_HADRONS_NAMESPACE
