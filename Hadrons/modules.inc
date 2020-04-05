@@ -47,6 +47,7 @@ modules_cpp =\
   Modules/MNPR/Amputate.cpp \
   Modules/MNPR/Bilinear.cpp \
   Modules/MNPR/FourQuark.cpp \
+  Modules/MNoise/CheckerboardSpinColorDiagonal.cpp \
   Modules/MNoise/FullVolumeSpinColorDiagonal.cpp \
   Modules/MNoise/SparseSpinColorDiagonal.cpp \
   Modules/MNoise/TimeDilutedSpinColorDiagonal.cpp \
@@ -80,6 +81,7 @@ modules_cpp =\
   Modules/MSource/SeqGamma.cpp \
   Modules/MSource/Wall.cpp \
   Modules/MSource/Z2.cpp \
+  Modules/MSource/Z2Diluted.cpp \
   Modules/MUtilities/PrecisionCast.cpp \
   Modules/MUtilities/RandomVectors.cpp
 
@@ -133,6 +135,7 @@ modules_hpp =\
   Modules/MNPR/Amputate.hpp \
   Modules/MNPR/Bilinear.hpp \
   Modules/MNPR/FourQuark.hpp \
+  Modules/MNoise/CheckerboardSpinColorDiagonal.hpp \
   Modules/MNoise/FullVolumeSpinColorDiagonal.hpp \
   Modules/MNoise/SparseSpinColorDiagonal.hpp \
   Modules/MNoise/TimeDilutedSpinColorDiagonal.hpp \
@@ -169,6 +172,7 @@ modules_hpp =\
   Modules/MSource/SeqGamma.hpp \
   Modules/MSource/Wall.hpp \
   Modules/MSource/Z2.hpp \
+  Modules/MSource/Z2Diluted.hpp \
   Modules/MUtilities/PrecisionCast.hpp \
   Modules/MUtilities/RandomVectors.hpp
 

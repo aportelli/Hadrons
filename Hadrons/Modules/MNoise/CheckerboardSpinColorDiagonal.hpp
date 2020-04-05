@@ -1,5 +1,5 @@
-#ifndef Hadrons_MNoise_SparseSpinColorDiagonal_hpp_
-#define Hadrons_MNoise_SparseSpinColorDiagonal_hpp_
+#ifndef Hadrons_MNoise_CheckerboardSpinColorDiagonal_hpp_
+#define Hadrons_MNoise_CheckerboardSpinColorDiagonal_hpp_
 
 #include <Hadrons/Global.hpp>
 #include <Hadrons/Module.hpp>
@@ -9,28 +9,28 @@
 BEGIN_HADRONS_NAMESPACE
 
 /******************************************************************************
- *                         SparseSpinColorDiagonal                                 *
+ *                         CheckerboardSpinColorDiagonal                                 *
  ******************************************************************************/
 BEGIN_MODULE_NAMESPACE(MNoise)
 
-class SparseSpinColorDiagonalPar: Serializable
+class CheckerboardSpinColorDiagonalPar: Serializable
 {
 public:
-    GRID_SERIALIZABLE_CLASS_MEMBERS(SparseSpinColorDiagonalPar,
+    GRID_SERIALIZABLE_CLASS_MEMBERS(CheckerboardSpinColorDiagonalPar,
                                     unsigned int, nsrc,
                                     unsigned int, nsparse);
 };
 
 template <typename FImpl>
-class TSparseSpinColorDiagonal: public Module<SparseSpinColorDiagonalPar>
+class TCheckerboardSpinColorDiagonal: public Module<CheckerboardSpinColorDiagonalPar>
 {
 public:
     FERM_TYPE_ALIASES(FImpl,);
 public:
     // constructor
-    TSparseSpinColorDiagonal(const std::string name);
+    TCheckerboardSpinColorDiagonal(const std::string name);
     // destructor
-    virtual ~TSparseSpinColorDiagonal(void) {};
+    virtual ~TCheckerboardSpinColorDiagonal(void) {};
     // dependency relation
     virtual std::vector<std::string> getInput(void);
     virtual std::vector<std::string> getOutput(void);
@@ -40,21 +40,21 @@ public:
     virtual void execute(void);
 };
 
-MODULE_REGISTER_TMP(SparseSpinColorDiagonal, TSparseSpinColorDiagonal<FIMPL>, MNoise);
-MODULE_REGISTER_TMP(ZSparseSpinColorDiagonal, TSparseSpinColorDiagonal<ZFIMPL>, MNoise);
+MODULE_REGISTER_TMP(CheckerboardSpinColorDiagonal, TCheckerboardSpinColorDiagonal<FIMPL>, MNoise);
+MODULE_REGISTER_TMP(ZCheckerboardSpinColorDiagonal, TCheckerboardSpinColorDiagonal<ZFIMPL>, MNoise);
 
 /******************************************************************************
- *                 TSparseSpinColorDiagonal implementation                             *
+ *                 TCheckerboardSpinColorDiagonal implementation                             *
  ******************************************************************************/
 // constructor /////////////////////////////////////////////////////////////////
 template <typename FImpl>
-TSparseSpinColorDiagonal<FImpl>::TSparseSpinColorDiagonal(const std::string name)
-: Module<SparseSpinColorDiagonalPar>(name)
+TCheckerboardSpinColorDiagonal<FImpl>::TCheckerboardSpinColorDiagonal(const std::string name)
+: Module<CheckerboardSpinColorDiagonalPar>(name)
 {}
 
 // dependencies/products ///////////////////////////////////////////////////////
 template <typename FImpl>
-std::vector<std::string> TSparseSpinColorDiagonal<FImpl>::getInput(void)
+std::vector<std::string> TCheckerboardSpinColorDiagonal<FImpl>::getInput(void)
 {
     std::vector<std::string> in;
     
@@ -62,7 +62,7 @@ std::vector<std::string> TSparseSpinColorDiagonal<FImpl>::getInput(void)
 }
 
 template <typename FImpl>
-std::vector<std::string> TSparseSpinColorDiagonal<FImpl>::getOutput(void)
+std::vector<std::string> TCheckerboardSpinColorDiagonal<FImpl>::getOutput(void)
 {
     std::vector<std::string> out = {getName()};
     
@@ -71,19 +71,19 @@ std::vector<std::string> TSparseSpinColorDiagonal<FImpl>::getOutput(void)
 
 // setup ///////////////////////////////////////////////////////////////////////
 template <typename FImpl>
-void TSparseSpinColorDiagonal<FImpl>::setup(void)
+void TCheckerboardSpinColorDiagonal<FImpl>::setup(void)
 {
     envCreateDerived(SpinColorDiagonalNoise<FImpl>, 
-                     SparseNoise<FImpl>,
-                     getName(), 1, envGetGrid(FermionField), par().nsrc, par().nsparse);    
+                     CheckerboardNoise<FImpl>,
+                     getName(), 1, envGetGrid(FermionField), par().nsrc, par().nsparse);
 }
 
 // execution ///////////////////////////////////////////////////////////////////
 template <typename FImpl>
-void TSparseSpinColorDiagonal<FImpl>::execute(void)
+void TCheckerboardSpinColorDiagonal<FImpl>::execute(void)
 {
     auto &noise = envGet(SpinColorDiagonalNoise<FImpl>, getName());
-    LOG(Message) << "Generating sparse spin-color diagonal noise with" 
+    LOG(Message) << "Generating checkerboard spin-color diagonal noise with" 
                  << " nsrc = " << par().nsrc
                  << " and nSparse = " << par().nsparse << std::endl;
     noise.generateNoise(rng4d());
@@ -93,4 +93,4 @@ END_MODULE_NAMESPACE
 
 END_HADRONS_NAMESPACE
 
-#endif // Hadrons_MNoise_SparseSpinColorDiagonal_hpp_
+#endif // Hadrons_MNoise_CheckerboardSpinColorDiagonal_hpp_
