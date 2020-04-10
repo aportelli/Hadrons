@@ -200,6 +200,7 @@ public:
     
     void OpDiag (const Field &in, Field &out) { HADRONS_ERROR(Definition, "OpDiag() undefined"); };
     void OpDir  (const Field &in, Field &out,int dir,int disp) { HADRONS_ERROR(Definition, "OpDir() undefined"); };
+    void OpDirAll  (const Field &in, std::vector<Field> &out){ HADRONS_ERROR(Definition, "OpDirAll() undefined"); };
     void Op     (const Field &in, Field &out) { HADRONS_ERROR(Definition, "Op() undefined"); };
     void AdjOp  (const Field &in, Field &out) { HADRONS_ERROR(Definition, "AdjOp() undefined"); };
     void HermOpAndNorm(const Field &in, Field &out,RealD &n1,RealD &n2) { HADRONS_ERROR(Definition, "HermOpAndNorm() undefined"); };
