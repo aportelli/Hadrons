@@ -6,7 +6,7 @@ echo $1
 
 cat > message  <<EOF
 /*
- * $(basename $1), part of Hadrons ()
+ * $(basename $1), part of Hadrons (https://github.com/aportelli/Hadrons)
  *
  * Copyright (C) 2015 - 2020
  *

@@ -1,5 +1,5 @@
 /*
- * WeakEye3pt.cpp, part of Hadrons ()
+ * WeakEye3pt.cpp, part of Hadrons (https://github.com/aportelli/Hadrons)
  *
  * Copyright (C) 2015 - 2020
  *

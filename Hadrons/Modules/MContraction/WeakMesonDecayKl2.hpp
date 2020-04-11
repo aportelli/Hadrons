@@ -1,5 +1,5 @@
 /*
- * WeakMesonDecayKl2.hpp, part of Hadrons ()
+ * WeakMesonDecayKl2.hpp, part of Hadrons (https://github.com/aportelli/Hadrons)
  *
  * Copyright (C) 2015 - 2020
  *

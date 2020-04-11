@@ -1,5 +1,5 @@
 /*
- * FundtoHirep.cpp, part of Hadrons ()
+ * FundtoHirep.cpp, part of Hadrons (https://github.com/aportelli/Hadrons)
  *
  * Copyright (C) 2015 - 2020
  *

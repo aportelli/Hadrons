@@ -1,5 +1,5 @@
 /*
- * PerambFromSolve.hpp, part of Hadrons ()
+ * PerambFromSolve.hpp, part of Hadrons (https://github.com/aportelli/Hadrons)
  *
  * Copyright (C) 2015 - 2020
  *

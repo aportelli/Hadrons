@@ -1,5 +1,5 @@
 /*
- * DWF.cpp, part of Hadrons ()
+ * DWF.cpp, part of Hadrons (https://github.com/aportelli/Hadrons)
  *
  * Copyright (C) 2015 - 2020
  *

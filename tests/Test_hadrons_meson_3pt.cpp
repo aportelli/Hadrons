@@ -1,5 +1,5 @@
 /*
- * Test_hadrons_meson_3pt.cpp, part of Hadrons ()
+ * Test_hadrons_meson_3pt.cpp, part of Hadrons (https://github.com/aportelli/Hadrons)
  *
  * Copyright (C) 2015 - 2020
  *
