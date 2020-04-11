@@ -1,4 +1,4 @@
-# Hadrons
+# Hadrons [![Teamcity status](http://ci.cliath.ph.ed.ac.uk/app/rest/builds/aggregated/strob:(buildType:(affectedProject(id:GridBasedSoftware_Hadrons)),branch:name:develop)/statusIcon.svg)](http://ci.cliath.ph.ed.ac.uk/project.html?projectId=GridBasedSoftware_Hadrons&tab=projectOverview)
 _[Grid](https://github.com/paboyle/Grid)-based workflow management system for
 lattice field theory simulations_
 
