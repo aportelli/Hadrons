@@ -1,9 +1,25 @@
+#!/bin/bash
+
+while (( "$#" )); do
+
+echo $1
+
+cat > message  <<EOF
 /*
- * Amputate.cpp, part of Hadrons (https://github.com/aportelli/Hadrons)
+ * $(basename $1), part of Hadrons (https://github.com/aportelli/Hadrons)
  *
  * Copyright (C) 2015 - 2020
  *
- * Author: Antonin Portelli <antonin.portelli@me.com>
+EOF
+
+git log $1 | grep Author > gitauth
+grep 'Author: '  $1 > fileauth
+
+cat gitauth fileauth | awk '{if ($1 != "*"){printf(" * ")}; print $0}' | sort -u >> message
+
+rm gitauth fileauth
+
+cat >> message <<EOF
  *
  * Hadrons is free software: you can redistribute it and/or modify
  * it under the terms of the GNU General Public License as published by
@@ -23,11 +39,27 @@
  */
 
 /*  END LEGAL */
-#include <Hadrons/Modules/MNPR/Amputate.hpp>
+EOF
 
-using namespace Grid;
-using namespace Hadrons;
-using namespace MNPR;
 
-template class Grid::Hadrons::MNPR::TAmputate<FIMPL,FIMPL>;
+cat message > tmp.fil
 
+NOTICE=`grep -n "END LEGAL" $1 | awk '{ print $1 }'  `
+
+if [ "X$NOTICE" != "X" ]
+then
+    echo "found notice ending on line $NOTICE"
+    awk 'BEGIN { P=0 } { if ( P ) print } /END LEGAL/{P=1} ' $1 >> tmp.fil
+else
+    cat $1 >> tmp.fil
+      
+fi
+
+
+cp tmp.fil $1
+
+shift
+
+done
+
+rm message tmp.fil
