@@ -1,30 +1,38 @@
-/*************************************************************************************
- 
- Grid physics library, www.github.com/paboyle/Grid
- 
- Source file: Hadrons/Modules/MDistil/LapEvec.hpp
- 
- Copyright (C) 2019
- 
- Author: Felix Erben <ferben@ed.ac.uk>
- Author: Michael Marshall <Michael.Marshall@ed.ac.uk>
- 
- This program is free software; you can redistribute it and/or modify
- it under the terms of the GNU General Public License as published by
- the Free Software Foundation; either version 2 of the License, or
- (at your option) any later version.
- 
- This program is distributed in the hope that it will be useful,
- but WITHOUT ANY WARRANTY; without even the implied warranty of
- MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
- GNU General Public License for more details.
- 
- You should have received a copy of the GNU General Public License along
- with this program; if not, write to the Free Software Foundation, Inc.,
- 51 Franklin Street, Fifth Floor, Boston, MA 02110-1301 USA.
- 
- See the full license in the file "LICENSE" in the top level distribution directory
- *************************************************************************************/
+/*
+ * LapEvec.hpp, part of Hadrons ()
+ *
+ * Copyright (C) 2015 - 2020
+ *
+ *  Author: Felix Erben <ferben@ed.ac.uk>
+ *  Author: Michael Marshall <Michael.Marshall@ed.ac.uk>
+ * Author: Antonin Portelli <antonin.portelli@me.com>
+ * Author: Author Name <43034299+mmphys@users.noreply.github.com>
+ * Author: Felix Erben <dc-erbe1@tesseract-login1.ib0.sgi.cluster.dirac.ed.ac.uk>
+ * Author: Felix Erben <felix.erben@ed.ac.uk>
+ * Author: Michael Marshall <43034299+mmphys@users.noreply.github.com>
+ * Author: Michael Marshall <michael.marshall@ed.ac.uk>
+ * Author: ferben <ferben@c180030.wlan.net.ed.ac.uk>
+ * Author: ferben <ferben@c183011.wlan.net.ed.ac.uk>
+ * Author: ferben <ferben@debian.felix.com>
+ * Author: ferben <ferben@localhost.localdomain>
+ *
+ * Hadrons is free software: you can redistribute it and/or modify
+ * it under the terms of the GNU General Public License as published by
+ * the Free Software Foundation, either version 2 of the License, or
+ * (at your option) any later version.
+ *
+ * Hadrons is distributed in the hope that it will be useful,
+ * but WITHOUT ANY WARRANTY; without even the implied warranty of
+ * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+ * GNU General Public License for more details.
+ *
+ * You should have received a copy of the GNU General Public License
+ * along with Hadrons.  If not, see <http://www.gnu.org/licenses/>.
+ *
+ * See the full license in the file "LICENSE" in the top level distribution 
+ * directory.
+ */
+
 /*  END LEGAL */
 
 #ifndef Hadrons_MDistil_LapEvec_hpp_
