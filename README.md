@@ -2,12 +2,14 @@
 _[Grid](https://github.com/paboyle/Grid)-based workflow management system for
 lattice field theory simulations_
 
+Documentation (work in progress): https://aportelli.github.io/Hadrons-doc/
+
 ## Install
 Download and compile the Grid library and install it. Please refer to the
 instructions from the [Grid repository](https://github.com/paboyle/Grid). Using
 the `develop` branch of Grid is recommended.
 
-Then Hadrons can be downloaded and built using
+Hadrons can be downloaded and built using
 
 ``` bash
 git clone https://github.com/aportelli/Hadrons.git
