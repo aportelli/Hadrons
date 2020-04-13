@@ -72,6 +72,9 @@ protected:
     // execution
     virtual void execute(void);
 private:
+    void solvePropagator(PropagatorField &result, PropagatorField &propPhysical,
+                         const PropagatorField &source);
+private:
     unsigned int Ls_;
     Solver       *solver_{nullptr};
 };
@@ -127,16 +130,12 @@ void TGaugeProp<FImpl>::setup(void)
 
 // execution ///////////////////////////////////////////////////////////////////
 template <typename FImpl>
-void TGaugeProp<FImpl>::execute(void)
+void TGaugeProp<FImpl>::solvePropagator(PropagatorField &prop, 
+                                        PropagatorField &propPhysical,
+                                        const PropagatorField &fullSrc)
 {
-    LOG(Message) << "Computing quark propagator '" << getName() << "'"
-                 << std::endl;
-    
-    std::string propName = (Ls_ == 1) ? getName() : (getName() + "_5d");
-    auto        &prop    = envGet(PropagatorField, propName);
-    auto        &fullSrc = envGet(PropagatorField, par().source);
-    auto        &solver  = envGet(Solver, par().solver);
-    auto        &mat     = solver.getFMat();
+    auto &solver  = envGet(Solver, par().solver);
+    auto &mat     = solver.getFMat();
     
     envGetTmp(FermionField, source);
     envGetTmp(FermionField, sol);
@@ -182,11 +181,24 @@ void TGaugeProp<FImpl>::execute(void)
         // create 4D propagators from 5D one if necessary
         if (Ls_ > 1)
         {
-            PropagatorField &p4d = envGet(PropagatorField, getName());
             mat.ExportPhysicalFermionSolution(sol, tmp);
-            FermToProp<FImpl>(p4d, tmp, s, c);
+            FermToProp<FImpl>(propPhysical, tmp, s, c);
         }
     }
+}
+
+template <typename FImpl>
+void TGaugeProp<FImpl>::execute(void)
+{
+    LOG(Message) << "Computing quark propagator '" << getName() << "'"
+                 << std::endl;
+    
+    std::string propName = (Ls_ == 1) ? getName() : (getName() + "_5d");
+    auto &prop         = envGet(PropagatorField, propName);
+    auto &propPhysical = envGet(PropagatorField, getName());
+    auto &fullSrc      = envGet(PropagatorField, par().source);
+    
+    solvePropagator(prop, propPhysical, fullSrc);
 }
 
 END_MODULE_NAMESPACE
