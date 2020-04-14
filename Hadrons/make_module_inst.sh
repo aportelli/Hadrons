@@ -2,7 +2,7 @@
 
 for m in `find Modules -name '*.hpp' -type f -print`; do
     echo "====== ${m}"
-    CCFILE=`echo $m | sed -E s/\.hpp/.cc/g`
+    CCFILE=`echo $m | sed -E s/\.hpp/.cpp/g`
     NS=`echo $m | awk -F '/' '{print $2}'`
     NMOD=`grep -E 'MODULE_REGISTER_TMP.+<.+>.?' $m | wc -l`
     if [ ! -e ${CCFILE} ] && (( NMOD != 0 )); then
