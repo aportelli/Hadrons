@@ -1,10 +1,12 @@
 #!/bin/bash
 
-while (( "$#" )); do
+update_files() 
+{
+    while (( "$#" )); do
 
-echo $1
+    echo $1
 
-cat > message  <<EOF
+    cat > message  <<EOF
 /*
  * $(basename $1), part of Hadrons (https://github.com/aportelli/Hadrons)
  *
@@ -12,14 +14,14 @@ cat > message  <<EOF
  *
 EOF
 
-git log $1 | grep Author > gitauth
-grep 'Author: '  $1 > fileauth
+    git log $1 | grep Author > gitauth
+    grep 'Author: '  $1 > fileauth
 
-cat gitauth fileauth | awk '{if ($1 != "*"){printf(" * ")}; print $0}' | sort -u >> message
+    cat gitauth fileauth | awk '{if ($1 != "*"){printf(" * ")}; print $0}' | sort -u >> message
 
-rm gitauth fileauth
+    rm gitauth fileauth
 
-cat >> message <<EOF
+    cat >> message <<EOF
  *
  * Hadrons is free software: you can redistribute it and/or modify
  * it under the terms of the GNU General Public License as published by
@@ -41,25 +43,28 @@ cat >> message <<EOF
 /*  END LEGAL */
 EOF
 
+    cat message > tmp.fil
 
-cat message > tmp.fil
+    NOTICE=`grep -n "END LEGAL" $1 | awk '{ print $1 }'  `
 
-NOTICE=`grep -n "END LEGAL" $1 | awk '{ print $1 }'  `
-
-if [ "X$NOTICE" != "X" ]
-then
-    echo "found notice ending on line $NOTICE"
-    awk 'BEGIN { P=0 } { if ( P ) print } /END LEGAL/{P=1} ' $1 >> tmp.fil
-else
-    cat $1 >> tmp.fil
-      
-fi
+    if [ "X$NOTICE" != "X" ]
+    then
+        echo "found notice ending on line $NOTICE"
+        awk 'BEGIN { P=0 } { if ( P ) print } /END LEGAL/{P=1} ' $1 >> tmp.fil
+    else
+        cat $1 >> tmp.fil
+        
+    fi
 
 
-cp tmp.fil $1
+    cp tmp.fil $1
 
-shift
+    shift
 
-done
+    done
 
-rm message tmp.fil
+    rm message tmp.fil
+}
+
+update_files $(find . -name '*.cpp')
+update_files $(find . -name '*.hpp' | grep -v 'Modules.hpp')
