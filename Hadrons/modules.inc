@@ -81,7 +81,8 @@ modules_cpp =\
   Modules/MSource/Wall.cpp \
   Modules/MSource/Z2.cpp \
   Modules/MUtilities/PrecisionCast.cpp \
-  Modules/MUtilities/RandomVectors.cpp
+  Modules/MUtilities/RandomVectors.cpp \
+  Modules/MUtilities/VectorUnpack.cpp
 
 modules_hpp =\
   Modules/MAction/DWF.hpp \
@@ -170,5 +171,6 @@ modules_hpp =\
   Modules/MSource/Wall.hpp \
   Modules/MSource/Z2.hpp \
   Modules/MUtilities/PrecisionCast.hpp \
-  Modules/MUtilities/RandomVectors.hpp
+  Modules/MUtilities/RandomVectors.hpp \
+  Modules/MUtilities/VectorUnpack.hpp
 
