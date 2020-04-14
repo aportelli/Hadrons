@@ -113,18 +113,37 @@ template <typename FImpl>
 void TGaugeProp<FImpl>::setup(void)
 {
     Ls_ = env().getObjectLs(par().solver);
-    envCreateLat(PropagatorField, getName());
+    
     envTmpLat(FermionField, "tmp");
     if (Ls_ > 1)
     {
         envTmpLat(FermionField, "source", Ls_);
         envTmpLat(FermionField, "sol", Ls_);
-        envCreateLat(PropagatorField, getName() + "_5d", Ls_);
     }
     else
     {
-       envTmpLat(FermionField, "source");
-       envTmpLat(FermionField, "sol");
+        envTmpLat(FermionField, "source");
+        envTmpLat(FermionField, "sol");
+    }
+    if (envHasType(PropagatorField, par().source))
+    {
+        envCreateLat(PropagatorField, getName());
+        if (Ls_ > 1)
+        {
+            envCreateLat(PropagatorField, getName() + "_5d", Ls_);
+        }
+    }
+    else if (envHasType(std::vector<PropagatorField>, par().source))
+    {
+        auto &src = envGet(std::vector<PropagatorField>, par().source);
+
+        envCreate(std::vector<PropagatorField>, getName(), 1, src.size(),
+                  envGetGrid(PropagatorField));
+        if (Ls_ > 1)
+        {
+            envCreate(std::vector<PropagatorField>, getName() + "_5d", Ls_,
+                      src.size(), envGetGrid(PropagatorField, Ls_));
+        }
     }
 }
 
@@ -140,8 +159,8 @@ void TGaugeProp<FImpl>::solvePropagator(PropagatorField &prop,
     envGetTmp(FermionField, source);
     envGetTmp(FermionField, sol);
     envGetTmp(FermionField, tmp);
-    LOG(Message) << "Inverting using solver '" << par().solver
-                 << "' on source '" << par().source << "'" << std::endl;
+    LOG(Message) << "Inverting using solver '" << par().solver << "'" 
+                 << std::endl;
     for (unsigned int s = 0; s < Ns; ++s)
     for (unsigned int c = 0; c < FImpl::Dimension; ++c)
     {
@@ -194,11 +213,29 @@ void TGaugeProp<FImpl>::execute(void)
                  << std::endl;
     
     std::string propName = (Ls_ == 1) ? getName() : (getName() + "_5d");
-    auto &prop         = envGet(PropagatorField, propName);
-    auto &propPhysical = envGet(PropagatorField, getName());
-    auto &fullSrc      = envGet(PropagatorField, par().source);
-    
-    solvePropagator(prop, propPhysical, fullSrc);
+
+    if (envHasType(PropagatorField, par().source))
+    {
+        auto &prop         = envGet(PropagatorField, propName);
+        auto &propPhysical = envGet(PropagatorField, getName());
+        auto &fullSrc      = envGet(PropagatorField, par().source);
+
+        LOG(Message) << "Using source '" << par().source << "'" << std::endl;
+        solvePropagator(prop, propPhysical, fullSrc);
+    }
+    else
+    {
+        auto &prop         = envGet(std::vector<PropagatorField>, propName);
+        auto &propPhysical = envGet(std::vector<PropagatorField>, getName());
+        auto &fullSrc      = envGet(std::vector<PropagatorField>, par().source);
+
+        for (unsigned int i = 0; i < fullSrc.size(); ++i)
+        {
+            LOG(Message) << "Using element " << i << " of source vector '" 
+                         << par().source << "'" << std::endl;
+            solvePropagator(prop[i], propPhysical[i], fullSrc[i]);
+        }
+    }
 }
 
 END_MODULE_NAMESPACE
