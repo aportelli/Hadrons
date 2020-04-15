@@ -296,7 +296,7 @@ TimeDilutedNoise<FImpl>::
 TimeDilutedNoise(GridCartesian *g, int nNoise)
 : SpinColorDiagonalNoise<FImpl>(g, nNoise), tLat_(g)
 {
-    nt_   = g->GlobalDimensions().size();
+    nt_ = this->getGrid()->GlobalDimensions()[Tp];
     this->setSize(nNoise*nt_);
     auto nd = this->getNd();
     LatticeCoordinate(tLat_, nd - 1);
