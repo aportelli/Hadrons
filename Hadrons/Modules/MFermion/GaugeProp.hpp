@@ -145,6 +145,13 @@ void TGaugeProp<FImpl>::setup(void)
                       src.size(), envGetGrid(PropagatorField, Ls_));
         }
     }
+    else
+    {
+        HADRONS_ERROR_REF(ObjectType, "object '" + par().source 
+                          + "' has an incompatible type ("
+                          + env().getObjectType(par().source)
+                          + ")", env().getObjectAddress(par().source))
+    }
 }
 
 // execution ///////////////////////////////////////////////////////////////////

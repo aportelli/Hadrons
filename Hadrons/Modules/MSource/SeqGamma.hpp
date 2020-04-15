@@ -52,7 +52,7 @@ BEGIN_HADRONS_NAMESPACE
  */
 
 /******************************************************************************
- *                         SeqGamma                                 *
+ *                         Sequential gamma source                            *
  ******************************************************************************/
 BEGIN_MODULE_NAMESPACE(MSource)
 
@@ -85,6 +85,8 @@ protected:
     virtual void setup(void);
     // execution
     virtual void execute(void);
+private:
+    void makeSource(PropagatorField &src, const PropagatorField &q);
 private:
     bool        hasPhase_{false};
     std::string momphName_, tName_;
@@ -125,7 +127,24 @@ std::vector<std::string> TSeqGamma<FImpl>::getOutput(void)
 template <typename FImpl>
 void TSeqGamma<FImpl>::setup(void)
 {
-    envCreateLat(PropagatorField, getName());
+    if (envHasType(PropagatorField, par().q))
+    {
+        envCreateLat(PropagatorField, getName());
+    }
+    else if (envHasType(std::vector<PropagatorField>, par().q))
+    {
+        auto &q = envGet(std::vector<PropagatorField>, par().q);
+
+        envCreate(std::vector<PropagatorField>, getName(), 1, q.size(),
+                envGetGrid(PropagatorField));
+    }
+    else
+    {
+        HADRONS_ERROR_REF(ObjectType, "object '" + par().q 
+                          + "' has an incompatible type ("
+                          + env().getObjectType(par().q)
+                          + ")", env().getObjectAddress(par().q))
+    }
     envCache(Lattice<iScalar<vInteger>>, tName_, 1, envGetGrid(LatticeComplex));
     envCacheLat(LatticeComplex, momphName_);
     envTmpLat(LatticeComplex, "coor");
@@ -133,21 +152,9 @@ void TSeqGamma<FImpl>::setup(void)
 
 // execution ///////////////////////////////////////////////////////////////////
 template <typename FImpl>
-void TSeqGamma<FImpl>::execute(void)
+void TSeqGamma<FImpl>::makeSource(PropagatorField &src, 
+                                  const PropagatorField &q)
 {
-    if (par().tA == par().tB)
-    {
-        LOG(Message) << "Generating gamma_" << par().gamma
-                     << " sequential source at t= " << par().tA << std::endl;
-    }
-    else
-    {
-        LOG(Message) << "Generating gamma_" << par().gamma
-                     << " sequential source for "
-                     << par().tA << " <= t <= " << par().tB << std::endl;
-    }
-    auto  &src = envGet(PropagatorField, getName());
-    auto  &q   = envGet(PropagatorField, par().q);
     auto  &ph  = envGet(LatticeComplex, momphName_);
     auto  &t   = envGet(Lattice<iScalar<vInteger>>, tName_);
     Gamma g(par().gamma);
@@ -170,6 +177,43 @@ void TSeqGamma<FImpl>::execute(void)
         hasPhase_ = true;
     }
     src = where((t >= par().tA) and (t <= par().tB), ph*(g*q), 0.*q);
+}
+
+template <typename FImpl>
+void TSeqGamma<FImpl>::execute(void)
+{
+    if (par().tA == par().tB)
+    {
+        LOG(Message) << "Generating " << par().gamma
+                     << " sequential source(s) at t= " << par().tA << std::endl;
+    }
+    else
+    {
+        LOG(Message) << "Generating " << par().gamma
+                     << " sequential source(s) for "
+                     << par().tA << " <= t <= " << par().tB << std::endl;
+    }
+
+    if (envHasType(PropagatorField, par().q))
+    {
+        auto  &src = envGet(PropagatorField, getName()); 
+        auto  &q   = envGet(PropagatorField, par().q);
+
+        LOG(Message) << "Using propagator '" << par().q << "'" << std::endl;
+        makeSource(src, q);
+    }
+    else
+    {
+        auto  &src = envGet(std::vector<PropagatorField>, getName()); 
+        auto  &q   = envGet(std::vector<PropagatorField>, par().q);
+
+        for (unsigned int i = 0; i < q.size(); ++i)
+        {
+            LOG(Message) << "Using element " << i << " of propagator vector '" 
+                         << par().q << "'" << std::endl;
+            makeSource(src[i], q[i]);
+        }
+    }
 }
 
 END_MODULE_NAMESPACE
