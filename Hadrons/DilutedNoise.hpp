@@ -190,7 +190,7 @@ TimeDilutedSpinColorDiagonalNoise<FImpl>::
 TimeDilutedSpinColorDiagonalNoise(GridCartesian *g)
 : DilutedNoise<FImpl>(g)
 {
-    nt_ = this->getGrid()->GlobalDimensions().size();
+    nt_ = this->getGrid()->GlobalDimensions()[Tp];
     this->resize(nt_*Ns*FImpl::Dimension);
 }
 
