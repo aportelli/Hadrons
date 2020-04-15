@@ -52,8 +52,23 @@ AC_LINK_IFELSE(
     [AC_MSG_RESULT([no])]
     [AC_MSG_ERROR([impossible to compile a minimal Grid program])])
 
+HADRONS_CXX="$CXX"
+HADRONS_CXXFLAGS="$CXXFLAGS"
+HADRONS_LDFLAGS="$LDFLAGS"
+HADRONS_LIBS="$LIBS"
+HADRONS_SHA=`git rev-parse HEAD`
+HADRONS_BRANCH=`git rev-parse --abbrev-ref HEAD`
+
 AC_SUBST([AM_CXXFLAGS])
 AC_SUBST([AM_LDFLAGS])
+AC_SUBST([HADRONS_CXX])
+AC_SUBST([HADRONS_CXXFLAGS])
+AC_SUBST([HADRONS_LDFLAGS])
+AC_SUBST([HADRONS_LIBS])
+AC_SUBST([HADRONS_SHA])
+AC_SUBST([HADRONS_BRANCH])
+
+AC_CONFIG_FILES([hadrons-config], [chmod +x hadrons-config])
 AC_CONFIG_FILES([Makefile])
 AC_CONFIG_FILES([Hadrons/Makefile])
 AC_CONFIG_FILES([utilities/Makefile])

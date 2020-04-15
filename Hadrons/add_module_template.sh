@@ -8,15 +8,15 @@ NAME=$1
 NS=$2
 
 mkdir -p Modules/${NS}
-if [ -e "Modules/${NS}/${NAME}.cc" ] || [ -e "Modules/${NS}/${NAME}.hpp" ]; then
+if [ -e "Modules/${NS}/${NAME}.cpp" ] || [ -e "Modules/${NS}/${NAME}.hpp" ]; then
 	echo "error: files Modules/${NS}/${NAME}.* already exists" 1>&2
 	exit 1
 fi
-TMPCC=".${NS}.${NAME}.tmp.cc"
+TMPCC=".${NS}.${NAME}.tmp.cpp"
 TMPHPP=".${NS}.${NAME}.tmp.hpp"
-sed "s/___FILEBASENAME___/${NAME}/g" Modules/templates/Module_tmp_in_NS.cc.template  > ${TMPCC}
+sed "s/___FILEBASENAME___/${NAME}/g" Modules/templates/Module_tmp_in_NS.cpp.template > ${TMPCC}
 sed "s/___FILEBASENAME___/${NAME}/g" Modules/templates/Module_tmp_in_NS.hpp.template > ${TMPHPP}
-sed "s/___NAMESPACE___/${NS}/g" ${TMPCC}  > Modules/${NS}/${NAME}.cc
+sed "s/___NAMESPACE___/${NS}/g" ${TMPCC}  > Modules/${NS}/${NAME}.cpp
 sed "s/___NAMESPACE___/${NS}/g" ${TMPHPP} > Modules/${NS}/${NAME}.hpp
 rm -f ${TMPCC} ${TMPHPP}
 ./make_module_list.sh

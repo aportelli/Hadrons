@@ -83,7 +83,8 @@ modules_cpp =\
   Modules/MSource/Z2.cpp \
   Modules/MSource/Z2Diluted.cpp \
   Modules/MUtilities/PrecisionCast.cpp \
-  Modules/MUtilities/RandomVectors.cpp
+  Modules/MUtilities/RandomVectors.cpp \
+  Modules/MUtilities/VectorUnpack.cpp
 
 modules_hpp =\
   Modules/MAction/DWF.hpp \
@@ -174,5 +175,6 @@ modules_hpp =\
   Modules/MSource/Z2.hpp \
   Modules/MSource/Z2Diluted.hpp \
   Modules/MUtilities/PrecisionCast.hpp \
-  Modules/MUtilities/RandomVectors.hpp
+  Modules/MUtilities/RandomVectors.hpp \
+  Modules/MUtilities/VectorUnpack.hpp
 

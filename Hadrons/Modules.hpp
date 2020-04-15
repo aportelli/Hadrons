@@ -87,3 +87,4 @@
 #include <Hadrons/Modules/MSource/Z2Diluted.hpp>
 #include <Hadrons/Modules/MUtilities/PrecisionCast.hpp>
 #include <Hadrons/Modules/MUtilities/RandomVectors.hpp>
+#include <Hadrons/Modules/MUtilities/VectorUnpack.hpp>

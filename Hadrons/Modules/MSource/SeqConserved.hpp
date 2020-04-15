@@ -1,31 +1,31 @@
-/*************************************************************************************
+/*
+ * SeqConserved.hpp, part of Hadrons (https://github.com/aportelli/Hadrons)
+ *
+ * Copyright (C) 2015 - 2020
+ *
+ * Author: Antonin Portelli <antonin.portelli@me.com>
+ * Author: Lanny91 <andrew.lawson@gmail.com>
+ * Author: Peter Boyle <paboyle@ph.ed.ac.uk>
+ * Author: Vera Guelpers <vmg1n14@soton.ac.uk>
+ * Author: fionnoh <fionnoh@gmail.com>
+ *
+ * Hadrons is free software: you can redistribute it and/or modify
+ * it under the terms of the GNU General Public License as published by
+ * the Free Software Foundation, either version 2 of the License, or
+ * (at your option) any later version.
+ *
+ * Hadrons is distributed in the hope that it will be useful,
+ * but WITHOUT ANY WARRANTY; without even the implied warranty of
+ * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+ * GNU General Public License for more details.
+ *
+ * You should have received a copy of the GNU General Public License
+ * along with Hadrons.  If not, see <http://www.gnu.org/licenses/>.
+ *
+ * See the full license in the file "LICENSE" in the top level distribution 
+ * directory.
+ */
 
-Grid physics library, www.github.com/paboyle/Grid 
-
-Source file: Hadrons/Modules/MSource/SeqConserved.hpp
-
-Copyright (C) 2015-2019
-
-Author: Antonin Portelli <antonin.portelli@me.com>
-Author: Lanny91 <andrew.lawson@gmail.com>
-Author: Vera Guelpers <vmg1n14@soton.ac.uk>
-
-This program is free software; you can redistribute it and/or modify
-it under the terms of the GNU General Public License as published by
-the Free Software Foundation; either version 2 of the License, or
-(at your option) any later version.
-
-This program is distributed in the hope that it will be useful,
-but WITHOUT ANY WARRANTY; without even the implied warranty of
-MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
-GNU General Public License for more details.
-
-You should have received a copy of the GNU General Public License along
-with this program; if not, write to the Free Software Foundation, Inc.,
-51 Franklin Street, Fifth Floor, Boston, MA 02110-1301 USA.
-
-See the full license in the file "LICENSE" in the top level distribution directory
-*************************************************************************************/
 /*  END LEGAL */
 
 #ifndef Hadrons_MSource_SeqConserved_hpp_
@@ -99,6 +99,8 @@ protected:
     // execution
     virtual void execute(void);
 private:
+    void makeSource(PropagatorField &src, PropagatorField &q);
+private:
     bool        SeqhasPhase_{false}; 
     std::string SeqmomphName_;
 };
@@ -140,8 +142,48 @@ template <typename FImpl>
 void TSeqConserved<FImpl>::setup(void)
 {
     auto Ls_ = env().getObjectLs(par().action);
-    envCreateLat(PropagatorField, getName(), Ls_);
-    envTmpLat(PropagatorField, "src_tmp",Ls_);
+
+    if (Ls_ > 1)
+    {
+        envTmpLat(PropagatorField, "src_tmp");
+    }
+    else
+    {
+        envTmpLat(PropagatorField, "src_tmp", Ls_);
+    }
+    if (envHasType(PropagatorField, par().q))
+    {
+        if (Ls_ > 1)
+        {
+            envCreateLat(PropagatorField, getName(), Ls_);
+        }
+        else
+        {
+            envCreateLat(PropagatorField, getName());
+        }
+    }
+    else if (envHasType(std::vector<PropagatorField>, par().q))
+    {
+        auto &q = envGet(std::vector<PropagatorField>, par().q);
+
+        if (Ls_ > 1)
+        {
+            envCreate(std::vector<PropagatorField>, getName(), Ls_, q.size(),
+                      envGetGrid(PropagatorField, Ls_));
+        }
+        else
+        {
+            envCreate(std::vector<PropagatorField>, getName(), 1, q.size(),
+                      envGetGrid(PropagatorField));
+        }
+    }
+    else
+    {
+        HADRONS_ERROR_REF(ObjectType, "object '" + par().q 
+                          + "' has an incompatible type ("
+                          + env().getObjectType(par().q)
+                          + ")", env().getObjectAddress(par().q))
+    }
     envCacheLat(LatticeComplex, SeqmomphName_);
     envTmpLat(LatticeComplex, "coor");
     envTmpLat(LatticeComplex, "latt_compl");
@@ -149,29 +191,11 @@ void TSeqConserved<FImpl>::setup(void)
 
 // execution ///////////////////////////////////////////////////////////////////
 template <typename FImpl>
-void TSeqConserved<FImpl>::execute(void)
+void TSeqConserved<FImpl>::makeSource(PropagatorField &src, PropagatorField &q)
 {
-    if (par().tA == par().tB)
-    {
-        LOG(Message) << "Generating sequential source with conserved "
-                     << par().curr_type << " current at " 
-		     << "t = " << par().tA << " summed over the indices " 
-		     << par().mu_min << " <= mu <= " << par().mu_max 
-		     << std::endl;
-    }
-    else
-    {
-        LOG(Message) << "Generating sequential source with conserved "
-                     << par().curr_type << " current for " 
-                     << par().tA << " <= t <= " 
-                     << par().tB << " summed over the indices " 
-		     << par().mu_min << " <= mu <= " << par().mu_max
-	             << std::endl;
-    }
-    auto &src = envGet(PropagatorField, getName());
     envGetTmp(PropagatorField, src_tmp);
-    src_tmp = src;
-    auto &q   = envGet(PropagatorField, par().q);
+    src_tmp   = src;
+    
     auto &mat = envGet(FMat, par().action);
     envGetTmp(LatticeComplex, latt_compl);
 
@@ -220,8 +244,51 @@ void TSeqConserved<FImpl>::execute(void)
 	src += src_tmp;
 
     }	
+}
 
- 
+template <typename FImpl>
+void TSeqConserved<FImpl>::execute(void)
+{
+    if (par().tA == par().tB)
+    {
+        LOG(Message) << "Generating sequential source(s) with conserved "
+                     << par().curr_type << " current for the action '"
+                     << par().action << "'\nat " 
+		             << "t = " << par().tA << " summed over the indices " 
+		             << par().mu_min << " <= mu <= " << par().mu_max 
+		             << std::endl;
+    }
+    else
+    {
+        LOG(Message) << "Generating sequential source(s) with conserved "
+                     << par().curr_type << " current for the action '"
+                     << par().action << "'\nfor " 
+                     << par().tA << " <= t <= " 
+                     << par().tB << " summed over the indices " 
+		             << par().mu_min << " <= mu <= " << par().mu_max
+	                 << std::endl;
+    }
+
+    if (envHasType(PropagatorField, par().q))
+    {
+        auto  &src = envGet(PropagatorField, getName()); 
+        auto  &q   = envGet(PropagatorField, par().q);
+
+        LOG(Message) << "Using propagator '" << par().q << "'" << std::endl;
+        makeSource(src, q);
+    }
+    else
+    {
+        auto  &src = envGet(std::vector<PropagatorField>, getName()); 
+        auto  &q   = envGet(std::vector<PropagatorField>, par().q);
+
+        for (unsigned int i = 0; i < q.size(); ++i)
+        {
+            LOG(Message) << "Using element " << i << " of propagator vector '" 
+                         << par().q << "'" << std::endl;
+            makeSource(src[i], q[i]);
+        }
+    }
 }
 
 
