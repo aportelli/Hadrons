@@ -1,5 +1,9 @@
 AM_CXXFLAGS += -I$(top_srcdir)
 
+noinst_LIBRARIES = libsqlite3.a
+
+libsqlite3_a_SOURCES = sqlite/sqlite3.c sqlite/sqlite3.h sqlite/sqlite3ext.h
+
 lib_LIBRARIES = libHadrons.a
 
 include modules.inc
@@ -35,4 +39,8 @@ nobase_libHadrons_a_HEADERS = \
 	Solver.hpp                \
 	TimerArray.hpp            \
 	VirtualMachine.hpp        \
+	sqlite/sqlite3.h          \
+	sqlite/sqlite3ext.h       \
 	$(modules_hpp)
+
+libHadrons_a_LIBADD = libsqlite3.a

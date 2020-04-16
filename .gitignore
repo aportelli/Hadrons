@@ -11,3 +11,4 @@
 /install-sh
 /missing
 Makefile.in
+Hadrons/sqlite
