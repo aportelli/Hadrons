@@ -259,7 +259,7 @@ void SpinColorDiagonalNoise<FImpl>::setSize(int size)
 {  
     size_     = noise_.size();
     fermSize_ = size*nsc_;
-    propSize_ = nsc_;
+    propSize_ = size;
 }
 
 template <typename FImpl>

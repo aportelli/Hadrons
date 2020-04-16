@@ -107,7 +107,10 @@ void TVectorUnpack<Field>::setup(void)
 
     if (vec.size() != par().size)
         {
-            HADRONS_ERROR(Size,"Mismatch between vector size and module parameter size.");
+            HADRONS_ERROR(Size,"Mismatch between vector size ("
+                                + std::to_string(vec.size())
+                                + ") and module parameter size ("
+                                + std::to_string(par().size) + ").");
         }
 
     for (unsigned int i = 0; i < vec.size(); ++i)
