@@ -11,6 +11,7 @@
 #include <Hadrons/Modules/MContraction/Baryon.hpp>
 #include <Hadrons/Modules/MContraction/DiscLoop.hpp>
 #include <Hadrons/Modules/MContraction/Gamma3pt.hpp>
+#include <Hadrons/Modules/MContraction/Loop.hpp>
 #include <Hadrons/Modules/MContraction/Meson.hpp>
 #include <Hadrons/Modules/MContraction/SigmaToNucleonEye.hpp>
 #include <Hadrons/Modules/MContraction/SigmaToNucleonNonEye.hpp>

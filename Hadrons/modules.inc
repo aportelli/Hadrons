@@ -12,6 +12,7 @@ modules_cpp =\
   Modules/MContraction/Baryon.cpp \
   Modules/MContraction/DiscLoop.cpp \
   Modules/MContraction/Gamma3pt.cpp \
+  Modules/MContraction/Loop.cpp \
   Modules/MContraction/Meson.cpp \
   Modules/MContraction/SigmaToNucleonEye.cpp \
   Modules/MContraction/SigmaToNucleonNonEye.cpp \
@@ -100,6 +101,7 @@ modules_hpp =\
   Modules/MContraction/Baryon.hpp \
   Modules/MContraction/DiscLoop.hpp \
   Modules/MContraction/Gamma3pt.hpp \
+  Modules/MContraction/Loop.hpp \
   Modules/MContraction/Meson.hpp \
   Modules/MContraction/SigmaToNucleonEye.hpp \
   Modules/MContraction/SigmaToNucleonNonEye.hpp \
