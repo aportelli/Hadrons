@@ -145,11 +145,11 @@ void TSeqConserved<FImpl>::setup(void)
 
     if (Ls_ > 1)
     {
-        envTmpLat(PropagatorField, "src_tmp");
+        envTmpLat(PropagatorField, "src_tmp", Ls_);
     }
     else
     {
-        envTmpLat(PropagatorField, "src_tmp", Ls_);
+        envTmpLat(PropagatorField, "src_tmp");
     }
     if (envHasType(PropagatorField, par().q))
     {
