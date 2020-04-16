@@ -41,7 +41,8 @@ class VectorUnpackPar: Serializable
 {
 public:
     GRID_SERIALIZABLE_CLASS_MEMBERS(VectorUnpackPar,
-                                    std::string, input);
+                                    std::string,  input,
+                                    unsigned int, size);
 };
 
 template <typename Field>
@@ -86,7 +87,12 @@ std::vector<std::string> TVectorUnpack<Field>::getInput(void)
 template <typename Field>
 std::vector<std::string> TVectorUnpack<Field>::getOutput(void)
 {
-    std::vector<std::string> out = {getName()};
+    std::vector<std::string> out;
+
+    for (unsigned int i = 0; i < par().size; ++i)
+    {
+        out.push_back(getName() + "_" + std::to_string(i));
+    }
     
     return out;
 }
@@ -98,6 +104,11 @@ void TVectorUnpack<Field>::setup(void)
     auto         &vec  = envGet(std::vector<Field>, par().input);
     unsigned int Ls    = env().getObjectLs(par().input);
     auto         *grid = vec[0].Grid();
+
+    if (vec.size() != par().size)
+        {
+            HADRONS_ERROR(Size,"Mismatch between vector size and module parameter size.");
+        }
 
     for (unsigned int i = 0; i < vec.size(); ++i)
     {
