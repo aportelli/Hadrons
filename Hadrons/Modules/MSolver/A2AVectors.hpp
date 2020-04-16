@@ -135,9 +135,9 @@ void TA2AVectors<FImpl, Pack>::setup(void)
         Nl_ = epack.evec.size();
     }
     envCreate(std::vector<FermionField>, getName() + "_v", 1, 
-              Nl_ + noise.size(), envGetGrid(FermionField));
+              Nl_ + noise.fermSize(), envGetGrid(FermionField));
     envCreate(std::vector<FermionField>, getName() + "_w", 1, 
-              Nl_ + noise.size(), envGetGrid(FermionField));
+              Nl_ + noise.fermSize(), envGetGrid(FermionField));
     if (Ls > 1)
     {
         envTmpLat(FermionField, "f5", Ls);
@@ -164,13 +164,13 @@ void TA2AVectors<FImpl, Pack>::execute(void)
         LOG(Message) << "Computing all-to-all vectors "
                      << " using eigenpack '" << par().eigenPack << "' ("
                      << Nl_ << " low modes) and noise '"
-                     << par().noise << "' (" << noise.size() 
+                     << par().noise << "' (" << noise.fermSize() 
                      << " noise vectors)" << std::endl;
     }
     else
     {
         LOG(Message) << "Computing all-to-all vectors "
-                     << " using noise '" << par().noise << "' (" << noise.size() 
+                     << " using noise '" << par().noise << "' (" << noise.fermSize() 
                      << " noise vectors)" << std::endl;
     }
     // Low modes
@@ -205,7 +205,7 @@ void TA2AVectors<FImpl, Pack>::execute(void)
     }
 
     // High modes
-    for (unsigned int ih = 0; ih < noise.size(); ih++)
+    for (unsigned int ih = 0; ih < noise.fermSize(); ih++)
     {
         startTimer("V high mode");
         LOG(Message) << "V vector i = " << Nl_ + ih

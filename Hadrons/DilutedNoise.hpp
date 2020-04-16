@@ -56,6 +56,8 @@ public:
     void                                normalise(Real norm);
     void                                resize(const int nNoise);
     int                                 size(void) const;
+    int                                 fermSize(void) const;
+    int                                 propSize(void) const;
     GridCartesian                       *getGrid(void) const;
     // generate noise
     void generateNoise(GridParallelRNG &rng);
@@ -67,7 +69,8 @@ private:
     GridCartesian                  *grid_;
     std::vector<LatticeComplex>    noise_;
     PropagatorField                prop_;
-    int size_, nNoise_, nd_, nc_, nsc_;
+    int size_, fermSize_, propSize_;
+    int nNoise_, nd_, nc_, nsc_;
 protected:
     LatticeComplex &  getEta(void);
     FermionField &    getFerm(void);
@@ -240,9 +243,23 @@ int SpinColorDiagonalNoise<FImpl>::size(void) const
 }
 
 template <typename FImpl>
-void SpinColorDiagonalNoise<FImpl>::setSize(const int size)
+int SpinColorDiagonalNoise<FImpl>::fermSize(void) const
 {  
-    size_ = size*nsc_;
+    return fermSize_;
+}
+
+template <typename FImpl>
+int SpinColorDiagonalNoise<FImpl>::propSize(void) const
+{  
+    return propSize_;
+}
+
+template <typename FImpl>
+void SpinColorDiagonalNoise<FImpl>::setSize(int size)
+{  
+    size_     = noise_.size();
+    fermSize_ = size*nsc_;
+    propSize_ = nsc_;
 }
 
 template <typename FImpl>
