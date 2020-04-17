@@ -23,6 +23,7 @@ nobase_libHadrons_a_HEADERS = \
 	A2AVectors.hpp            \
 	A2AMatrix.hpp             \
 	Application.hpp           \
+	Database.hpp              \
 	DilutedNoise.hpp          \
 	DiskVector.hpp            \
 	EigenPack.hpp             \
