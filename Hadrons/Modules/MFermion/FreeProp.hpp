@@ -109,8 +109,16 @@ void TFreeProp<FImpl>::setup(void)
 {
     Ls_ = env().getObjectLs(par().action);
     envCreateLat(PropagatorField, getName());
-    envTmpLat(FermionField, "source", Ls_);
-    envTmpLat(FermionField, "sol", Ls_);
+    if (Ls_ > 1)
+    {
+        envTmpLat(FermionField, "source", Ls_);
+        envTmpLat(FermionField, "sol", Ls_);
+    }
+    else
+    {
+       envTmpLat(FermionField, "source");
+       envTmpLat(FermionField, "sol");
+    }
     envTmpLat(FermionField, "tmp");
     if (Ls_ > 1)
     {
