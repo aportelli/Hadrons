@@ -21,6 +21,8 @@ AC_CHECK_PROG([GRIDCONF],[grid-config],[yes])
 if test x"$GRIDCONF" != x"yes" ; then
     AC_MSG_ERROR([grid-config not found])
 fi
+CXX="`grid-config --cxx`"
+CXXLD="`grid-config --cxxld`"
 CXXFLAGS="$CXXFLAGS `grid-config --cxxflags`"
 LDFLAGS="$LDFLAGS `grid-config --ldflags`"
 CXXFLAGS="$AM_CXXFLAGS $CXXFLAGS"
@@ -59,6 +61,7 @@ HADRONS_LIBS="$LIBS"
 HADRONS_SHA=`git rev-parse HEAD`
 HADRONS_BRANCH=`git rev-parse --abbrev-ref HEAD`
 
+AC_SUBST([CXXLD])
 AC_SUBST([AM_CXXFLAGS])
 AC_SUBST([AM_LDFLAGS])
 AC_SUBST([HADRONS_CXX])
