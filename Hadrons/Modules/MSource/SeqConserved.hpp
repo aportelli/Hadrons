@@ -69,6 +69,7 @@ public:
     GRID_SERIALIZABLE_CLASS_MEMBERS(SeqConservedPar,
                                     std::string,  q,
                                     std::string,  action,
+                                    std::string,  source,
                                     unsigned int, tA,
                                     unsigned int, tB,
                                     Current,      curr_type,
@@ -121,7 +122,7 @@ TSeqConserved<FImpl>::TSeqConserved(const std::string name)
 template <typename FImpl>
 std::vector<std::string> TSeqConserved<FImpl>::getInput(void)
 {
-    std::vector<std::string> in = {par().q, par().action};
+    std::vector<std::string> in = {par().q, par().action, par().source};
     if (!par().photon.empty()) in.push_back(par().photon);
         
     return in;
@@ -168,6 +169,7 @@ void TSeqConserved<FImpl>::execute(void)
 		     << par().mu_min << " <= mu <= " << par().mu_max
 	             << std::endl;
     }
+    auto &physSrc = envGet(PropagatorField, par().source);
     auto &src = envGet(PropagatorField, getName());
     envGetTmp(PropagatorField, src_tmp);
     src_tmp = src;
@@ -215,7 +217,7 @@ void TSeqConserved<FImpl>::execute(void)
             latt_compl = mom_phase;
         } 
 
-    	mat.SeqConservedCurrent(q, src_tmp, par().curr_type, mu, 
+    	mat.SeqConservedCurrent(q, src_tmp, physSrc, par().curr_type, mu, 
                              par().tA, par().tB, latt_compl);
 	src += src_tmp;
 
