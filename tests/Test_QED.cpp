@@ -118,6 +118,7 @@ int main(int argc, char *argv[])
 	seqPar_T.mu_min	   = 0;
 	seqPar_T.mu_max	   = 3;
         seqPar_T.mom       = "0. 0. 0. 0.";
+        seqPar_T.source	   = "pt";
         application.createModule<MSource::SeqConserved>("Qpt_" + flavour[i]
 							 + "_seq_T", seqPar_T);
         // seq propagator with tadpole insertion
@@ -141,6 +142,7 @@ int main(int argc, char *argv[])
 	seqPar_V.mu_max	   = 3;
         seqPar_V.mom       = "0. 0. 0. 0.";
 	seqPar_V.photon	   = "ph_field";
+        seqPar_V.source	   = "pt";
         application.createModule<MSource::SeqConserved>("Qpt_" + flavour[i] 
 						    + "_seq_V_ph", seqPar_V);
         // seq propagator with conserved vector and photon insertion
@@ -166,6 +168,7 @@ int main(int argc, char *argv[])
 	seqPar_VV.mu_max    = 3;
         seqPar_VV.mom       = "0. 0. 0. 0.";
 	seqPar_VV.photon    = "ph_field";
+        seqPar_VV.source    = "Qpt_" + flavour[i];
         application.createModule<MSource::SeqConserved>("Qpt_" + flavour[i] 
 						+ "_seq_V_ph" + flavour[i] 
 						+ "_seq_V_ph", seqPar_VV);

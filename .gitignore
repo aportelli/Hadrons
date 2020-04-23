@@ -1,4 +1,4 @@
-/build
+/build*
 /.buildutils
 /.vscode
 /autom4te.cache
