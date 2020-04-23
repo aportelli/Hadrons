@@ -75,6 +75,7 @@ modules_cpp =\
   Modules/MSource/Momentum.cpp \
   Modules/MSource/MomentumPhase.cpp \
   Modules/MSource/Point.cpp \
+  Modules/MSource/Random.cpp \
   Modules/MSource/SeqAslash.cpp \
   Modules/MSource/SeqConserved.cpp \
   Modules/MSource/SeqGamma.cpp \
@@ -164,6 +165,7 @@ modules_hpp =\
   Modules/MSource/Momentum.hpp \
   Modules/MSource/MomentumPhase.hpp \
   Modules/MSource/Point.hpp \
+  Modules/MSource/Random.hpp \
   Modules/MSource/SeqAslash.hpp \
   Modules/MSource/SeqConserved.hpp \
   Modules/MSource/SeqGamma.hpp \
