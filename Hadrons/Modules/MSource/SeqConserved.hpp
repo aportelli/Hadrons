@@ -194,33 +194,14 @@ void TSeqConserved<FImpl>::setup(void)
 template <typename FImpl>
 void TSeqConserved<FImpl>::makeSource(PropagatorField &src, PropagatorField &q, PropagatorField &physSrc)
 {
-    if (par().tA == par().tB)
-    {
-        LOG(Message) << "Generating sequential source with conserved "
-                     << par().curr_type << " current at " 
-		     << "t = " << par().tA << " summed over the indices " 
-		     << par().mu_min << " <= mu <= " << par().mu_max 
-		     << std::endl;
-    }
-    else
-    {
-        LOG(Message) << "Generating sequential source with conserved "
-                     << par().curr_type << " current for " 
-                     << par().tA << " <= t <= " 
-                     << par().tB << " summed over the indices " 
-		     << par().mu_min << " <= mu <= " << par().mu_max
-	             << std::endl;
-    }
-    auto &physSrc = envGet(PropagatorField, par().source);
-    auto &src = envGet(PropagatorField, getName());
-    envGetTmp(PropagatorField, src_tmp);
-    src_tmp   = src;
     
     auto &mat = envGet(FMat, par().action);
+
+    envGetTmp(PropagatorField, src_tmp);
     envGetTmp(LatticeComplex, latt_compl);
 
-    src = Zero();
-
+    src     = Zero();
+    src_tmp = src;
     //exp(ipx)
     auto &mom_phase = envGet(LatticeComplex, SeqmomphName_);
     if (!SeqhasPhase_)
@@ -238,14 +219,10 @@ void TSeqConserved<FImpl>::makeSource(PropagatorField &src, PropagatorField &q, 
         SeqhasPhase_ = true;
     }
     LOG(Message) << "Inserting momentum " << strToVec<Real>(par().mom) << std::endl;
-
-
-
     if (!par().photon.empty())    	
     {
 	 LOG(Message) << "Inserting the stochastic photon field " << par().photon << std::endl;
     }
-
     for(unsigned int mu=par().mu_min;mu<=par().mu_max;mu++)
     {
         if (!par().photon.empty())    	
@@ -261,8 +238,7 @@ void TSeqConserved<FImpl>::makeSource(PropagatorField &src, PropagatorField &q, 
 
     	mat.SeqConservedCurrent(q, src_tmp, physSrc, par().curr_type, mu, 
                              par().tA, par().tB, latt_compl);
-	src += src_tmp;
-
+	    src += src_tmp;
     }	
 }
 
