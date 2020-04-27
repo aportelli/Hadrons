@@ -250,7 +250,7 @@ void TBaryon<FImpl1, FImpl2, FImpl3>::execute(void)
         
             LOG(Message) << "(propagator already sinked)" << std::endl;
             r.corr.clear();
-            for (unsigned int t = 0; t < buf.size(); ++t)
+            for (unsigned int t = 0; t < nt; ++t)
             {
                 cs = Zero();
                 for (int iQ1 = 0; iQ1 < nQ; iQ1++){

@@ -69,6 +69,7 @@ public:
     GRID_SERIALIZABLE_CLASS_MEMBERS(SeqConservedPar,
                                     std::string,  q,
                                     std::string,  action,
+                                    std::string,  source,
                                     unsigned int, tA,
                                     unsigned int, tB,
                                     Current,      curr_type,
@@ -123,7 +124,7 @@ TSeqConserved<FImpl>::TSeqConserved(const std::string name)
 template <typename FImpl>
 std::vector<std::string> TSeqConserved<FImpl>::getInput(void)
 {
-    std::vector<std::string> in = {par().q, par().action};
+    std::vector<std::string> in = {par().q, par().action, par().source};
     if (!par().photon.empty()) in.push_back(par().photon);
         
     return in;
@@ -193,14 +194,13 @@ void TSeqConserved<FImpl>::setup(void)
 template <typename FImpl>
 void TSeqConserved<FImpl>::makeSource(PropagatorField &src, PropagatorField &q)
 {
-    envGetTmp(PropagatorField, src_tmp);
-    src_tmp   = src;
-    
     auto &mat = envGet(FMat, par().action);
+
+    envGetTmp(PropagatorField, src_tmp);
     envGetTmp(LatticeComplex, latt_compl);
 
-    src = Zero();
-
+    src     = Zero();
+    src_tmp = src;
     //exp(ipx)
     auto &mom_phase = envGet(LatticeComplex, SeqmomphName_);
     if (!SeqhasPhase_)
@@ -239,7 +239,7 @@ void TSeqConserved<FImpl>::makeSource(PropagatorField &src, PropagatorField &q)
             latt_compl = mom_phase;
         } 
 
-    	mat.SeqConservedCurrent(q, src_tmp, par().curr_type, mu, 
+    	mat.SeqConservedCurrent(q, src_tmp, physSrc, par().curr_type, mu, 
                              par().tA, par().tB, latt_compl);
 	src += src_tmp;
 
