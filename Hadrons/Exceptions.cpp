@@ -59,6 +59,7 @@ CTOR_EXC(Size, Logic("size error: " + msg, loc))
 // runtime errors
 CTOR_EXC(Runtime, runtime_error(msg + ERR_SUFF))
 CTOR_EXC(Argument, Runtime("argument error: " + msg, loc))
+CTOR_EXC(Database, Runtime("database error: " + msg, loc))
 CTOR_EXC(Io, Runtime("IO error: " + msg, loc))
 CTOR_EXC(Memory, Runtime("memory error: " + msg, loc))
 CTOR_EXC(Parsing, Runtime("parsing error: " + msg, loc))

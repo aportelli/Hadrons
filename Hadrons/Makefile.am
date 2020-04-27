@@ -7,6 +7,7 @@ include modules.inc
 libHadrons_a_SOURCES = \
 	sqlite/sqlite3.c    \
   Application.cpp     \
+	Database.cpp        \
   Environment.cpp     \
 	Exceptions.cpp      \
   Global.cpp          \
