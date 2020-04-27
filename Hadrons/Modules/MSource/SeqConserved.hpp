@@ -100,7 +100,7 @@ protected:
     // execution
     virtual void execute(void);
 private:
-    void makeSource(PropagatorField &src, PropagatorField &q);
+    void makeSource(PropagatorField &src, PropagatorField &q, PropagatorField &physSrc);
 private:
     bool        SeqhasPhase_{false}; 
     std::string SeqmomphName_;
@@ -192,8 +192,9 @@ void TSeqConserved<FImpl>::setup(void)
 
 // execution ///////////////////////////////////////////////////////////////////
 template <typename FImpl>
-void TSeqConserved<FImpl>::makeSource(PropagatorField &src, PropagatorField &q)
+void TSeqConserved<FImpl>::makeSource(PropagatorField &src, PropagatorField &q, PropagatorField &physSrc)
 {
+
     auto &mat = envGet(FMat, par().action);
 
     envGetTmp(PropagatorField, src_tmp);
@@ -218,14 +219,10 @@ void TSeqConserved<FImpl>::makeSource(PropagatorField &src, PropagatorField &q)
         SeqhasPhase_ = true;
     }
     LOG(Message) << "Inserting momentum " << strToVec<Real>(par().mom) << std::endl;
-
-
-
     if (!par().photon.empty())    	
     {
 	 LOG(Message) << "Inserting the stochastic photon field " << par().photon << std::endl;
     }
-
     for(unsigned int mu=par().mu_min;mu<=par().mu_max;mu++)
     {
         if (!par().photon.empty())    	
@@ -242,7 +239,6 @@ void TSeqConserved<FImpl>::makeSource(PropagatorField &src, PropagatorField &q)
     	mat.SeqConservedCurrent(q, src_tmp, physSrc, par().curr_type, mu, 
                              par().tA, par().tB, latt_compl);
 	src += src_tmp;
-
     }	
 }
 
@@ -271,22 +267,24 @@ void TSeqConserved<FImpl>::execute(void)
 
     if (envHasType(PropagatorField, par().q))
     {
-        auto  &src = envGet(PropagatorField, getName()); 
-        auto  &q   = envGet(PropagatorField, par().q);
+        auto  &src     = envGet(PropagatorField, getName());
+        auto  &physSrc = envGet(PropagatorField, par().source);
+        auto  &q       = envGet(PropagatorField, par().q);
 
         LOG(Message) << "Using propagator '" << par().q << "'" << std::endl;
-        makeSource(src, q);
+        makeSource(src, q, physSrc);
     }
     else
     {
-        auto  &src = envGet(std::vector<PropagatorField>, getName()); 
-        auto  &q   = envGet(std::vector<PropagatorField>, par().q);
+        auto  &src     = envGet(std::vector<PropagatorField>, getName());
+        auto  &physSrc = envGet(std::vector<PropagatorField>, par().source);
+        auto  &q       = envGet(std::vector<PropagatorField>, par().q);
 
         for (unsigned int i = 0; i < q.size(); ++i)
         {
             LOG(Message) << "Using element " << i << " of propagator vector '" 
                          << par().q << "'" << std::endl;
-            makeSource(src[i], q[i]);
+            makeSource(src[i], q[i], physSrc[i]);
         }
     }
 }

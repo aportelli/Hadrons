@@ -69,16 +69,16 @@ private:
     GridCartesian                  *grid_;
     std::vector<LatticeComplex>    noise_;
     PropagatorField                prop_;
-    int size_, fermSize_, propSize_;
-    int nNoise_, nd_, nc_, nsc_;
+    int propSize_;
+    int nNoise_;
 protected:
     LatticeComplex &  getEta(void);
     FermionField &    getFerm(void);
-    int               getNd(void);
-    int               getNsc(void);
+    int               getNd(void) const;
+    int               getNsc(void) const;
     PropagatorField & getProp(void);
     void              setPropagator(LatticeComplex & eta);
-    void              setSize(const int size);
+    void              setPropSize(const int propSize);
 };
 
 template <typename FImpl>
@@ -150,11 +150,7 @@ private:
 template <typename FImpl>
 SpinColorDiagonalNoise<FImpl>::SpinColorDiagonalNoise(GridCartesian *g)
 : grid_(g), ferm_(g), prop_(g), eta_(g)
-{
-    nc_  = FImpl::Dimension;
-    nd_  = g->GlobalDimensions().size();
-    nsc_ = Ns*nc_;
-}
+{}
 
 template <typename FImpl>
 SpinColorDiagonalNoise<FImpl>::SpinColorDiagonalNoise(GridCartesian *g,
@@ -181,11 +177,12 @@ getNoise(void) const
 template <typename FImpl>
 void SpinColorDiagonalNoise<FImpl>::setFerm(const int i)
 {
+    int nc  = FImpl::Dimension;
+    auto nsc = getNsc();
     std::div_t divs;
-    divs = std::div(i, nsc_);
-    divs = std::div(divs.rem, nc_);
+    divs = std::div(i, nsc);
+    divs = std::div(divs.rem, nc);
 
-    ferm_ = Zero();
     PropToFerm<FImpl>(ferm_, prop_, divs.quot, divs.rem);
 }
 
@@ -200,9 +197,9 @@ template <typename FImpl>
 typename SpinColorDiagonalNoise<FImpl>::FermionField & 
 SpinColorDiagonalNoise<FImpl>::getFerm(const int i)
 {
-    this->setProp(i);
-    this->setFerm(i);
-    return this->getFerm();
+    setProp(i);
+    setFerm(i);
+    return getFerm();
 }
 
 template <typename FImpl>
@@ -223,8 +220,8 @@ template <typename FImpl>
 typename SpinColorDiagonalNoise<FImpl>::PropagatorField & 
 SpinColorDiagonalNoise<FImpl>::getProp(const int i)
 {
-    this->setProp(i);
-    return this->getProp();
+    setProp(i);
+    return getProp();
 }
 
 template <typename FImpl>
@@ -239,27 +236,25 @@ void SpinColorDiagonalNoise<FImpl>::normalise(Real norm)
 template <typename FImpl>
 int SpinColorDiagonalNoise<FImpl>::size(void) const
 {  
-    return size_;
+    return noise_.size();
 }
 
 template <typename FImpl>
 int SpinColorDiagonalNoise<FImpl>::fermSize(void) const
-{  
-    return fermSize_;
+{
+    return propSize()*getNsc();
 }
 
 template <typename FImpl>
 int SpinColorDiagonalNoise<FImpl>::propSize(void) const
-{  
+{
     return propSize_;
 }
 
 template <typename FImpl>
-void SpinColorDiagonalNoise<FImpl>::setSize(int size)
-{  
-    size_     = noise_.size();
-    fermSize_ = size*nsc_;
-    propSize_ = size;
+void SpinColorDiagonalNoise<FImpl>::setPropSize(int propSize)
+{
+    propSize_ = propSize;
 }
 
 template <typename FImpl>
@@ -269,15 +264,15 @@ LatticeComplex & SpinColorDiagonalNoise<FImpl>::getEta(void)
 }
 
 template <typename FImpl>
-int SpinColorDiagonalNoise<FImpl>::getNd(void)
+int SpinColorDiagonalNoise<FImpl>::getNd(void) const
 {
-    return nd_;
+    return grid_->GlobalDimensions().size();
 }
 
 template <typename FImpl>
-int SpinColorDiagonalNoise<FImpl>::getNsc(void)
+int SpinColorDiagonalNoise<FImpl>::getNsc(void) const
 {
-    return nsc_;
+    return Ns*FImpl::Dimension;
 }
 
 template <typename FImpl>
@@ -314,7 +309,7 @@ TimeDilutedNoise(GridCartesian *g, int nNoise)
 : SpinColorDiagonalNoise<FImpl>(g, nNoise), tLat_(g)
 {
     nt_ = this->getGrid()->GlobalDimensions()[Tp];
-    this->setSize(nNoise*nt_);
+    this->setPropSize(nNoise*nt_);
     auto nd = this->getNd();
     LatticeCoordinate(tLat_, nd - 1);
     auto nsc   = this->getNsc();
@@ -343,7 +338,7 @@ FullVolumeNoise<FImpl>::
 FullVolumeNoise(GridCartesian *g, int nNoise)
 : SpinColorDiagonalNoise<FImpl>(g, nNoise)
 {
-    this->setSize(nNoise);
+    this->setPropSize(nNoise);
 }
 
 template <typename FImpl>
@@ -365,7 +360,7 @@ CheckerboardNoise(GridCartesian *g, int nNoise, int nSparse)
 : SpinColorDiagonalNoise<FImpl>(g, nNoise), nSparse_(nSparse),
   coor_(g), coorTot_(g)
 {
-    this->setSize(nNoise);
+    this->setPropSize(nNoise);
     if(nNoise%nSparse_==0)
     {
          nSrc_ec_ = nNoise/nSparse_;
@@ -408,7 +403,7 @@ SparseNoise(GridCartesian *g, int nNoise, int nSparse)
 : SpinColorDiagonalNoise<FImpl>(g, nNoise), nSparse_(nSparse), coor_(g)
 {
     auto nd  = this->getNd();
-    this->setSize(nNoise*pow(nSparse, nd));
+    this->setPropSize(nNoise*pow(nSparse, nd));
 }
 
 template <typename FImpl>
