@@ -378,7 +378,8 @@ void CheckerboardNoise<FImpl>::setProp(const int i)
         LatticeCoordinate(coor_, d);
         coorTot_ = coorTot_ + coor_;
     }
-    coorTot_ = coorTot_ + j;
+    coor_ = j;
+    coorTot_ = coorTot_ + coor_;
     eta = where(mod(coorTot_,nSparse_), 0.*eta, eta);
     eta *= sqrt(1./nSrc_ec_);
     this->setPropagator(eta);
