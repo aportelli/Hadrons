@@ -49,7 +49,7 @@ public:
     static typename std::enable_if<!std::is_floating_point<T>::value 
                                    and !std::is_integral<T>::value, std::string>::type
     sqlType(void);
-
+    virtual std::string sqlInsert(void) const = 0;
 };
 
 template <typename T>
@@ -90,16 +90,16 @@ SqlEntry::sqlType(void)
     return "TEXT";
 }
 
-#define HADRONS_SQL_SCHEMA(A, B) schema += "\"" + std::string(#B) + "\" " + sqlType<A>() + ",";
+#define HADRONS_SQL_SCHEMA(A, B) schema += "\"" + std::string(#B) + "\" " + sqlType<A>() + " NOT NULL,";
 #define HADRONS_SQL_INSERT(A, B)\
 if (sqlType<A>() == "TEXT") list += "\"";\
 list += strFrom(B);\
 if (sqlType<A>() == "TEXT") list += "\"";\
 list += ",";
 
-#define HADRONS_SQL_FIELDS(cname, ...)\
-GRID_MACRO_EVAL(GRID_MACRO_MAP(GRID_MACRO_MEMBER,__VA_ARGS__))\
-static inline std::string sqlSchema(void)\
+#define HADRONS_SQL_FIELDS(...)\
+GRID_MACRO_EVAL(GRID_MACRO_MAP(GRID_MACRO_MEMBER, __VA_ARGS__))\
+static std::string sqlSchema(void)\
 {\
     std::string schema;\
     \
@@ -109,7 +109,7 @@ static inline std::string sqlSchema(void)\
     return schema;\
 }\
 \
-inline std::string sqlInsert(void)\
+virtual std::string sqlInsert(void) const\
 {\
     std::string list;\
     \
@@ -117,6 +117,49 @@ inline std::string sqlInsert(void)\
     list.pop_back();\
     \
     return list;\
+}
+
+template <typename... Ts>
+class MergedSqlEntry: SqlEntry
+{
+public:
+    MergedSqlEntry(const Ts &... entries): pt_{&entries...} {}
+
+    static std::string sqlSchema(void)
+    {
+        std::array<std::string, sizeof...(Ts)> vec = {Ts::sqlSchema()...};
+        std::string                            schema;
+
+        for (auto &s: vec)
+        {
+            schema += s + ",";
+        }
+        schema.pop_back();
+
+        return schema;
+    }
+
+    virtual std::string sqlInsert(void) const
+    {
+        std::string list;
+
+        for (auto &e: pt_)
+        {
+            list += e->sqlInsert() + ",";
+        }
+        list.pop_back();
+
+        return list;
+    }
+
+private:
+    std::array<const SqlEntry *, sizeof...(Ts)> pt_;
+};
+
+template <typename... Ts>
+MergedSqlEntry<Ts...> mergeSqlEntries(const Ts &... entries)
+{
+    return MergedSqlEntry<Ts...>(entries...);
 }
 
 class QueryResult

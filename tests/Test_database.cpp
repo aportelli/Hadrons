@@ -55,10 +55,14 @@ struct TestStruct: Serializable
                                     bool , b);
 };
 
+struct IndexEntry: SqlEntry
+{
+    HADRONS_SQL_FIELDS(unsigned int, traj);
+};
+
 struct TestEntry: SqlEntry
 {
-    HADRONS_SQL_FIELDS(TestEntry,
-                       int, a,
+    HADRONS_SQL_FIELDS(int, a,
                        float, b,
                        std::string, msg,
                        std::vector<int>, vec,
@@ -98,13 +102,20 @@ int main(int argc, char *argv[])
     LOG(Message) << TestEntry::sqlSchema() << std::endl;
     LOG(Message) << entry.sqlInsert() << std::endl;
 
+    // test merging SqlEntry classes
+    IndexEntry ind; ind.traj = 2000;
+    auto me = mergeSqlEntries(ind, entry);
+
+    LOG(Message) << me.sqlSchema() << std::endl;
+    LOG(Message) << me.sqlInsert() << std::endl;
+
     // test Database class basic SQL operations
     Database db("test.db");
 
     db.execute(
         "CREATE TABLE IF NOT EXISTS 'test' ("
         "   'name'	TEXT NOT NULL UNIQUE,   "
-        "   'value' INTERGER NOT NULL       "
+        "   'value' INTEGER NOT NULL        "
         ");");
 
     for (unsigned int i = 0; i < 10; ++i)
