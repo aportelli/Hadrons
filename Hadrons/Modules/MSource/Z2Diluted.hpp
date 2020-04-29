@@ -73,7 +73,7 @@ void TZ2Diluted<FImpl>::setup(void)
 {
     auto &noise = envGet(SpinColorDiagonalNoise<FImpl>, par().noise);
     envCreate(std::vector<PropagatorField>, getName(), 1, 
-              noise.propSize(), envGetGrid(PropagatorField));
+              noise.dilutionSize(), envGetGrid(PropagatorField));
 }
 
 // execution ///////////////////////////////////////////////////////////////////
@@ -83,7 +83,7 @@ void TZ2Diluted<FImpl>::execute(void)
     auto &noise = envGet(SpinColorDiagonalNoise<FImpl>, par().noise);
     auto &src   = envGet(std::vector<PropagatorField>, getName());
 
-    for (unsigned int i = 0; i < noise.propSize(); ++i)
+    for (unsigned int i = 0; i < noise.dilutionSize(); ++i)
     {
         src[i] = noise.getProp(i);
     }
