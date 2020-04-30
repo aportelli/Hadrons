@@ -49,6 +49,16 @@ BEGIN_HADRONS_NAMESPACE
 
 extern const std::string NamedTensorFileExtension;
 
+// Return the product of a variable number of dimensions
+Eigen::Index NamedTensorSize() { return 1; }
+template<typename... IndexTypes>
+Eigen::Index NamedTensorSize(Eigen::Index firstDimension, IndexTypes... otherDimensions)
+{
+    if( sizeof...(otherDimensions) )
+        firstDimension *= NamedTensorSize( otherDimensions... );
+    return firstDimension;
+}
+
 template<typename Scalar_, int NumIndices_>
 class NamedTensor : Serializable
 {
@@ -57,25 +67,25 @@ public:
     static constexpr int NumIndices = NumIndices_;
     using ET = Eigen::Tensor<Scalar_, NumIndices_, Eigen::RowMajor>;
     using Index = typename ET::Index;
+    using Traits = Grid::EigenIO::Traits<ET>;
+    protected:
+      Grid::Vector<typename Traits::scalar_type> deviceBuf;
+    public:
     GRID_SERIALIZABLE_CLASS_MEMBERS(NamedTensor,
-                                    ET,                       tensor,
+                                    Eigen::TensorMap<ET>,     tensor,
                                     std::vector<std::string>, IndexNames );
 
     // Name of the object and Index names as set in the constructor
     const std::string                          &Name_;
     const std::array<std::string, NumIndices_> &DefaultIndexNames_;
 
-    // Default constructor (assumes tensor will be loaded from file)
-    NamedTensor(const std::string &Name,
-                                                      const std::array<std::string, NumIndices_> &indexNames)
-    : IndexNames{indexNames.begin(), indexNames.end()}, Name_{Name}, DefaultIndexNames_{indexNames} {}
-    
     // Construct a named tensor explicitly specifying size of each dimension
     template<typename... IndexTypes>
     NamedTensor(const std::string &Name,
                                                       const std::array<std::string, NumIndices_> &indexNames,
                                                       Eigen::Index firstDimension, IndexTypes... otherDimensions)
-    : tensor(firstDimension, otherDimensions...),
+    : deviceBuf( Traits::count * NamedTensorSize(firstDimension, otherDimensions...) ),
+      tensor(reinterpret_cast<Scalar *>(&deviceBuf[0]), firstDimension, otherDimensions...),
       IndexNames{indexNames.begin(), indexNames.end()}, Name_{Name}, DefaultIndexNames_{indexNames}
     {
         if(sizeof...(otherDimensions) + 1 != NumIndices_)
@@ -163,9 +173,6 @@ class NoiseTensor : public NamedTensor<Complex, 4>
     public:
     static const std::string                Name__;
     static const std::array<std::string, 4> DefaultIndexNames__;
-    // Default constructor (assumes tensor will be loaded from file)
-    EIGEN_DEVICE_FUNC EIGEN_STRONG_INLINE NoiseTensor() : NamedTensor{Name__, DefaultIndexNames__} {}
-
     // Construct a named tensor explicitly specifying size of each dimension
     template<typename... IndexTypes>
     EIGEN_DEVICE_FUNC EIGEN_STRONG_INLINE NoiseTensor(Eigen::Index nNoise, Eigen::Index nT, Eigen::Index nVec, Eigen::Index nS)
@@ -177,9 +184,6 @@ class PerambTensor : public NamedTensor<SpinVector, 6>
     public:
     static const std::string                Name__;
     static const std::array<std::string, 6> DefaultIndexNames__;
-    // Default constructor (assumes tensor will be loaded from file)
-    EIGEN_DEVICE_FUNC EIGEN_STRONG_INLINE PerambTensor() : NamedTensor{Name__, DefaultIndexNames__} {}
-
     // Construct a named tensor explicitly specifying size of each dimension
     template<typename... IndexTypes>
     EIGEN_DEVICE_FUNC EIGEN_STRONG_INLINE PerambTensor(Eigen::Index nT, Eigen::Index nVec, Eigen::Index LI, Eigen::Index nNoise, Eigen::Index nT_inv, Eigen::Index SI)
@@ -191,9 +195,6 @@ class TimesliceEvals : public NamedTensor<RealD, 2>
     public:
     static const std::string                Name__;
     static const std::array<std::string, 2> DefaultIndexNames__;
-    // Default constructor (assumes tensor will be loaded from file)
-    EIGEN_DEVICE_FUNC EIGEN_STRONG_INLINE TimesliceEvals() : NamedTensor{Name__, DefaultIndexNames__} {}
-
     // Construct a named tensor explicitly specifying size of each dimension
     template<typename... IndexTypes>
     EIGEN_DEVICE_FUNC EIGEN_STRONG_INLINE TimesliceEvals(Eigen::Index nT, Eigen::Index nVec)
