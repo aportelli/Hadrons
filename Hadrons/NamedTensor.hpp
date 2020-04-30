@@ -49,16 +49,6 @@ BEGIN_HADRONS_NAMESPACE
 
 extern const std::string NamedTensorFileExtension;
 
-// Return the product of a variable number of dimensions
-Eigen::Index NamedTensorSize() { return 1; }
-template<typename... IndexTypes>
-Eigen::Index NamedTensorSize(Eigen::Index firstDimension, IndexTypes... otherDimensions)
-{
-    if( sizeof...(otherDimensions) )
-        firstDimension *= NamedTensorSize( otherDimensions... );
-    return firstDimension;
-}
-
 template<typename Scalar_, int NumIndices_>
 class NamedTensor : Serializable
 {
@@ -78,6 +68,16 @@ public:
     // Name of the object and Index names as set in the constructor
     const std::string                          &Name_;
     const std::array<std::string, NumIndices_> &DefaultIndexNames_;
+
+    // Return the product of a variable number of dimensions
+    Eigen::Index NamedTensorSize() { return 1; }
+    template<typename... IndexTypes>
+    inline Eigen::Index NamedTensorSize(Eigen::Index firstDimension, IndexTypes... otherDimensions)
+    {
+        if( sizeof...(otherDimensions) )
+            firstDimension *= NamedTensorSize( otherDimensions... );
+        return firstDimension;
+    }
 
     // Construct a named tensor explicitly specifying size of each dimension
     template<typename... IndexTypes>
