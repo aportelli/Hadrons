@@ -133,8 +133,7 @@ int main(int argc, char *argv[])
         head += table.colName(j) + "|";
     }
     head.pop_back();
-    LOG(Message) << head << std::endl;
-    LOG(Message) << "---------------" << std::endl;
+    LOG(Message) << "Columns " << head << std::endl;
     for (unsigned int i = 0; i < table.rows(); ++i)
     {
         std::string msg;
@@ -146,6 +145,10 @@ int main(int argc, char *argv[])
         msg.pop_back();
         LOG(Message) << msg << std::endl;
     }
+
+    // test database class high-level operations
+    db.createTable<TestEntry>("test2");
+    db.insert("test2", entry);
 
     Grid_finalize();
     

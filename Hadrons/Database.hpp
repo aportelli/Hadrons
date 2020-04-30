@@ -92,9 +92,9 @@ SqlEntry::sqlType(void)
 
 #define HADRONS_SQL_SCHEMA(A, B) schema += "\"" + std::string(#B) + "\" " + sqlType<A>() + " NOT NULL,";
 #define HADRONS_SQL_INSERT(A, B)\
-if (sqlType<A>() == "TEXT") list += "\"";\
+if (sqlType<A>() == "TEXT") list += "'";\
 list += strFrom(B);\
-if (sqlType<A>() == "TEXT") list += "\"";\
+if (sqlType<A>() == "TEXT") list += "'";\
 list += ",";
 
 #define HADRONS_SQL_FIELDS(...)\
@@ -183,6 +183,9 @@ public:
     Database(const std::string filename, GridBase *grid = nullptr);
     virtual ~Database(void);
     QueryResult execute(const std::string query);
+    template <typename EntryType>
+    void createTable(const std::string tableName, const std::string extra = "");
+    void insert(const std::string tableName, const SqlEntry &entry, const bool replace = false);
 private:
     void connect(const std::string filename);
     void disconnect(void);
@@ -191,6 +194,16 @@ private:
     GridBase    *grid_;
     sqlite3     *db_{nullptr};
 };
+
+template <typename EntryType>
+void Database::createTable(const std::string tableName, const std::string extra)
+{
+    std::string query;
+
+    query += "CREATE TABLE \"" + tableName + "\" (" + EntryType::sqlSchema();
+    query += (extra.empty() ? "" : "," + extra) + ");";
+    execute(query);
+}
 
 END_HADRONS_NAMESPACE
 

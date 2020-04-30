@@ -69,6 +69,64 @@ Database::~Database(void)
     }
 }
 
+QueryResult Database::execute(const std::string query)
+{
+    QueryResult result;
+    
+    BOSS_ONLY
+    {
+        if (db_ == nullptr)
+        {
+            HADRONS_ERROR(Database, "no database connected");
+        }
+
+        auto callback = [](void *v, int nCol, char **colStr, char **colName)
+        {
+            std::vector<std::string> line;
+            QueryResult              &result = *(static_cast<QueryResult *>(v));
+
+            if (result.colName_.empty())
+            {
+                for (unsigned int i = 0; i < nCol; ++i)
+                {
+                    result.colName_.push_back(colName[i]);
+                }
+            }
+            for (unsigned int i = 0; i < nCol; ++i)
+            {
+                line.push_back(colStr[i]);
+            }
+            result.table_.push_back(line);
+
+            return SQLITE_OK;
+        };
+
+        char *errBuf;
+
+        sqlite3_exec(db_, query.c_str(), callback, &result, &errBuf);
+        if (errBuf != nullptr)
+        {
+            std::string errMsg = errBuf;
+
+            sqlite3_free(errBuf);
+            HADRONS_ERROR(Database, "error executing query '" + query 
+                          + "' (SQLite error '" + errMsg + "')");
+        }
+    }
+
+    return result;
+}
+
+void Database::insert(const std::string tableName, const SqlEntry &entry, const bool replace)
+{
+    std::string query;
+
+    query += (replace ? "REPLACE" : "INSERT");
+    query += " INTO \"" + tableName + "\" VALUES(";
+    query += entry.sqlInsert() + ");";
+    execute(query);
+}
+
 void Database::connect(const std::string filename)
 {
     filename_ = filename;
@@ -118,52 +176,4 @@ void Database::disconnect(void)
             HADRONS_ERROR(Database, "no database connected");
         }
     }
-}
-
-QueryResult Database::execute(const std::string query)
-{
-    QueryResult result;
-    
-    BOSS_ONLY
-    {
-        if (db_ == nullptr)
-        {
-            HADRONS_ERROR(Database, "no database connected");
-        }
-
-        auto callback = [](void *v, int nCol, char **colStr, char **colName)
-        {
-            std::vector<std::string> line;
-            QueryResult              &result = *(static_cast<QueryResult *>(v));
-
-            if (result.colName_.empty())
-            {
-                for (unsigned int i = 0; i < nCol; ++i)
-                {
-                    result.colName_.push_back(colName[i]);
-                }
-            }
-            for (unsigned int i = 0; i < nCol; ++i)
-            {
-                line.push_back(colStr[i]);
-            }
-            result.table_.push_back(line);
-
-            return SQLITE_OK;
-        };
-
-        char *errBuf;
-
-        sqlite3_exec(db_, query.c_str(), callback, &result, &errBuf);
-        if (errBuf != nullptr)
-        {
-            std::string errMsg = errBuf;
-
-            sqlite3_free(errBuf);
-            HADRONS_ERROR(Database, "error executing query '" + query 
-                          + "' (SQLite error '" + errMsg + "')");
-        }
-    }
-
-    return result;
 }
