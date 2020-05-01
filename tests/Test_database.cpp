@@ -50,7 +50,7 @@ struct TestEntry: SqlEntry
     HADRONS_SQL_FIELDS(SqlNotNull<int>, a,
                        SqlNotNull<float>, b,
                        std::string, msg,
-                       std::vector<int>, vec,
+                       SqlNotNull<std::vector<int>>, vec,
                        TestStruct, st);
 };
 

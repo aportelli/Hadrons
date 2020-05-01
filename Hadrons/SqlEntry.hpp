@@ -140,9 +140,9 @@ SqlEntry::sqlType(void)
 #define HADRONS_SQL_MEMBER(A, B) CppType<A>::type B;
 #define HADRONS_SQL_SCHEMA(A, B) schema += "\"" + std::string(#B) + "\" " + sqlType<A>() + ",";
 #define HADRONS_SQL_INSERT(A, B)\
-if (sqlType<A>() == "TEXT") list += "'";\
+if (sqlType<CppType<A>::type>() == "TEXT") list += "'";\
 list += strFrom(B);\
-if (sqlType<A>() == "TEXT") list += "'";\
+if (sqlType<CppType<A>::type>() == "TEXT") list += "'";\
 list += ",";
 
 #define HADRONS_SQL_FIELDS(...)\
