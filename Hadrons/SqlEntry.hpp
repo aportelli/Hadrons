@@ -78,6 +78,12 @@ public:
     template <typename T>
     static std::string strFrom(const T &x);
     template <typename T>
+    static typename std::enable_if<!std::is_base_of<Serializable, T>::value, std::string>::type 
+    xmlStrFrom(const T &x);
+    template <typename T>
+    static typename std::enable_if<std::is_base_of<Serializable, T>::value, std::string>::type 
+    xmlStrFrom(const T &x);
+    template <typename T>
     static typename std::enable_if<std::is_floating_point<T>::value, std::string>::type
     sqlType(void);
     template <typename T>
@@ -102,6 +108,28 @@ std::string SqlEntry::strFrom(const T &x)
     stream << x;
 
     return stream.str();
+}
+
+template <typename T>
+typename std::enable_if<!std::is_base_of<Serializable, T>::value, std::string>::type  
+SqlEntry::xmlStrFrom(const T &x)
+{
+    XmlWriter writer("", "");
+
+    write(writer, "object", x);
+
+    return writer.string();
+}
+
+template <typename T>
+typename std::enable_if<std::is_base_of<Serializable, T>::value, std::string>::type  
+SqlEntry::xmlStrFrom(const T &x)
+{
+    XmlWriter writer("", "");
+
+    write(writer, x.SerialisableClassName(), x);
+
+    return writer.string();
 }
 
 template <typename T>
@@ -140,9 +168,23 @@ SqlEntry::sqlType(void)
 #define HADRONS_SQL_MEMBER(A, B) CppType<A>::type B;
 #define HADRONS_SQL_SCHEMA(A, B) schema += "\"" + std::string(#B) + "\" " + sqlType<A>() + ",";
 #define HADRONS_SQL_INSERT(A, B)\
-if (sqlType<CppType<A>::type>() == "TEXT") list += "'";\
-list += strFrom(B);\
-if (sqlType<CppType<A>::type>() == "TEXT") list += "'";\
+if (sqlType<CppType<A>::type>() == "TEXT")\
+{\
+    std::string s;\
+    if (std::is_assignable<std::string, CppType<A>::type>::value)\
+    {\
+        s = strFrom(B);\
+    }\
+    else\
+    {\
+        s = xmlStrFrom(B);\
+    }\
+    list += "'" + s + "'";\
+}\
+else\
+{\
+    list += strFrom(B);\
+}\
 list += ",";
 
 #define HADRONS_SQL_FIELDS(...)\
