@@ -325,7 +325,8 @@ void SparseSpinColorDiagonalNoise<FImpl>::generateNoise(GridParallelRNG &rng)
                 LatticeCoordinate(coor, d);
                 coorTot = coorTot + coor;
             }
-            coorTot = coorTot + j;
+            coor = j;
+            coorTot = coorTot + coor;
             eta = where(mod(coorTot,nSparse_), 0.*eta, eta);
             
         }
