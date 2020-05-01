@@ -29,21 +29,6 @@
 using namespace Grid;
 using namespace Hadrons;
 
-template <typename T>
-void testType(const T &x, const std::string expected)
-{
-    LOG(Message) << x << ": " << SqlEntry::sqlType(x);
-    if (SqlEntry::sqlType(x) == expected)
-    {
-        std::cout << " good" << std::endl;
-    }
-    else
-    {
-        std::cout << " bad" << std::endl;
-        exit(EXIT_FAILURE);
-    }
-}
-
 GRID_SERIALIZABLE_ENUM(TestEnum, undef, red, 1, blue, 2, green, 3);
 
 struct TestStruct: Serializable
@@ -62,33 +47,45 @@ struct IndexEntry: SqlEntry
 
 struct TestEntry: SqlEntry
 {
-    HADRONS_SQL_FIELDS(int, a,
-                       float, b,
+    HADRONS_SQL_FIELDS(SqlNotNull<int>, a,
+                       SqlNotNull<float>, b,
                        std::string, msg,
                        std::vector<int>, vec,
                        TestStruct, st);
 };
 
+#define TEST_TYPE(type, expected)\
+{\
+    LOG(Message) << #type << ": " << SqlEntry::sqlType<type>();\
+    if (SqlEntry::sqlType<type>() == expected)\
+    {\
+        std::cout << " good" << std::endl;\
+    }\
+    else\
+    {\
+        std::cout << " bad" << std::endl;\
+        exit(EXIT_FAILURE);\
+    }\
+}
+
 int main(int argc, char *argv[])
 {
     Grid_init(&argc, &argv);
 
-    // test SQL type detection
-    double             x = 1.567;
-    float              y = 2.498;
-    unsigned int       z = 34;
-    std::string        s = "hello";
-    std::vector<float> v = {0.1, 0.2, 0.3};
-
-    testType(x, "REAL");
-    testType(y, "REAL");
-    testType(z, "INTEGER");
-    testType(s, "TEXT");
-    testType(v, "TEXT");
+    // test SQL type generation ////////////////////////////////////////////////
+    TEST_TYPE(double, "REAL");
+    TEST_TYPE(float, "REAL");
+    TEST_TYPE(int, "INTEGER");
+    TEST_TYPE(std::string, "TEXT");
+    TEST_TYPE(std::vector<float>, "TEXT");
+    TEST_TYPE(SqlNotNull<double>, "REAL NOT NULL");
+    TEST_TYPE(SqlUnique<SqlNotNull<std::vector<double>>>, "TEXT NOT NULL UNIQUE");
     
-    // test SQL schema serialization
+    // test SQL schema serialization ///////////////////////////////////////////
     TestEntry  entry;
     TestStruct st;
+
+    CppType<SqlNotNull<double>>::type x;
 
     st.e      = TestEnum::red;
     st.x      = 4;
@@ -102,14 +99,14 @@ int main(int argc, char *argv[])
     LOG(Message) << TestEntry::sqlSchema() << std::endl;
     LOG(Message) << entry.sqlInsert() << std::endl;
 
-    // test merging SqlEntry classes
+    // test merging SqlEntry classes ///////////////////////////////////////////
     IndexEntry ind; ind.traj = 2000;
     auto me = mergeSqlEntries(ind, entry);
 
     LOG(Message) << me.sqlSchema() << std::endl;
     LOG(Message) << me.sqlInsert() << std::endl;
 
-    // test Database class basic SQL operations
+    // test Database class basic SQL operations ////////////////////////////////
     Database db("test.db");
 
     db.execute(
@@ -146,7 +143,7 @@ int main(int argc, char *argv[])
         LOG(Message) << msg << std::endl;
     }
 
-    // test database class high-level operations
+    // test Database class high-level operations ///////////////////////////////
     db.createTable<TestEntry>("test2");
     db.insert("test2", entry);
 

@@ -36,6 +36,7 @@ nobase_libHadrons_a_HEADERS = \
 	ModuleFactory.hpp         \
   NamedTensor.hpp           \
 	Solver.hpp                \
+	SqlEntry.hpp              \
 	TimerArray.hpp            \
 	VirtualMachine.hpp        \
 	sqlite/sqlite3.h          \
