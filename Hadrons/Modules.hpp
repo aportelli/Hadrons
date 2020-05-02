@@ -84,7 +84,11 @@
 #include <Hadrons/Modules/MIO/LoadPerambulator.hpp>
 #include <Hadrons/Modules/MNPR/Amputate.hpp>
 #include <Hadrons/Modules/MNPR/Bilinear.hpp>
+#include <Hadrons/Modules/MNPR/ExternalLeg.hpp>
 #include <Hadrons/Modules/MNPR/FourQuark.hpp>
+#include <Hadrons/Modules/MNPR/FourQuarkLoop.hpp>
+#include <Hadrons/Modules/MNPR/G1.hpp>
+#include <Hadrons/Modules/MNPR/SubtractionOperators.hpp>
 #include <Hadrons/Modules/MNoise/FullVolumeSpinColorDiagonal.hpp>
 #include <Hadrons/Modules/MNoise/SparseSpinColorDiagonal.hpp>
 #include <Hadrons/Modules/MNoise/TimeDilutedSpinColorDiagonal.hpp>
