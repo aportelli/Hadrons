@@ -175,7 +175,7 @@ class NoiseTensor : public NamedTensor<Complex, 4>
     static const std::array<std::string, 4> DefaultIndexNames__;
     // Construct a named tensor explicitly specifying size of each dimension
     template<typename... IndexTypes>
-    EIGEN_DEVICE_FUNC EIGEN_STRONG_INLINE NoiseTensor(Eigen::Index nNoise, Eigen::Index nT, Eigen::Index nVec, Eigen::Index nS)
+    NoiseTensor(Eigen::Index nNoise, Eigen::Index nT, Eigen::Index nVec, Eigen::Index nS)
     : NamedTensor{Name__, DefaultIndexNames__, nNoise, nT, nVec, nS} {}
 };
 
@@ -186,7 +186,7 @@ class PerambTensor : public NamedTensor<SpinVector, 6>
     static const std::array<std::string, 6> DefaultIndexNames__;
     // Construct a named tensor explicitly specifying size of each dimension
     template<typename... IndexTypes>
-    EIGEN_DEVICE_FUNC EIGEN_STRONG_INLINE PerambTensor(Eigen::Index nT, Eigen::Index nVec, Eigen::Index LI, Eigen::Index nNoise, Eigen::Index nT_inv, Eigen::Index SI)
+    PerambTensor(Eigen::Index nT, Eigen::Index nVec, Eigen::Index LI, Eigen::Index nNoise, Eigen::Index nT_inv, Eigen::Index SI)
     : NamedTensor{Name__, DefaultIndexNames__, nT, nVec, LI, nNoise, nT_inv, SI} {}
 };
 
@@ -197,7 +197,7 @@ class TimesliceEvals : public NamedTensor<RealD, 2>
     static const std::array<std::string, 2> DefaultIndexNames__;
     // Construct a named tensor explicitly specifying size of each dimension
     template<typename... IndexTypes>
-    EIGEN_DEVICE_FUNC EIGEN_STRONG_INLINE TimesliceEvals(Eigen::Index nT, Eigen::Index nVec)
+    TimesliceEvals(Eigen::Index nT, Eigen::Index nVec)
     : NamedTensor{Name__, DefaultIndexNames__, nT, nVec} {}
 };
 
