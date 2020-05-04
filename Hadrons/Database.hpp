@@ -57,19 +57,22 @@ private:
 class Database
 {
 public:
+    Database(void) = default;
     Database(const std::string filename, GridBase *grid = nullptr);
     virtual ~Database(void);
+    void setFilename(const std::string filename, GridBase *grid = nullptr);
+    bool isConnected(void) const;
     QueryResult execute(const std::string query);
     bool tableExists(const std::string tableName);
     template <typename EntryType>
     void createTable(const std::string tableName, const std::string extra = "");
     void insert(const std::string tableName, const SqlEntry &entry, const bool replace = false);
 private:
-    void connect(const std::string filename);
+    void connect(void);
     void disconnect(void);
 private:
     std::string filename_;
-    GridBase    *grid_;
+    GridBase    *grid_{nullptr};
     sqlite3     *db_{nullptr};
 };
 

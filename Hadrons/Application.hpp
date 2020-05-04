@@ -29,8 +29,9 @@
 #define Hadrons_Application_hpp_
 
 #include <Hadrons/Global.hpp>
-#include <Hadrons/VirtualMachine.hpp>
+#include <Hadrons/Database.hpp>
 #include <Hadrons/Module.hpp>
+#include <Hadrons/VirtualMachine.hpp>
 
 BEGIN_HADRONS_NAMESPACE
 
@@ -40,27 +41,67 @@ BEGIN_HADRONS_NAMESPACE
 class Application
 {
 public:
-    class TrajRange: Serializable
+    // serializable classes for parameter input
+    struct TrajRange: Serializable
     {
-    public:
         GRID_SERIALIZABLE_CLASS_MEMBERS(TrajRange,
                                         unsigned int, start,
                                         unsigned int, end,
                                         unsigned int, step);
     };
-    class GlobalPar: Serializable
+
+    struct GlobalPar: Serializable
     {
-    public:
         GRID_SERIALIZABLE_CLASS_MEMBERS(GlobalPar,
                                         TrajRange,                  trajCounter,
                                         VirtualMachine::GeneticPar, genetic,
                                         std::string,                runId,
                                         std::string,                graphFile,
                                         std::string,                scheduleFile,
+                                        std::string,                databaseFile,
                                         bool,                       saveSchedule,
                                         int,                        parallelWriteMaxRetry);
         GlobalPar(void): parallelWriteMaxRetry{-1} {}
     };
+
+    struct ObjectId: Serializable
+    {
+        GRID_SERIALIZABLE_CLASS_MEMBERS(ObjectId,
+                                        std::string, name,
+                                        std::string, type);
+    };
+
+    // serializable classes for database entries
+    struct GlobalEntry: SqlEntry
+    {
+        HADRONS_SQL_FIELDS(SqlUnique<SqlNotNull<std::string>>, name,
+                           SqlNotNull<std::string>           , value);
+    };
+
+    struct ModuleEntry: SqlEntry
+    {
+        HADRONS_SQL_FIELDS(SqlUnique<SqlNotNull<unsigned int>>, moduleId,
+                           SqlUnique<SqlNotNull<std::string>> , name,
+                           SqlNotNull<std::string>            , type,
+                           std::string                        , parameters);
+    };
+
+    struct ObjectEntry: SqlEntry
+    {
+        HADRONS_SQL_FIELDS(SqlUnique<SqlNotNull<unsigned int>>, objectId,
+                           SqlUnique<SqlNotNull<std::string>> , name,
+                           SqlNotNull<std::string>            , baseType,
+                           SqlNotNull<std::string>            , derivedType,
+                           SqlNotNull<SITE_SIZE_TYPE>         , size,
+                           SqlNotNull<unsigned int>           , moduleId);
+    };
+
+    struct ScheduleEntry: SqlEntry
+    {
+        HADRONS_SQL_FIELDS(SqlUnique<SqlNotNull<unsigned int>>, step,
+                           SqlUnique<SqlNotNull<unsigned int>>, moduleId);
+    };
+
 public:
     // constructors
     Application(void);
@@ -76,11 +117,12 @@ public:
     void createModule(const std::string name);
     template <typename M>
     void createModule(const std::string name, const typename M::Par &par);
+    void createModule(const std::string name, const std::string type, XmlReader &reader);
     // execute
     void run(void);
     // XML parameter file I/O
     void parseParameterFile(const std::string parameterFileName);
-    void saveParameterFile(const std::string parameterFileName, unsigned int prec=15);
+    void saveParameterFile(const std::string parameterFileName, unsigned int prec = 15);
     // schedule computation
     void schedule(void);
     void saveSchedule(const std::string filename);
@@ -93,11 +135,14 @@ private:
     DEFINE_ENV_ALIAS;
     // virtual machine shortcut
     DEFINE_VM_ALIAS;
+    // database initialisation
+    void setupDatabase(void);
 private:
     long unsigned int       locVol_;
     std::string             parameterFileName_{""};
     GlobalPar               par_;
     VirtualMachine::Program program_;
+    Database                db_;
     bool                    scheduled_{false}, loadedSchedule_{false};
 };
 
@@ -110,6 +155,15 @@ void Application::createModule(const std::string name)
 {
     vm().createModule<M>(name);
     scheduled_ = false;
+    if (db_.isConnected())
+    {
+        ModuleEntry m;
+
+        m.moduleId = vm().getModuleAddress(name);
+        m.name     = name;
+        m.type     = vm().getModuleType(name);
+        db_.insert("modules", m);
+    }
 }
 
 template <typename M>
@@ -118,6 +172,16 @@ void Application::createModule(const std::string name,
 {
     vm().createModule<M>(name, par);
     scheduled_ = false;
+    if (db_.isConnected())
+    {
+        ModuleEntry m;
+
+        m.moduleId   = vm().getModuleAddress(name);
+        m.name       = name;
+        m.type       = vm().getModuleType(name);
+        m.parameters = SqlEntry::xmlStrFrom(par);
+        db_.insert("modules", m);
+    }
 }
 
 END_HADRONS_NAMESPACE

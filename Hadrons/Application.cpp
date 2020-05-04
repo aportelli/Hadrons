@@ -89,11 +89,29 @@ Application::Application(const std::string parameterFileName)
 void Application::setPar(const Application::GlobalPar &par)
 {
     par_ = par;
+    setupDatabase();
 }
 
 const Application::GlobalPar & Application::getPar(void)
 {
     return par_;
+}
+
+// module creation /////////////////////////////////////////////////////////////
+void Application::createModule(const std::string name, const std::string type, 
+                               XmlReader &reader)
+{
+    vm().createModule(name, type, reader);
+    if (db_.isConnected())
+    {
+        ModuleEntry m;
+
+        m.moduleId   = vm().getModuleAddress(name);
+        m.name       = name;
+        m.type       = vm().getModuleType(name);
+        m.parameters = vm().getModule(name)->parString();
+        db_.insert("modules", m);
+    }
 }
 
 // execute /////////////////////////////////////////////////////////////////////
@@ -141,14 +159,6 @@ void Application::run(void)
 }
 
 // parse parameter file ////////////////////////////////////////////////////////
-class ObjectId: Serializable
-{
-public:
-    GRID_SERIALIZABLE_CLASS_MEMBERS(ObjectId,
-                                    std::string, name,
-                                    std::string, type);
-};
-
 void Application::parseParameterFile(const std::string parameterFileName)
 {
     XmlReader reader(parameterFileName);
@@ -171,7 +181,7 @@ void Application::parseParameterFile(const std::string parameterFileName)
     do
     {
         read(reader, "id", id);
-        vm().createModule(id.name, id.type, reader);
+        createModule(id.name, id.type, reader);
     } while (reader.nextElement("module"));
     pop(reader);
     pop(reader);
@@ -183,10 +193,10 @@ void Application::saveParameterFile(const std::string parameterFileName, unsigne
     if (env().getGrid()->IsBoss())
     {
         XmlWriter          writer(parameterFileName);
-        writer.setPrecision(prec);
         ObjectId           id;
         const unsigned int nMod = vm().getNModule();
 
+        writer.setPrecision(prec);
         write(writer, "parameters", getPar());
         push(writer, "modules");
         for (unsigned int i = 0; i < nMod; ++i)
@@ -209,6 +219,31 @@ void Application::schedule(void)
     if (!scheduled_ and !loadedSchedule_)
     {
         program_   = vm().schedule(par_.genetic);
+        if (db_.isConnected())
+        {
+            const VirtualMachine::MemoryProfile &p = vm().getMemoryProfile();
+
+            for (unsigned int i = 0; i < p.object.size(); ++i)
+            {
+                ObjectEntry o;
+
+                o.objectId    = i;
+                o.name        = env().getObjectName(i);
+                o.baseType    = env().getObjectType(i);
+                o.derivedType = env().getObjectDerivedType(i);
+                o.size        = p.object[i].size;
+                o.moduleId    = p.object[i].module;
+                db_.insert("objects", o);
+            }
+            for (unsigned int i = 0; i < program_.size(); ++i)
+            {
+                ScheduleEntry s;
+
+                s.step     = i;
+                s.moduleId = program_[i];
+                db_.insert("schedule", s);
+            }
+        }
         scheduled_ = true;
     }
 }
@@ -282,4 +317,34 @@ void Application::configLoop(void)
     }
     LOG(Message) << BIG_SEP << " End of measurement " << BIG_SEP << std::endl;
     env().freeAll();
+}
+
+// database initialisation /////////////////////////////////////////////////////
+void Application::setupDatabase(void)
+{
+    if (!getPar().databaseFile.empty())
+    {
+        LOG(Message) << "Setting up SQLite database in file '" 
+                     << getPar().databaseFile << "'..." << std::endl;
+        db_.setFilename(getPar().databaseFile, env().getGrid());
+        db_.execute("PRAGMA foreign_keys = ON;");
+        if (!db_.tableExists("global"))
+        {
+            db_.createTable<GlobalEntry>("global");
+        }
+        if (!db_.tableExists("modules"))
+        {
+            db_.createTable<ModuleEntry>("modules", "PRIMARY KEY('moduleId')");
+        }
+        if (!db_.tableExists("objects"))
+        {
+            db_.createTable<ObjectEntry>("objects", "PRIMARY KEY('objectId')," 
+                "FOREIGN KEY('moduleId') REFERENCES modules(moduleId)");
+        }
+        if (!db_.tableExists("schedule"))
+        {
+            db_.createTable<ScheduleEntry>("schedule", "PRIMARY KEY('step')," 
+                "FOREIGN KEY('moduleId') REFERENCES modules(moduleId)");
+        }
+    }
 }

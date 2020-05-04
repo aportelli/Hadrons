@@ -143,6 +143,8 @@ public:
     std::string             getObjectName(const unsigned int address) const;
     std::string             getObjectType(const unsigned int address) const;
     std::string             getObjectType(const std::string name) const;
+    std::string             getObjectDerivedType(const unsigned int address) const;
+    std::string             getObjectDerivedType(const std::string name) const;
     Size                    getObjectSize(const unsigned int address) const;
     Size                    getObjectSize(const std::string name) const;
     Storage                 getObjectStorage(const unsigned int address) const;

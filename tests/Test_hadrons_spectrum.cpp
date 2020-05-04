@@ -53,6 +53,7 @@ int main(int argc, char *argv[])
     globalPar.trajCounter.end   = 1520;
     globalPar.trajCounter.step  = 20;
     globalPar.runId             = "test";
+    globalPar.databaseFile      = "spectrum.db";
     application.setPar(globalPar);
     // gauge field
     application.createModule<MGauge::Unit>("gauge");

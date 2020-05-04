@@ -53,20 +53,32 @@ size_t QueryResult::cols(void) const
 }
 
 Database::Database(const std::string filename, GridBase *grid)
-: grid_(grid)
 {
-    if (!filename.empty())
+    if (isConnected() and ((filename != filename_) or (grid != grid_)))
     {
-        connect(filename);
-    }   
+        disconnect();
+    }
+    setFilename(filename, grid);
 }
 
 Database::~Database(void)
 {
-    if (db_ != nullptr)
+    if (isConnected())
     {
         disconnect();
     }
+}
+
+void Database::setFilename(const std::string filename, GridBase *grid)
+{
+    grid_     = grid;
+    filename_ = filename;
+    connect();
+}
+
+bool Database::isConnected(void) const
+{
+    return (db_ != nullptr);
 }
 
 QueryResult Database::execute(const std::string query)
@@ -75,7 +87,7 @@ QueryResult Database::execute(const std::string query)
     
     BOSS_ONLY
     {
-        if (db_ == nullptr)
+        if (!isConnected())
         {
             HADRONS_ERROR(Database, "no database connected");
         }
@@ -137,13 +149,11 @@ void Database::insert(const std::string tableName, const SqlEntry &entry, const 
     execute(query);
 }
 
-void Database::connect(const std::string filename)
+void Database::connect(void)
 {
-    filename_ = filename;
-
     BOSS_ONLY
     {
-        if (db_ == nullptr)
+        if (!isConnected())
         {
             int status;
 
@@ -167,7 +177,7 @@ void Database::disconnect(void)
 {
     BOSS_ONLY
     {
-        if (db_ != nullptr)
+        if (isConnected())
         {
             int status;
 

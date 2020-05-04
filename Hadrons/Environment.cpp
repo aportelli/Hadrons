@@ -171,6 +171,30 @@ std::string Environment::getObjectType(const std::string name) const
     return getObjectType(getObjectAddress(name));
 }
 
+std::string Environment::getObjectDerivedType(const unsigned int address) const
+{
+    if (hasObject(address))
+    {
+        if (object_[address].derivedType)
+        {
+            return typeName(object_[address].derivedType);
+        }
+        else
+        {
+            return "<no type>";
+        }
+    }
+    else
+    {
+        ERROR_NO_ADDRESS(address);
+    }
+}
+
+std::string Environment::getObjectDerivedType(const std::string name) const
+{
+    return getObjectDerivedType(getObjectAddress(name));
+}
+
 Environment::Size Environment::getObjectSize(const unsigned int address) const
 {
     if (hasObject(address))
@@ -305,7 +329,6 @@ void Environment::freeObject(const unsigned int address)
                      << "'" << std::endl;
     }
     object_[address].size = 0;
-    object_[address].type = nullptr;
     object_[address].data.reset(nullptr);
 }
 
