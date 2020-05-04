@@ -60,6 +60,7 @@ public:
     Database(const std::string filename, GridBase *grid = nullptr);
     virtual ~Database(void);
     QueryResult execute(const std::string query);
+    bool tableExists(const std::string tableName);
     template <typename EntryType>
     void createTable(const std::string tableName, const std::string extra = "");
     void insert(const std::string tableName, const SqlEntry &entry, const bool replace = false);

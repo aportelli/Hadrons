@@ -55,18 +55,16 @@ struct TestEntry: SqlEntry
 };
 
 #define TEST_TYPE(type, expected)\
+LOG(Message) << #type << ": " << SqlEntry::sqlType<type>();\
+if (SqlEntry::sqlType<type>() == expected)\
 {\
-    LOG(Message) << #type << ": " << SqlEntry::sqlType<type>();\
-    if (SqlEntry::sqlType<type>() == expected)\
-    {\
-        std::cout << " good" << std::endl;\
-    }\
-    else\
-    {\
-        std::cout << " bad" << std::endl;\
-        exit(EXIT_FAILURE);\
-    }\
-}
+    std::cout << " good" << std::endl;\
+}\
+else\
+{\
+    std::cout << " bad" << std::endl;\
+    exit(EXIT_FAILURE);\
+}\
 
 int main(int argc, char *argv[])
 {
@@ -146,6 +144,8 @@ int main(int argc, char *argv[])
     // test Database class high-level operations ///////////////////////////////
     db.createTable<TestEntry>("test2");
     db.insert("test2", entry);
+    LOG(Message) << "Table 'test' exists: " << db.tableExists("test") << std::endl;
+    LOG(Message) << "Table 'foo' exists : " << db.tableExists("foo")  << std::endl;
 
     Grid_finalize();
     
