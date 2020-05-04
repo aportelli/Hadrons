@@ -334,16 +334,16 @@ void Application::setupDatabase(void)
         }
         if (!db_.tableExists("modules"))
         {
-            db_.createTable<ModuleEntry>("modules", "PRIMARY KEY('moduleId')");
+            db_.createTable<ModuleEntry>("modules", "PRIMARY KEY(\"moduleId\")");
         }
         if (!db_.tableExists("objects"))
         {
-            db_.createTable<ObjectEntry>("objects", "PRIMARY KEY('objectId')," 
+            db_.createTable<ObjectEntry>("objects", "PRIMARY KEY(\"objectId\")," 
                 "FOREIGN KEY('moduleId') REFERENCES modules(moduleId)");
         }
         if (!db_.tableExists("schedule"))
         {
-            db_.createTable<ScheduleEntry>("schedule", "PRIMARY KEY('step')," 
+            db_.createTable<ScheduleEntry>("schedule", "PRIMARY KEY(\"step\")," 
                 "FOREIGN KEY('moduleId') REFERENCES modules(moduleId)");
         }
     }

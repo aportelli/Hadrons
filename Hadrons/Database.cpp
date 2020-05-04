@@ -131,8 +131,6 @@ QueryResult Database::execute(const std::string query)
 
 bool Database::tableExists(const std::string tableName)
 {
-    std::string query;
-
     QueryResult r = execute("SELECT name FROM sqlite_master WHERE "
                             "type='table' AND name='" + tableName + "';");
 
