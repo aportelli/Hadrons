@@ -66,7 +66,7 @@ struct CppType
 template <typename T>
 struct CppType<T, typename std::enable_if<std::is_base_of<SqlColumnOption<T>, T>::value>::type>
 {
-    typedef typename T::type type;
+    typedef typename CppType<typename T::type>::type type;
 };
 
 /******************************************************************************
