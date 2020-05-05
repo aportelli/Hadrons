@@ -122,8 +122,8 @@ void TPerambFromSolve<FImpl>::setup(void)
     const int LI_reduced{  par().LI_reduced};
     envCreate(PerambTensor, getName(), 1, Nt,nvec_reduced,LI_reduced,dp.nnoise,Nt_inv,dp.SI);
     envCreate(NoiseTensor, getName() + "_noise", 1, dp.nnoise, Nt, dp.nvec, Ns );
-    envTmp(LatticeColourVector, "result3d_nospin",1,LatticeColourVector(grid3d.get()));
-    envTmp(LatticeColourVector, "evec3d",1,LatticeColourVector(grid3d.get()));
+    envTmp(LatticeColourVector, "result3d_nospin", 1, grid3d.get());
+    envTmp(LatticeColourVector, "evec3d",          1, grid3d.get());
     envTmpLat(LatticeColourVector, "result4d_nospin");
 }
 

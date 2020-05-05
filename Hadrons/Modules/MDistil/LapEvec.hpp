@@ -156,9 +156,9 @@ void TLapEvec<GImpl>::setup(void)
     // Temporaries
     envTmpLat(GaugeField, "Umu_stout");
     envTmpLat(GaugeField, "Umu_smear");
-    envTmp(LatticeGaugeField, "UmuNoTime",1,LatticeGaugeField(gridLD.get()));
-    envTmp(LatticeColourVector, "src",1,LatticeColourVector(gridLD.get()));
-    envTmp(std::vector<LapEvecs>, "eig",1,std::vector<LapEvecs>(Ntlocal));
+    envTmp(LatticeGaugeField, "UmuNoTime", 1, gridLD.get());
+    envTmp(LatticeColourVector,     "src", 1, gridLD.get());
+    envTmp(Grid::Vector<LapEvecs>,  "eig", 1, Ntlocal);
     // Output objects
     envCreate(LapEvecs, getName(), 1, par().Lanczos.Nvec, gridHD);
 }
