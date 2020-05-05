@@ -194,7 +194,6 @@ void TSeqConserved<FImpl>::setup(void)
 template <typename FImpl>
 void TSeqConserved<FImpl>::makeSource(PropagatorField &src, PropagatorField &q, PropagatorField &physSrc)
 {
-
     auto &mat = envGet(FMat, par().action);
 
     envGetTmp(PropagatorField, src_tmp);
@@ -238,7 +237,7 @@ void TSeqConserved<FImpl>::makeSource(PropagatorField &src, PropagatorField &q, 
 
     	mat.SeqConservedCurrent(q, src_tmp, physSrc, par().curr_type, mu, 
                              par().tA, par().tB, latt_compl);
-	src += src_tmp;
+	    src += src_tmp;
     }	
 }
 
