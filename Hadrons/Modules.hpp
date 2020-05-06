@@ -86,6 +86,7 @@
 #include <Hadrons/Modules/MNPR/Bilinear.hpp>
 #include <Hadrons/Modules/MNPR/ExternalLeg.hpp>
 #include <Hadrons/Modules/MNPR/FourQuark.hpp>
+#include <Hadrons/Modules/MNPR/FourQuarkFullyConnected.hpp>
 #include <Hadrons/Modules/MNPR/FourQuarkLoop.hpp>
 #include <Hadrons/Modules/MNPR/G1.hpp>
 #include <Hadrons/Modules/MNPR/SubtractionOperators.hpp>

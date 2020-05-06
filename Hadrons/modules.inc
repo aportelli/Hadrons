@@ -48,6 +48,7 @@ modules_cpp =\
   Modules/MNPR/Bilinear.cpp \
   Modules/MNPR/ExternalLeg.cpp \
   Modules/MNPR/FourQuark.cpp \
+  Modules/MNPR/FourQuarkFullyConnected.cpp \
   Modules/MNPR/FourQuarkLoop.cpp \
   Modules/MNPR/G1.cpp \
   Modules/MNPR/SubtractionOperators.cpp \
@@ -138,6 +139,7 @@ modules_hpp =\
   Modules/MNPR/Bilinear.hpp \
   Modules/MNPR/ExternalLeg.hpp \
   Modules/MNPR/FourQuark.hpp \
+  Modules/MNPR/FourQuarkFullyConnected.hpp \
   Modules/MNPR/FourQuarkLoop.hpp \
   Modules/MNPR/G1.hpp \
   Modules/MNPR/SubtractionOperators.hpp \
