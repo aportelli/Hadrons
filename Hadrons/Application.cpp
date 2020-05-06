@@ -356,6 +356,40 @@ void Application::setupDatabase(void)
             db_.createTable<ScheduleEntry>("schedule", "PRIMARY KEY(\"step\")," 
                 "FOREIGN KEY(\"moduleId\") REFERENCES modules(moduleId)");
         }
+        db_.execute(
+            "CREATE VIEW IF NOT EXISTS vModules AS                                     "
+            "SELECT moduleId,                                                          "
+            "       modules.name,                                                      "
+            "       moduleTypes.type AS type,                                          "
+            "       modules.parameters                                                 "
+            "FROM modules                                                              "
+            "INNER JOIN moduleTypes ON modules.moduleTypeId = moduleTypes.moduleTypeId "
+            "ORDER BY moduleId;                                                        "
+        );
+        db_.execute(
+            "CREATE VIEW IF NOT EXISTS vObjects AS                                     "
+            "SELECT objectId,                                                          "
+            "       objects.name,                                                      "
+            "       objectTypes.type AS type,                                          "
+            "       objectTypes.baseType AS baseType,                                  "
+            "       objects.size*1.0/1024/1024 AS sizeMB,                              "
+            "       modules.name AS module                                             "
+            "FROM objects                                                              "
+            "INNER JOIN objectTypes ON objects.objectTypeId = objectTypes.objectTypeId "
+            "INNER JOIN modules     ON objects.moduleId = modules.moduleId             "
+            "ORDER BY objectId;                                                        "
+        );
+        db_.execute(
+            "CREATE VIEW IF NOT EXISTS vSchedule AS                                    "
+            "SELECT step,                                                              "
+            "       modules.name AS module                                             "
+            "FROM schedule                                                             "
+            "INNER JOIN modules ON schedule.moduleId = modules.moduleId                "
+            "ORDER BY step;                                                            "
+        );
+    }
+}
+
 unsigned int Application::dbInsertModuleType(const std::string type)
 {
     QueryResult r = db_.execute("SELECT moduleTypeId FROM moduleTypes "
