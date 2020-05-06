@@ -179,7 +179,14 @@ if (sqlType<CppType<A>::type>() == "TEXT")\
     {\
         s = xmlStrFrom(B);\
     }\
-    list += "'" + s + "'";\
+    if (!s.empty())\
+    {\
+        list += "'" + s + "'";\
+    }\
+    else\
+    {\
+        list += "NULL";\
+    }\
 }\
 else\
 {\
