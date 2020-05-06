@@ -67,7 +67,7 @@ Application::Application(void)
         LOG(Message) << "Scalar implementation   : " << MACOUTS(SIMPLBASE) << std::endl;
         LOG(Message) << "Gauge implementation    : " << MACOUTS(GIMPLBASE) << std::endl;
         LOG(Message) << "Eigenvector base size   : " 
-                    << MACOUT(HADRONS_DEFAULT_LANCZOS_NBASIS) << std::endl;
+                     << MACOUT(HADRONS_DEFAULT_LANCZOS_NBASIS) << std::endl;
         LOG(Message) << "Schur decomposition     : " << MACOUTS(HADRONS_DEFAULT_SCHUR) << std::endl;
         LOG(Message) << std::endl;
     }
@@ -106,10 +106,10 @@ void Application::createModule(const std::string name, const std::string type,
     {
         ModuleEntry m;
 
-        m.moduleId   = vm().getModuleAddress(name);
-        m.name       = name;
-        m.type       = vm().getModuleType(name);
-        m.parameters = vm().getModule(name)->parString();
+        m.moduleId     = vm().getModuleAddress(name);
+        m.name         = name;
+        m.moduleTypeId = dbInsertModuleType(vm().getModuleType(name));
+        m.parameters   = vm().getModule(name)->parString();
         db_.insert("modules", m);
     }
 }
@@ -227,12 +227,12 @@ void Application::schedule(void)
             {
                 ObjectEntry o;
 
-                o.objectId    = i;
-                o.name        = env().getObjectName(i);
-                o.baseType    = env().getObjectType(i);
-                o.derivedType = env().getObjectDerivedType(i);
-                o.size        = p.object[i].size;
-                o.moduleId    = p.object[i].module;
+                o.objectId     = i;
+                o.name         = env().getObjectName(i);
+                o.objectTypeId = dbInsertObjectType(env().getObjectDerivedType(i),
+                                                    env().getObjectType(i));
+                o.size         = p.object[i].size;
+                o.moduleId     = p.object[i].module;
                 db_.insert("objects", o);
             }
             for (unsigned int i = 0; i < program_.size(); ++i)
@@ -332,19 +332,73 @@ void Application::setupDatabase(void)
         {
             db_.createTable<GlobalEntry>("global");
         }
+        if (!db_.tableExists("moduleTypes"))
+        {
+            db_.createTable<ModuleTypeEntry>("moduleTypes", "PRIMARY KEY(\"moduleTypeId\")");
+        }
         if (!db_.tableExists("modules"))
         {
-            db_.createTable<ModuleEntry>("modules", "PRIMARY KEY(\"moduleId\")");
+            db_.createTable<ModuleEntry>("modules", "PRIMARY KEY(\"moduleId\")"
+                "FOREIGN KEY(\"moduleTypeId\") REFERENCES moduleTypes(moduleTypeId)");
+        }
+        if (!db_.tableExists("objectTypes"))
+        {
+            db_.createTable<ObjectTypeEntry>("objectTypes", "PRIMARY KEY(\"objectTypeId\")");
         }
         if (!db_.tableExists("objects"))
         {
             db_.createTable<ObjectEntry>("objects", "PRIMARY KEY(\"objectId\")," 
-                "FOREIGN KEY('moduleId') REFERENCES modules(moduleId)");
+                "FOREIGN KEY(\"moduleId\") REFERENCES modules(moduleId),"
+                "FOREIGN KEY(\"objectTypeId\") REFERENCES objectTypes(objectTypeId)");
         }
         if (!db_.tableExists("schedule"))
         {
             db_.createTable<ScheduleEntry>("schedule", "PRIMARY KEY(\"step\")," 
-                "FOREIGN KEY('moduleId') REFERENCES modules(moduleId)");
+                "FOREIGN KEY(\"moduleId\") REFERENCES modules(moduleId)");
         }
+unsigned int Application::dbInsertModuleType(const std::string type)
+{
+    QueryResult r = db_.execute("SELECT moduleTypeId FROM moduleTypes "
+                                "WHERE type = '" + type + "';");
+
+    if (r.rows() == 0)
+    {
+        ModuleTypeEntry e;
+
+        r = db_.execute("SELECT COUNT(*) FROM moduleTypes;");
+        e.moduleTypeId = std::stoi(r[0][0]);
+        e.type         = type;
+        db_.insert("moduleTypes", e);
+
+        return e.moduleTypeId;
+    }
+    else
+    {
+        return std::stoi(r[0][0]);
+    }
+}
+
+unsigned int Application::dbInsertObjectType(const std::string type, 
+                                             const std::string baseType)
+{
+    QueryResult r = db_.execute("SELECT objectTypeId FROM objectTypes "
+                                "WHERE type = '" + type + "' "
+                                "AND baseType = '" + baseType + "';");
+
+    if (r.rows() == 0)
+    {
+        ObjectTypeEntry e;
+
+        r = db_.execute("SELECT COUNT(*) FROM objectTypes;");
+        e.objectTypeId = std::stoi(r[0][0]);
+        e.type         = type;
+        e.baseType     = baseType;
+        db_.insert("objectTypes", e);
+
+        return e.objectTypeId;
+    }
+    else
+    {
+        return std::stoi(r[0][0]);
     }
 }
