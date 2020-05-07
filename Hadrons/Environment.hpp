@@ -558,7 +558,7 @@ T * Environment::getObject(const std::string name) const
 template <typename T>
 bool Environment::isObjectOfType(const unsigned int address) const
 {
-    if (hasObject(address))
+    if (hasCreatedObject(address))
     {
         if (auto h = dynamic_cast<Holder<T> *>(object_[address].data.get()))
         {
@@ -571,7 +571,7 @@ bool Environment::isObjectOfType(const unsigned int address) const
     }
     else
     {
-        HADRONS_ERROR_REF(ObjectDefinition, "no object with address " 
+        HADRONS_ERROR_REF(ObjectDefinition, "no initialised object with address " 
                           + std::to_string(address), address);
     }
 }
