@@ -166,7 +166,7 @@ SqlEntry::sqlType(void)
  *                 "Macro Magic" for SQL entry class declarations             *
  ******************************************************************************/
 #define HADRONS_SQL_MEMBER(A, B) CppType<A>::type B;
-#define HADRONS_SQL_SCHEMA(A, B) schema += "\"" + std::string(#B) + "\" " + sqlType<A>() + ",";
+#define HADRONS_SQL_SCHEMA(A, B) schema += std::string(#B) + " " + sqlType<A>() + ",";
 #define HADRONS_SQL_INSERT(A, B)\
 if (sqlType<CppType<A>::type>() == "TEXT")\
 {\

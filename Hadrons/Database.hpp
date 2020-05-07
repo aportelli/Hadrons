@@ -81,7 +81,7 @@ void Database::createTable(const std::string tableName, const std::string extra)
 {
     std::string query;
 
-    query += "CREATE TABLE \"" + tableName + "\" (" + EntryType::sqlSchema();
+    query += "CREATE TABLE " + tableName + " (" + EntryType::sqlSchema();
     query += (extra.empty() ? "" : "," + extra) + ");";
     execute(query);
 }

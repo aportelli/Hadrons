@@ -334,27 +334,27 @@ void Application::setupDatabase(void)
         }
         if (!db_.tableExists("moduleTypes"))
         {
-            db_.createTable<ModuleTypeEntry>("moduleTypes", "PRIMARY KEY(\"moduleTypeId\")");
+            db_.createTable<ModuleTypeEntry>("moduleTypes", "PRIMARY KEY(moduleTypeId)");
         }
         if (!db_.tableExists("modules"))
         {
-            db_.createTable<ModuleEntry>("modules", "PRIMARY KEY(\"moduleId\")"
-                "FOREIGN KEY(\"moduleTypeId\") REFERENCES moduleTypes(moduleTypeId)");
+            db_.createTable<ModuleEntry>("modules", "PRIMARY KEY(moduleId)"
+                "FOREIGN KEY(moduleTypeId) REFERENCES moduleTypes(moduleTypeId)");
         }
         if (!db_.tableExists("objectTypes"))
         {
-            db_.createTable<ObjectTypeEntry>("objectTypes", "PRIMARY KEY(\"objectTypeId\")");
+            db_.createTable<ObjectTypeEntry>("objectTypes", "PRIMARY KEY(objectTypeId)");
         }
         if (!db_.tableExists("objects"))
         {
-            db_.createTable<ObjectEntry>("objects", "PRIMARY KEY(\"objectId\")," 
-                "FOREIGN KEY(\"moduleId\") REFERENCES modules(moduleId),"
-                "FOREIGN KEY(\"objectTypeId\") REFERENCES objectTypes(objectTypeId)");
+            db_.createTable<ObjectEntry>("objects", "PRIMARY KEY(objectId)," 
+                "FOREIGN KEY(moduleId) REFERENCES modules(moduleId),"
+                "FOREIGN KEY(objectTypeId) REFERENCES objectTypes(objectTypeId)");
         }
         if (!db_.tableExists("schedule"))
         {
-            db_.createTable<ScheduleEntry>("schedule", "PRIMARY KEY(\"step\")," 
-                "FOREIGN KEY(\"moduleId\") REFERENCES modules(moduleId)");
+            db_.createTable<ScheduleEntry>("schedule", "PRIMARY KEY(step)," 
+                "FOREIGN KEY(moduleId) REFERENCES modules(moduleId)");
         }
         db_.execute(
             "CREATE VIEW IF NOT EXISTS vModules AS                                     "
