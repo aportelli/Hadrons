@@ -252,10 +252,10 @@ void FullVolumeSpinColorDiagonalNoise<FImpl>::generateNoise(GridParallelRNG &rng
     SpinField                  etas(g);
     unsigned int               i = 0;
 
+    bernoulli(rng, eta);
+    eta = (2.*eta - shift)*(1./::sqrt(2.));
     for (unsigned int n = 0; n < nSrc_; ++n)
     {
-        bernoulli(rng, eta);
-        eta = (2.*eta - shift)*(1./::sqrt(2.));
         for (unsigned int s = 0; s < Ns; ++s)
         {
   	    etas = Zero();
