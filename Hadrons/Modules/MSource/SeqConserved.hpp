@@ -100,6 +100,8 @@ protected:
     // execution
     virtual void execute(void);
 private:
+    void makeSource(PropagatorField &src, PropagatorField &q, PropagatorField &physSrc);
+private:
     bool        SeqhasPhase_{false}; 
     std::string SeqmomphName_;
 };
@@ -141,8 +143,48 @@ template <typename FImpl>
 void TSeqConserved<FImpl>::setup(void)
 {
     auto Ls_ = env().getObjectLs(par().action);
-    envCreateLat(PropagatorField, getName(), Ls_);
-    envTmpLat(PropagatorField, "src_tmp",Ls_);
+
+    if (Ls_ > 1)
+    {
+        envTmpLat(PropagatorField, "src_tmp", Ls_);
+    }
+    else
+    {
+        envTmpLat(PropagatorField, "src_tmp");
+    }
+    if (envHasType(PropagatorField, par().q))
+    {
+        if (Ls_ > 1)
+        {
+            envCreateLat(PropagatorField, getName(), Ls_);
+        }
+        else
+        {
+            envCreateLat(PropagatorField, getName());
+        }
+    }
+    else if (envHasType(std::vector<PropagatorField>, par().q))
+    {
+        auto &q = envGet(std::vector<PropagatorField>, par().q);
+
+        if (Ls_ > 1)
+        {
+            envCreate(std::vector<PropagatorField>, getName(), Ls_, q.size(),
+                      envGetGrid(PropagatorField, Ls_));
+        }
+        else
+        {
+            envCreate(std::vector<PropagatorField>, getName(), 1, q.size(),
+                      envGetGrid(PropagatorField));
+        }
+    }
+    else
+    {
+        HADRONS_ERROR_REF(ObjectType, "object '" + par().q 
+                          + "' has an incompatible type ("
+                          + env().getObjectType(par().q)
+                          + ")", env().getObjectAddress(par().q))
+    }
     envCacheLat(LatticeComplex, SeqmomphName_);
     envTmpLat(LatticeComplex, "coor");
     envTmpLat(LatticeComplex, "latt_compl");
@@ -150,35 +192,15 @@ void TSeqConserved<FImpl>::setup(void)
 
 // execution ///////////////////////////////////////////////////////////////////
 template <typename FImpl>
-void TSeqConserved<FImpl>::execute(void)
+void TSeqConserved<FImpl>::makeSource(PropagatorField &src, PropagatorField &q, PropagatorField &physSrc)
 {
-    if (par().tA == par().tB)
-    {
-        LOG(Message) << "Generating sequential source with conserved "
-                     << par().curr_type << " current at " 
-		     << "t = " << par().tA << " summed over the indices " 
-		     << par().mu_min << " <= mu <= " << par().mu_max 
-		     << std::endl;
-    }
-    else
-    {
-        LOG(Message) << "Generating sequential source with conserved "
-                     << par().curr_type << " current for " 
-                     << par().tA << " <= t <= " 
-                     << par().tB << " summed over the indices " 
-		     << par().mu_min << " <= mu <= " << par().mu_max
-	             << std::endl;
-    }
-    auto &physSrc = envGet(PropagatorField, par().source);
-    auto &src = envGet(PropagatorField, getName());
-    envGetTmp(PropagatorField, src_tmp);
-    src_tmp = src;
-    auto &q   = envGet(PropagatorField, par().q);
     auto &mat = envGet(FMat, par().action);
+
+    envGetTmp(PropagatorField, src_tmp);
     envGetTmp(LatticeComplex, latt_compl);
 
-    src = Zero();
-
+    src     = Zero();
+    src_tmp = src;
     //exp(ipx)
     auto &mom_phase = envGet(LatticeComplex, SeqmomphName_);
     if (!SeqhasPhase_)
@@ -196,14 +218,10 @@ void TSeqConserved<FImpl>::execute(void)
         SeqhasPhase_ = true;
     }
     LOG(Message) << "Inserting momentum " << strToVec<Real>(par().mom) << std::endl;
-
-
-
     if (!par().photon.empty())    	
     {
 	 LOG(Message) << "Inserting the stochastic photon field " << par().photon << std::endl;
     }
-
     for(unsigned int mu=par().mu_min;mu<=par().mu_max;mu++)
     {
         if (!par().photon.empty())    	
@@ -219,11 +237,55 @@ void TSeqConserved<FImpl>::execute(void)
 
     	mat.SeqConservedCurrent(q, src_tmp, physSrc, par().curr_type, mu, 
                              par().tA, par().tB, latt_compl);
-	src += src_tmp;
-
+	    src += src_tmp;
     }	
+}
 
- 
+template <typename FImpl>
+void TSeqConserved<FImpl>::execute(void)
+{
+    if (par().tA == par().tB)
+    {
+        LOG(Message) << "Generating sequential source(s) with conserved "
+                     << par().curr_type << " current for the action '"
+                     << par().action << "'\nat " 
+		             << "t = " << par().tA << " summed over the indices " 
+		             << par().mu_min << " <= mu <= " << par().mu_max 
+		             << std::endl;
+    }
+    else
+    {
+        LOG(Message) << "Generating sequential source(s) with conserved "
+                     << par().curr_type << " current for the action '"
+                     << par().action << "'\nfor " 
+                     << par().tA << " <= t <= " 
+                     << par().tB << " summed over the indices " 
+		             << par().mu_min << " <= mu <= " << par().mu_max
+	                 << std::endl;
+    }
+
+    if (envHasType(PropagatorField, par().q))
+    {
+        auto  &src     = envGet(PropagatorField, getName());
+        auto  &physSrc = envGet(PropagatorField, par().source);
+        auto  &q       = envGet(PropagatorField, par().q);
+
+        LOG(Message) << "Using propagator '" << par().q << "'" << std::endl;
+        makeSource(src, q, physSrc);
+    }
+    else
+    {
+        auto  &src     = envGet(std::vector<PropagatorField>, getName());
+        auto  &physSrc = envGet(std::vector<PropagatorField>, par().source);
+        auto  &q       = envGet(std::vector<PropagatorField>, par().q);
+
+        for (unsigned int i = 0; i < q.size(); ++i)
+        {
+            LOG(Message) << "Using element " << i << " of propagator vector '" 
+                         << par().q << "'" << std::endl;
+            makeSource(src[i], q[i], physSrc[i]);
+        }
+    }
 }
 
 

@@ -132,12 +132,12 @@ void TPerambulator<FImpl>::setup(void)
     
     envTmpLat(LatticeSpinColourVector,   "dist_source");
     envTmpLat(LatticeSpinColourVector,   "source4d");
-    envTmp(LatticeSpinColourVector,      "source3d",1,LatticeSpinColourVector(grid3d.get()));
-    envTmp(LatticeColourVector,          "source3d_nospin",1,LatticeColourVector(grid3d.get()));
+    envTmp(LatticeSpinColourVector,      "source3d",        1, grid3d.get());
+    envTmp(LatticeColourVector,          "source3d_nospin", 1, grid3d.get());
     envTmpLat(LatticeSpinColourVector,   "result4d");
     envTmpLat(LatticeColourVector,       "result4d_nospin");
-    envTmp(LatticeColourVector,          "result3d_nospin",1,LatticeColourVector(grid3d.get()));
-    envTmp(LatticeColourVector,          "evec3d",1,LatticeColourVector(grid3d.get()));
+    envTmp(LatticeColourVector,          "result3d_nospin", 1, grid3d.get());
+    envTmp(LatticeColourVector,          "evec3d",          1, grid3d.get());
     
     Ls_ = env().getObjectLs(par().solver);
     envTmpLat(FermionField, "v4dtmp");

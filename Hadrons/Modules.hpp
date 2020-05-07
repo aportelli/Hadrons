@@ -1,41 +1,3 @@
-/*
- * Modules.hpp, part of Hadrons (https://github.com/aportelli/Hadrons)
- *
- * Copyright (C) 2015 - 2020
- *
- * Author: Antonin Portelli <antonin.portelli@me.com>
- * Author: Felix Erben <dc-erbe1@tesseract-login1.ib0.sgi.cluster.dirac.ed.ac.uk>
- * Author: Fionn O hOgain <fionn.o.hogain@ed.ac.uk>
- * Author: Michael Marshall <43034299+mmphys@users.noreply.github.com>
- * Author: Michael Marshall <michael.marshall@ed.ac.uk>
- * Author: Nils Asmussen <n.asmussen@soton.ac.uk>
- * Author: Peter Boyle <paboyle@ph.ed.ac.uk>
- * Author: Vera Guelpers <Vera.Guelpers@ed.ac.uk>
- * Author: Vera Guelpers <vmg1n14@soton.ac.uk>
- * Author: ferben <ferben@c180030.wlan.net.ed.ac.uk>
- * Author: ferben <ferben@c183212.wlan.net.ed.ac.uk>
- * Author: ferben <ferben@debian.felix.com>
- * Author: ferben <ferben@localhost.localdomain>
- * Author: fionnoh <fionnoh@gmail.com>
- *
- * Hadrons is free software: you can redistribute it and/or modify
- * it under the terms of the GNU General Public License as published by
- * the Free Software Foundation, either version 2 of the License, or
- * (at your option) any later version.
- *
- * Hadrons is distributed in the hope that it will be useful,
- * but WITHOUT ANY WARRANTY; without even the implied warranty of
- * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
- * GNU General Public License for more details.
- *
- * You should have received a copy of the GNU General Public License
- * along with Hadrons.  If not, see <http://www.gnu.org/licenses/>.
- *
- * See the full license in the file "LICENSE" in the top level distribution 
- * directory.
- */
-
-/*  END LEGAL */
 #include <Hadrons/Modules/MAction/DWF.hpp>
 #include <Hadrons/Modules/MAction/MobiusDWF.hpp>
 #include <Hadrons/Modules/MAction/ScaledDWF.hpp>
@@ -49,6 +11,7 @@
 #include <Hadrons/Modules/MContraction/Baryon.hpp>
 #include <Hadrons/Modules/MContraction/DiscLoop.hpp>
 #include <Hadrons/Modules/MContraction/Gamma3pt.hpp>
+#include <Hadrons/Modules/MContraction/Loop.hpp>
 #include <Hadrons/Modules/MContraction/Meson.hpp>
 #include <Hadrons/Modules/MContraction/SigmaToNucleonEye.hpp>
 #include <Hadrons/Modules/MContraction/SigmaToNucleonNonEye.hpp>
@@ -85,6 +48,7 @@
 #include <Hadrons/Modules/MNPR/Amputate.hpp>
 #include <Hadrons/Modules/MNPR/Bilinear.hpp>
 #include <Hadrons/Modules/MNPR/FourQuark.hpp>
+#include <Hadrons/Modules/MNoise/CheckerboardSpinColorDiagonal.hpp>
 #include <Hadrons/Modules/MNoise/FullVolumeSpinColorDiagonal.hpp>
 #include <Hadrons/Modules/MNoise/SparseSpinColorDiagonal.hpp>
 #include <Hadrons/Modules/MNoise/TimeDilutedSpinColorDiagonal.hpp>
@@ -121,5 +85,7 @@
 #include <Hadrons/Modules/MSource/SeqGamma.hpp>
 #include <Hadrons/Modules/MSource/Wall.hpp>
 #include <Hadrons/Modules/MSource/Z2.hpp>
+#include <Hadrons/Modules/MSource/Z2Diluted.hpp>
 #include <Hadrons/Modules/MUtilities/PrecisionCast.hpp>
 #include <Hadrons/Modules/MUtilities/RandomVectors.hpp>
+#include <Hadrons/Modules/MUtilities/VectorUnpack.hpp>

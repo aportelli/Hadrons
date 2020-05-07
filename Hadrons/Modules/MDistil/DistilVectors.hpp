@@ -145,11 +145,11 @@ void TDistilVectors<FImpl>::setup(void)
     GridCartesian * const grid4d{env().getGrid()};
     MakeLowerDimGrid(grid3d, grid4d);
     
-    envTmp(LatticeSpinColourVector, "source4d",1,LatticeSpinColourVector(grid4d));
-    envTmp(LatticeSpinColourVector, "source3d",1,LatticeSpinColourVector(grid3d.get()));
-    envTmp(LatticeColourVector, "source3d_nospin",1,LatticeColourVector(grid3d.get()));
-    envTmp(LatticeSpinColourVector, "sink3d",1,LatticeSpinColourVector(grid3d.get()));
-    envTmp(LatticeColourVector, "evec3d",1,LatticeColourVector(grid3d.get()));
+    envTmpLat(LatticeSpinColourVector, "source4d");
+    envTmp(LatticeSpinColourVector,    "source3d", 1, grid3d.get());
+    envTmp(LatticeColourVector, "source3d_nospin", 1, grid3d.get());
+    envTmp(LatticeSpinColourVector,      "sink3d", 1, grid3d.get());
+    envTmp(LatticeColourVector,          "evec3d", 1, grid3d.get());
 }
 
 // execution ///////////////////////////////////////////////////////////////////
