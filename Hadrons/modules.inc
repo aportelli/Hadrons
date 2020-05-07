@@ -12,6 +12,7 @@ modules_cpp =\
   Modules/MContraction/Baryon.cpp \
   Modules/MContraction/DiscLoop.cpp \
   Modules/MContraction/Gamma3pt.cpp \
+  Modules/MContraction/Loop.cpp \
   Modules/MContraction/Meson.cpp \
   Modules/MContraction/SigmaToNucleonEye.cpp \
   Modules/MContraction/SigmaToNucleonNonEye.cpp \
@@ -47,6 +48,7 @@ modules_cpp =\
   Modules/MNPR/Amputate.cpp \
   Modules/MNPR/Bilinear.cpp \
   Modules/MNPR/FourQuark.cpp \
+  Modules/MNoise/CheckerboardSpinColorDiagonal.cpp \
   Modules/MNoise/FullVolumeSpinColorDiagonal.cpp \
   Modules/MNoise/SparseSpinColorDiagonal.cpp \
   Modules/MNoise/TimeDilutedSpinColorDiagonal.cpp \
@@ -80,6 +82,7 @@ modules_cpp =\
   Modules/MSource/SeqGamma.cpp \
   Modules/MSource/Wall.cpp \
   Modules/MSource/Z2.cpp \
+  Modules/MSource/Z2Diluted.cpp \
   Modules/MUtilities/PrecisionCast.cpp \
   Modules/MUtilities/RandomVectors.cpp \
   Modules/MUtilities/VectorUnpack.cpp
@@ -98,6 +101,7 @@ modules_hpp =\
   Modules/MContraction/Baryon.hpp \
   Modules/MContraction/DiscLoop.hpp \
   Modules/MContraction/Gamma3pt.hpp \
+  Modules/MContraction/Loop.hpp \
   Modules/MContraction/Meson.hpp \
   Modules/MContraction/SigmaToNucleonEye.hpp \
   Modules/MContraction/SigmaToNucleonNonEye.hpp \
@@ -134,6 +138,7 @@ modules_hpp =\
   Modules/MNPR/Amputate.hpp \
   Modules/MNPR/Bilinear.hpp \
   Modules/MNPR/FourQuark.hpp \
+  Modules/MNoise/CheckerboardSpinColorDiagonal.hpp \
   Modules/MNoise/FullVolumeSpinColorDiagonal.hpp \
   Modules/MNoise/SparseSpinColorDiagonal.hpp \
   Modules/MNoise/TimeDilutedSpinColorDiagonal.hpp \
@@ -170,6 +175,7 @@ modules_hpp =\
   Modules/MSource/SeqGamma.hpp \
   Modules/MSource/Wall.hpp \
   Modules/MSource/Z2.hpp \
+  Modules/MSource/Z2Diluted.hpp \
   Modules/MUtilities/PrecisionCast.hpp \
   Modules/MUtilities/RandomVectors.hpp \
   Modules/MUtilities/VectorUnpack.hpp

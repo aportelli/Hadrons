@@ -146,11 +146,11 @@ void TSeqConserved<FImpl>::setup(void)
 
     if (Ls_ > 1)
     {
-        envTmpLat(PropagatorField, "src_tmp");
+        envTmpLat(PropagatorField, "src_tmp", Ls_);
     }
     else
     {
-        envTmpLat(PropagatorField, "src_tmp", Ls_);
+        envTmpLat(PropagatorField, "src_tmp");
     }
     if (envHasType(PropagatorField, par().q))
     {
@@ -194,7 +194,6 @@ void TSeqConserved<FImpl>::setup(void)
 template <typename FImpl>
 void TSeqConserved<FImpl>::makeSource(PropagatorField &src, PropagatorField &q, PropagatorField &physSrc)
 {
-    
     auto &mat = envGet(FMat, par().action);
 
     envGetTmp(PropagatorField, src_tmp);

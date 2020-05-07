@@ -11,6 +11,7 @@
 #include <Hadrons/Modules/MContraction/Baryon.hpp>
 #include <Hadrons/Modules/MContraction/DiscLoop.hpp>
 #include <Hadrons/Modules/MContraction/Gamma3pt.hpp>
+#include <Hadrons/Modules/MContraction/Loop.hpp>
 #include <Hadrons/Modules/MContraction/Meson.hpp>
 #include <Hadrons/Modules/MContraction/SigmaToNucleonEye.hpp>
 #include <Hadrons/Modules/MContraction/SigmaToNucleonNonEye.hpp>
@@ -47,6 +48,7 @@
 #include <Hadrons/Modules/MNPR/Amputate.hpp>
 #include <Hadrons/Modules/MNPR/Bilinear.hpp>
 #include <Hadrons/Modules/MNPR/FourQuark.hpp>
+#include <Hadrons/Modules/MNoise/CheckerboardSpinColorDiagonal.hpp>
 #include <Hadrons/Modules/MNoise/FullVolumeSpinColorDiagonal.hpp>
 #include <Hadrons/Modules/MNoise/SparseSpinColorDiagonal.hpp>
 #include <Hadrons/Modules/MNoise/TimeDilutedSpinColorDiagonal.hpp>
@@ -83,6 +85,7 @@
 #include <Hadrons/Modules/MSource/SeqGamma.hpp>
 #include <Hadrons/Modules/MSource/Wall.hpp>
 #include <Hadrons/Modules/MSource/Z2.hpp>
+#include <Hadrons/Modules/MSource/Z2Diluted.hpp>
 #include <Hadrons/Modules/MUtilities/PrecisionCast.hpp>
 #include <Hadrons/Modules/MUtilities/RandomVectors.hpp>
 #include <Hadrons/Modules/MUtilities/VectorUnpack.hpp>
