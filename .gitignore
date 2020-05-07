@@ -11,3 +11,5 @@
 /install-sh
 /missing
 Makefile.in
+/Hadrons/Modules.hpp
+/Hadrons/modules.inc
