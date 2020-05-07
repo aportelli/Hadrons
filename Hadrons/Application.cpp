@@ -89,7 +89,13 @@ Application::Application(const std::string parameterFileName)
 void Application::setPar(const Application::GlobalPar &par)
 {
     par_ = par;
-    setupDatabase();
+    if (!getPar().databaseFile.empty())
+    {
+        LOG(Message) << "Setting up SQLite database in file '" 
+                     << getPar().databaseFile << "'..." << std::endl;
+        db_.setFilename(getPar().databaseFile, env().getGrid());
+        vm().setDatabase(db_);
+    }
 }
 
 const Application::GlobalPar & Application::getPar(void)
@@ -102,16 +108,6 @@ void Application::createModule(const std::string name, const std::string type,
                                XmlReader &reader)
 {
     vm().createModule(name, type, reader);
-    if (db_.isConnected())
-    {
-        ModuleEntry m;
-
-        m.moduleId     = vm().getModuleAddress(name);
-        m.name         = name;
-        m.moduleTypeId = dbInsertModuleType(vm().getModuleType(name));
-        m.parameters   = vm().getModule(name)->parString();
-        db_.insert("modules", m);
-    }
 }
 
 // execute /////////////////////////////////////////////////////////////////////
@@ -219,31 +215,6 @@ void Application::schedule(void)
     if (!scheduled_ and !loadedSchedule_)
     {
         program_   = vm().schedule(par_.genetic);
-        if (db_.isConnected())
-        {
-            const VirtualMachine::MemoryProfile &p = vm().getMemoryProfile();
-
-            for (unsigned int i = 0; i < p.object.size(); ++i)
-            {
-                ObjectEntry o;
-
-                o.objectId     = i;
-                o.name         = env().getObjectName(i);
-                o.objectTypeId = dbInsertObjectType(env().getObjectDerivedType(i),
-                                                    env().getObjectType(i));
-                o.size         = p.object[i].size;
-                o.moduleId     = p.object[i].module;
-                db_.insert("objects", o);
-            }
-            for (unsigned int i = 0; i < program_.size(); ++i)
-            {
-                ScheduleEntry s;
-
-                s.step     = i;
-                s.moduleId = program_[i];
-                db_.insert("schedule", s);
-            }
-        }
         scheduled_ = true;
     }
 }
@@ -317,122 +288,4 @@ void Application::configLoop(void)
     }
     LOG(Message) << BIG_SEP << " End of measurement " << BIG_SEP << std::endl;
     env().freeAll();
-}
-
-// database initialisation /////////////////////////////////////////////////////
-void Application::setupDatabase(void)
-{
-    if (!getPar().databaseFile.empty())
-    {
-        LOG(Message) << "Setting up SQLite database in file '" 
-                     << getPar().databaseFile << "'..." << std::endl;
-        db_.setFilename(getPar().databaseFile, env().getGrid());
-        db_.execute("PRAGMA foreign_keys = ON;");
-        if (!db_.tableExists("global"))
-        {
-            db_.createTable<GlobalEntry>("global");
-        }
-        if (!db_.tableExists("moduleTypes"))
-        {
-            db_.createTable<ModuleTypeEntry>("moduleTypes", "PRIMARY KEY(moduleTypeId)");
-        }
-        if (!db_.tableExists("modules"))
-        {
-            db_.createTable<ModuleEntry>("modules", "PRIMARY KEY(moduleId)"
-                "FOREIGN KEY(moduleTypeId) REFERENCES moduleTypes(moduleTypeId)");
-        }
-        if (!db_.tableExists("objectTypes"))
-        {
-            db_.createTable<ObjectTypeEntry>("objectTypes", "PRIMARY KEY(objectTypeId)");
-        }
-        if (!db_.tableExists("objects"))
-        {
-            db_.createTable<ObjectEntry>("objects", "PRIMARY KEY(objectId)," 
-                "FOREIGN KEY(moduleId) REFERENCES modules(moduleId),"
-                "FOREIGN KEY(objectTypeId) REFERENCES objectTypes(objectTypeId)");
-        }
-        if (!db_.tableExists("schedule"))
-        {
-            db_.createTable<ScheduleEntry>("schedule", "PRIMARY KEY(step)," 
-                "FOREIGN KEY(moduleId) REFERENCES modules(moduleId)");
-        }
-        db_.execute(
-            "CREATE VIEW IF NOT EXISTS vModules AS                                     "
-            "SELECT moduleId,                                                          "
-            "       modules.name,                                                      "
-            "       moduleTypes.type AS type,                                          "
-            "       modules.parameters                                                 "
-            "FROM modules                                                              "
-            "INNER JOIN moduleTypes ON modules.moduleTypeId = moduleTypes.moduleTypeId "
-            "ORDER BY moduleId;                                                        "
-        );
-        db_.execute(
-            "CREATE VIEW IF NOT EXISTS vObjects AS                                     "
-            "SELECT objectId,                                                          "
-            "       objects.name,                                                      "
-            "       objectTypes.type AS type,                                          "
-            "       objectTypes.baseType AS baseType,                                  "
-            "       objects.size*1.0/1024/1024 AS sizeMB,                              "
-            "       modules.name AS module                                             "
-            "FROM objects                                                              "
-            "INNER JOIN objectTypes ON objects.objectTypeId = objectTypes.objectTypeId "
-            "INNER JOIN modules     ON objects.moduleId = modules.moduleId             "
-            "ORDER BY objectId;                                                        "
-        );
-        db_.execute(
-            "CREATE VIEW IF NOT EXISTS vSchedule AS                                    "
-            "SELECT step,                                                              "
-            "       modules.name AS module                                             "
-            "FROM schedule                                                             "
-            "INNER JOIN modules ON schedule.moduleId = modules.moduleId                "
-            "ORDER BY step;                                                            "
-        );
-    }
-}
-
-unsigned int Application::dbInsertModuleType(const std::string type)
-{
-    QueryResult r = db_.execute("SELECT moduleTypeId FROM moduleTypes "
-                                "WHERE type = '" + type + "';");
-
-    if (r.rows() == 0)
-    {
-        ModuleTypeEntry e;
-
-        r = db_.execute("SELECT COUNT(*) FROM moduleTypes;");
-        e.moduleTypeId = std::stoi(r[0][0]);
-        e.type         = type;
-        db_.insert("moduleTypes", e);
-
-        return e.moduleTypeId;
-    }
-    else
-    {
-        return std::stoi(r[0][0]);
-    }
-}
-
-unsigned int Application::dbInsertObjectType(const std::string type, 
-                                             const std::string baseType)
-{
-    QueryResult r = db_.execute("SELECT objectTypeId FROM objectTypes "
-                                "WHERE type = '" + type + "' "
-                                "AND baseType = '" + baseType + "';");
-
-    if (r.rows() == 0)
-    {
-        ObjectTypeEntry e;
-
-        r = db_.execute("SELECT COUNT(*) FROM objectTypes;");
-        e.objectTypeId = std::stoi(r[0][0]);
-        e.type         = type;
-        e.baseType     = baseType;
-        db_.insert("objectTypes", e);
-
-        return e.objectTypeId;
-    }
-    else
-    {
-        return std::stoi(r[0][0]);
-    }
 }

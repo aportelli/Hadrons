@@ -28,6 +28,7 @@
 #define Hadrons_VirtualMachine_hpp_
 
 #include <Hadrons/Global.hpp>
+#include <Hadrons/Database.hpp>
 #include <Hadrons/Graph.hpp>
 #include <Hadrons/Environment.hpp>
 
@@ -76,6 +77,50 @@ public:
                                         unsigned int, maxCstGen,
                                         double      , mutationRate);
     };
+
+    // serializable classes for database entries
+    struct GlobalEntry: SqlEntry
+    {
+        HADRONS_SQL_FIELDS(SqlUnique<SqlNotNull<std::string>>, name,
+                           SqlNotNull<std::string>           , value);
+    };
+
+    struct ModuleEntry: SqlEntry
+    {
+        HADRONS_SQL_FIELDS(SqlUnique<SqlNotNull<unsigned int>>, moduleId,
+                           SqlUnique<SqlNotNull<std::string>> , name,
+                           SqlNotNull<unsigned int>           , moduleTypeId,
+                           std::string                        , parameters);
+    };
+
+    struct ModuleTypeEntry: SqlEntry
+    {
+        HADRONS_SQL_FIELDS(SqlUnique<unsigned int>           , moduleTypeId,
+                           SqlUnique<SqlNotNull<std::string>>, type);
+                           
+    };
+
+    struct ObjectEntry: SqlEntry
+    {
+        HADRONS_SQL_FIELDS(SqlUnique<SqlNotNull<unsigned int>>, objectId,
+                           SqlUnique<SqlNotNull<std::string>> , name,
+                           SqlNotNull<unsigned int>           , objectTypeId,
+                           SqlNotNull<SITE_SIZE_TYPE>         , size,
+                           SqlNotNull<unsigned int>           , moduleId);
+    };
+
+    struct ObjectTypeEntry: SqlEntry
+    {
+        HADRONS_SQL_FIELDS(SqlUnique<unsigned int>           , objectTypeId,
+                           SqlUnique<SqlNotNull<std::string>>, type,
+                           SqlUnique<SqlNotNull<std::string>>, baseType);
+    };
+
+    struct ScheduleEntry: SqlEntry
+    {
+        HADRONS_SQL_FIELDS(SqlUnique<SqlNotNull<unsigned int>>, step,
+                           SqlUnique<SqlNotNull<unsigned int>>, moduleId);
+    };
 private:
     struct ModuleInfo
     {
@@ -92,6 +137,8 @@ public:
     // run tag
     void                setRunId(const std::string id);
     std::string         getRunId(void) const;
+    // database
+    void                setDatabase(Database &db);
     // module management
     void                pushModule(ModPt &pt);
     template <typename M>
@@ -150,10 +197,17 @@ private:
     void cleanEnvironment(void);
     void memoryProfile(const std::string name);
     void memoryProfile(const unsigned int address);
+    // database handling
+    bool         hasDatabase(void) const;
+    void         initDatabase(void);
+    unsigned int dbInsertModuleType(const std::string type);
+    unsigned int dbInsertObjectType(const std::string type, const std::string baseType);
 private:
     // general
     std::string                         runId_;
     unsigned int                        traj_;
+    // database pointer
+    Database                            *db_{nullptr};
     // module and related maps
     std::vector<ModuleInfo>             module_;
     std::map<std::string, unsigned int> moduleAddress_;

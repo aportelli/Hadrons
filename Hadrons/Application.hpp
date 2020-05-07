@@ -71,50 +71,6 @@ public:
                                         std::string, type);
     };
 
-    // serializable classes for database entries
-    struct GlobalEntry: SqlEntry
-    {
-        HADRONS_SQL_FIELDS(SqlUnique<SqlNotNull<std::string>>, name,
-                           SqlNotNull<std::string>           , value);
-    };
-
-    struct ModuleEntry: SqlEntry
-    {
-        HADRONS_SQL_FIELDS(SqlUnique<SqlNotNull<unsigned int>>, moduleId,
-                           SqlUnique<SqlNotNull<std::string>> , name,
-                           SqlNotNull<unsigned int>           , moduleTypeId,
-                           std::string                        , parameters);
-    };
-
-    struct ModuleTypeEntry: SqlEntry
-    {
-        HADRONS_SQL_FIELDS(SqlUnique<unsigned int>           , moduleTypeId,
-                           SqlUnique<SqlNotNull<std::string>>, type);
-                           
-    };
-
-    struct ObjectEntry: SqlEntry
-    {
-        HADRONS_SQL_FIELDS(SqlUnique<SqlNotNull<unsigned int>>, objectId,
-                           SqlUnique<SqlNotNull<std::string>> , name,
-                           SqlNotNull<unsigned int>           , objectTypeId,
-                           SqlNotNull<SITE_SIZE_TYPE>         , size,
-                           SqlNotNull<unsigned int>           , moduleId);
-    };
-
-    struct ObjectTypeEntry: SqlEntry
-    {
-        HADRONS_SQL_FIELDS(SqlUnique<unsigned int>           , objectTypeId,
-                           SqlUnique<SqlNotNull<std::string>>, type,
-                           SqlUnique<SqlNotNull<std::string>>, baseType);
-    };
-
-    struct ScheduleEntry: SqlEntry
-    {
-        HADRONS_SQL_FIELDS(SqlUnique<SqlNotNull<unsigned int>>, step,
-                           SqlUnique<SqlNotNull<unsigned int>>, moduleId);
-    };
-
 public:
     // constructors
     Application(void);
@@ -148,10 +104,6 @@ private:
     DEFINE_ENV_ALIAS;
     // virtual machine shortcut
     DEFINE_VM_ALIAS;
-    // database initialisation
-    void         setupDatabase(void);
-    unsigned int dbInsertModuleType(const std::string type);
-    unsigned int dbInsertObjectType(const std::string type, const std::string baseType);
 private:
     long unsigned int       locVol_;
     std::string             parameterFileName_{""};
@@ -170,15 +122,6 @@ void Application::createModule(const std::string name)
 {
     vm().createModule<M>(name);
     scheduled_ = false;
-    if (db_.isConnected())
-    {
-        ModuleEntry m;
-
-        m.moduleId     = vm().getModuleAddress(name);
-        m.name         = name;
-        m.moduleTypeId = dbInsertModuleType(vm().getModuleType(name));
-        db_.insert("modules", m);
-    }
 }
 
 template <typename M>
@@ -187,16 +130,6 @@ void Application::createModule(const std::string name,
 {
     vm().createModule<M>(name, par);
     scheduled_ = false;
-    if (db_.isConnected())
-    {
-        ModuleEntry m;
-
-        m.moduleId     = vm().getModuleAddress(name);
-        m.name         = name;
-        m.moduleTypeId = dbInsertModuleType(vm().getModuleType(name));
-        m.parameters   = SqlEntry::xmlStrFrom(par);
-        db_.insert("modules", m);
-    }
 }
 
 END_HADRONS_NAMESPACE

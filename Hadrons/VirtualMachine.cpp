@@ -57,6 +57,129 @@ std::string VirtualMachine::getRunId(void) const
     return runId_;
 }
 
+// database ////////////////////////////////////////////////////////////////////
+void VirtualMachine::setDatabase(Database &db)
+{
+    db_ = &db;
+    initDatabase();
+}
+
+bool VirtualMachine::hasDatabase(void) const
+{
+    return ((db_ != nullptr) and db_->isConnected());
+}
+
+void VirtualMachine::initDatabase(void)
+{
+    db_->execute("PRAGMA foreign_keys = ON;");
+    if (!db_->tableExists("global"))
+    {
+        db_->createTable<GlobalEntry>("global");
+    }
+    if (!db_->tableExists("moduleTypes"))
+    {
+        db_->createTable<ModuleTypeEntry>("moduleTypes", "PRIMARY KEY(moduleTypeId)");
+    }
+    if (!db_->tableExists("modules"))
+    {
+        db_->createTable<ModuleEntry>("modules", "PRIMARY KEY(moduleId)"
+            "FOREIGN KEY(moduleTypeId) REFERENCES moduleTypes(moduleTypeId)");
+    }
+    if (!db_->tableExists("objectTypes"))
+    {
+        db_->createTable<ObjectTypeEntry>("objectTypes", "PRIMARY KEY(objectTypeId)");
+    }
+    if (!db_->tableExists("objects"))
+    {
+        db_->createTable<ObjectEntry>("objects", "PRIMARY KEY(objectId)," 
+            "FOREIGN KEY(moduleId) REFERENCES modules(moduleId),"
+            "FOREIGN KEY(objectTypeId) REFERENCES objectTypes(objectTypeId)");
+    }
+    if (!db_->tableExists("schedule"))
+    {
+        db_->createTable<ScheduleEntry>("schedule", "PRIMARY KEY(step)," 
+            "FOREIGN KEY(moduleId) REFERENCES modules(moduleId)");
+    }
+    db_->execute(
+        "CREATE VIEW IF NOT EXISTS vModules AS                                     "
+        "SELECT moduleId,                                                          "
+        "       modules.name,                                                      "
+        "       moduleTypes.type AS type,                                          "
+        "       modules.parameters                                                 "
+        "FROM modules                                                              "
+        "INNER JOIN moduleTypes ON modules.moduleTypeId = moduleTypes.moduleTypeId "
+        "ORDER BY moduleId;                                                        "
+    );
+    db_->execute(
+        "CREATE VIEW IF NOT EXISTS vObjects AS                                     "
+        "SELECT objectId,                                                          "
+        "       objects.name,                                                      "
+        "       objectTypes.type AS type,                                          "
+        "       objectTypes.baseType AS baseType,                                  "
+        "       objects.size*1.0/1024/1024 AS sizeMB,                              "
+        "       modules.name AS module                                             "
+        "FROM objects                                                              "
+        "INNER JOIN objectTypes ON objects.objectTypeId = objectTypes.objectTypeId "
+        "INNER JOIN modules     ON objects.moduleId = modules.moduleId             "
+        "ORDER BY objectId;                                                        "
+    );
+    db_->execute(
+        "CREATE VIEW IF NOT EXISTS vSchedule AS                                    "
+        "SELECT step,                                                              "
+        "       modules.name AS module                                             "
+        "FROM schedule                                                             "
+        "INNER JOIN modules ON schedule.moduleId = modules.moduleId                "
+        "ORDER BY step;                                                            "
+    );
+}
+
+unsigned int VirtualMachine::dbInsertModuleType(const std::string type)
+{
+    QueryResult r = db_->execute("SELECT moduleTypeId FROM moduleTypes "
+                                 "WHERE type = '" + type + "';");
+
+    if (r.rows() == 0)
+    {
+        ModuleTypeEntry e;
+
+        r = db_->execute("SELECT COUNT(*) FROM moduleTypes;");
+        e.moduleTypeId = std::stoi(r[0][0]);
+        e.type         = type;
+        db_->insert("moduleTypes", e);
+
+        return e.moduleTypeId;
+    }
+    else
+    {
+        return std::stoi(r[0][0]);
+    }
+}
+
+unsigned int VirtualMachine::dbInsertObjectType(const std::string type, 
+                                             const std::string baseType)
+{
+    QueryResult r = db_->execute("SELECT objectTypeId FROM objectTypes "
+                                 "WHERE type = '" + type + "' "
+                                 "AND baseType = '" + baseType + "';");
+
+    if (r.rows() == 0)
+    {
+        ObjectTypeEntry e;
+
+        r = db_->execute("SELECT COUNT(*) FROM objectTypes;");
+        e.objectTypeId = std::stoi(r[0][0]);
+        e.type         = type;
+        e.baseType     = baseType;
+        db_->insert("objectTypes", e);
+
+        return e.objectTypeId;
+    }
+    else
+    {
+        return std::stoi(r[0][0]);
+    }
+}
+
 // module management ///////////////////////////////////////////////////////////
 void VirtualMachine::pushModule(VirtualMachine::ModPt &pt)
 {
@@ -162,6 +285,17 @@ void VirtualMachine::pushModule(VirtualMachine::ModPt &pt)
                     }   
                 }
             }
+        }
+        // creating entry in database ------------------------------------------
+        if (hasDatabase())
+        {
+            ModuleEntry e;
+
+            e.moduleId     = address;
+            e.name         = name;
+            e.moduleTypeId = dbInsertModuleType(getModuleType(address));
+            e.parameters   = getModule(address)->parString();
+            db_->insert("modules", e);
         }
         graphOutdated_         = true;
         memoryProfileOutdated_ = true;
@@ -425,6 +559,21 @@ void VirtualMachine::makeMemoryProfile(void)
         LOG(Debug) << std::endl;
     }
     LOG(Debug) << "----------------" << std::endl;
+    if (hasDatabase())
+    {
+        for (unsigned int i = 0; i < profile_.object.size(); ++i)
+        {
+            ObjectEntry o;
+
+            o.objectId     = i;
+            o.name         = env().getObjectName(i);
+            o.objectTypeId = dbInsertObjectType(env().getObjectDerivedType(i),
+                                                env().getObjectType(i));
+            o.size         = profile_.object[i].size;
+            o.moduleId     = profile_.object[i].module;
+            db_->insert("objects", o);
+        }
+    }
 }
 
 void VirtualMachine::resetProfile(void)
@@ -625,6 +774,19 @@ VirtualMachine::Program VirtualMachine::schedule(const GeneticPar &par)
         
         gen++;
     } while ((gen < par.maxGen) and (nCstPeak < par.maxCstGen));
+    if (hasDatabase())
+    {
+        Program p = scheduler.getMinSchedule();
+
+        for (unsigned int i = 0; i < p.size(); ++i)
+        {
+            ScheduleEntry s;
+
+            s.step     = i;
+            s.moduleId = p[i];
+            db_->insert("schedule", s);
+        }
+    }
     
     return scheduler.getMinSchedule();
 }

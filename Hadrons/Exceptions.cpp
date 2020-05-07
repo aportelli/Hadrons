@@ -33,12 +33,12 @@
 #endif
 
 #define CTOR_EXC(name, init) \
-name::name(std::string msg, std::string loc)\
+Exceptions::name::name(std::string msg, std::string loc)\
 :init\
 {}
 
 #define CTOR_EXC_REF(name, init) \
-name::name(std::string msg, std::string loc, const unsigned int address)\
+Exceptions::name::name(std::string msg, std::string loc, const unsigned int address)\
 :init\
 {}
 
