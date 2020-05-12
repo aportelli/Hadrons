@@ -42,7 +42,15 @@ BEGIN_HADRONS_NAMESPACE
  -----------------------------
  * src_x = q_x * theta(x_3 - tA) * theta(tB - x_3) * gamma * exp(i x.mom)
  
- * options:
+ Sequential wall source
+ -----------------------------
+ * wallsum = \sum_x theta(x_3 - tA) * theta(tB - x_3) q(x)
+ * Not sure whether to correct for volume factor? I.e.:
+   wallsum /= |x_0| * |x_1| * |x_2| * (tB - tA + 1)
+ * src(x) = theta(x_3 - tA) * theta(tB - x_3) * ( gamma * wallsum ) * e^{i p . x}
+
+ Options:
+ -----------------------------
  - q: input propagator (string)
  - tA: begin timeslice (integer)
  - tB: end timesilce (integer)
@@ -67,7 +75,7 @@ public:
                                     std::string,    mom);
 };
 
-template <typename FImpl>
+template <typename FImpl, bool bWall = false>
 class TSeqGamma: public Module<SeqGammaPar>
 {
 public:
@@ -92,31 +100,39 @@ private:
     std::string momphName_, tName_;
 };
 
+//using TSeqGammaWallFIMPL  = TSeqGamma<FIMPL,  true>;
+//using TSeqGammaWallZFIMPL = TSeqGamma<ZFIMPL, true>;
+
+#ifndef COMMA
+#define COMMA ,
+#endif
 MODULE_REGISTER_TMP(SeqGamma, TSeqGamma<FIMPL>, MSource);
 MODULE_REGISTER_TMP(ZSeqGamma, TSeqGamma<ZFIMPL>, MSource);
+MODULE_REGISTER_TMP(SeqGammaWall, TSeqGamma<FIMPL COMMA true>, MSource);
+MODULE_REGISTER_TMP(ZSeqGammaWall, TSeqGamma<ZFIMPL COMMA true>, MSource);
 
 /******************************************************************************
  *                         TSeqGamma implementation                           *
  ******************************************************************************/
 // constructor /////////////////////////////////////////////////////////////////
-template <typename FImpl>
-TSeqGamma<FImpl>::TSeqGamma(const std::string name)
+template <typename FImpl, bool bWall>
+TSeqGamma<FImpl,bWall>::TSeqGamma(const std::string name)
 : Module<SeqGammaPar>(name)
 , momphName_ (name + "_momph")
 , tName_ (name + "_t")
 {}
 
 // dependencies/products ///////////////////////////////////////////////////////
-template <typename FImpl>
-std::vector<std::string> TSeqGamma<FImpl>::getInput(void)
+template <typename FImpl, bool bWall>
+std::vector<std::string> TSeqGamma<FImpl,bWall>::getInput(void)
 {
     std::vector<std::string> in = {par().q};
     
     return in;
 }
 
-template <typename FImpl>
-std::vector<std::string> TSeqGamma<FImpl>::getOutput(void)
+template <typename FImpl, bool bWall>
+std::vector<std::string> TSeqGamma<FImpl,bWall>::getOutput(void)
 {
     std::vector<std::string> out = {getName()};
     
@@ -124,8 +140,8 @@ std::vector<std::string> TSeqGamma<FImpl>::getOutput(void)
 }
 
 // setup ///////////////////////////////////////////////////////////////////////
-template <typename FImpl>
-void TSeqGamma<FImpl>::setup(void)
+template <typename FImpl, bool bWall>
+void TSeqGamma<FImpl,bWall>::setup(void)
 {
     if (envHasType(PropagatorField, par().q))
     {
@@ -148,11 +164,15 @@ void TSeqGamma<FImpl>::setup(void)
     envCache(Lattice<iScalar<vInteger>>, tName_, 1, envGetGrid(LatticeComplex));
     envCacheLat(LatticeComplex, momphName_);
     envTmpLat(LatticeComplex, "coor");
+    if( bWall )
+    {
+        envTmpLat(PropagatorField, "wallTmp");
+    }
 }
 
 // execution ///////////////////////////////////////////////////////////////////
-template <typename FImpl>
-void TSeqGamma<FImpl>::makeSource(PropagatorField &src, 
+template <typename FImpl, bool bWall>
+void TSeqGamma<FImpl,bWall>::makeSource(PropagatorField &src,
                                   const PropagatorField &q)
 {
     auto  &ph  = envGet(LatticeComplex, momphName_);
@@ -176,11 +196,27 @@ void TSeqGamma<FImpl>::makeSource(PropagatorField &src,
         LatticeCoordinate(t, Tp);
         hasPhase_ = true;
     }
-    src = where((t >= par().tA) and (t <= par().tB), ph*(g*q), 0.*q);
+    if( bWall )
+    {
+        envGetTmp(PropagatorField, wallTmp);
+        SlicedPropagator qSliced;
+        sliceSum(q, qSliced, Tp);
+        SitePropagator WallSum;
+        WallSum = 0;
+        for(unsigned int t = par().tA; t <= par().tB; ++t)
+            WallSum += qSliced[t];
+        WallSum = g * WallSum;
+        wallTmp = WallSum;
+        src = where((t >= par().tA) and (t <= par().tB), ph*wallTmp, 0.*wallTmp);
+    }
+    else
+    {
+        src = where((t >= par().tA) and (t <= par().tB), ph*(g*q), 0.*q);
+    }
 }
 
-template <typename FImpl>
-void TSeqGamma<FImpl>::execute(void)
+template <typename FImpl, bool bWall>
+void TSeqGamma<FImpl,bWall>::execute(void)
 {
     if (par().tA == par().tB)
     {
