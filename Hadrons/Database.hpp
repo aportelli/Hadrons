@@ -66,6 +66,8 @@ public:
     bool tableExists(const std::string tableName);
     template <typename EntryType>
     void createTable(const std::string tableName, const std::string extra = "");
+    template <typename EntryType>
+    std::vector<EntryType> getTable(const std::string tableName);
     void insert(const std::string tableName, const SqlEntry &entry, const bool replace = false);
 private:
     void connect(void);
@@ -84,6 +86,22 @@ void Database::createTable(const std::string tableName, const std::string extra)
     query += "CREATE TABLE " + tableName + " (" + EntryType::sqlSchema();
     query += (extra.empty() ? "" : "," + extra) + ");";
     execute(query);
+}
+
+template <typename EntryType>
+std::vector<EntryType> Database::getTable(const std::string tableName)
+{
+    std::vector<EntryType> table;
+    EntryType              buf;
+    QueryResult            r = execute("SELECT * FROM " + tableName + ";");
+
+    for (unsigned int i = 0; i < r.rows(); ++i)
+    {
+        buf.deserializeRow(r[i]);
+        table.push_back(buf);
+    }
+
+    return table;
 }
 
 END_HADRONS_NAMESPACE

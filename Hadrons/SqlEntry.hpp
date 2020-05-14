@@ -72,17 +72,56 @@ struct CppType<T, typename std::enable_if<std::is_base_of<SqlColumnOption<T>, T>
 /******************************************************************************
  *                          Base class for SQL entries                        *
  ******************************************************************************/
+// shortcuts for cumbersome enable_if
+#define SER(T, RT)\
+typename std::enable_if<std::is_base_of<Serializable, T>::value, RT>::type
+
+#define NOT_SER(T, RT)\
+typename std::enable_if<!std::is_base_of<Serializable, T>::value, RT>::type
+
+#define SER_AND_ENUM(T, RT)\
+typename std::enable_if<std::is_base_of<Serializable, T>::value and T::isEnum, RT>::type
+
+#define SER_AND_NOT_ENUM(T, RT)\
+typename std::enable_if<std::is_base_of<Serializable, T>::value and !T::isEnum, RT>::type
+
+#define NOT_SER_AND_STR(T, RT)\
+typename std::enable_if<!std::is_base_of<Serializable, T>::value and std::is_assignable<std::string, T>::value, RT>::type
+
+#define NOT_SER_AND_NOT_STR(T, RT)\
+typename std::enable_if<!std::is_base_of<Serializable, T>::value and !std::is_assignable<std::string, T>::value, RT>::type
+
 class SqlEntry
 {
 public:
     template <typename T>
     static std::string strFrom(const T &x);
     template <typename T>
-    static typename std::enable_if<!std::is_base_of<Serializable, T>::value, std::string>::type 
-    xmlStrFrom(const T &x);
+    static SER(T, std::string) xmlStrFrom(const T &x);
     template <typename T>
-    static typename std::enable_if<std::is_base_of<Serializable, T>::value, std::string>::type 
-    xmlStrFrom(const T &x);
+    static NOT_SER(T, std::string) xmlStrFrom(const T &x);
+    template <typename T>
+    static SER_AND_ENUM(T, std::string) sqlStrFrom(const T &x);
+    template <typename T>
+    static SER_AND_NOT_ENUM(T, std::string) sqlStrFrom(const T &x);
+    template <typename T>
+    static NOT_SER_AND_STR(T, std::string) sqlStrFrom(const T &x);
+    template <typename T>
+    static NOT_SER_AND_NOT_STR(T, std::string) sqlStrFrom(const T &x);
+    template <typename T>
+    static T strTo(const std::string str);
+    template <typename T>
+    static SER(T, T) xmlStrTo(const std::string str);
+    template <typename T>
+    static NOT_SER(T, T) xmlStrTo(const std::string str);
+    template <typename T>
+    static SER_AND_ENUM(T, T) sqlStrTo(const std::string str);
+    template <typename T>
+    static SER_AND_NOT_ENUM(T, T) sqlStrTo(const std::string str);
+    template <typename T>
+    static NOT_SER_AND_STR(T, T) sqlStrTo(const std::string str);
+    template <typename T>
+    static NOT_SER_AND_NOT_STR(T, T) sqlStrTo(const std::string str);
     template <typename T>
     static typename std::enable_if<std::is_floating_point<T>::value, std::string>::type
     sqlType(void);
@@ -98,6 +137,8 @@ public:
                                    and !std::is_base_of<SqlColumnOption<T>, T>::value, std::string>::type
     sqlType(void);
     virtual std::string sqlInsert(void) const = 0;
+    virtual void deserializeRow(const std::vector<std::string> &row) = 0;
+    virtual unsigned int cols(void) const = 0;
 };
 
 template <typename T>
@@ -111,8 +152,17 @@ std::string SqlEntry::strFrom(const T &x)
 }
 
 template <typename T>
-typename std::enable_if<!std::is_base_of<Serializable, T>::value, std::string>::type  
-SqlEntry::xmlStrFrom(const T &x)
+SER(T, std::string) SqlEntry::xmlStrFrom(const T &x)
+{
+    XmlWriter writer("", "");
+
+    write(writer, x.SerialisableClassName(), x);
+
+    return writer.string();
+}
+
+template <typename T>
+NOT_SER(T, std::string) SqlEntry::xmlStrFrom(const T &x)
 {
     XmlWriter writer("", "");
 
@@ -122,14 +172,84 @@ SqlEntry::xmlStrFrom(const T &x)
 }
 
 template <typename T>
-typename std::enable_if<std::is_base_of<Serializable, T>::value, std::string>::type  
-SqlEntry::xmlStrFrom(const T &x)
+SER_AND_ENUM(T, std::string) SqlEntry::sqlStrFrom(const T &x)
 {
-    XmlWriter writer("", "");
+    return strFrom(x);
+}
 
-    write(writer, x.SerialisableClassName(), x);
+template <typename T>
+SER_AND_NOT_ENUM(T, std::string) SqlEntry::sqlStrFrom(const T &x)
+{
+    return xmlStrFrom(x);
+}
 
-    return writer.string();
+template <typename T>
+NOT_SER_AND_STR(T, std::string) SqlEntry::sqlStrFrom(const T &x)
+{
+    return strFrom(x);
+}
+
+template <typename T>
+NOT_SER_AND_NOT_STR(T, std::string) SqlEntry::sqlStrFrom(const T &x)
+{
+    return xmlStrFrom(x);
+}
+
+template <typename T>
+T SqlEntry::strTo(const std::string str)
+{
+    T                  buf;
+    std::istringstream stream(str);
+    
+    stream >> buf;
+    
+    return buf;
+}
+
+template <typename T>
+SER(T, T) SqlEntry::xmlStrTo(const std::string str)
+{
+    T         buf;
+    XmlReader reader(str, true, "");
+
+    read(reader, buf.SerialisableClassName(), buf);
+
+    return buf;
+}
+
+template <typename T>
+NOT_SER(T, T) SqlEntry::xmlStrTo(const std::string str)
+{
+    T         buf;
+    XmlReader reader(str, true, "");
+
+    read(reader, "object", buf);
+
+    return buf;
+}
+
+template <typename T>
+SER_AND_ENUM(T, T) SqlEntry::sqlStrTo(const std::string str)
+{
+    return strTo<T>(str);
+}
+
+template <typename T>
+SER_AND_NOT_ENUM(T, T) SqlEntry::sqlStrTo(const std::string str)
+{
+    return xmlStrTo<T>(str);
+}
+
+template <typename T>
+NOT_SER_AND_STR(T, T) SqlEntry::sqlStrTo(const std::string str)
+{
+    return strTo<T>(str);
+}
+
+template <typename T>
+NOT_SER_AND_NOT_STR(T, T) SqlEntry::sqlStrTo(const std::string str)
+{
+    return xmlStrTo<T>(str);
 }
 
 template <typename T>
@@ -171,14 +291,7 @@ SqlEntry::sqlType(void)
 if (sqlType<CppType<A>::type>() == "TEXT")\
 {\
     std::string s;\
-    if (std::is_assignable<std::string, CppType<A>::type>::value)\
-    {\
-        s = strFrom(B);\
-    }\
-    else\
-    {\
-        s = xmlStrFrom(B);\
-    }\
+    s = sqlStrFrom(B);\
     if (!s.empty())\
     {\
         list += "'" + s + "'";\
@@ -190,9 +303,11 @@ if (sqlType<CppType<A>::type>() == "TEXT")\
 }\
 else\
 {\
-    list += strFrom(B);\
+    list += sqlStrFrom(B);\
 }\
 list += ",";
+#define HADRONS_SQL_DESERIALIZE(A, B) B = sqlStrTo<CppType<A>::type>(*it); it++;
+#define HADRONS_SQL_COUNT(A, B) c++;
 
 #define HADRONS_SQL_FIELDS(...)\
 GRID_MACRO_EVAL(GRID_MACRO_MAP(HADRONS_SQL_MEMBER, __VA_ARGS__))\
@@ -214,16 +329,78 @@ virtual std::string sqlInsert(void) const\
     list.pop_back();\
     \
     return list;\
+}\
+virtual void deserializeRow(const std::vector<std::string> &row)\
+{\
+    auto it = row.begin();\
+    \
+    GRID_MACRO_EVAL(GRID_MACRO_MAP(HADRONS_SQL_DESERIALIZE, __VA_ARGS__))\
+}\
+virtual unsigned int cols(void) const\
+{\
+    unsigned int c = 0;\
+    \
+    GRID_MACRO_EVAL(GRID_MACRO_MAP(HADRONS_SQL_COUNT, __VA_ARGS__))\
+    \
+    return c;\
 }
 
 /******************************************************************************
  *                      Utility class to merge SQL entries                    *
  ******************************************************************************/
 template <typename... Ts>
-class MergedSqlEntry: SqlEntry
+class MergedSqlEntry: public SqlEntry
 {
 public:
-    MergedSqlEntry(const Ts &... entries): pt_{&entries...} {}
+    typedef std::tuple<Ts...> Tuple;
+private:
+    template <unsigned int i>
+    class StorePt
+    {
+    public:
+        static void apply(std::array<SqlEntry *, sizeof...(Ts)> &array, Tuple &t)
+        {
+            array[i] = &std::get<i>(t);
+            StorePt<i-1>::apply(array, t);
+        }
+    };
+
+    template <>
+    class StorePt<0>
+    {
+    public:
+        static void apply(std::array<SqlEntry *, sizeof...(Ts)> &array, Tuple &t)
+        {
+            array[0] = &std::get<0>(t);
+        }
+    };
+public:
+    MergedSqlEntry(void) 
+    {
+        storePt();
+    }
+
+    MergedSqlEntry(const MergedSqlEntry<Ts...> &e)
+    {
+        data_ = e.data_;
+        storePt();
+    }
+
+    MergedSqlEntry(Ts &... entries): data_{entries...} 
+    {
+        storePt();
+    }
+
+    template <unsigned int i>
+    typename std::tuple_element<i, Tuple>::type & getEntry(void)
+    {
+        return std::get<i>(data_);
+    }
+
+    SqlEntry * getEntry(const unsigned int i)
+    {
+        return pt_[i];
+    }
 
     static std::string sqlSchema(void)
     {
@@ -243,7 +420,7 @@ public:
     {
         std::string list;
 
-        for (auto &e: pt_)
+        for (auto e: pt_)
         {
             list += e->sqlInsert() + ",";
         }
@@ -252,12 +429,46 @@ public:
         return list;
     }
 
+    virtual void deserializeRow(const std::vector<std::string> &row)
+    {
+        std::vector<std::string> buf;
+        auto                     it = row.begin();
+
+        for (unsigned int i = 0; i < pt_.size(); ++i)
+        {
+            buf.clear();
+            for (unsigned int j = 0; j < pt_[i]->cols(); ++j)
+            {
+                buf.push_back(*it);
+                it++;
+            }
+            pt_[i]->deserializeRow(buf);
+        }
+    }
+
+    virtual unsigned int cols(void) const
+    {
+        unsigned int c = 0;
+
+        for (unsigned int i = 0; i < pt_.size(); ++i)
+        {
+            c += pt_[i]->cols();
+        }
+
+        return c;
+    }
 private:
-    std::array<const SqlEntry *, sizeof...(Ts)> pt_;
+    void storePt(void)
+    {
+        StorePt<sizeof...(Ts)-1>::apply(pt_, data_);
+    }
+private:
+    std::array<SqlEntry *, sizeof...(Ts)> pt_;
+    std::tuple<Ts...>                     data_;
 };
 
 template <typename... Ts>
-MergedSqlEntry<Ts...> mergeSqlEntries(const Ts &... entries)
+MergedSqlEntry<Ts...> mergeSqlEntries(Ts &... entries)
 {
     return MergedSqlEntry<Ts...>(entries...);
 }
