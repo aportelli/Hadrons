@@ -100,8 +100,10 @@ int main(int argc, char *argv[])
     LOG(Message) << entry.sqlInsert() << std::endl;
 
     // test merging SqlEntry classes ///////////////////////////////////////////
+    typedef MergedSqlEntry<IndexEntry, TestEntry> TableEntry;
+
     IndexEntry ind; ind.traj = 2000;
-    auto me = mergeSqlEntries(ind, entry);
+    TableEntry me = mergeSqlEntries(ind, entry);
 
     LOG(Message) << "schema               : " << me.sqlSchema() << std::endl;
     LOG(Message) << "insert               : " << me.sqlInsert() << std::endl;
@@ -148,7 +150,7 @@ int main(int argc, char *argv[])
 
     // test Database class high-level operations ///////////////////////////////
     db.createTable<TestEntry>("test2");
-    db.createTable<MergedSqlEntry<IndexEntry, TestEntry>>("test3");
+    db.createTable<TableEntry>("test3");
     db.insert("test2", entry);
     for (unsigned int t = 1000; t < 2000; t += 20)
     {
@@ -156,12 +158,11 @@ int main(int argc, char *argv[])
         me.getEntry<1>().msg  = "result_" + std::to_string(t);
         db.insert("test3", me);
     }
-    auto table2 = db.getTable<MergedSqlEntry<IndexEntry, TestEntry>>("test3");
+    auto table2 = db.getTable<TableEntry>("test3");
     for (auto &e: table2)
     {
-        LOG(Message) << e.sqlInsert() << std::endl;
+        LOG(Message) << e << std::endl;
     }
-
     LOG(Message) << "Table 'test' exists: " << db.tableExists("test") << std::endl;
     LOG(Message) << "Table 'foo' exists : " << db.tableExists("foo")  << std::endl;
 

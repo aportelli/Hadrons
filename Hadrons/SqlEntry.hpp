@@ -63,6 +63,7 @@ struct CppType
     typedef T type;
 };
 
+// deduce C++ type when decorated with SQL options
 template <typename T>
 struct CppType<T, typename std::enable_if<std::is_base_of<SqlColumnOption<T>, T>::value>::type>
 {
@@ -91,15 +92,19 @@ typename std::enable_if<!std::is_base_of<Serializable, T>::value and std::is_ass
 #define NOT_SER_AND_NOT_STR(T, RT)\
 typename std::enable_if<!std::is_base_of<Serializable, T>::value and !std::is_assignable<std::string, T>::value, RT>::type
 
+// base class for SQL rows
 class SqlEntry
 {
 public:
+    // string from an arbitrary type
     template <typename T>
     static std::string strFrom(const T &x);
+    // XML string from an arbitrary type
     template <typename T>
     static SER(T, std::string) xmlStrFrom(const T &x);
     template <typename T>
     static NOT_SER(T, std::string) xmlStrFrom(const T &x);
+    // SQL string from an arbitrary type
     template <typename T>
     static SER_AND_ENUM(T, std::string) sqlStrFrom(const T &x);
     template <typename T>
@@ -108,12 +113,15 @@ public:
     static NOT_SER_AND_STR(T, std::string) sqlStrFrom(const T &x);
     template <typename T>
     static NOT_SER_AND_NOT_STR(T, std::string) sqlStrFrom(const T &x);
+    // parse string to an arbitrary type
     template <typename T>
     static T strTo(const std::string str);
+    // parse XML string to an arbitrary type
     template <typename T>
     static SER(T, T) xmlStrTo(const std::string str);
     template <typename T>
     static NOT_SER(T, T) xmlStrTo(const std::string str);
+    // parse SQL string to an arbitrary type
     template <typename T>
     static SER_AND_ENUM(T, T) sqlStrTo(const std::string str);
     template <typename T>
@@ -122,6 +130,7 @@ public:
     static NOT_SER_AND_STR(T, T) sqlStrTo(const std::string str);
     template <typename T>
     static NOT_SER_AND_NOT_STR(T, T) sqlStrTo(const std::string str);
+    // SQL type (REAL, INTEGER or TEXT) from an arbitrary type
     template <typename T>
     static typename std::enable_if<std::is_floating_point<T>::value, std::string>::type
     sqlType(void);
@@ -136,11 +145,21 @@ public:
                                    and !std::is_integral<T>::value
                                    and !std::is_base_of<SqlColumnOption<T>, T>::value, std::string>::type
     sqlType(void);
+    // abstract interface
     virtual std::string sqlInsert(void) const = 0;
     virtual void deserializeRow(const std::vector<std::string> &row) = 0;
     virtual unsigned int cols(void) const = 0;
 };
 
+// print SQL entry as CSV
+std::ostream & operator<<(std::ostream &out, const SqlEntry &e)
+{
+    out << e.sqlInsert();
+
+    return out;
+}
+
+// string from an arbitrary type
 template <typename T>
 std::string SqlEntry::strFrom(const T &x)
 {
@@ -151,6 +170,7 @@ std::string SqlEntry::strFrom(const T &x)
     return stream.str();
 }
 
+// XML string from an arbitrary type
 template <typename T>
 SER(T, std::string) SqlEntry::xmlStrFrom(const T &x)
 {
@@ -171,6 +191,7 @@ NOT_SER(T, std::string) SqlEntry::xmlStrFrom(const T &x)
     return writer.string();
 }
 
+// SQL string from an arbitrary type
 template <typename T>
 SER_AND_ENUM(T, std::string) SqlEntry::sqlStrFrom(const T &x)
 {
@@ -195,6 +216,7 @@ NOT_SER_AND_NOT_STR(T, std::string) SqlEntry::sqlStrFrom(const T &x)
     return xmlStrFrom(x);
 }
 
+// parse string to an arbitrary type
 template <typename T>
 T SqlEntry::strTo(const std::string str)
 {
@@ -206,6 +228,7 @@ T SqlEntry::strTo(const std::string str)
     return buf;
 }
 
+// parse XML string to an arbitrary type
 template <typename T>
 SER(T, T) SqlEntry::xmlStrTo(const std::string str)
 {
@@ -228,6 +251,7 @@ NOT_SER(T, T) SqlEntry::xmlStrTo(const std::string str)
     return buf;
 }
 
+// parse SQL string to an arbitrary type
 template <typename T>
 SER_AND_ENUM(T, T) SqlEntry::sqlStrTo(const std::string str)
 {
@@ -252,6 +276,7 @@ NOT_SER_AND_NOT_STR(T, T) SqlEntry::sqlStrTo(const std::string str)
     return xmlStrTo<T>(str);
 }
 
+// SQL type (REAL, INTEGER or TEXT) from an arbitrary type
 template <typename T>
 typename std::enable_if<std::is_floating_point<T>::value, std::string>::type
 SqlEntry::sqlType(void)
@@ -348,32 +373,34 @@ virtual unsigned int cols(void) const\
 /******************************************************************************
  *                      Utility class to merge SQL entries                    *
  ******************************************************************************/
+// helper to store an array of pointers on tuple elements
+template <unsigned int i, typename... Ts>
+struct StorePt
+{
+    static void apply(std::array<SqlEntry *, sizeof...(Ts)> &array, 
+                      std::tuple<Ts...> &t)
+    {
+        array[i] = &std::get<i>(t);
+        StorePt<i - 1, Ts...>::apply(array, t);
+    }
+};
+
+template <typename... Ts>
+struct StorePt<0, Ts...>
+{
+    static void apply(std::array<SqlEntry *, sizeof...(Ts)> &array,
+                      std::tuple<Ts...> &t)
+    {
+        array[0] = &std::get<0>(t);
+    }
+};
+
+// merged SQL entries class, derives from SqlEntry
 template <typename... Ts>
 class MergedSqlEntry: public SqlEntry
 {
 public:
     typedef std::tuple<Ts...> Tuple;
-private:
-    template <unsigned int i>
-    class StorePt
-    {
-    public:
-        static void apply(std::array<SqlEntry *, sizeof...(Ts)> &array, Tuple &t)
-        {
-            array[i] = &std::get<i>(t);
-            StorePt<i-1>::apply(array, t);
-        }
-    };
-
-    template <>
-    class StorePt<0>
-    {
-    public:
-        static void apply(std::array<SqlEntry *, sizeof...(Ts)> &array, Tuple &t)
-        {
-            array[0] = &std::get<0>(t);
-        }
-    };
 public:
     MergedSqlEntry(void) 
     {
@@ -382,13 +409,23 @@ public:
 
     MergedSqlEntry(const MergedSqlEntry<Ts...> &e)
     {
-        data_ = e.data_;
-        storePt();
+        *this = e;
     }
 
     MergedSqlEntry(Ts &... entries): data_{entries...} 
     {
         storePt();
+    }
+
+    MergedSqlEntry<Ts...> & operator=(const MergedSqlEntry<Ts...> &e)
+    {
+        if (this != &e)
+        {
+            data_ = e.data_;
+            storePt();
+        }
+
+        return *this;
     }
 
     template <unsigned int i>
@@ -460,13 +497,14 @@ public:
 private:
     void storePt(void)
     {
-        StorePt<sizeof...(Ts)-1>::apply(pt_, data_);
+        StorePt<sizeof...(Ts) - 1, Ts...>::apply(pt_, data_);
     }
 private:
     std::array<SqlEntry *, sizeof...(Ts)> pt_;
-    std::tuple<Ts...>                     data_;
+    Tuple                                 data_;
 };
 
+// function merging SQL entries
 template <typename... Ts>
 MergedSqlEntry<Ts...> mergeSqlEntries(Ts &... entries)
 {
