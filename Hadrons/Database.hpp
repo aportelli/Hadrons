@@ -67,7 +67,7 @@ public:
     template <typename EntryType>
     void createTable(const std::string tableName, const std::string extra = "");
     template <typename EntryType>
-    std::vector<EntryType> getTable(const std::string tableName);
+    std::vector<EntryType> getTable(const std::string tableName, const std::string extra = "");
     void insert(const std::string tableName, const SqlEntry &entry, const bool replace = false);
 private:
     void connect(void);
@@ -89,11 +89,13 @@ void Database::createTable(const std::string tableName, const std::string extra)
 }
 
 template <typename EntryType>
-std::vector<EntryType> Database::getTable(const std::string tableName)
+std::vector<EntryType> Database::getTable(const std::string tableName, 
+                                          const std::string extra)
 {
     std::vector<EntryType> table;
     EntryType              buf;
-    QueryResult            r = execute("SELECT * FROM " + tableName + ";");
+    QueryResult            r = execute("SELECT * FROM " + tableName + 
+                                       + " " + extra + ";");
 
     for (unsigned int i = 0; i < r.rows(); ++i)
     {

@@ -107,10 +107,10 @@ type &var = *env().template getObject<type>(getName() + "_tmp_" + #var)
 env().template isObjectOfType<type>(name)
 
 #define envCreate(type, name, Ls, ...)\
-env().template createObject<type>(name, Environment::Storage::object, Ls, __VA_ARGS__)
+env().template createObject<type>(name, Environment::Storage::standard, Ls, __VA_ARGS__)
 
 #define envCreateDerived(base, type, name, Ls, ...)\
-env().template createDerivedObject<base, type>(name, Environment::Storage::object, Ls, __VA_ARGS__)
+env().template createDerivedObject<base, type>(name, Environment::Storage::standard, Ls, __VA_ARGS__)
 
 #define envCreateLat4(type, name)\
 envCreate(type, name, 1, envGetGrid(type))
@@ -183,6 +183,7 @@ public:
     virtual void saveParameters(XmlWriter &writer, const std::string name) = 0;
     // parameter string
     virtual std::string parString(void) const = 0;
+    virtual std::string parClassName(void) const = 0;
     // setup
     virtual void setup(void) {};
     virtual void execute(void) = 0;
@@ -217,8 +218,9 @@ public:
     // parse parameters
     virtual void parseParameters(XmlReader &reader, const std::string name);
     virtual void saveParameters(XmlWriter &writer, const std::string name);
-    // parameter string
+    // parameter strings
     virtual std::string parString(void) const;
+    virtual std::string parClassName(void) const;
     // parameter access
     const P &   par(void) const;
     void        setPar(const P &par);
@@ -244,8 +246,9 @@ public:
         push(writer, "options");
         pop(writer);
     };
-    // parameter string (empty)
+    // parameter strings (empty)
     virtual std::string parString(void) const {return "";};
+    virtual std::string parClassName(void) const {return "";};
 };
 
 /******************************************************************************
@@ -276,6 +279,12 @@ std::string Module<P>::parString(void) const
     write(writer, par_.SerialisableClassName(), par_);
 
     return writer.string();
+}
+
+template <typename P>
+std::string Module<P>::parClassName(void) const
+{
+    return par_.SerialisableClassName();
 }
 
 template <typename P>

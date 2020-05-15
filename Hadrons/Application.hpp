@@ -50,15 +50,25 @@ public:
                                         unsigned int, step);
     };
 
+    struct DatabasePar: Serializable
+    {
+        GRID_SERIALIZABLE_CLASS_MEMBERS(DatabasePar,
+                                        std::string, applicationDb,
+                                        std::string, resultDb,
+                                        bool,        restoreModules,
+                                        bool,        restoreMemoryProfile,
+                                        bool,        restoreSchedule);
+    };
+
     struct GlobalPar: Serializable
     {
         GRID_SERIALIZABLE_CLASS_MEMBERS(GlobalPar,
                                         TrajRange,                  trajCounter,
+                                        DatabasePar,                database,
                                         VirtualMachine::GeneticPar, genetic,
                                         std::string,                runId,
                                         std::string,                graphFile,
                                         std::string,                scheduleFile,
-                                        std::string,                databaseFile,
                                         bool,                       saveSchedule,
                                         int,                        parallelWriteMaxRetry);
         GlobalPar(void): parallelWriteMaxRetry{-1} {}

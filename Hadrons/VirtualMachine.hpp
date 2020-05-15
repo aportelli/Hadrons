@@ -106,6 +106,7 @@ public:
                            SqlUnique<SqlNotNull<std::string>> , name,
                            SqlNotNull<unsigned int>           , objectTypeId,
                            SqlNotNull<SITE_SIZE_TYPE>         , size,
+                           SqlNotNull<Environment::Storage>   , storageType,
                            SqlNotNull<unsigned int>           , moduleId);
     };
 
@@ -139,6 +140,9 @@ public:
     std::string         getRunId(void) const;
     // database
     void                setDatabase(Database &db);
+    void                dbRestoreMemoryProfile(void);
+    void                dbRestoreModules(void);
+    Program             dbRestoreSchedule(void);
     // module management
     void                pushModule(ModPt &pt);
     template <typename M>
@@ -147,8 +151,9 @@ public:
     void                createModule(const std::string name,
                                          const typename M::Par &par);
     void                createModule(const std::string name,
-                                         const std::string type,
-                                         XmlReader &reader);
+                                     const std::string type,
+                                     XmlReader &reader,
+                                     const std::string blockName = "options");
     unsigned int        getNModule(void) const;
     ModuleBase *        getModule(const unsigned int address) const;
     ModuleBase *        getModule(const std::string name) const;
@@ -175,6 +180,7 @@ public:
     void                dumpModuleGraph(const std::string filename);
     // memory profile
     const MemoryProfile &getMemoryProfile(void);
+    void                printMemoryProfile(void) const;
     // garbage collector
     GarbageSchedule     makeGarbageSchedule(const Program &p) const;
     // high-water memory function
@@ -206,8 +212,9 @@ private:
     // general
     std::string                         runId_;
     unsigned int                        traj_;
-    // database pointer
+    // database
     Database                            *db_{nullptr};
+    bool                                makeModuleDb_{true}, makeObjectDb_{true}, makeScheduleDb_{true};
     // module and related maps
     std::vector<ModuleInfo>             module_;
     std::map<std::string, unsigned int> moduleAddress_;

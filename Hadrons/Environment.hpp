@@ -74,12 +74,12 @@ public:
     typedef std::unique_ptr<GridRedBlackCartesian> GridRbPt;
     typedef std::unique_ptr<GridParallelRNG>       RngPt;
     typedef std::unique_ptr<GridSerialRNG>         SerialRngPt;
-    enum class Storage {object, cache, temporary};
+    GRID_SERIALIZABLE_ENUM(Storage, undef, standard, 0, cache, 1, temporary, 2);
 private:
     struct ObjInfo
     {
         Size                    size{0};
-        Storage                 storage{Storage::object};
+        Storage                 storage{Storage::standard};
         unsigned int            Ls{0};
         const std::type_info    *type{nullptr}, *derivedType{nullptr};
         std::string             name;

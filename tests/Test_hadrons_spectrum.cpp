@@ -49,11 +49,15 @@ int main(int argc, char *argv[])
     
     // global parameters
     Application::GlobalPar globalPar;
-    globalPar.trajCounter.start = 1500;
-    globalPar.trajCounter.end   = 1520;
-    globalPar.trajCounter.step  = 20;
-    globalPar.runId             = "test";
-    globalPar.databaseFile      = "spectrum.db";
+    globalPar.trajCounter.start             = 1500;
+    globalPar.trajCounter.end               = 1520;
+    globalPar.trajCounter.step              = 20;
+    globalPar.runId                         = "test";
+    globalPar.database.applicationDb        = "spectrumApp.db";
+    globalPar.database.resultDb             = "spectrumResults.db";
+    globalPar.database.restoreSchedule      = false;
+    globalPar.database.restoreModules       = false;
+    globalPar.database.restoreMemoryProfile = false;
     application.setPar(globalPar);
     // gauge field
     application.createModule<MGauge::Unit>("gauge");

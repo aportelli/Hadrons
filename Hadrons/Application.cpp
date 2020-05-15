@@ -89,12 +89,29 @@ Application::Application(const std::string parameterFileName)
 void Application::setPar(const Application::GlobalPar &par)
 {
     par_ = par;
-    if (!getPar().databaseFile.empty())
+    if (!getPar().database.applicationDb.empty())
     {
-        LOG(Message) << "Setting up SQLite database in file '" 
-                     << getPar().databaseFile << "'..." << std::endl;
-        db_.setFilename(getPar().databaseFile, env().getGrid());
+        LOG(Message) << "Connecting to application database in file '" 
+                     << getPar().database.applicationDb << "'..." << std::endl;
+        db_.setFilename(getPar().database.applicationDb, env().getGrid());
         vm().setDatabase(db_);
+        if (getPar().database.restoreMemoryProfile)
+        {
+            vm().dbRestoreMemoryProfile();
+            LOG(Message) << "Memory profile restored from application database" << std::endl;
+        }
+        if (getPar().database.restoreModules)
+        {
+            vm().dbRestoreModules();
+            LOG(Message) << "Modules restored from application database" << std::endl;
+        }
+        if (getPar().database.restoreSchedule)
+        {
+            program_ = vm().dbRestoreSchedule();
+            loadedSchedule_ = true;
+            scheduled_      = true;
+            LOG(Message) << "Schedule restored from application database" << std::endl;
+        }
     }
 }
 
@@ -127,8 +144,6 @@ void Application::run(void)
     LOG(Message) << "Attempt(s) for resilient parallel I/O: " 
                  << BinaryIO::latticeWriteMaxRetry << std::endl;
     vm().setRunId(getPar().runId);
-    vm().printContent();
-    env().printContent();
     if (getPar().saveSchedule or getPar().scheduleFile.empty())
     {
         schedule();
@@ -146,6 +161,7 @@ void Application::run(void)
         loadSchedule(getPar().scheduleFile);
     }
     printSchedule();
+    vm().printMemoryProfile();
     if (!getPar().graphFile.empty())
     {
         makeFileDir(getPar().graphFile, env().getGrid());
@@ -157,30 +173,37 @@ void Application::run(void)
 // parse parameter file ////////////////////////////////////////////////////////
 void Application::parseParameterFile(const std::string parameterFileName)
 {
-    XmlReader reader(parameterFileName);
+    XmlReader reader(parameterFileName, false, HADRONS_XML_TOPLEV);
     GlobalPar par;
     ObjectId  id;
     
     LOG(Message) << "Building application from '" << parameterFileName << "'..." << std::endl;
     read(reader, "parameters", par);
     setPar(par);
-    if (!push(reader, "modules"))
+    if (!par.database.restoreModules)
     {
-        HADRONS_ERROR(Parsing, "Cannot open node 'modules' in parameter file '" 
-                              + parameterFileName + "'");
+        if (!push(reader, "modules"))
+        {
+            HADRONS_ERROR(Parsing, "Cannot open node 'modules' in parameter file '" 
+                                + parameterFileName + "'");
+        }
+        if (!push(reader, "module"))
+        {
+            HADRONS_ERROR(Parsing, "Cannot open node 'modules/module' in parameter file '" 
+                                + parameterFileName + "'");
+        }
+        do
+        {
+            read(reader, "id", id);
+            createModule(id.name, id.type, reader);
+        } while (reader.nextElement("module"));
+        pop(reader);
+        pop(reader);
     }
-    if (!push(reader, "module"))
+    else
     {
-        HADRONS_ERROR(Parsing, "Cannot open node 'modules/module' in parameter file '" 
-                              + parameterFileName + "'");
+        LOG(Message) << "XML module list ignored" << std::endl;
     }
-    do
-    {
-        read(reader, "id", id);
-        createModule(id.name, id.type, reader);
-    } while (reader.nextElement("module"));
-    pop(reader);
-    pop(reader);
 }
 
 void Application::saveParameterFile(const std::string parameterFileName, unsigned int prec)
@@ -188,7 +211,7 @@ void Application::saveParameterFile(const std::string parameterFileName, unsigne
     LOG(Message) << "Saving application to '" << parameterFileName << "'..." << std::endl;
     if (env().getGrid()->IsBoss())
     {
-        XmlWriter          writer(parameterFileName);
+        XmlWriter          writer(parameterFileName, HADRONS_XML_TOPLEV);
         ObjectId           id;
         const unsigned int nMod = vm().getNModule();
 

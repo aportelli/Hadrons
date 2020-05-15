@@ -152,7 +152,7 @@ public:
 };
 
 // print SQL entry as CSV
-std::ostream & operator<<(std::ostream &out, const SqlEntry &e)
+inline std::ostream & operator<<(std::ostream &out, const SqlEntry &e)
 {
     out << e.sqlInsert();
 
@@ -226,6 +226,12 @@ T SqlEntry::strTo(const std::string str)
     stream >> buf;
     
     return buf;
+}
+
+template <>
+inline std::string SqlEntry::strTo(const std::string str)
+{
+    return str;
 }
 
 // parse XML string to an arbitrary type

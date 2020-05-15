@@ -105,7 +105,14 @@ QueryResult Database::execute(const std::string query)
             }
             for (unsigned int i = 0; i < nCol; ++i)
             {
-                line.push_back(colStr[i]);
+                if (colStr[i])
+                {
+                    line.push_back(colStr[i]);
+                }
+                else
+                {
+                    line.push_back("");
+                }
             }
             result.table_.push_back(line);
 

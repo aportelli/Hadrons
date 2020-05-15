@@ -43,6 +43,10 @@
 #define DEFAULT_ASCII_PREC 16
 #endif
 
+#ifndef HADRONS_XML_TOPLEV
+#define HADRONS_XML_TOPLEV "grid"
+#endif 
+
 #define ARG(...) __VA_ARGS__
 
 /* the 'using Grid::operator<<;' statement prevents a very nasty compilation
