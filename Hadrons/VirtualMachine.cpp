@@ -111,7 +111,7 @@ void VirtualMachine::dbRestoreModules(void)
         {
             std::string prefix    = "Grid::Hadrons::";
             auto        modTable  = db_->getTable<ModuleEntry>("modules", "ORDER BY moduleId");
-            auto        typeTable = db_->getTable<ModuleTypeEntry>("moduleTypes");
+           
 
             if (getNModule() > 0)
             {
@@ -119,13 +119,9 @@ void VirtualMachine::dbRestoreModules(void)
             }
             for (auto &e: modTable)
             {
-                auto pred = [&e](const ModuleTypeEntry &t)
-                {
-                    return t.moduleTypeId == e.moduleTypeId;
-                };
-
-                auto        it   = std::find_if(typeTable.begin(), typeTable.end(), pred);
-                std::string type = it->type;
+                auto typeTable = db_->getTable<ModuleTypeEntry>("moduleTypes", 
+                    "WHERE moduleTypeId = " + std::to_string(e.moduleTypeId));
+                std::string type = typeTable.front().type;
 
                 if ((type.size() > prefix.size()) 
                     and (type.substr(0, prefix.size()) == prefix))
