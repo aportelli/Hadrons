@@ -40,14 +40,14 @@ BEGIN_HADRONS_NAMESPACE
  
  Sequential source
  -----------------------------
- * src_x = q_x * theta(x_3 - tA) * theta(tB - x_3) * gamma * exp(i x.mom)
+ * src_x = theta(x_3 - tA) * theta(tB - x_3) * gamma * q_x * exp(i x.mom)
  
  Sequential wall source
  -----------------------------
- * wallsum = \sum_x theta(x_3 - tA) * theta(tB - x_3) q(x)
- * Not sure whether to correct for volume factor? I.e.:
-   wallsum /= |x_0| * |x_1| * |x_2| * (tB - tA + 1)
- * src(x) = theta(x_3 - tA) * theta(tB - x_3) * ( gamma * wallsum ) * e^{i p . x}
+ * Compute SitePropagator on each timeslice as
+     wallsum[t] = \sum_x theta(t - x_3) q(x)
+ * Then construct source as sum of the wall on each timeslice
+     src(x) = sum_{t \in \set{t_A ... tB}} ( gamma * wallsum[t] * exp(i x.mom) )
 
  Options:
  -----------------------------
