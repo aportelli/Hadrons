@@ -1,5 +1,5 @@
 /*
- * SeqGamma.hpp, part of Hadrons (https://github.com/aportelli/Hadrons)
+ * SeqGammaWall.hpp, part of Hadrons (https://github.com/aportelli/Hadrons)
  *
  * Copyright (C) 2015 - 2020
  *
@@ -7,6 +7,7 @@
  * Author: Lanny91 <andrew.lawson@gmail.com>
  * Author: Peter Boyle <paboyle@ph.ed.ac.uk>
  * Author: fionnoh <fionnoh@gmail.com>
+ * Author: Michael Marshall <michael.marshall@ed.ac.uk>
  *
  * Hadrons is free software: you can redistribute it and/or modify
  * it under the terms of the GNU General Public License as published by
@@ -27,8 +28,8 @@
 
 /*  END LEGAL */
 
-#ifndef Hadrons_MSource_SeqGamma_hpp_
-#define Hadrons_MSource_SeqGamma_hpp_
+#ifndef Hadrons_MSource_SeqGammaWall_hpp_
+#define Hadrons_MSource_SeqGammaWall_hpp_
 
 #include <Hadrons/Global.hpp>
 #include <Hadrons/Module.hpp>
@@ -38,10 +39,13 @@ BEGIN_HADRONS_NAMESPACE
 
 /*
  
- Sequential source
+ Sequential wall source
  -----------------------------
- * src_x = q_x * theta(x_3 - tA) * theta(tB - x_3) * gamma * exp(i x.mom)
- 
+ * Compute SitePropagator on each timeslice as
+     wallsum[t] = \sum_x theta(t - x_3) q(x)
+ * Then construct source as sum of the wall on each timeslice
+     src(x) = sum_{t \in \set{t_A ... tB}} ( gamma * wallsum[t] * exp(i x.mom) )
+
  * options:
  - q: input propagator (string)
  - tA: begin timeslice (integer)
@@ -56,10 +60,10 @@ BEGIN_HADRONS_NAMESPACE
  ******************************************************************************/
 BEGIN_MODULE_NAMESPACE(MSource)
 
-class SeqGammaPar: Serializable
+class SeqGammaWallPar: Serializable
 {
 public:
-    GRID_SERIALIZABLE_CLASS_MEMBERS(SeqGammaPar,
+    GRID_SERIALIZABLE_CLASS_MEMBERS(SeqGammaWallPar,
                                     std::string,    q,
                                     unsigned int,   tA,
                                     unsigned int,   tB,
@@ -68,15 +72,15 @@ public:
 };
 
 template <typename FImpl>
-class TSeqGamma: public Module<SeqGammaPar>
+class TSeqGammaWall: public Module<SeqGammaWallPar>
 {
 public:
     FERM_TYPE_ALIASES(FImpl,);
 public:
     // constructor
-    TSeqGamma(const std::string name);
+    TSeqGammaWall(const std::string name);
     // destructor
-    virtual ~TSeqGamma(void) {};
+    virtual ~TSeqGammaWall(void) {};
     // dependency relation
     virtual std::vector<std::string> getInput(void);
     virtual std::vector<std::string> getOutput(void);
@@ -92,23 +96,23 @@ private:
     std::string momphName_, tName_;
 };
 
-MODULE_REGISTER_TMP(SeqGamma, TSeqGamma<FIMPL>, MSource);
-MODULE_REGISTER_TMP(ZSeqGamma, TSeqGamma<ZFIMPL>, MSource);
+MODULE_REGISTER_TMP(SeqGammaWall, TSeqGammaWall<FIMPL>, MSource);
+MODULE_REGISTER_TMP(ZSeqGammaWall, TSeqGammaWall<ZFIMPL>, MSource);
 
 /******************************************************************************
- *                         TSeqGamma implementation                           *
+ *                         TSeqGammaWall implementation                           *
  ******************************************************************************/
 // constructor /////////////////////////////////////////////////////////////////
 template <typename FImpl>
-TSeqGamma<FImpl>::TSeqGamma(const std::string name)
-: Module<SeqGammaPar>(name)
+TSeqGammaWall<FImpl>::TSeqGammaWall(const std::string name)
+: Module<SeqGammaWallPar>(name)
 , momphName_ (name + "_momph")
 , tName_ (name + "_t")
 {}
 
 // dependencies/products ///////////////////////////////////////////////////////
 template <typename FImpl>
-std::vector<std::string> TSeqGamma<FImpl>::getInput(void)
+std::vector<std::string> TSeqGammaWall<FImpl>::getInput(void)
 {
     std::vector<std::string> in = {par().q};
     
@@ -116,7 +120,7 @@ std::vector<std::string> TSeqGamma<FImpl>::getInput(void)
 }
 
 template <typename FImpl>
-std::vector<std::string> TSeqGamma<FImpl>::getOutput(void)
+std::vector<std::string> TSeqGammaWall<FImpl>::getOutput(void)
 {
     std::vector<std::string> out = {getName()};
     
@@ -125,7 +129,7 @@ std::vector<std::string> TSeqGamma<FImpl>::getOutput(void)
 
 // setup ///////////////////////////////////////////////////////////////////////
 template <typename FImpl>
-void TSeqGamma<FImpl>::setup(void)
+void TSeqGammaWall<FImpl>::setup(void)
 {
     if (envHasType(PropagatorField, par().q))
     {
@@ -148,11 +152,12 @@ void TSeqGamma<FImpl>::setup(void)
     envCache(Lattice<iScalar<vInteger>>, tName_, 1, envGetGrid(LatticeComplex));
     envCacheLat(LatticeComplex, momphName_);
     envTmpLat(LatticeComplex, "coor");
+    envTmpLat(PropagatorField, "wallTmp");
 }
 
 // execution ///////////////////////////////////////////////////////////////////
 template <typename FImpl>
-void TSeqGamma<FImpl>::makeSource(PropagatorField &src, 
+void TSeqGammaWall<FImpl>::makeSource(PropagatorField &src,
                                   const PropagatorField &q)
 {
     auto  &ph  = envGet(LatticeComplex, momphName_);
@@ -176,11 +181,19 @@ void TSeqGamma<FImpl>::makeSource(PropagatorField &src,
         LatticeCoordinate(t, Tp);
         hasPhase_ = true;
     }
-    src = where((t >= par().tA) and (t <= par().tB), ph*(g*q), 0.*q);
+    envGetTmp(PropagatorField, wallTmp);
+    SlicedPropagator qSliced;
+    sliceSum(q, qSliced, Tp);
+    src = Zero();
+    for(unsigned int loop_t = par().tA; loop_t <= par().tB; ++loop_t)
+    {
+        wallTmp = g * qSliced[loop_t];
+        src = src + where((t == loop_t), ph*wallTmp, 0.*wallTmp);
+    }
 }
 
 template <typename FImpl>
-void TSeqGamma<FImpl>::execute(void)
+void TSeqGammaWall<FImpl>::execute(void)
 {
     if (par().tA == par().tB)
     {
@@ -220,4 +233,4 @@ END_MODULE_NAMESPACE
 
 END_HADRONS_NAMESPACE
 
-#endif // Hadrons_MSource_SeqGamma_hpp_
+#endif // Hadrons_MSource_SeqGammaWall_hpp_

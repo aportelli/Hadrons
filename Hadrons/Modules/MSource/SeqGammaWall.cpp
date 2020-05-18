@@ -1,9 +1,10 @@
 /*
- * SeqGamma.cpp, part of Hadrons (https://github.com/aportelli/Hadrons)
+ * SeqGammaWall.cpp, part of Hadrons (https://github.com/aportelli/Hadrons)
  *
  * Copyright (C) 2015 - 2020
  *
  * Author: Antonin Portelli <antonin.portelli@me.com>
+ * Author: Michael Marshall <michael.marshall@ed.ac.uk>
  *
  * Hadrons is free software: you can redistribute it and/or modify
  * it under the terms of the GNU General Public License as published by
@@ -23,11 +24,11 @@
  */
 
 /*  END LEGAL */
-#include <Hadrons/Modules/MSource/SeqGamma.hpp>
+#include <Hadrons/Modules/MSource/SeqGammaWall.hpp>
 
 using namespace Grid;
 using namespace Hadrons;
 using namespace MSource;
 
-template class Grid::Hadrons::MSource::TSeqGamma<FIMPL>;
-template class Grid::Hadrons::MSource::TSeqGamma<ZFIMPL>;
+template class Grid::Hadrons::MSource::TSeqGammaWall<FIMPL>;
+template class Grid::Hadrons::MSource::TSeqGammaWall<ZFIMPL>;
