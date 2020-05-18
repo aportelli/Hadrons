@@ -201,13 +201,12 @@ void TSeqGamma<FImpl,bWall>::makeSource(PropagatorField &src,
         envGetTmp(PropagatorField, wallTmp);
         SlicedPropagator qSliced;
         sliceSum(q, qSliced, Tp);
-        SitePropagator WallSum;
-        WallSum = 0;
-        for(unsigned int t = par().tA; t <= par().tB; ++t)
-            WallSum += qSliced[t];
-        WallSum = g * WallSum;
-        wallTmp = WallSum;
-        src = where((t >= par().tA) and (t <= par().tB), ph*wallTmp, 0.*wallTmp);
+        src = Zero();
+        for(unsigned int loop_t = par().tA; loop_t <= par().tB; ++loop_t)
+        {
+            wallTmp = g * qSliced[loop_t];
+            src = src + where((t == loop_t), ph*wallTmp, 0.*wallTmp);
+        }
     }
     else
     {
