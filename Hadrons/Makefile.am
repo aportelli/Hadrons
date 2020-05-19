@@ -11,6 +11,7 @@ libHadrons_a_SOURCES = \
   Environment.cpp     \
 	Exceptions.cpp      \
   Global.cpp          \
+	MemoryLogger.cpp    \
   Module.cpp		      \
 	TimerArray.cpp      \
 	VirtualMachine.cpp  \
@@ -31,6 +32,7 @@ nobase_libHadrons_a_HEADERS = \
 	GeneticScheduler.hpp      \
 	Global.hpp                \
 	Graph.hpp                 \
+	MemoryLogger.hpp          \
 	Module.hpp                \
 	Modules.hpp               \
 	ModuleFactory.hpp         \

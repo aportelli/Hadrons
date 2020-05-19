@@ -112,7 +112,6 @@ void VirtualMachine::dbRestoreModules(void)
             std::string prefix    = "Grid::Hadrons::";
             auto        modTable  = db_->getTable<ModuleEntry>("modules", "ORDER BY moduleId");
            
-
             if (getNModule() > 0)
             {
                 HADRONS_ERROR(Database, "module graph is not empty");
@@ -921,7 +920,6 @@ VirtualMachine::Program VirtualMachine::schedule(const GeneticPar &par)
 #define BIG_SEP   "================"
 #define SEP       "----------------"
 #define SMALL_SEP "................"
-#define MEM_MSG(size) sizeString(size)
 
 void VirtualMachine::executeProgram(const Program &p)
 {
@@ -979,8 +977,7 @@ void VirtualMachine::executeProgram(const Program &p)
         totalTime_ += total;
         // print used memory after execution
         LOG(Message) << SMALL_SEP << " Memory management" << std::endl;
-        LOG(Message) << "Allocated objects: " << MEM_MSG(sizeBefore)
-                     << std::endl;
+        MemoryLogger::print();
         if (sizeBefore > memPeak)
         {
             memPeak = sizeBefore;
@@ -995,8 +992,7 @@ void VirtualMachine::executeProgram(const Program &p)
         sizeAfter = env().getTotalSize();
         if (sizeBefore != sizeAfter)
         {
-            LOG(Message) << "Allocated objects: " << MEM_MSG(sizeAfter)
-                            << std::endl;
+            MemoryLogger::print();
         }
         else
         {

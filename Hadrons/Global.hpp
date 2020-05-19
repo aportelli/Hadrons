@@ -29,8 +29,10 @@
 #ifndef Hadrons_Global_hpp_
 #define Hadrons_Global_hpp_
 
+#include <atomic>
 #include <set>
 #include <stack>
+#include <thread>
 #include <regex>
 #include <Grid/Grid.h>
 #include <cxxabi.h>

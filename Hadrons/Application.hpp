@@ -57,7 +57,8 @@ public:
                                         std::string, resultDb,
                                         bool,        restoreModules,
                                         bool,        restoreMemoryProfile,
-                                        bool,        restoreSchedule);
+                                        bool,        restoreSchedule,
+                                        bool,        makeStatDb);
     };
 
     struct GlobalPar: Serializable

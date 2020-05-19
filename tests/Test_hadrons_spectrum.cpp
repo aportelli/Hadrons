@@ -58,6 +58,7 @@ int main(int argc, char *argv[])
     globalPar.database.restoreSchedule      = false;
     globalPar.database.restoreModules       = false;
     globalPar.database.restoreMemoryProfile = false;
+    globalPar.database.makeStatDb           = true;
     application.setPar(globalPar);
     // gauge field
     application.createModule<MGauge::Unit>("gauge");
