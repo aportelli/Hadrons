@@ -26,6 +26,7 @@
 
 #include <Hadrons/VirtualMachine.hpp>
 #include <Hadrons/GeneticScheduler.hpp>
+#include <Hadrons/MemoryLogger.hpp>
 #include <Hadrons/ModuleFactory.hpp>
 
 using namespace Grid;

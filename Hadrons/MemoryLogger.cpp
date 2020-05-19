@@ -50,14 +50,15 @@ void MemoryLogger::setDatabase(Database &db)
     {
         db_->createTable<MemoryEntry>("memory");
         db_->execute(
-            "CREATE VIEW IF NOT EXISTS vMemory AS                        "
-            "SELECT memory.time*1.0/1.0e6 AS timeSec,                    "
-            "       memory.totalCurrent*1.0/1024/1024 AS totalCurrentMB, "
-            "       memory.envCurrent*1.0/1024/1024 AS envCurrentMB,     "
-            "       memory.commsCurrent*1.0/1024/1024 AS commsCurrentMB, "
-            "       memory.totalPeak*1.0/1024/1024 AS totalPeakMB        "
-            "FROM memory                                                 "
-            "ORDER BY timeSec;                                           "
+            "CREATE VIEW IF NOT EXISTS vMemory AS                                                      "
+            "SELECT memory.time*1.0e-6 AS timeSec,                                                     "
+            "       memory.totalCurrent*0.000000953674316 AS totalCurrentMB,                           "
+            "       memory.envCurrent*0.000000953674316 AS envCurrentMB,                               "
+            "       memory.commsCurrent*0.000000953674316 AS commsCurrentMB,                           "
+            "       (memory.totalCurrent - memory.commsCurrent)*0.000000953674316 AS nocommsCurrentMB, "
+            "       memory.totalPeak*0.000000953674316 AS totalPeakMB                                  "
+            "FROM memory                                                                               "
+            "ORDER BY timeSec;                                                                         "
         );
     }
 }

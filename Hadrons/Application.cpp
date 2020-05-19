@@ -134,18 +134,6 @@ void Application::run(void)
     Database     memDb;
     MemoryLogger memoryLogger;
 
-    if (getPar().database.makeStatDb)
-    {
-        std::ostringstream oss;
-        auto now      = std::chrono::system_clock::to_time_t(std::chrono::system_clock::now());
-        auto nowLocal = *std::localtime(&now);
-
-        oss << std::put_time(&nowLocal, "%Y%m%d-%H%M%S");
-        memDb.setFilename(getPar().runId + "-stat-" + oss.str() + ".db");
-        memoryLogger.setDatabase(memDb);
-        memoryLogger.start(1000);
-    }
-
     LOG(Message) << "====== HADRONS APPLICATION START ======" << std::endl;
     if (!parameterFileName_.empty() and (vm().getNModule() == 0))
     {
@@ -160,6 +148,20 @@ void Application::run(void)
     LOG(Message) << "Attempt(s) for resilient parallel I/O: " 
                  << BinaryIO::latticeWriteMaxRetry << std::endl;
     vm().setRunId(getPar().runId);
+    if (getPar().database.makeStatDb)
+    {
+        std::string        memDbFilename;
+        std::ostringstream oss;
+        auto now      = std::chrono::system_clock::to_time_t(std::chrono::system_clock::now());
+        auto nowLocal = *std::localtime(&now);
+
+        oss << std::put_time(&nowLocal, "%Y%m%d-%H%M%S");
+        memDbFilename = getPar().runId + "-stat-" + oss.str() + ".db";
+        LOG(Message) << "Logging run statistics in '" << memDbFilename << "'" << std::endl;
+        memDb.setFilename(memDbFilename);
+        memoryLogger.setDatabase(memDb);
+        memoryLogger.start(500);
+    }
     if (getPar().saveSchedule or getPar().scheduleFile.empty())
     {
         schedule();
