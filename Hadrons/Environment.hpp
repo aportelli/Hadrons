@@ -462,7 +462,7 @@ void Environment::createDerivedObject(const std::string name,
         object_[address].storage     = storage;
         object_[address].Ls          = Ls;
         object_[address].data.reset(new Holder<B>(new T(std::forward<Ts>(args)...)));
-        object_[address].size        = MemoryProfiler::stats->maxAllocated - initMem;
+        object_[address].size        = MemoryProfiler::stats->currentlyAllocated - initMem;
         object_[address].type        = typeIdPt<B>();
         object_[address].derivedType = typeIdPt<T>();
         if (MemoryProfiler::stats == &memStats)
