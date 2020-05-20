@@ -40,6 +40,7 @@ public:
         HADRONS_SQL_FIELDS(SqlNotNull<GridTime::rep>, time,
                            SqlNotNull<size_t>, totalCurrent,
                            SqlNotNull<size_t>, envCurrent,
+                           SqlNotNull<size_t>, gridCurrent,
                            SqlNotNull<size_t>, commsCurrent,
                            SqlNotNull<size_t>, totalPeak);
     };

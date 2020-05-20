@@ -54,6 +54,7 @@ void MemoryLogger::setDatabase(Database &db)
             "SELECT memory.time*1.0e-6 AS timeSec,                                                     "
             "       memory.totalCurrent*0.000000953674316 AS totalCurrentMB,                           "
             "       memory.envCurrent*0.000000953674316 AS envCurrentMB,                               "
+            "       memory.gridCurrent*0.000000953674316 AS gridCurrentMB,                             "
             "       memory.commsCurrent*0.000000953674316 AS commsCurrentMB,                           "
             "       (memory.totalCurrent - memory.commsCurrent)*0.000000953674316 AS nocommsCurrentMB, "
             "       memory.totalPeak*0.000000953674316 AS totalPeakMB                                  "
@@ -82,6 +83,14 @@ void MemoryLogger::start(const unsigned int period)
             watch.Start();
             e.totalCurrent = getCurrentRSS();
             e.envCurrent   = Environment::getInstance().getTotalSize();
+            if (Grid::MemoryProfiler::stats)
+            {
+                e.gridCurrent = Grid::MemoryProfiler::stats->currentlyAllocated;
+            }
+            else
+            {
+                e.gridCurrent = 0;
+            }
             e.commsCurrent = Grid::GlobalSharedMemory::MAX_MPI_SHM_BYTES;
             e.totalPeak    = getPeakRSS();
             if (db_ and db_->isConnected())
@@ -117,9 +126,13 @@ void MemoryLogger::print(void)
     peak  = getPeakRSS();
     LOG(Message) << "Memory: current total " << sizeString(total)
                  << " / environment "        << sizeString(env)
-                 << " / comms "              << sizeString(comms)
-                 << " / peak total "         << sizeString(peak) 
-                 << std::endl;
+                 << " / comms "              << sizeString(comms);
+    if (Grid::MemoryProfiler::stats)
+    {
+        std::cout << " / grid " 
+                  << sizeString(Grid::MemoryProfiler::stats->currentlyAllocated);
+    }
+    std::cout << " / peak total " << sizeString(peak) << std::endl;
 }
 
 /*

@@ -45,10 +45,12 @@ using namespace Hadrons;
 Application::Application(void)
 {
     initLogger();
+    Grid::MemoryProfiler::stats = &memStats_;
     auto dim = GridDefaultLatt(), mpi = GridDefaultMpi(), loc(dim);
 
     if (dim.size())
     {
+        
         locVol_ = 1;
         for (unsigned int d = 0; d < dim.size(); ++d)
         {
@@ -72,6 +74,11 @@ Application::Application(void)
         LOG(Message) << "Schur decomposition     : " << MACOUTS(HADRONS_DEFAULT_SCHUR) << std::endl;
         LOG(Message) << std::endl;
     }
+}
+
+Application::~Application(void)
+{
+    Grid::MemoryProfiler::stats = nullptr;
 }
 
 Application::Application(const Application::GlobalPar &par)

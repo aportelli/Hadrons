@@ -88,7 +88,7 @@ public:
     Application(const GlobalPar &par);
     Application(const std::string parameterFileName);
     // destructor
-    virtual ~Application(void) = default;
+    virtual ~Application(void);
     // access
     void              setPar(const GlobalPar &par);
     const GlobalPar & getPar(void);
@@ -121,6 +121,7 @@ private:
     GlobalPar               par_;
     VirtualMachine::Program program_;
     Database                db_;
+    Grid::MemoryStats       memStats_;
     bool                    scheduled_{false}, loadedSchedule_{false};
 };
 
