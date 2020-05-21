@@ -107,7 +107,7 @@ void TNoises<FImpl>::execute(void)
     const DistilParameters &dp{envGet(DistilParameters, par().DistilParams)};
     const int Nt{env().getDim(Tdir)};
     const bool full_tdil{ dp.TI == Nt };
-    const bool exact_distillation{ full_tdil && dp.LI == dp.nvec };
+    const bool exact_distillation{ full_tdil && dp.LI == dp.nvec && dp.SI == Ns };
     
     // We use our own seeds so we can specify different noises per quark
     Real rn;

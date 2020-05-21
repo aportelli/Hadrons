@@ -128,8 +128,9 @@ void TDistilVectors<FImpl>::setup(void)
 
     const DistilParameters &dp{envGet(DistilParameters, par().DistilParams)};
     const int Nt{env().getDim(Tdir)};
-    const bool full_tdil{ dp.TI == Nt };
-    const int Nt_inv{ full_tdil ? 1 : dp.TI };
+    //const bool full_tdil{ dp.TI == Nt }; 
+    //const int Nt_inv{ full_tdil ? 1 : dp.TI };
+    const int Nt_inv{ dp.inversions };
     
     if (!RhoName.empty())
         envCreate(std::vector<FermionField>, RhoName, 1, dp.nnoise*dp.LI*dp.SI*Nt_inv, envGetGrid(FermionField));
@@ -145,11 +146,11 @@ void TDistilVectors<FImpl>::setup(void)
     GridCartesian * const grid4d{env().getGrid()};
     MakeLowerDimGrid(grid3d, grid4d);
     
-    envTmpLat(LatticeSpinColourVector, "source4d");
-    envTmp(LatticeSpinColourVector,    "source3d", 1, grid3d.get());
-    envTmp(LatticeColourVector, "source3d_nospin", 1, grid3d.get());
-    envTmp(LatticeSpinColourVector,      "sink3d", 1, grid3d.get());
-    envTmp(LatticeColourVector,          "evec3d", 1, grid3d.get());
+    envTmpLat(FermionField, "source4d");
+    envTmp(FermionField,    "source3d", 1, grid3d.get());
+    envTmp(ColourVectorField, "source3d_nospin", 1, grid3d.get());
+    envTmp(FermionField,      "sink3d", 1, grid3d.get());
+    envTmp(ColourVectorField,          "evec3d", 1, grid3d.get());
 }
 
 // execution ///////////////////////////////////////////////////////////////////
@@ -158,22 +159,23 @@ void TDistilVectors<FImpl>::execute(void)
 {
     auto &noise        = envGet(NoiseTensor,  par().noise);
     auto &perambulator = envGet(PerambTensor, par().perambulator);
-    auto &epack        = envGet(Grid::Hadrons::EigenPack<LatticeColourVector>, par().lapevec);
+    auto &epack        = envGet(Grid::Hadrons::EigenPack<ColourVectorField>, par().lapevec);
     const DistilParameters &dp{envGet(DistilParameters, par().DistilParams)};
     
-    envGetTmp(LatticeSpinColourVector, source4d);
-    envGetTmp(LatticeSpinColourVector, source3d);
-    envGetTmp(LatticeColourVector,     source3d_nospin);
-    envGetTmp(LatticeSpinColourVector, sink3d);
-    envGetTmp(LatticeColourVector,     evec3d);
+    envGetTmp(FermionField, source4d);
+    envGetTmp(FermionField, source3d);
+    envGetTmp(ColourVectorField,     source3d_nospin);
+    envGetTmp(FermionField, sink3d);
+    envGetTmp(ColourVectorField,     evec3d);
     
     GridCartesian * const grid4d{env().getGrid()};
     const int Ntlocal{ grid4d->LocalDimensions()[3] };
     const int Ntfirst{ grid4d->LocalStarts()[3] };
     
     const int Nt{env().getDim(Tdir)}; 
-    const bool full_tdil{ dp.TI == Nt }; 
-    const int Nt_inv{ full_tdil ? 1 : dp.TI };
+    //const bool full_tdil{ dp.TI == Nt }; 
+    //const int Nt_inv{ full_tdil ? 1 : dp.TI };
+    const int Nt_inv{ dp.inversions };
     
     int vecindex;
     if (!RhoName.empty())
@@ -191,7 +193,8 @@ void TDistilVectors<FImpl>::execute(void)
                         rho[vecindex] = 0;
                         for (int it = dt; it < Nt; it += dp.TI)
 			{
-                            const int t_inv{full_tdil ? dp.tsrc : it};
+                            //const int t_inv{full_tdil ? dp.tsrc : it};
+                            const int t_inv{(dp.tsrc + it)%Nt};
                             if (t_inv >= Ntfirst && t_inv < Ntfirst + Ntlocal) 
 			    {
                                 for (int ik = dk; ik < dp.nvec; ik += dp.LI)

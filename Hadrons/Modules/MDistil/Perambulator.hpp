@@ -117,8 +117,9 @@ void TPerambulator<FImpl>::setup(void)
     MakeLowerDimGrid(grid3d, env().getGrid());
     const DistilParameters &dp = envGet(DistilParameters, par().DistilParams);
     const int  Nt{env().getDim(Tdir)};
-    const bool full_tdil{ dp.TI == Nt };
-    const int  Nt_inv{ full_tdil ? 1 : dp.TI };
+    //const bool full_tdil{ dp.TI == Nt };
+    //const int  Nt_inv{ full_tdil ? 1 : dp.TI };
+    const int  Nt_inv{ dp.inversions };
 
     std::string objName{ getName() };
     envCreate(PerambTensor, objName, 1, Nt, dp.nvec, dp.LI, dp.nnoise, Nt_inv, dp.SI);
@@ -130,14 +131,14 @@ void TPerambulator<FImpl>::setup(void)
                   envGetGrid(FermionField));
     }
     
-    envTmpLat(LatticeSpinColourVector,   "dist_source");
-    envTmpLat(LatticeSpinColourVector,   "source4d");
-    envTmp(LatticeSpinColourVector,      "source3d",        1, grid3d.get());
-    envTmp(LatticeColourVector,          "source3d_nospin", 1, grid3d.get());
-    envTmpLat(LatticeSpinColourVector,   "result4d");
-    envTmpLat(LatticeColourVector,       "result4d_nospin");
-    envTmp(LatticeColourVector,          "result3d_nospin", 1, grid3d.get());
-    envTmp(LatticeColourVector,          "evec3d",          1, grid3d.get());
+    envTmpLat(FermionField,   "dist_source");
+    envTmpLat(FermionField,   "source4d");
+    envTmp(FermionField,      "source3d",        1, grid3d.get());
+    envTmp(ColourVectorField,          "source3d_nospin", 1, grid3d.get());
+    envTmpLat(FermionField,   "result4d");
+    envTmpLat(ColourVectorField,       "result4d_nospin");
+    envTmp(ColourVectorField,          "result3d_nospin", 1, grid3d.get());
+    envTmp(ColourVectorField,          "evec3d",          1, grid3d.get());
     
     Ls_ = env().getObjectLs(par().solver);
     envTmpLat(FermionField, "v4dtmp");
@@ -151,8 +152,9 @@ void TPerambulator<FImpl>::execute(void)
 {
     const DistilParameters &dp{ envGet(DistilParameters, par().DistilParams) };
     const int Nt{env().getDim(Tdir)};
-    const bool full_tdil{ dp.TI == Nt }; 
-    const int Nt_inv{ full_tdil ? 1 : dp.TI };
+    //const bool full_tdil{ dp.TI == Nt }; 
+    //const int Nt_inv{ full_tdil ? 1 : dp.TI };
+    const int  Nt_inv{ dp.inversions };
 
     auto &solver=envGet(Solver, par().solver);
     auto &mat = solver.getFMat();
@@ -166,14 +168,14 @@ void TPerambulator<FImpl>::execute(void)
     objName.append( UnsmearedSink );
     const std::string UnsmearedSinkFileName{ par().UnsmearedSinkFileName };
     const bool bSaveUnsmearedSink( !UnsmearedSinkFileName.empty() );
-    envGetTmp(LatticeSpinColourVector, dist_source);
-    envGetTmp(LatticeSpinColourVector, source4d);
-    envGetTmp(LatticeSpinColourVector, source3d);
-    envGetTmp(LatticeColourVector, source3d_nospin);
-    envGetTmp(LatticeSpinColourVector, result4d);
-    envGetTmp(LatticeColourVector, result4d_nospin);
-    envGetTmp(LatticeColourVector, result3d_nospin);
-    envGetTmp(LatticeColourVector, evec3d);
+    envGetTmp(FermionField, dist_source);
+    envGetTmp(FermionField, source4d);
+    envGetTmp(FermionField, source3d);
+    envGetTmp(ColourVectorField, source3d_nospin);
+    envGetTmp(FermionField, result4d);
+    envGetTmp(ColourVectorField, result4d_nospin);
+    envGetTmp(ColourVectorField, result3d_nospin);
+    envGetTmp(ColourVectorField, evec3d);
     GridCartesian * const grid4d{ env().getGrid() }; // Owned by environment (so I won't delete it)
     const int Ntlocal{grid4d->LocalDimensions()[3]};
     const int Ntfirst{grid4d->LocalStarts()[3]};
@@ -191,7 +193,8 @@ void TPerambulator<FImpl>::execute(void)
                     evec3d = 0;
                     for (int it = dt; it < Nt; it += dp.TI)
                     {
-                        const int t_inv{full_tdil ? dp.tsrc : it};
+                        //const int t_inv{full_tdil ? dp.tsrc : it};
+                        const int t_inv{(dp.tsrc + it)%Nt};
                         if( t_inv >= Ntfirst && t_inv < Ntfirst + Ntlocal )
                         {
                             for (int ik = dk; ik < dp.nvec; ik += dp.LI)

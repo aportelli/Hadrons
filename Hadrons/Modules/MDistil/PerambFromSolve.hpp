@@ -122,9 +122,9 @@ void TPerambFromSolve<FImpl>::setup(void)
     const int LI_reduced{  par().LI_reduced};
     envCreate(PerambTensor, getName(), 1, Nt,nvec_reduced,LI_reduced,dp.nnoise,Nt_inv,dp.SI);
     envCreate(NoiseTensor, getName() + "_noise", 1, dp.nnoise, Nt, dp.nvec, Ns );
-    envTmp(LatticeColourVector, "result3d_nospin", 1, grid3d.get());
-    envTmp(LatticeColourVector, "evec3d",          1, grid3d.get());
-    envTmpLat(LatticeColourVector, "result4d_nospin");
+    envTmp(ColourVectorField, "result3d_nospin", 1, grid3d.get());
+    envTmp(ColourVectorField, "evec3d",          1, grid3d.get());
+    envTmpLat(ColourVectorField, "result4d_nospin");
 }
 
 // execution ///////////////////////////////////////////////////////////////////
@@ -137,16 +137,17 @@ void TPerambFromSolve<FImpl>::execute(void)
     const DistilParameters &dp{envGet(DistilParameters, par().DistilParams)};
     const int Nt{env().getDim(Tdir)};
     const bool full_tdil{ dp.TI == Nt };
-    const int Nt_inv{ full_tdil ? 1 : dp.TI };
+    //const int Nt_inv{ full_tdil ? 1 : dp.TI };
+    const int Nt_inv{ dp.inversions };
     const int nvec_reduced{par().nvec_reduced};
     const int LI_reduced{  par().LI_reduced};
     auto &perambulator  = envGet(PerambTensor, getName());
     auto &solve         = envGet(std::vector<FermionField>, par().solve);
-    auto &epack         = envGet(Grid::Hadrons::EigenPack<LatticeColourVector>, par().lapevec);
+    auto &epack         = envGet(Grid::Hadrons::EigenPack<ColourVectorField>, par().lapevec);
     
-    envGetTmp(LatticeColourVector, result4d_nospin);
-    envGetTmp(LatticeColourVector, result3d_nospin);
-    envGetTmp(LatticeColourVector, evec3d);
+    envGetTmp(ColourVectorField, result4d_nospin);
+    envGetTmp(ColourVectorField, result3d_nospin);
+    envGetTmp(ColourVectorField, evec3d);
     
     for (int inoise = 0; inoise < dp.nnoise; inoise++)
     {
