@@ -117,17 +117,14 @@ void TPerambulator<FImpl>::setup(void)
     MakeLowerDimGrid(grid3d, env().getGrid());
     const DistilParameters &dp = envGet(DistilParameters, par().DistilParams);
     const int  Nt{env().getDim(Tdir)};
-    //const bool full_tdil{ dp.TI == Nt };
-    //const int  Nt_inv{ full_tdil ? 1 : dp.TI };
-    const int  Nt_inv{ dp.inversions };
 
     std::string objName{ getName() };
-    envCreate(PerambTensor, objName, 1, Nt, dp.nvec, dp.LI, dp.nnoise, Nt_inv, dp.SI);
+    envCreate(PerambTensor, objName, 1, Nt, dp.nvec, dp.LI, dp.nnoise, dp.inversions, dp.SI);
     const std::string UnsmearedSinkFileName{ par().UnsmearedSinkFileName };
     if( !UnsmearedSinkFileName.empty() )
     {
         objName.append( UnsmearedSink );
-        envCreate(std::vector<FermionField>, objName, 1, dp.nnoise*dp.LI*Ns*Nt_inv,
+        envCreate(std::vector<FermionField>, objName, 1, dp.nnoise*dp.LI*Ns*dp.inversions,
                   envGetGrid(FermionField));
     }
     
@@ -152,9 +149,6 @@ void TPerambulator<FImpl>::execute(void)
 {
     const DistilParameters &dp{ envGet(DistilParameters, par().DistilParams) };
     const int Nt{env().getDim(Tdir)};
-    //const bool full_tdil{ dp.TI == Nt }; 
-    //const int Nt_inv{ full_tdil ? 1 : dp.TI };
-    const int  Nt_inv{ dp.inversions };
 
     auto &solver=envGet(Solver, par().solver);
     auto &mat = solver.getFMat();
@@ -184,7 +178,7 @@ void TPerambulator<FImpl>::execute(void)
     {
         for (int dk = 0; dk < dp.LI; dk++)
         {
-            for (int dt = 0; dt < Nt_inv; dt++)
+            for (int dt = 0; dt < dp.inversions; dt++)
             {
                 for (int ds = 0; ds < dp.SI; ds++)
                 {
@@ -193,7 +187,6 @@ void TPerambulator<FImpl>::execute(void)
                     evec3d = 0;
                     for (int it = dt; it < Nt; it += dp.TI)
                     {
-                        //const int t_inv{full_tdil ? dp.tsrc : it};
                         const int t_inv{(dp.tsrc + it)%Nt};
                         if( t_inv >= Ntfirst && t_inv < Ntfirst + Ntlocal )
                         {
@@ -226,7 +219,7 @@ void TPerambulator<FImpl>::execute(void)
                     if( bSaveUnsmearedSink )
                     {
                         auto &unsmeared_sink = envGet(std::vector<FermionField>, objName);
-                        unsmeared_sink[inoise+dp.nnoise*(dk+dp.LI*(dt+Nt_inv*ds))] = result4d;
+                        unsmeared_sink[inoise+dp.nnoise*(dk+dp.LI*(dt+dp.inversions*ds))] = result4d;
                     }
                     for (int is = 0; is < Ns; is++)
                     {

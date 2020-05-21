@@ -128,14 +128,11 @@ void TDistilVectors<FImpl>::setup(void)
 
     const DistilParameters &dp{envGet(DistilParameters, par().DistilParams)};
     const int Nt{env().getDim(Tdir)};
-    //const bool full_tdil{ dp.TI == Nt }; 
-    //const int Nt_inv{ full_tdil ? 1 : dp.TI };
-    const int Nt_inv{ dp.inversions };
     
     if (!RhoName.empty())
-        envCreate(std::vector<FermionField>, RhoName, 1, dp.nnoise*dp.LI*dp.SI*Nt_inv, envGetGrid(FermionField));
+        envCreate(std::vector<FermionField>, RhoName, 1, dp.nnoise*dp.LI*dp.SI*dp.inversions, envGetGrid(FermionField));
     if (!PhiName.empty())
-        envCreate(std::vector<FermionField>, PhiName, 1, dp.nnoise*dp.LI*dp.SI*Nt_inv, envGetGrid(FermionField));
+        envCreate(std::vector<FermionField>, PhiName, 1, dp.nnoise*dp.LI*dp.SI*dp.inversions, envGetGrid(FermionField));
     
     Coordinate latt_size   = GridDefaultLatt();
     Coordinate mpi_layout  = GridDefaultMpi();
@@ -146,11 +143,11 @@ void TDistilVectors<FImpl>::setup(void)
     GridCartesian * const grid4d{env().getGrid()};
     MakeLowerDimGrid(grid3d, grid4d);
     
-    envTmpLat(FermionField, "source4d");
-    envTmp(FermionField,    "source3d", 1, grid3d.get());
-    envTmp(ColourVectorField, "source3d_nospin", 1, grid3d.get());
-    envTmp(FermionField,      "sink3d", 1, grid3d.get());
-    envTmp(ColourVectorField,          "evec3d", 1, grid3d.get());
+    envTmpLat(FermionField,     "source4d");
+    envTmp(FermionField,        "source3d", 1, grid3d.get());
+    envTmp(ColourVectorField,   "source3d_nospin", 1, grid3d.get());
+    envTmp(FermionField,        "sink3d", 1, grid3d.get());
+    envTmp(ColourVectorField,   "evec3d", 1, grid3d.get());
 }
 
 // execution ///////////////////////////////////////////////////////////////////
@@ -173,9 +170,6 @@ void TDistilVectors<FImpl>::execute(void)
     const int Ntfirst{ grid4d->LocalStarts()[3] };
     
     const int Nt{env().getDim(Tdir)}; 
-    //const bool full_tdil{ dp.TI == Nt }; 
-    //const int Nt_inv{ full_tdil ? 1 : dp.TI };
-    const int Nt_inv{ dp.inversions };
     
     int vecindex;
     if (!RhoName.empty())
@@ -185,7 +179,7 @@ void TDistilVectors<FImpl>::execute(void)
 	{
             for (int dk = 0; dk < dp.LI; dk++) 
 	    {
-                for (int dt = 0; dt < Nt_inv; dt++) 
+                for (int dt = 0; dt < dp.inversions; dt++) 
 		{
                     for (int ds = 0; ds < dp.SI; ds++) 
 		    {
@@ -193,7 +187,6 @@ void TDistilVectors<FImpl>::execute(void)
                         rho[vecindex] = 0;
                         for (int it = dt; it < Nt; it += dp.TI)
 			{
-                            //const int t_inv{full_tdil ? dp.tsrc : it};
                             const int t_inv{(dp.tsrc + it)%Nt};
                             if (t_inv >= Ntfirst && t_inv < Ntfirst + Ntlocal) 
 			    {
@@ -224,7 +217,7 @@ void TDistilVectors<FImpl>::execute(void)
 	{
             for (int dk = 0; dk < dp.LI; dk++) 
 	    {
-                for (int dt = 0; dt < Nt_inv; dt++) 
+                for (int dt = 0; dt < dp.inversions; dt++) 
 		{
                     for (int ds = 0; ds < dp.SI; ds++) 
 		    {
