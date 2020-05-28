@@ -51,6 +51,71 @@ size_t QueryResult::cols(void) const
     return colName_.size();
 }
 
+void QueryResult::broadcastFromBoss(GridBase *grid)
+{
+    assert(grid != nullptr);
+
+    int                                 root = grid->BossRank();
+    size_t                              r, c, s, k, pos;
+    std::vector<std::string::size_type> vs;
+    std::string                         cat;
+
+    // broadcast number of rows and columns
+    r = rows();
+    c = cols();
+    grid->Broadcast(root, r);
+    grid->Broadcast(root, c);
+    if (!grid->IsBoss())
+    {
+        colName_.resize(c);
+        table_.resize(r, std::vector<std::string>(c));
+    }
+
+    // pack data
+    for (unsigned int j = 0; j < c; ++j)
+    {
+        cat += colName_[j];
+        vs.push_back(colName_[j].size());
+    }
+    for (unsigned int i = 0; i < r; ++i)
+    for (unsigned int j = 0; j < c; ++j)
+    {
+        cat += table_[i][j];
+        vs.push_back(table_[i][j].size());
+    }
+
+    // broadcast packed data
+    s = cat.size();
+    grid->Broadcast(root, s);
+    if (!grid->IsBoss())
+    {
+        cat.resize(s);
+    }
+    grid->Broadcast(root, &cat[0], s*sizeof(char));
+    grid->Broadcast(root, &vs[0], vs.size()*sizeof(std::string::size_type));
+
+    // unpack
+    if (!grid->IsBoss())
+    {
+        pos = 0;
+        k   = 0;
+        for (unsigned int j = 0; j < c; ++j)
+        {
+            colName_[j] = cat.substr(pos, vs[k]);
+            pos += vs[k];
+            k++;
+        }
+        for (unsigned int i = 0; i < r; ++i)
+        for (unsigned int j = 0; j < c; ++j)
+        {
+            table_[i][j] = cat.substr(pos, vs[k]);
+            pos += vs[k];
+            k++;
+        }
+    }
+    grid->Barrier();
+}
+
 Database::Database(const std::string filename, GridBase *grid)
 {
     if (isConnected() and ((filename != filename_) or (grid != grid_)))
@@ -77,7 +142,7 @@ void Database::setFilename(const std::string filename, GridBase *grid)
 
 bool Database::isConnected(void) const
 {
-    return (db_ != nullptr);
+    return isConnected_;
 }
 
 QueryResult Database::execute(const std::string query)
@@ -131,6 +196,10 @@ QueryResult Database::execute(const std::string query)
                           + "' (SQLite error '" + errMsg + "')");
         }
     }
+    if (grid_ != nullptr)
+    {
+        result.broadcastFromBoss(grid_);
+    }
 
     return result;
 }
@@ -175,6 +244,7 @@ void Database::connect(void)
             HADRONS_ERROR(Database, "database already connected");
         }
     }
+    isConnected_ = true;
 }
 
 void Database::disconnect(void)
@@ -200,4 +270,5 @@ void Database::disconnect(void)
             HADRONS_ERROR(Database, "no database connected");
         }
     }
+    isConnected_ = false;
 }

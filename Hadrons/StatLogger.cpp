@@ -74,20 +74,23 @@ void StatLogger::start(const unsigned int period)
     {
         stop();
     }
-    isRunning_.store(true, std::memory_order_release);
-    thread_ = std::thread([this, period](void)
+    if (db_ and db_->isConnected())
     {
-        while (isRunning_.load(std::memory_order_acquire))
+        isRunning_.store(true, std::memory_order_release);
+        thread_ = std::thread([this, period](void)
         {
-            auto watch = *GridLogMessage.StopWatch;
+            while (isRunning_.load(std::memory_order_acquire))
+            {
+                auto watch = *GridLogMessage.StopWatch;
 
-            watch.Stop();
-            auto time = watch.Elapsed().count();
-            watch.Start();
-            logMemory(time);
-            std::this_thread::sleep_for(std::chrono::milliseconds(period));
-        }
-    });
+                watch.Stop();
+                auto time = watch.Elapsed().count();
+                watch.Start();
+                logMemory(time);
+                std::this_thread::sleep_for(std::chrono::milliseconds(period));
+            }
+        });
+    }
 }
 
 void StatLogger::stop(void)

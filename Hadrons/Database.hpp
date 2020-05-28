@@ -47,6 +47,8 @@ public:
     size_t rows(void) const;
     size_t cols(void) const;
 private:
+    void broadcastFromBoss(GridBase *grid);
+private:
     std::vector<std::string>              colName_;
     std::vector<std::vector<std::string>> table_;
 };
@@ -76,6 +78,7 @@ private:
     std::string filename_;
     GridBase    *grid_{nullptr};
     sqlite3     *db_{nullptr};
+    bool        isConnected_{false};
 };
 
 template <typename EntryType>
