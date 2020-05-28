@@ -26,7 +26,7 @@
 
 #include <Hadrons/VirtualMachine.hpp>
 #include <Hadrons/GeneticScheduler.hpp>
-#include <Hadrons/MemoryLogger.hpp>
+#include <Hadrons/StatLogger.hpp>
 #include <Hadrons/ModuleFactory.hpp>
 
 using namespace Grid;
@@ -83,6 +83,10 @@ void VirtualMachine::dbRestoreMemoryProfile(void)
             {
                 HADRONS_ERROR(Database, "environment is not empty");
             }
+            if (table.size() == 0)
+            {
+                HADRONS_ERROR(Database, "object table is empty");
+            }
             resetProfile();
             nMod = std::max_element(table.begin(), table.end(), comp)->moduleId + 1;
             profile_.module.resize(nMod);
@@ -116,6 +120,10 @@ void VirtualMachine::dbRestoreModules(void)
             if (getNModule() > 0)
             {
                 HADRONS_ERROR(Database, "module graph is not empty");
+            }
+            if (modTable.size() == 0)
+            {
+                HADRONS_ERROR(Database, "module table is empty");
             }
             for (auto &e: modTable)
             {
@@ -155,6 +163,10 @@ VirtualMachine::Program VirtualMachine::dbRestoreSchedule(void)
         {
             auto table = db_->getTable<ScheduleEntry>("schedule");
 
+            if (table.size() == 0)
+            {
+                HADRONS_ERROR(Database, "schedule table is empty");
+            }
             program.resize(table.size());
             for (auto &e: table)
             {
@@ -978,7 +990,7 @@ void VirtualMachine::executeProgram(const Program &p)
         totalTime_ += total;
         // print used memory after execution
         LOG(Message) << SMALL_SEP << " Memory management" << std::endl;
-        MemoryLogger::print();
+        MemoryUtils::printMemory();
         if (sizeBefore > memPeak)
         {
             memPeak = sizeBefore;
@@ -993,7 +1005,7 @@ void VirtualMachine::executeProgram(const Program &p)
         sizeAfter = env().getTotalSize();
         if (sizeBefore != sizeAfter)
         {
-            MemoryLogger::print();
+            MemoryUtils::printMemory();
         }
         else
         {

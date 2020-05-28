@@ -1,5 +1,5 @@
 /*
- * MemoryLogger.hpp, part of Hadrons (https://github.com/aportelli/Hadrons)
+ * StatLogger.hpp, part of Hadrons (https://github.com/aportelli/Hadrons)
  *
  * Copyright (C) 2015 - 2020
  *
@@ -24,15 +24,18 @@
 
 /*  END LEGAL */
 
-#ifndef Hadrons_MemoryLogger_hpp_
-#define Hadrons_MemoryLogger_hpp_
+#ifndef Hadrons_StatLogger_hpp_
+#define Hadrons_StatLogger_hpp_
 
 #include <Hadrons/Global.hpp>
 #include <Hadrons/Database.hpp>
 
 BEGIN_HADRONS_NAMESPACE
 
-class MemoryLogger
+/******************************************************************************
+ *                       Real-time statistic logger class                     *
+ ******************************************************************************/
+class StatLogger
 {
 public:
     struct MemoryEntry: public SqlEntry
@@ -45,22 +48,36 @@ public:
                            SqlNotNull<size_t>, totalPeak);
     };
 public:
-    MemoryLogger(void) = default;
-    MemoryLogger(Database &db);
-    virtual ~MemoryLogger(void);
-    static size_t getCurrentRSS(void);
-    static size_t getPeakRSS(void);
-    static void   print(void);
+    // constructor
+    StatLogger(void) = default;
+    StatLogger(Database &db);
+    // destructor
+    virtual ~StatLogger(void);
+    // set and initialise DB
     void setDatabase(Database &db);
+    // logger control
     void start(const unsigned int period);
     void stop(void);
     bool isRunning(void) const;
+private:
+    // log memory usage
+    void logMemory(const GridTime::rep time);
 private:
     Database          *db_{nullptr};
     std::atomic<bool> isRunning_{false};
     std::thread       thread_;
 };
 
+/******************************************************************************
+ *                   Utils to query resident memoery from OS                  *
+ ******************************************************************************/
+namespace MemoryUtils
+{
+    size_t getCurrentRSS(void);
+    size_t getPeakRSS(void);
+    void   printMemory(void);
+}
+
 END_HADRONS_NAMESPACE
 
-#endif // Hadrons_MemoryLogger_hpp_
+#endif // Hadrons_StatLogger_hpp_

@@ -1,5 +1,5 @@
 /*
- * MemoryLogger.cpp, part of Hadrons (https://github.com/aportelli/Hadrons)
+ * StatLogger.cpp, part of Hadrons (https://github.com/aportelli/Hadrons)
  *
  * Copyright (C) 2015 - 2020
  *
@@ -24,18 +24,22 @@
 
 /*  END LEGAL */
 
-#include <Hadrons/MemoryLogger.hpp>
+#include <Hadrons/StatLogger.hpp>
 #include <Hadrons/Environment.hpp>
 
 using namespace Grid;
 using namespace Hadrons;
 
-MemoryLogger::MemoryLogger(Database &db)
+/******************************************************************************
+ *                         StatLogger implementation                          *
+ ******************************************************************************/
+// constructor /////////////////////////////////////////////////////////////////
+StatLogger::StatLogger(Database &db)
 {
     setDatabase(db);
 }
 
-MemoryLogger::~MemoryLogger(void)
+StatLogger::~StatLogger(void)
 {
     if (isRunning())
     {
@@ -43,7 +47,7 @@ MemoryLogger::~MemoryLogger(void)
     }
 }
 
-void MemoryLogger::setDatabase(Database &db)
+void StatLogger::setDatabase(Database &db)
 {
     db_ = &db;
     if (db_->isConnected())
@@ -64,7 +68,7 @@ void MemoryLogger::setDatabase(Database &db)
     }
 }
 
-void MemoryLogger::start(const unsigned int period)
+void StatLogger::start(const unsigned int period)
 {
     if (isRunning())
     {
@@ -75,34 +79,18 @@ void MemoryLogger::start(const unsigned int period)
     {
         while (isRunning_.load(std::memory_order_acquire))
         {
-            MemoryEntry e;
-            auto        watch = *GridLogMessage.StopWatch;
+            auto watch = *GridLogMessage.StopWatch;
 
             watch.Stop();
-            e.time         = watch.Elapsed().count();
+            auto time = watch.Elapsed().count();
             watch.Start();
-            e.totalCurrent = getCurrentRSS();
-            e.envCurrent   = Environment::getInstance().getTotalSize();
-            if (Grid::MemoryProfiler::stats)
-            {
-                e.gridCurrent = Grid::MemoryProfiler::stats->currentlyAllocated;
-            }
-            else
-            {
-                e.gridCurrent = 0;
-            }
-            e.commsCurrent = Grid::GlobalSharedMemory::MAX_MPI_SHM_BYTES;
-            e.totalPeak    = getPeakRSS();
-            if (db_ and db_->isConnected())
-            {
-                db_->insert("memory", e);
-            }
+            logMemory(time);
             std::this_thread::sleep_for(std::chrono::milliseconds(period));
         }
     });
 }
 
-void MemoryLogger::stop(void)
+void StatLogger::stop(void)
 {
     if (isRunning())
     {
@@ -111,12 +99,35 @@ void MemoryLogger::stop(void)
     }
 }
 
-bool MemoryLogger::isRunning(void) const
+bool StatLogger::isRunning(void) const
 {
     return (isRunning_.load(std::memory_order_acquire) and thread_.joinable());
 }
 
-void MemoryLogger::print(void)
+void StatLogger::logMemory(const GridTime::rep time)
+{
+    MemoryEntry e;
+
+    e.time         = time;
+    e.totalCurrent = MemoryUtils::getCurrentRSS();
+    e.envCurrent   = Environment::getInstance().getTotalSize();
+    if (Grid::MemoryProfiler::stats)
+    {
+        e.gridCurrent = Grid::MemoryProfiler::stats->currentlyAllocated;
+    }
+    else
+    {
+        e.gridCurrent = 0;
+    }
+    e.commsCurrent = Grid::GlobalSharedMemory::MAX_MPI_SHM_BYTES;
+    e.totalPeak    = MemoryUtils::getPeakRSS();
+    if (db_ and db_->isConnected())
+    {
+        db_->insert("memory", e);
+    }
+}
+
+void MemoryUtils::printMemory(void)
 {
     size_t total, env, comms, peak;
 
@@ -173,7 +184,7 @@ void MemoryLogger::print(void)
  * memory use) measured in bytes, or zero if the value cannot be
  * determined on this OS.
  */
-size_t MemoryLogger::getPeakRSS(void)
+size_t MemoryUtils::getPeakRSS(void)
 {
 #if defined(_WIN32)
     /* Windows -------------------------------------------------- */
@@ -215,7 +226,7 @@ size_t MemoryLogger::getPeakRSS(void)
  * Returns the current resident set size (physical memory use) measured
  * in bytes, or zero if the value cannot be determined on this OS.
  */
-size_t MemoryLogger::getCurrentRSS(void)
+size_t MemoryUtils::getCurrentRSS(void)
 {
 #if defined(_WIN32)
     /* Windows -------------------------------------------------- */

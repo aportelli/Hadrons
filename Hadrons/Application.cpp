@@ -26,7 +26,7 @@
 
 #include <Hadrons/Application.hpp>
 #include <Hadrons/GeneticScheduler.hpp>
-#include <Hadrons/MemoryLogger.hpp>
+#include <Hadrons/StatLogger.hpp>
 #include <Hadrons/Modules.hpp>
 
 using namespace Grid;
@@ -138,8 +138,8 @@ void Application::createModule(const std::string name, const std::string type,
 // execute /////////////////////////////////////////////////////////////////////
 void Application::run(void)
 {
-    Database     memDb;
-    MemoryLogger memoryLogger;
+    Database   statDb;
+    StatLogger statLogger;
 
     LOG(Message) << "====== HADRONS APPLICATION START ======" << std::endl;
     if (!parameterFileName_.empty() and (vm().getNModule() == 0))
@@ -157,17 +157,20 @@ void Application::run(void)
     vm().setRunId(getPar().runId);
     if (getPar().database.makeStatDb)
     {
-        std::string        memDbFilename;
+        std::string        statDbFilename;
         std::ostringstream oss;
         auto now      = std::chrono::system_clock::to_time_t(std::chrono::system_clock::now());
         auto nowLocal = *std::localtime(&now);
 
         oss << std::put_time(&nowLocal, "%Y%m%d-%H%M%S");
-        memDbFilename = getPar().runId + "-stat-" + oss.str() + ".db";
-        LOG(Message) << "Logging run statistics in '" << memDbFilename << "'" << std::endl;
-        memDb.setFilename(memDbFilename);
-        memoryLogger.setDatabase(memDb);
-        memoryLogger.start(500);
+        statDbFilename = getPar().runId + "-stat-" + oss.str() + ".db";
+        LOG(Message) << "Logging run statistics in '" << statDbFilename << "'" << std::endl;
+        if (env().getGrid()->IsBoss())
+        {
+            statDb.setFilename(statDbFilename);
+            statLogger.setDatabase(statDb);
+            statLogger.start(500);
+        }
     }
     if (getPar().saveSchedule or getPar().scheduleFile.empty())
     {
@@ -193,9 +196,9 @@ void Application::run(void)
         vm().dumpModuleGraph(getPar().graphFile);
     }
     configLoop();
-    if (getPar().database.makeStatDb)
+    if (getPar().database.makeStatDb and env().getGrid()->IsBoss())
     {
-        memoryLogger.stop();
+        statLogger.stop();
     }
 }
 
