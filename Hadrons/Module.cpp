@@ -72,6 +72,15 @@ void ModuleBase::operator()(void)
     startTimer("_execute");
     execute();
     stopAllTimers();
+    if (db_ and db_->isConnected())
+    {
+        entryHeader_->traj = vm().getTrajectory();
+        for (auto filename: getOutputFiles())
+        {
+            entryHeader_->filename = filename;
+            db_->insert(dbTable_, *entry_, true);
+        }
+    }
 }
 
 // make module unique string ///////////////////////////////////////////////////

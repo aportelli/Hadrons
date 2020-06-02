@@ -30,6 +30,13 @@
 using namespace Grid;
 using namespace Hadrons;
 
+struct MesonEntry: public SqlEntry
+{
+    HADRONS_SQL_FIELDS(SqlNotNull<std::string>, q1, 
+                       SqlNotNull<std::string>, q2,
+                       SqlNotNull<std::string>, source);
+};
+
 int main(int argc, char *argv[])
 {
     // initialization //////////////////////////////////////////////////////////
@@ -111,23 +118,33 @@ int main(int argc, char *argv[])
     for (unsigned int j = i; j < flavour.size(); ++j)
     {
         MContraction::Meson::Par mesPar;
+        MesonEntry               mesEntry;
         
-        mesPar.output  = "mesons/pt_" + flavour[i] + flavour[j];
-        mesPar.q1      = "Qpt_" + flavour[i];
-        mesPar.q2      = "Qpt_" + flavour[j];
-        mesPar.gammas  = "all";
-        mesPar.sink    = "sink";
+        mesPar.output   = "mesons/pt_" + flavour[i] + flavour[j];
+        mesPar.q1       = "Qpt_" + flavour[i];
+        mesPar.q2       = "Qpt_" + flavour[j];
+        mesPar.gammas   = "all";
+        mesPar.sink     = "sink";
+        mesEntry.q1     = flavour[i];
+        mesEntry.q2     = flavour[j];
+        mesEntry.source = "pt";
         application.createModule<MContraction::Meson>("meson_pt_"
                                                       + flavour[i] + flavour[j],
                                                       mesPar);
-        mesPar.output  = "mesons/Z2_" + flavour[i] + flavour[j];
-        mesPar.q1      = "QZ2_" + flavour[i];
-        mesPar.q2      = "QZ2_" + flavour[j];
-        mesPar.gammas  = "all";
-        mesPar.sink    = "sink";
+        application.setResultMetadata("meson_pt_" + flavour[i] + flavour[j],
+                                     "meson", mesEntry);
+
+        mesPar.output   = "mesons/Z2_" + flavour[i] + flavour[j];
+        mesPar.q1       = "QZ2_" + flavour[i];
+        mesPar.q2       = "QZ2_" + flavour[j];
+        mesPar.gammas   = "all";
+        mesPar.sink     = "sink";
+        mesEntry.source = "Z2";
         application.createModule<MContraction::Meson>("meson_Z2_"
                                                       + flavour[i] + flavour[j],
                                                       mesPar);
+        application.setResultMetadata("meson_Z2_" + flavour[i] + flavour[j],
+                                     "meson", mesEntry);
     }
     for (unsigned int i = 0; i < flavour.size(); ++i)
     for (unsigned int j = i; j < flavour.size(); ++j)

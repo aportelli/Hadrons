@@ -29,6 +29,7 @@
 #define Hadrons_Module_hpp_
 
 #include <Hadrons/Global.hpp>
+#include <Hadrons/Database.hpp>
 #include <Hadrons/TimerArray.hpp>
 #include <Hadrons/VirtualMachine.hpp>
 
@@ -153,6 +154,12 @@ HADRONS_MACRO_REDIRECT_23(__VA_ARGS__, envTmpLat5, envTmpLat4)(__VA_ARGS__)
 class ModuleBase: public TimerArray
 {
 public:
+    struct ResultEntryHeader: SqlEntry
+    {
+        HADRONS_SQL_FIELDS(SqlNotNull<unsigned int>          , traj,
+                           SqlUnique<SqlNotNull<std::string>>, filename);
+    };
+public:
     // constructor
     ModuleBase(const std::string name);
     // destructor
@@ -168,30 +175,47 @@ public:
         return std::vector<std::string>(0);
     };
     virtual std::vector<std::string> getOutput(void) = 0;
+    virtual std::vector<std::string> getOutputFiles(void)
+    {
+        return std::vector<std::string>(0);
+    };
     // parse parameters
     virtual void parseParameters(XmlReader &reader, const std::string name) = 0;
     virtual void saveParameters(XmlWriter &writer, const std::string name) = 0;
     // parameter string
     virtual std::string parString(void) const = 0;
     virtual std::string parClassName(void) const = 0;
+    // result filename generation
+    static std::string resultFilename(const std::string stem, const unsigned int traj);
+    // result database
+    template <typename EntryType>
+    void setResultDbEntry(Database &db, const std::string tableName, EntryType &entry);
     // setup
     virtual void setup(void) {};
-    virtual void execute(void) = 0;
     // execution
+    virtual void execute(void) = 0;
     void operator()(void);
 protected:
     // environment shortcut
     DEFINE_ENV_ALIAS;
     // virtual machine shortcut
     DEFINE_VM_ALIAS;
-    // RNG seeded from module string
+    // get RNGs seeded from module string
     GridParallelRNG &rng4d(void);
     GridSerialRNG &rngSerial(void);
+    // result file utilities
+    std::string resultFilename(const std::string stem) const;
+    template <typename T>
+    void saveResult(const std::string stem, const std::string name, const T &result) const;
 private:
+    // make module unique string
     std::string makeSeedString(void);
 private:
-    std::string                          name_, currentTimer_, seed_;
-    std::map<std::string, GridStopWatch> timer_; 
+    std::string                             name_, currentTimer_, seed_, dbTable_;
+    std::map<std::string, GridStopWatch>    timer_;
+    Database                                *db_{nullptr};
+    std::unique_ptr<SqlEntry>               entry_{nullptr};
+    ResultEntryHeader                       *entryHeader_{nullptr};
 };
 
 // derived class, templating the parameter class
@@ -244,6 +268,41 @@ public:
 /******************************************************************************
  *                           Template implementation                          *
  ******************************************************************************/
+template <typename EntryType>
+void ModuleBase::setResultDbEntry(Database &db, const std::string tableName, EntryType &entry)
+{
+    typedef MergedSqlEntry<ResultEntryHeader, EntryType> ResultEntry;
+
+    ResultEntryHeader entryHead;
+
+    if (!db.isConnected())
+    {
+        HADRONS_ERROR(Database, "result database not connected");
+    }
+    db_      = &db;
+    dbTable_ = tableName;
+    entry_.reset(new ResultEntry(mergeSqlEntries(entryHead, entry)));
+    if (!db_->tableExists(dbTable_))
+    {
+        db_->createTable<ResultEntry>(dbTable_);
+    }
+    ResultEntry *e = dynamic_cast<ResultEntry *>(entry_.get());
+    entryHeader_ = &(e->template getEntry<0>());
+}
+
+template <typename T>
+void ModuleBase::saveResult(const std::string stem, const std::string name, const T &result) const
+{
+    if (env().getGrid()->IsBoss() and !stem.empty())
+    {
+        makeFileDir(stem, env().getGrid());
+        {
+            ResultWriter writer(resultFilename(stem));
+            write(writer, name, result);
+        }
+    }
+}
+
 template <typename P>
 Module<P>::Module(const std::string name)
 : ModuleBase(name)

@@ -121,6 +121,12 @@ void Application::setPar(const Application::GlobalPar &par)
             LOG(Message) << "Schedule restored from application database" << std::endl;
         }
     }
+    if (!getPar().database.resultDb.empty())
+    {
+        LOG(Message) << "Connecting to result database in file '" 
+                     << getPar().database.resultDb << "'..." << std::endl;
+        resultDb_.setFilename(getPar().database.resultDb, env().getGrid());
+    }
 }
 
 const Application::GlobalPar & Application::getPar(void)

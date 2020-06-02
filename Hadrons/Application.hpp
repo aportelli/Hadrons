@@ -98,6 +98,9 @@ public:
     template <typename M>
     void createModule(const std::string name, const typename M::Par &par);
     void createModule(const std::string name, const std::string type, XmlReader &reader);
+    // module DB entry for result files
+    template <typename EntryType>
+    void setResultMetadata(const std::string moduleName, const std::string tableName, const EntryType &entry);
     // execute
     void run(void);
     // XML parameter file I/O
@@ -120,7 +123,7 @@ private:
     std::string             parameterFileName_{""};
     GlobalPar               par_;
     VirtualMachine::Program program_;
-    Database                db_;
+    Database                db_, resultDb_;
     Grid::MemoryStats       memStats_;
     bool                    scheduled_{false}, loadedSchedule_{false};
 };
@@ -142,6 +145,17 @@ void Application::createModule(const std::string name,
 {
     vm().createModule<M>(name, par);
     scheduled_ = false;
+}
+
+// module DB entry /////////////////////////////////////////////////////////////
+template <typename EntryType>
+void Application::setResultMetadata(const std::string moduleName,
+                                   const std::string tableName, 
+                                   const EntryType &entry)
+{
+    auto m = vm().getModule(moduleName);
+
+    m->setResultDbEntry(resultDb_, tableName, entry);
 }
 
 END_HADRONS_NAMESPACE

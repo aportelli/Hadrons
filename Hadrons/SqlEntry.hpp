@@ -96,6 +96,8 @@ typename std::enable_if<!std::is_base_of<Serializable, T>::value and !std::is_as
 class SqlEntry
 {
 public:
+    SqlEntry(void) = default;
+    virtual ~SqlEntry(void) = default;
     // string from an arbitrary type
     template <typename T>
     static std::string strFrom(const T &x);
@@ -406,7 +408,7 @@ template <typename... Ts>
 class MergedSqlEntry: public SqlEntry
 {
 public:
-    typedef std::tuple<Ts...> Tuple;
+    typedef std::tuple<typename std::decay<Ts>::type...> Tuple;
 public:
     MergedSqlEntry(void) 
     {
@@ -503,7 +505,7 @@ public:
 private:
     void storePt(void)
     {
-        StorePt<sizeof...(Ts) - 1, Ts...>::apply(pt_, data_);
+        StorePt<sizeof...(Ts) - 1, typename std::decay<Ts>::type...>::apply(pt_, data_);
     }
 private:
     std::array<SqlEntry *, sizeof...(Ts)> pt_;
