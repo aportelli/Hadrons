@@ -367,6 +367,11 @@ virtual void deserializeRow(const std::vector<std::string> &row)\
 {\
     auto it = row.begin();\
     \
+    if (row.size() != cols())\
+    {\
+        HADRONS_ERROR(Database, "cannot deserialize row (has " + std::to_string(row.size())\
+                                + " columns, expected " + std::to_string(cols()) + ")");\
+    }\
     GRID_MACRO_EVAL(GRID_MACRO_MAP(HADRONS_SQL_DESERIALIZE, __VA_ARGS__))\
 }\
 virtual unsigned int cols(void) const\
@@ -479,6 +484,11 @@ public:
         std::vector<std::string> buf;
         auto                     it = row.begin();
 
+        if (row.size() != cols())
+        {
+            HADRONS_ERROR(Database, "cannot deserialize row (has " + std::to_string(row.size())
+                                    + " columns, expected " + std::to_string(cols()) + ")");
+        }
         for (unsigned int i = 0; i < pt_.size(); ++i)
         {
             buf.clear();
