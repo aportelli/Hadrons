@@ -150,19 +150,23 @@ int main(int argc, char *argv[])
 
     // test Database class high-level operations ///////////////////////////////
     db.createTable<TestEntry>("test2");
-    db.createTable<TableEntry>("test3");
-    db.insert("test2", entry);
     for (unsigned int t = 1000; t < 2000; t += 20)
     {
-        me.getEntry<0>().traj = t;
-        me.getEntry<1>().msg  = "result_" + std::to_string(t);
-        db.insert("test3", me);
+        entry.msg  = "result_" + std::to_string(t);
+        entry.st.x = t*2;
+        db.insert("test2", entry);
     }
-    auto table2 = db.getTable<TableEntry>("test3");
+    auto table2 = db.getTable<TestEntry>("test2");
     for (auto &e: table2)
     {
         LOG(Message) << e << std::endl;
     }
+    auto col = db.getTableColumn<TestStruct>("test2", "st");
+    for (auto &s: col)
+    {
+        LOG(Message) << s << std::endl;
+    }
+
     LOG(Message) << "Table 'test' exists: " << db.tableExists("test") << std::endl;
     LOG(Message) << "Table 'foo' exists : " << db.tableExists("foo")  << std::endl;
 

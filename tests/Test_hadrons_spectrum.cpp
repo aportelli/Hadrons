@@ -132,7 +132,7 @@ int main(int argc, char *argv[])
                                                       + flavour[i] + flavour[j],
                                                       mesPar);
         application.setResultMetadata("meson_pt_" + flavour[i] + flavour[j],
-                                     "meson", mesEntry);
+                                      "meson", mesEntry);
 
         mesPar.output   = "mesons/Z2_" + flavour[i] + flavour[j];
         mesPar.q1       = "QZ2_" + flavour[i];
@@ -144,7 +144,7 @@ int main(int argc, char *argv[])
                                                       + flavour[i] + flavour[j],
                                                       mesPar);
         application.setResultMetadata("meson_Z2_" + flavour[i] + flavour[j],
-                                     "meson", mesEntry);
+                                      "meson", mesEntry);
     }
     for (unsigned int i = 0; i < flavour.size(); ++i)
     for (unsigned int j = i; j < flavour.size(); ++j)
