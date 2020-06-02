@@ -27,7 +27,6 @@
 #include <Hadrons/Module.hpp>
 
 using namespace Grid;
- 
 using namespace Hadrons;
 
 /******************************************************************************
@@ -44,11 +43,22 @@ std::string ModuleBase::getName(void) const
     return name_;
 }
 
-// get factory registration name if available
+// get factory registration name if available //////////////////////////////////
 std::string ModuleBase::getRegisteredName(void)
 {
     HADRONS_ERROR(Definition, "module '" + getName() + "' has no registered type"
                  + " in the factory");
+}
+
+// result filename generation //////////////////////////////////////////////////
+std::string ModuleBase::resultFilename(const std::string stem, const unsigned int traj)
+{
+    return stem + "." + std::to_string(traj) + "." + resultFileExt;
+}
+
+std::string ModuleBase::resultFilename(const std::string stem) const
+{
+    return resultFilename(stem, vm().getTrajectory());
 }
 
 // execution ///////////////////////////////////////////////////////////////////
@@ -64,6 +74,7 @@ void ModuleBase::operator()(void)
     stopAllTimers();
 }
 
+// make module unique string ///////////////////////////////////////////////////
 std::string ModuleBase::makeSeedString(void)
 {
     std::string seed;
@@ -77,6 +88,7 @@ std::string ModuleBase::makeSeedString(void)
     return seed;
 }
 
+// get RNGs seeded from module string //////////////////////////////////////////
 GridParallelRNG & ModuleBase::rng4d(void)
 {
     auto &r = *env().get4dRng();

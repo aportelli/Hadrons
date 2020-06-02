@@ -146,16 +146,6 @@ envTmp(type, name, Ls, envGetGrid(type, Ls))
 #define envTmpLat(...)\
 HADRONS_MACRO_REDIRECT_23(__VA_ARGS__, envTmpLat5, envTmpLat4)(__VA_ARGS__)
 
-#define saveResult(ioStem, name, result)\
-if (env().getGrid()->IsBoss() and !ioStem.empty())\
-{\
-    makeFileDir(ioStem, env().getGrid());\
-    {\
-        ResultWriter _writer(RESULT_FILE_NAME(ioStem, vm().getTrajectory()));\
-        write(_writer, name, result);\
-    }\
-}
-
 /******************************************************************************
  *                            Module class                                    *
  ******************************************************************************/

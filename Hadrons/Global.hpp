@@ -226,9 +226,6 @@ typedef XmlReader ResultReader;
 typedef XmlWriter ResultWriter;
 #endif
 
-#define RESULT_FILE_NAME(name, traj) \
-name + "." + std::to_string(traj) + "." + resultFileExt
-
 // recursive mkdir
 #define MAX_PATH_LENGTH 512u
 int         mkdir(const std::string dirName);
