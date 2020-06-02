@@ -70,6 +70,8 @@ public:
     void createTable(const std::string tableName, const std::string extra = "");
     template <typename EntryType>
     std::vector<EntryType> getTable(const std::string tableName, const std::string extra = "");
+    template <typename ColType>
+    std::vector<ColType> getTableColumn(const std::string tableName, const std::string columnName, const std::string extra = "");
     void insert(const std::string tableName, const SqlEntry &entry, const bool replace = false);
 private:
     void connect(void);
@@ -107,6 +109,24 @@ std::vector<EntryType> Database::getTable(const std::string tableName,
     }
 
     return table;
+}
+
+template <typename ColType>
+std::vector<ColType> Database::getTableColumn(const std::string tableName, 
+                                              const std::string columnName, 
+                                              const std::string extra)
+{
+    std::vector<ColType> column;
+    ColType              buf;
+    QueryResult          r = execute("SELECT " + columnName + " FROM " + tableName + 
+                                     + " " + extra + ";");
+
+    for (unsigned int i = 0; i < r.rows(); ++i)
+    {
+        column.push_back(SqlEntry::sqlStrTo<ColType>(r[i][0]));
+    }
+
+    return column;
 }
 
 END_HADRONS_NAMESPACE
