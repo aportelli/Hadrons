@@ -70,6 +70,7 @@ struct DistilParameters: Serializable {
                                     int, nvec,
                                     int, nnoise,
                                     int, tsrc,
+                                    int, inversions,
                                     int, TI,
                                     int, LI,
                                     int, SI )
