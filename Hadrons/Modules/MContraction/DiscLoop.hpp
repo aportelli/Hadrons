@@ -43,9 +43,9 @@ class DiscLoopPar: Serializable
 {
 public:
     GRID_SERIALIZABLE_CLASS_MEMBERS(DiscLoopPar,
-                                    std::string,    q_loop,
-                                    Gamma::Algebra, gamma,
-                                    std::string,    output);
+                                    std::string, q_loop,
+                                    std::string, gamma,
+                                    std::string, output);
 };
 
 template <typename FImpl>
@@ -67,6 +67,7 @@ public:
     // dependency relation
     virtual std::vector<std::string> getInput(void);
     virtual std::vector<std::string> getOutput(void);
+    virtual void parseGammaString(std::vector<Gamma::Algebra> &gammaList);
 protected:
     // setup
     virtual void setup(void);
@@ -109,6 +110,26 @@ void TDiscLoop<FImpl>::setup(void)
     envTmpLat(LatticeComplex, "c");
 }
 
+template <typename FImpl>
+void TDiscLoop<FImpl>::parseGammaString(std::vector<Gamma::Algebra> &gammaList)
+{
+    gammaList.clear();
+    // Determine gamma matrices to insert at source/sink.
+    if (par().gamma.compare("all") == 0)
+    {
+        // Do all contractions.
+        for (unsigned int i = 1; i < Gamma::nGamma; i += 2)
+        {
+            gammaList.push_back((Gamma::Algebra)i);
+        }
+    }
+    else
+    {
+        // Parse individual contractions from input string.
+        gammaList = strToVec<Gamma::Algebra>(par().gamma);
+    } 
+}
+
 // execution ///////////////////////////////////////////////////////////////////
 template <typename FImpl>
 void TDiscLoop<FImpl>::execute(void)
@@ -117,19 +138,30 @@ void TDiscLoop<FImpl>::execute(void)
                  << "' using '" << par().q_loop << "' with " << par().gamma 
                  << " insertion." << std::endl;
 
-    auto                  &q_loop = envGet(PropagatorField, par().q_loop);
-    Gamma                 gamma(par().gamma);
-    std::vector<TComplex> buf;
-    Result                result;
+    auto                        &q_loop = envGet(PropagatorField, par().q_loop);
+    std::vector<Gamma::Algebra> gammaList;
+    std::vector<TComplex>       buf;
+    std::vector<Result>         result;
+    int                         nt = env().getDim(Tp);
+
+    parseGammaString(gammaList);
+    result.resize(gammaList.size());
+    for (unsigned int i = 0; i < result.size(); ++i)
+    {
+        result[i].gamma = gammaList[i];
+        result[i].corr.resize(nt);
+    }
 
     envGetTmp(LatticeComplex, c);
-    c = trace(gamma*q_loop);
-    sliceSum(c, buf, Tp);
-    result.gamma = par().gamma;
-    result.corr.resize(buf.size());
-    for (unsigned int t = 0; t < buf.size(); ++t)
+    for (unsigned int i = 0; i < result.size(); ++i)
     {
-        result.corr[t] = TensorRemove(buf[t]);
+        Gamma gamma(gammaList[i]);
+        c = trace(gamma*q_loop);
+        sliceSum(c, buf, Tp);
+        for (unsigned int t = 0; t < buf.size(); ++t)
+        {
+            result[i].corr[t] = TensorRemove(buf[t]);
+        }
     }
     saveResult(par().output, "disc", result);
 }
