@@ -50,6 +50,8 @@ public:
                                     std::string, noise,
                                     std::string, PerambFileName,
                                     std::string, UnsmearedSinkFileName,
+                                    std::string, unsmearedSink,
+                                    int, LoadUnsmearedSink,
                                     std::string, DistilParams);
 };
 
@@ -89,7 +91,11 @@ TPerambulator<FImpl>::TPerambulator(const std::string name) : Module<Perambulato
 template <typename FImpl>
 std::vector<std::string> TPerambulator<FImpl>::getInput(void)
 {
-    return {par().lapevec, par().solver, par().noise, par().DistilParams};
+    // return {par().lapevec, par().solver, par().noise, par().DistilParams};
+    std::vector<std::string> out = {par().lapevec, par().solver, par().noise, par().DistilParams};
+    const bool bLoadUnsmearedSink( par().LoadUnsmearedSink == 1 );
+    if (bLoadUnsmearedSink)
+        out.push_back(par().unsmearedSink);
 }
 
 static const std::string UnsmearedSink{ "_unsmeared_sink" };
@@ -102,7 +108,10 @@ std::vector<std::string> TPerambulator<FImpl>::getOutput(void)
     std::vector<std::string> output{ objName };
     // If unsmeared sink is specified, then output that as well
     const std::string UnsmearedSinkFileName{ par().UnsmearedSinkFileName };
-    if( !UnsmearedSinkFileName.empty() )
+    const bool bLoadUnsmearedSink( par().LoadUnsmearedSink == 1 );
+    const bool bSaveUnsmearedSink( !bLoadUnsmearedSink && !UnsmearedSinkFileName.empty() );
+    if( bSaveUnsmearedSink )
+    //if( !UnsmearedSinkFileName.empty() )
     {
         objName.append( UnsmearedSink );
         output.push_back( objName );
@@ -121,26 +130,27 @@ void TPerambulator<FImpl>::setup(void)
     std::string objName{ getName() };
     envCreate(PerambTensor, objName, 1, Nt, dp.nvec, dp.LI, dp.nnoise, dp.inversions, dp.SI);
     const std::string UnsmearedSinkFileName{ par().UnsmearedSinkFileName };
-    if( !UnsmearedSinkFileName.empty() )
+    const bool bLoadUnsmearedSink( par().LoadUnsmearedSink == 1 );
+    const bool bSaveUnsmearedSink( !bLoadUnsmearedSink && !UnsmearedSinkFileName.empty() );
+    if( bSaveUnsmearedSink )
     {
         objName.append( UnsmearedSink );
         envCreate(std::vector<FermionField>, objName, 1, dp.nnoise*dp.LI*Ns*dp.inversions,
                   envGetGrid(FermionField));
     }
     
-    envTmpLat(FermionField,   "dist_source");
-    envTmpLat(FermionField,   "source4d");
-    envTmp(FermionField,      "source3d",        1, grid3d.get());
-    envTmp(ColourVectorField,          "source3d_nospin", 1, grid3d.get());
-    envTmpLat(FermionField,   "result4d");
-    envTmpLat(ColourVectorField,       "result4d_nospin");
-    envTmp(ColourVectorField,          "result3d_nospin", 1, grid3d.get());
-    envTmp(ColourVectorField,          "evec3d",          1, grid3d.get());
-    
+    envTmpLat(FermionField,         "dist_source");
+    envTmpLat(FermionField,         "source4d");
+    envTmp(FermionField,            "source3d",        1, grid3d.get());
+    envTmp(ColourVectorField,       "source3d_nospin", 1, grid3d.get());
+    envTmpLat(FermionField,         "result4d");
+    envTmpLat(ColourVectorField,    "result4d_nospin");
+    envTmp(ColourVectorField,       "result3d_nospin", 1, grid3d.get());
+    envTmp(ColourVectorField,       "evec3d",          1, grid3d.get());
     Ls_ = env().getObjectLs(par().solver);
-    envTmpLat(FermionField, "v4dtmp");
-    envTmpLat(FermionField, "v5dtmp", Ls_);
-    envTmpLat(FermionField, "v5dtmp_sol", Ls_);
+    envTmpLat(FermionField,         "v4dtmp");
+    envTmpLat(FermionField,         "v5dtmp", Ls_);
+    envTmpLat(FermionField,         "v5dtmp_sol", Ls_);
 }
 
 // execution ///////////////////////////////////////////////////////////////////
@@ -161,7 +171,6 @@ void TPerambulator<FImpl>::execute(void)
     auto &epack = envGet(LapEvecs, par().lapevec);
     objName.append( UnsmearedSink );
     const std::string UnsmearedSinkFileName{ par().UnsmearedSinkFileName };
-    const bool bSaveUnsmearedSink( !UnsmearedSinkFileName.empty() );
     envGetTmp(FermionField, dist_source);
     envGetTmp(FermionField, source4d);
     envGetTmp(FermionField, source3d);
@@ -173,6 +182,14 @@ void TPerambulator<FImpl>::execute(void)
     GridCartesian * const grid4d{ env().getGrid() }; // Owned by environment (so I won't delete it)
     const int Ntlocal{grid4d->LocalDimensions()[3]};
     const int Ntfirst{grid4d->LocalStarts()[3]};
+    const bool bLoadUnsmearedSink( par().LoadUnsmearedSink == 1 );
+    const bool bSaveUnsmearedSink( !bLoadUnsmearedSink && !UnsmearedSinkFileName.empty() );
+    //const bool bSaveUnsmearedSink( !UnsmearedSinkFileName.empty() );
+    std::vector<FermionField> unsmeared_sink;
+    if ( bLoadUnsmearedSink)
+    {
+        unsmeared_sink = envGet(std::vector<FermionField>, par().unsmearedSink);
+    } 
 
     for (int inoise = 0; inoise < dp.nnoise; inoise++)
     {
@@ -182,25 +199,32 @@ void TPerambulator<FImpl>::execute(void)
             {
                 for (int ds = 0; ds < dp.SI; ds++)
                 {
-                    LOG(Message) <<  "LapH source vector from noise " << inoise << " and dilution component (d_k,d_t,d_alpha) : (" << dk << ","<< dt << "," << ds << ")" << std::endl;
-                    dist_source = 0;
-                    evec3d = 0;
-                    for (int it = dt; it < Nt; it += dp.TI)
-                    {
-                        const int t_inv{(dp.tsrc + it)%Nt};
-                        if( t_inv >= Ntfirst && t_inv < Ntfirst + Ntlocal )
+		    if ( bLoadUnsmearedSink)
+		    {
+                        result4d = unsmeared_sink[inoise+dp.nnoise*(dk+dp.LI*(dt+dp.inversions*ds))];
+		    }
+		    else
+		    {
+                        LOG(Message) <<  "LapH source vector from noise " << inoise << " and dilution component (d_k,d_t,d_alpha) : (" << dk << ","<< dt << "," << ds << ")" << std::endl;
+                        dist_source = 0;
+                        evec3d = 0;
+                        for (int it = dt; it < Nt; it += dp.TI)
                         {
-                            for (int ik = dk; ik < dp.nvec; ik += dp.LI)
+                            const int t_inv{(dp.tsrc + it)%Nt};
+                            if( t_inv >= Ntfirst && t_inv < Ntfirst + Ntlocal )
                             {
-                                for (int is = ds; is < Ns; is += dp.SI)
+                                for (int ik = dk; ik < dp.nvec; ik += dp.LI)
                                 {
-                                    ExtractSliceLocal(evec3d,epack.evec[ik],0,t_inv-Ntfirst,Tdir);
-                                    source3d_nospin = evec3d * noise.tensor(inoise, t_inv, ik, is);
-                                    source3d=0;
-                                    pokeSpin(source3d,source3d_nospin,is);
-                                    source4d=0;
-                                    InsertSliceLocal(source3d,source4d,0,t_inv-Ntfirst,Tdir);
-                                    dist_source += source4d;
+                                    for (int is = ds; is < Ns; is += dp.SI)
+                                    {
+                                        ExtractSliceLocal(evec3d,epack.evec[ik],0,t_inv-Ntfirst,Tdir);
+                                        source3d_nospin = evec3d * noise.tensor(inoise, t_inv, ik, is);
+                                        source3d=0;
+                                        pokeSpin(source3d,source3d_nospin,is);
+                                        source4d=0;
+                                        InsertSliceLocal(source3d,source4d,0,t_inv-Ntfirst,Tdir);
+                                        dist_source += source4d;
+				    }
                                 }
                             }
                         }
