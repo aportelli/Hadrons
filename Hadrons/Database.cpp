@@ -26,6 +26,14 @@
 
 #include <Hadrons/Database.hpp>
 
+#ifndef HADRONS_SQLITE_MAX_RETRY
+#define HADRONS_SQLITE_MAX_RETRY 10
+#endif
+
+#ifndef HADRONS_SQLITE_RETRY_INTERVAL
+#define HADRONS_SQLITE_RETRY_INTERVAL 10
+#endif
+
 using namespace Grid;
 using namespace Hadrons;
 
@@ -185,15 +193,38 @@ QueryResult Database::execute(const std::string query)
         };
 
         char *errBuf;
+        int  status, attempt = HADRONS_SQLITE_MAX_RETRY;
 
-        sqlite3_exec(db_, query.c_str(), callback, &result, &errBuf);
-        if (errBuf != nullptr)
+        do
+        {
+            status = sqlite3_exec(db_, query.c_str(), callback, &result, &errBuf);
+            if ((errBuf != nullptr) and (status != SQLITE_BUSY))
+            {
+                std::string errMsg = errBuf;
+
+                sqlite3_free(errBuf);
+                HADRONS_ERROR(Database, "error executing query '" + query 
+                            + "' in database '" + filename_ + "' (SQLite status " 
+                            + std::to_string(status) + ", error '" + errMsg + "')");
+                break;
+            }
+            attempt--;
+            if (status == SQLITE_BUSY)
+            {
+                LOG(Warning) << "Database '" + filename_ + "' is locked, retrying in "
+                             << HADRONS_SQLITE_RETRY_INTERVAL << " ms" << std::endl;
+                std::this_thread::sleep_for(std::chrono::milliseconds(HADRONS_SQLITE_RETRY_INTERVAL));
+            }
+        } while ((status == SQLITE_BUSY) and (attempt > 0));
+        if (status == SQLITE_BUSY)
         {
             std::string errMsg = errBuf;
 
+            LOG(Error) << "Database '" + filename_ + "' is locked, giving up..." << std::endl;
             sqlite3_free(errBuf);
             HADRONS_ERROR(Database, "error executing query '" + query 
-                          + "' (SQLite error '" + errMsg + "')");
+                        + "' in database '" + filename_ + "' (SQLite status " 
+                        + std::to_string(status) + ", error '" + errMsg + "')");
         }
     }
     if (grid_ != nullptr)
