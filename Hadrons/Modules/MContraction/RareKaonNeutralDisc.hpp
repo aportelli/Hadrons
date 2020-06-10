@@ -81,29 +81,6 @@ BEGIN_HADRONS_NAMESPACE
  ******************************************************************************/
 BEGIN_MODULE_NAMESPACE(MContraction)
 
-// Neutral 4pt disconnected subdiagram contractions.
-#define MAKE_DISC_MESON(Q_1, Q_2, gamma) (Q_1*adj(Q_2)*g5*gamma)
-#define MAKE_DISC_LOOP(Q_LOOP, gamma) (Q_LOOP*gamma)
-#define MAKE_DISC_CURR(Q_c, gamma) (trace(Q_c*gamma))
-//// Sum and store correlator.
-#define MAKE_DIAG(exp, buf, res, n)\
-sliceSum(exp, buf, Tp);\
-res.name = (n);\
-res.corr.resize(buf.size());\
-for (unsigned int t = 0; t < buf.size(); ++t)\
-{\
-    res.corr[t] = TensorRemove(buf[t]);\
-}
-
-//// Contraction of mu index: use 'mu' variable in exp.
-#define SUM_MU(buf,exp)\
-   buf = Zero();                \
-for (unsigned int mu = 0; mu < ndim; ++mu)\
-{\
-    buf += exp;\
-}
-
-
 class RareKaonNeutralDiscPar: Serializable
 {
 public:
