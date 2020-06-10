@@ -44,13 +44,14 @@ class DiscLoopPar: Serializable
 public:
     GRID_SERIALIZABLE_CLASS_MEMBERS(DiscLoopPar,
                                     std::string, q_loop,
-                                    std::string, gamma,
+                                    std::string, gammas,
                                     std::string, output);
 };
 
 template <typename FImpl>
 class TDiscLoop: public Module<DiscLoopPar>
 {
+public:
     FERM_TYPE_ALIASES(FImpl,);
     class Result: Serializable
     {
@@ -115,7 +116,7 @@ void TDiscLoop<FImpl>::parseGammaString(std::vector<Gamma::Algebra> &gammaList)
 {
     gammaList.clear();
     // Determine gamma matrices to insert at source/sink.
-    if (par().gamma.compare("all") == 0)
+    if (par().gammas.compare("all") == 0)
     {
         // Do all contractions.
         for (unsigned int i = 1; i < Gamma::nGamma; i += 2)
@@ -126,7 +127,7 @@ void TDiscLoop<FImpl>::parseGammaString(std::vector<Gamma::Algebra> &gammaList)
     else
     {
         // Parse individual contractions from input string.
-        gammaList = strToVec<Gamma::Algebra>(par().gamma);
+        gammaList = strToVec<Gamma::Algebra>(par().gammas);
     } 
 }
 
@@ -135,7 +136,7 @@ template <typename FImpl>
 void TDiscLoop<FImpl>::execute(void)
 {
     LOG(Message) << "Computing disconnected loop contraction '" << getName() 
-                 << "' using '" << par().q_loop << "' with " << par().gamma 
+                 << "' using '" << par().q_loop << "' with " << par().gammas 
                  << " insertion." << std::endl;
 
     auto                        &q_loop = envGet(PropagatorField, par().q_loop);
