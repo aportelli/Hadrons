@@ -243,6 +243,24 @@ bool Database::tableExists(const std::string tableName)
     return (r.rows() > 0);
 }
 
+void Database::createKeyValueTable(const std::string tableName)
+{
+    execute("CREATE TABLE " + tableName + " (key TEXT PRIMARY KEY NOT NULL UNIQUE, value BLOB);");
+}
+
+std::map<std::string, std::string> Database::getKeyValueTable(const std::string tableName)
+{
+    std::map<std::string, std::string> map;
+    auto                               vec = getTable<KeyValueEntry>(tableName);
+
+    for (auto &e: vec)
+    {
+        map[e.key] = e.value;
+    }
+
+    return map;
+}
+
 void Database::insert(const std::string tableName, const SqlEntry &entry, const bool replace)
 {
     std::string query;

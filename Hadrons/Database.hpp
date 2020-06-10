@@ -59,6 +59,12 @@ private:
 class Database
 {
 public:
+    struct KeyValueEntry: public SqlEntry
+    {
+        HADRONS_SQL_FIELDS(SqlUnique<SqlNotNull<std::string>>, key,
+                           std::string                       , value);
+    };
+public:
     Database(void) = default;
     Database(const std::string filename, GridBase *grid = nullptr);
     virtual ~Database(void);
@@ -68,11 +74,17 @@ public:
     bool tableExists(const std::string tableName);
     template <typename EntryType>
     void createTable(const std::string tableName, const std::string extra = "");
+    void createKeyValueTable(const std::string tableName);
     template <typename EntryType>
     std::vector<EntryType> getTable(const std::string tableName, const std::string extra = "");
+    std::map<std::string, std::string> getKeyValueTable(const std::string tableName);
+    template <typename T>
+    T getValue(const std::string keyValueTableName, const std::string key);
     template <typename ColType>
     std::vector<ColType> getTableColumn(const std::string tableName, const std::string columnName, const std::string extra = "");
     void insert(const std::string tableName, const SqlEntry &entry, const bool replace = false);
+    template <typename T>
+    void insertValue(const std::string keyValueTableName, const std::string key, const T &value, const bool replace = false);
 private:
     void connect(void);
     void disconnect(void);
@@ -109,6 +121,34 @@ std::vector<EntryType> Database::getTable(const std::string tableName,
     }
 
     return table;
+}
+
+template <typename T>
+T Database::getValue(const std::string keyValueTableName, const std::string key)
+{
+    auto vec = getTableColumn<T>(keyValueTableName, "value", "WHERE key = '" + key + "'");
+
+    if (!vec.empty())
+    {
+        return vec[0];
+    }
+    else
+    {
+        HADRONS_ERROR(Database, "no value with key '" + key 
+                      + "' in key-value table '" + keyValueTableName 
+                      + "' in database '" + filename_ + "'");
+    }
+}
+
+template <typename T>
+void Database::insertValue(const std::string keyValueTableName, const std::string key, 
+                           const T &value, const bool replace)
+{
+    KeyValueEntry e;
+
+    e.key   = key;
+    e.value = SqlEntry::sqlStrFrom(value);
+    insert(keyValueTableName, e, replace);
 }
 
 template <typename ColType>
