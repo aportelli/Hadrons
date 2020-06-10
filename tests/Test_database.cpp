@@ -170,6 +170,11 @@ int main(int argc, char *argv[])
     LOG(Message) << "Table 'test' exists: " << db.tableExists("test") << std::endl;
     LOG(Message) << "Table 'foo' exists : " << db.tableExists("foo")  << std::endl;
 
+    db.createKeyValueTable("kvtest");
+    db.insertValue("kvtest", "someKey", st);
+    auto buf = db.getValue<TestStruct>("kvtest", "someKey"); 
+    assert(buf == st);
+
     Grid_finalize();
     
     return EXIT_SUCCESS;
