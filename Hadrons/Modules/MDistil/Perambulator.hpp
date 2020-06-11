@@ -52,6 +52,7 @@ public:
                                     std::string, UnsmearedSinkFileName,
                                     std::string, unsmearedSink,
                                     int, LoadUnsmearedSink,
+                                    int, nvec_reduced,
                                     std::string, DistilParams);
 };
 
@@ -126,17 +127,20 @@ void TPerambulator<FImpl>::setup(void)
     MakeLowerDimGrid(grid3d, env().getGrid());
     const DistilParameters &dp = envGet(DistilParameters, par().DistilParams);
     const int  Nt{env().getDim(Tdir)};
+    const int nvec_reduced{par().nvec_reduced};
+    assert(nvec_reduced <= dp.nvec);
+
 
     std::string objName{ getName() };
-    envCreate(PerambTensor, objName, 1, Nt, dp.nvec, dp.LI, dp.nnoise, dp.inversions, dp.SI);
+    //envCreate(PerambTensor, objName, 1, Nt, dp.nvec, dp.LI, dp.nnoise, dp.inversions, dp.SI);
+    envCreate(PerambTensor, objName, 1, Nt, nvec_reduced, dp.LI, dp.nnoise, dp.inversions, dp.SI);
     const std::string UnsmearedSinkFileName{ par().UnsmearedSinkFileName };
     const bool bLoadUnsmearedSink( par().LoadUnsmearedSink == 1 );
     const bool bSaveUnsmearedSink( !bLoadUnsmearedSink && !UnsmearedSinkFileName.empty() );
     if( bSaveUnsmearedSink )
     {
         objName.append( UnsmearedSink );
-        envCreate(std::vector<FermionField>, objName, 1, dp.nnoise*dp.LI*Ns*dp.inversions,
-                  envGetGrid(FermionField));
+        //envCreate(std::vector<FermionField>, objName, 1, dp.nnoise*dp.LI*Ns*dp.inversions, envGetGrid(FermionField));
     }
     
     envTmpLat(FermionField,         "dist_source");
@@ -185,11 +189,12 @@ void TPerambulator<FImpl>::execute(void)
     const bool bLoadUnsmearedSink( par().LoadUnsmearedSink == 1 );
     const bool bSaveUnsmearedSink( !bLoadUnsmearedSink && !UnsmearedSinkFileName.empty() );
     //const bool bSaveUnsmearedSink( !UnsmearedSinkFileName.empty() );
-    std::vector<FermionField> unsmeared_sink;
+    std::vector<FermionField> unsmearedSink;
     if ( bLoadUnsmearedSink)
     {
-        unsmeared_sink = envGet(std::vector<FermionField>, par().unsmearedSink);
+        //unsmearedSink = envGet(std::vector<FermionField>, par().unsmearedSink);
     } 
+    const int nvec_reduced{par().nvec_reduced};
 
     for (int inoise = 0; inoise < dp.nnoise; inoise++)
     {
@@ -201,7 +206,7 @@ void TPerambulator<FImpl>::execute(void)
                 {
 		    if ( bLoadUnsmearedSink)
 		    {
-                        result4d = unsmeared_sink[inoise+dp.nnoise*(dk+dp.LI*(dt+dp.inversions*ds))];
+                        result4d = unsmearedSink[inoise+dp.nnoise*(dk+dp.LI*(dt+dp.inversions*ds))];
 		    }
 		    else
 		    {
@@ -251,7 +256,8 @@ void TPerambulator<FImpl>::execute(void)
                         for (int t = Ntfirst; t < Ntfirst + Ntlocal; t++)
                         {
                             ExtractSliceLocal(result3d_nospin,result4d_nospin,0,t-Ntfirst,Tdir); 
-			    for (int ivec = 0; ivec < dp.nvec; ivec++)
+			    //for (int ivec = 0; ivec < dp.nvec; ivec++)
+			    for (int ivec = 0; ivec < nvec_reduced; ivec++)
                             {
                                 ExtractSliceLocal(evec3d,epack.evec[ivec],0,t-Ntfirst,Tdir);
                                 pokeSpin(perambulator.tensor(t, ivec, dk, inoise,dt,ds),static_cast<Complex>(innerProduct(evec3d, result3d_nospin)),is);
