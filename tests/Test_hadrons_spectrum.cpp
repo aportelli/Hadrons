@@ -129,14 +129,18 @@ int main(int argc, char *argv[])
     {
         MContraction::Baryon::Par barPar;
         
-        barPar.output = "baryons/pt_" + flavour[i] + flavour[j] + flavour[k];
-        barPar.q1     = "Qpt_" + flavour[i];
-        barPar.q2     = "Qpt_" + flavour[j];
-        barPar.q3     = "Qpt_" + flavour[k];
-        barPar.gammas     = "(j12 j12) (j32X j32Y)";
-        barPar.quarks     = flavour_baryon[i] + flavour_baryon[j] + flavour_baryon[k];
-        barPar.prefactors     = "1.0";
-        barPar.sink    = "sink";
+        barPar.output  = "baryons/pt_" + flavour[i] + flavour[j] + flavour[k];
+        barPar.q1      = "Qpt_" + flavour[i];
+        barPar.q2      = "Qpt_" + flavour[j];
+        barPar.q3      = "Qpt_" + flavour[k];
+        barPar.quarks  = flavour_baryon[i] + flavour_baryon[j] + flavour_baryon[k];
+        barPar.shuffle = "123";
+        barPar.sinkq1    = "sink";
+        barPar.sinkq2    = "sink";
+        barPar.sinkq3    = "sink";
+        barPar.sim_sink  = true;
+        barPar.gammas  = "(j12 j12) (j32X j32Y)";
+        barPar.parity  = 1;
         application.createModule<MContraction::Baryon>(
             "baryon_pt_" + flavour[i] + flavour[j] + flavour[k], barPar);
     }
