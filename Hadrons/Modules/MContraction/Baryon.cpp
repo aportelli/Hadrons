@@ -29,5 +29,5 @@ using namespace Grid;
 using namespace Hadrons;
 using namespace MContraction;
 
-template class Grid::Hadrons::MContraction::TBaryon<FIMPL,FIMPL,FIMPL>;
+template class Grid::Hadrons::MContraction::TBaryon<FIMPL>;
 
