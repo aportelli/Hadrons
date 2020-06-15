@@ -40,13 +40,18 @@ class QueryResult
 {
     friend class Database;
 public:
+    // constructor/destructor
     QueryResult(void) = default;
     virtual ~QueryResult(void) = default;
+    // row access
     const std::vector<std::string> & operator[](const unsigned int i) const;
+    // column header access
     const std::string & colName(const unsigned int j) const;
+    // number of rows and columns
     size_t rows(void) const;
     size_t cols(void) const;
 private:
+    // broadcast data from boss MPI process
     void broadcastFromBoss(GridBase *grid);
 private:
     std::vector<std::string>              colName_;
@@ -65,27 +70,37 @@ public:
                            std::string                       , value);
     };
 public:
+    // constructors
     Database(void) = default;
     Database(const std::string filename, GridBase *grid = nullptr);
+    // destructor
     virtual ~Database(void);
+    // set DB filename
     void setFilename(const std::string filename, GridBase *grid = nullptr);
+    // test if DB connected
     bool isConnected(void) const;
+    // execute arbitrary SQL statement
     QueryResult execute(const std::string query);
+    // test if table exists
     bool tableExists(const std::string tableName);
+    // general tables interface
     template <typename EntryType>
     void createTable(const std::string tableName, const std::string extra = "");
-    void createKeyValueTable(const std::string tableName);
     template <typename EntryType>
     std::vector<EntryType> getTable(const std::string tableName, const std::string extra = "");
+    void insert(const std::string tableName, const SqlEntry &entry, const bool replace = false);
+    // key-value tables interface
+    void createKeyValueTable(const std::string tableName);
     std::map<std::string, std::string> getKeyValueTable(const std::string tableName);
     template <typename T>
     T getValue(const std::string keyValueTableName, const std::string key);
-    template <typename ColType>
-    std::vector<ColType> getTableColumn(const std::string tableName, const std::string columnName, const std::string extra = "");
-    void insert(const std::string tableName, const SqlEntry &entry, const bool replace = false);
     template <typename T>
     void insertValue(const std::string keyValueTableName, const std::string key, const T &value, const bool replace = false);
+    // get a single column from a table
+    template <typename ColType>
+    std::vector<ColType> getTableColumn(const std::string tableName, const std::string columnName, const std::string extra = "");
 private:
+    // private connect/disconnect functions
     void connect(void);
     void disconnect(void);
 private:
@@ -95,6 +110,10 @@ private:
     bool        isConnected_{false};
 };
 
+/******************************************************************************
+ *                  Database class template implementation                    *
+ ******************************************************************************/
+// general tables interface ///////////////////////////////////////////////////
 template <typename EntryType>
 void Database::createTable(const std::string tableName, const std::string extra)
 {
@@ -123,6 +142,8 @@ std::vector<EntryType> Database::getTable(const std::string tableName,
     return table;
 }
 
+
+// key-value tables interface //////////////////////////////////////////////////
 template <typename T>
 T Database::getValue(const std::string keyValueTableName, const std::string key)
 {
@@ -151,6 +172,7 @@ void Database::insertValue(const std::string keyValueTableName, const std::strin
     insert(keyValueTableName, e, replace);
 }
 
+// get a single column from a table ////////////////////////////////////////////
 template <typename ColType>
 std::vector<ColType> Database::getTableColumn(const std::string tableName, 
                                               const std::string columnName, 

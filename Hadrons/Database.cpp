@@ -37,18 +37,22 @@
 using namespace Grid;
 using namespace Hadrons;
 
-#define BOSS_ONLY if (((grid_ != nullptr) and (grid_->IsBoss())) or (grid_ == nullptr))
-
+/******************************************************************************
+ *                         QueryResult implementation                         *
+ ******************************************************************************/
+// row access //////////////////////////////////////////////////////////////////
 const std::vector<std::string> & QueryResult::operator[](const unsigned int i) const
 {
     return table_.at(i);
 }
 
+// column header access ////////////////////////////////////////////////////////
 const std::string & QueryResult::colName(const unsigned int j) const
 {
     return colName_.at(j);
 }
 
+// number of rows and columns //////////////////////////////////////////////////
 size_t QueryResult::rows(void) const
 {
     return table_.size();
@@ -59,6 +63,7 @@ size_t QueryResult::cols(void) const
     return colName_.size();
 }
 
+// broadcast data from boss MPI process ////////////////////////////////////////
 void QueryResult::broadcastFromBoss(GridBase *grid)
 {
     assert(grid != nullptr);
@@ -124,6 +129,12 @@ void QueryResult::broadcastFromBoss(GridBase *grid)
     grid->Barrier();
 }
 
+/******************************************************************************
+ *                           Database implementation                          *
+ ******************************************************************************/
+#define BOSS_ONLY if (((grid_ != nullptr) and (grid_->IsBoss())) or (grid_ == nullptr))
+
+// constructor /////////////////////////////////////////////////////////////////
 Database::Database(const std::string filename, GridBase *grid)
 {
     if (isConnected() and ((filename != filename_) or (grid != grid_)))
@@ -133,6 +144,7 @@ Database::Database(const std::string filename, GridBase *grid)
     setFilename(filename, grid);
 }
 
+// destructor //////////////////////////////////////////////////////////////////
 Database::~Database(void)
 {
     if (isConnected())
@@ -141,6 +153,7 @@ Database::~Database(void)
     }
 }
 
+// set DB filename /////////////////////////////////////////////////////////////
 void Database::setFilename(const std::string filename, GridBase *grid)
 {
     grid_     = grid;
@@ -148,11 +161,13 @@ void Database::setFilename(const std::string filename, GridBase *grid)
     connect();
 }
 
+// test if DB connected ////////////////////////////////////////////////////////
 bool Database::isConnected(void) const
 {
     return isConnected_;
 }
 
+// execute arbitrary SQL statement /////////////////////////////////////////////
 QueryResult Database::execute(const std::string query)
 {
     QueryResult result;
@@ -235,6 +250,7 @@ QueryResult Database::execute(const std::string query)
     return result;
 }
 
+// test if table exists ////////////////////////////////////////////////////////
 bool Database::tableExists(const std::string tableName)
 {
     QueryResult r = execute("SELECT name FROM sqlite_master WHERE "
@@ -243,6 +259,18 @@ bool Database::tableExists(const std::string tableName)
     return (r.rows() > 0);
 }
 
+// general tables interface ////////////////////////////////////////////////////
+void Database::insert(const std::string tableName, const SqlEntry &entry, const bool replace)
+{
+    std::string query;
+
+    query += (replace ? "REPLACE" : "INSERT");
+    query += " INTO \"" + tableName + "\" VALUES(";
+    query += entry.sqlInsert() + ");";
+    execute(query);
+}
+
+// key-value tables interface //////////////////////////////////////////////////
 void Database::createKeyValueTable(const std::string tableName)
 {
     execute("CREATE TABLE " + tableName + " (key TEXT PRIMARY KEY NOT NULL UNIQUE, value BLOB);");
@@ -261,16 +289,7 @@ std::map<std::string, std::string> Database::getKeyValueTable(const std::string 
     return map;
 }
 
-void Database::insert(const std::string tableName, const SqlEntry &entry, const bool replace)
-{
-    std::string query;
-
-    query += (replace ? "REPLACE" : "INSERT");
-    query += " INTO \"" + tableName + "\" VALUES(";
-    query += entry.sqlInsert() + ");";
-    execute(query);
-}
-
+// private connect/disconnect functions ////////////////////////////////////////
 void Database::connect(void)
 {
     BOSS_ONLY
