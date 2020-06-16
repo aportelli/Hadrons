@@ -113,6 +113,7 @@ public:
     /* dependency relation */ 
     virtual std::vector<std::string> getInput(void);
     virtual std::vector<std::string> getOutput(void);
+    virtual std::vector<std::string> getOutputFiles(void);
 protected:
     /* setup */ 
     virtual void setup(void);
@@ -147,6 +148,14 @@ std::vector<std::string> TRareKaonNeutralDisc<FImpl>::getOutput(void)
     std::vector<std::string> out = {};
     
     return out;
+}
+
+template <typename FImpl>
+std::vector<std::string> TRareKaonNeutralDisc<FImpl>::getOutputFiles(void)
+{
+    std::vector<std::string> output = {resultFilename(par().output)};
+    
+    return output;
 }
 
 // setup ///////////////////////////////////////////////////////////////////////
