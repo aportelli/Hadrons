@@ -85,6 +85,7 @@ class TGamma3pt: public Module<Gamma3ptPar>
     FERM_TYPE_ALIASES(FImpl1, 1);
     FERM_TYPE_ALIASES(FImpl2, 2);
     FERM_TYPE_ALIASES(FImpl3, 3);
+public:
     class Result: Serializable
     {
     public:
