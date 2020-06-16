@@ -91,10 +91,12 @@ public:
     TMeson(const std::string name);
     // destructor
     virtual ~TMeson(void) {};
+    // parse arguments
+    virtual void parseGammaString(std::vector<GammaPair> &gammaList);
     // dependencies/products
     virtual std::vector<std::string> getInput(void);
     virtual std::vector<std::string> getOutput(void);
-    virtual void parseGammaString(std::vector<GammaPair> &gammaList);
+    virtual std::vector<std::string> getOutputFiles(void);
 protected:
     // execution
     virtual void setup(void);
@@ -113,23 +115,7 @@ TMeson<FImpl1, FImpl2>::TMeson(const std::string name)
 : Module<MesonPar>(name)
 {}
 
-// dependencies/products ///////////////////////////////////////////////////////
-template <typename FImpl1, typename FImpl2>
-std::vector<std::string> TMeson<FImpl1, FImpl2>::getInput(void)
-{
-    std::vector<std::string> input = {par().q1, par().q2, par().sink};
-    
-    return input;
-}
-
-template <typename FImpl1, typename FImpl2>
-std::vector<std::string> TMeson<FImpl1, FImpl2>::getOutput(void)
-{
-    std::vector<std::string> output = {};
-    
-    return output;
-}
-
+// parse arguments /////////////////////////////////////////////////////////////
 template <typename FImpl1, typename FImpl2>
 void TMeson<FImpl1, FImpl2>::parseGammaString(std::vector<GammaPair> &gammaList)
 {
@@ -152,6 +138,31 @@ void TMeson<FImpl1, FImpl2>::parseGammaString(std::vector<GammaPair> &gammaList)
         // Parse individual contractions from input string.
         gammaList = strToVec<GammaPair>(par().gammas);
     } 
+}
+
+// dependencies/products ///////////////////////////////////////////////////////
+template <typename FImpl1, typename FImpl2>
+std::vector<std::string> TMeson<FImpl1, FImpl2>::getInput(void)
+{
+    std::vector<std::string> input = {par().q1, par().q2, par().sink};
+    
+    return input;
+}
+
+template <typename FImpl1, typename FImpl2>
+std::vector<std::string> TMeson<FImpl1, FImpl2>::getOutput(void)
+{
+    std::vector<std::string> output = {};
+    
+    return output;
+}
+
+template <typename FImpl1, typename FImpl2>
+std::vector<std::string> TMeson<FImpl1, FImpl2>::getOutputFiles(void)
+{
+    std::vector<std::string> output = {resultFilename(par().output)};
+    
+    return output;
 }
 
 // execution ///////////////////////////////////////////////////////////////////

@@ -68,6 +68,7 @@ public:
     // dependency relation
     virtual std::vector<std::string> getInput(void);
     virtual std::vector<std::string> getOutput(void);
+    virtual std::vector<std::string> getOutputFiles(void);
     virtual void parseGammaString(std::vector<Gamma::Algebra> &gammaList);
 protected:
     // setup
@@ -102,6 +103,14 @@ std::vector<std::string> TDiscLoop<FImpl>::getOutput(void)
     std::vector<std::string> out = {};
     
     return out;
+}
+
+template <typename FImpl>
+std::vector<std::string> TDiscLoop<FImpl>::getOutputFiles(void)
+{
+    std::vector<std::string> output = {resultFilename(par().output)};
+    
+    return output;
 }
 
 // setup ///////////////////////////////////////////////////////////////////////
