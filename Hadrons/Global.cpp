@@ -209,3 +209,10 @@ void Hadrons::printTimeProfile(const std::map<std::string, GridTime> &timing,
     std::cout.flags(cf);
     std::cout.precision(p);
 }
+
+// check is Grid is initialised ////////////////////////////////////////////////
+bool Hadrons::isGridInit(void)
+{
+    // not super satisfying, but there is no public interface to check if Grid was initialised
+    return GridLogger::GlobalStopWatch.isRunning();
+}

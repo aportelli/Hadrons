@@ -101,7 +101,7 @@ void Application::setPar(const Application::GlobalPar &par)
     {
         LOG(Message) << "Connecting to application database in file '" 
                      << getPar().database.applicationDb << "'..." << std::endl;
-        db_.setFilename(getPar().database.applicationDb, env().getGrid());
+        db_.setFilename(getPar().database.applicationDb, isGridInit() ? env().getGrid() : nullptr);
         vm().setDatabase(db_);
         if (getPar().database.restoreMemoryProfile)
         {
@@ -125,7 +125,7 @@ void Application::setPar(const Application::GlobalPar &par)
     {
         LOG(Message) << "Connecting to result database in file '" 
                      << getPar().database.resultDb << "'..." << std::endl;
-        resultDb_.setFilename(getPar().database.resultDb, env().getGrid());
+        resultDb_.setFilename(getPar().database.resultDb, isGridInit() ? env().getGrid() : nullptr);
     }
 }
 
