@@ -75,17 +75,21 @@ public:
     Database(const std::string filename, GridBase *grid = nullptr);
     // destructor
     virtual ~Database(void);
-    // set DB filename
-    void setFilename(const std::string filename, GridBase *grid = nullptr);
+    // set/get DB filename
+    void        setFilename(const std::string filename, GridBase *grid = nullptr);
+    std::string getFilename(void) const;
     // test if DB connected
     bool isConnected(void) const;
     // execute arbitrary SQL statement
     QueryResult execute(const std::string query);
     // test if table exists
     bool tableExists(const std::string tableName);
+    // test if table is empty
+    bool tableEmpty(const std::string tableName);
     // general tables interface
     template <typename EntryType>
     void createTable(const std::string tableName, const std::string extra = "");
+    QueryResult getTable(const std::string tableName, const std::string extra = "");
     template <typename EntryType>
     std::vector<EntryType> getTable(const std::string tableName, const std::string extra = "");
     void insert(const std::string tableName, const SqlEntry &entry, const bool replace = false);
@@ -130,8 +134,7 @@ std::vector<EntryType> Database::getTable(const std::string tableName,
 {
     std::vector<EntryType> table;
     EntryType              buf;
-    QueryResult            r = execute("SELECT * FROM " + tableName + 
-                                       + " " + extra + ";");
+    QueryResult            r = getTable(tableName, extra);
 
     for (unsigned int i = 0; i < r.rows(); ++i)
     {

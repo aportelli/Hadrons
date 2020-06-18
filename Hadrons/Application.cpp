@@ -240,7 +240,8 @@ void Application::parseParameterFile(const std::string parameterFileName)
     }
     else
     {
-        LOG(Message) << "XML module list ignored" << std::endl;
+        LOG(Message) << "XML module list ignored (restored from database '"
+                     << par.database.applicationDb << "')" << std::endl;
     }
 }
 

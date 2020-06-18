@@ -203,8 +203,9 @@ void VirtualMachine::initDatabase(void)
         db_->createTable<ModuleEntry>("modules", "PRIMARY KEY(moduleId)"
             "FOREIGN KEY(moduleTypeId) REFERENCES moduleTypes(moduleTypeId)");
     }
-    else
+    else if (!db_->tableEmpty("modules"))
     {
+        LOG(Message) << "The module table in '" << db_->getFilename() << "' is not empty, it will not be altered" << std::endl;
         makeModuleDb_ = false;
     }
     if (!db_->tableExists("objectTypes"))
@@ -217,8 +218,9 @@ void VirtualMachine::initDatabase(void)
             "FOREIGN KEY(moduleId) REFERENCES modules(moduleId),"
             "FOREIGN KEY(objectTypeId) REFERENCES objectTypes(objectTypeId)");
     }
-    else
+    else if (!db_->tableEmpty("objects"))
     {
+        LOG(Message) << "The object table in '" << db_->getFilename() << "' is not empty, it will not be altered" << std::endl;
         makeObjectDb_ = false;
     }
     if (!db_->tableExists("schedule"))
@@ -226,8 +228,9 @@ void VirtualMachine::initDatabase(void)
         db_->createTable<ScheduleEntry>("schedule", "PRIMARY KEY(step)," 
             "FOREIGN KEY(moduleId) REFERENCES modules(moduleId)");
     }
-    else
+    else if (!db_->tableEmpty("schedule"))
     {
+        LOG(Message) << "The schedule table in '" << db_->getFilename() << "' is not empty, it will not be altered" << std::endl;
         makeScheduleDb_ = false;
     }
     db_->execute(
