@@ -128,6 +128,8 @@ public:
                                          const Environment::Storage storage,
                                          const unsigned int Ls,
                                          Ts && ... args);
+    void                    setObjectStorage(const unsigned int objAddress,
+                                             const Environment::Storage storage);
     void                    setObjectModule(const unsigned int objAddress,
                                             const int modAddress);
     template <typename B, typename T>

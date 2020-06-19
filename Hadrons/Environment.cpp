@@ -112,10 +112,30 @@ void Environment::addObject(const std::string name, const int moduleAddress)
     }
 }
 
+void Environment::setObjectStorage(const unsigned int objAddress, 
+                                   const Environment::Storage storage)
+{
+    if (hasObject(objAddress))
+    {
+        object_[objAddress].storage = storage;
+    }
+    else
+    {
+        ERROR_NO_ADDRESS(objAddress);
+    }
+}
+
 void Environment::setObjectModule(const unsigned int objAddress,
                                   const int modAddress)
 {
-    object_[objAddress].module = modAddress;
+    if (hasObject(objAddress))
+    {
+        object_[objAddress].module = modAddress;
+    }
+    else
+    {
+        ERROR_NO_ADDRESS(objAddress);
+    }
 }
 
 unsigned int Environment::getMaxAddress(void) const

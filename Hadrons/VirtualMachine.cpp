@@ -98,6 +98,8 @@ void VirtualMachine::dbRestoreMemoryProfile(void)
                 profile_.object[e.objectId].storage     = e.storageType;
                 profile_.module[e.moduleId][e.objectId] = e.size;
                 env().addObject(e.name, e.moduleId);
+                assert(env().getObjectAddress(e.name) == e.objectId);
+                env().setObjectStorage(e.objectId, e.storageType);
             }
             memoryProfileOutdated_ = false;
         }
@@ -710,6 +712,7 @@ void VirtualMachine::printMemoryProfile(void) const
         for (auto &o: profile_.module[a])
         {
             LOG(Debug) << "|__ " << env().getObjectName(o.first) << " ("
+                       << profile_.object[o.first].storage << " "
                        << sizeString(o.second) << ")" << std::endl;
         }
         LOG(Debug) << std::endl;
