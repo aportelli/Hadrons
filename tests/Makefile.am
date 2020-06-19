@@ -3,6 +3,7 @@ AM_CXXFLAGS += -I$(top_srcdir)
  
 EXTRA_PROGRAMS = \
   Test_QED               \
+  Test_database          \
   Test_diskvector        \
   Test_distil            \
   Test_free_prop         \
@@ -19,6 +20,9 @@ Test_QED_LDADD=-lHadrons -lGrid
 
 Test_diskvector_SOURCES=Test_diskvector.cpp
 Test_diskvector_LDADD=-lHadrons -lGrid
+
+Test_database_SOURCES=Test_database.cpp
+Test_database_LDADD=-lHadrons -lGrid
 
 Test_distil_SOURCES=Test_distil.cpp
 Test_distil_LDADD=-lHadrons -lGrid

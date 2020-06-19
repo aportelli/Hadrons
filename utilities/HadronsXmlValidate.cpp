@@ -41,13 +41,13 @@ int main(int argc, char *argv[])
         std::exit(EXIT_FAILURE);
     }
     parameterFileName = argv[1];
-    
+
     try
     {
         Application application(parameterFileName);
+        auto        &vm = VirtualMachine::getInstance();
         
         application.parseParameterFile(parameterFileName);
-        auto &vm = VirtualMachine::getInstance();
         vm.getModuleGraph();
         LOG(Message) << "Application valid (check XML warnings though)" 
                      << std::endl;

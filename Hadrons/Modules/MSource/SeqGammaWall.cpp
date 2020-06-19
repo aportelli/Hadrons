@@ -1,9 +1,10 @@
 /*
- * HadronsXmlRun.cpp, part of Hadrons (https://github.com/aportelli/Hadrons)
+ * SeqGammaWall.cpp, part of Hadrons (https://github.com/aportelli/Hadrons)
  *
  * Copyright (C) 2015 - 2020
  *
  * Author: Antonin Portelli <antonin.portelli@me.com>
+ * Author: Michael Marshall <michael.marshall@ed.ac.uk>
  *
  * Hadrons is free software: you can redistribute it and/or modify
  * it under the terms of the GNU General Public License as published by
@@ -23,44 +24,11 @@
  */
 
 /*  END LEGAL */
-
-#include <Hadrons/Application.hpp>
+#include <Hadrons/Modules/MSource/SeqGammaWall.hpp>
 
 using namespace Grid;
 using namespace Hadrons;
+using namespace MSource;
 
-int main(int argc, char *argv[])
-{
-    // parse command line
-    std::string parameterFileName;
-    
-    if (argc < 2)
-    {
-        std::cerr << "usage: " << argv[0] << " <parameter file> [Grid options]";
-        std::cerr << std::endl;
-        std::exit(EXIT_FAILURE);
-    }
-    parameterFileName = argv[1];
-    
-    // initialization
-    Grid_init(&argc, &argv);
-    
-    // execution
-    try
-    {
-        Application application(parameterFileName);
-        
-        application.parseParameterFile(parameterFileName);
-        application.run();
-    }
-    catch (const std::exception& e)
-    {
-        Exceptions::abort(e);
-    }
-    
-    // epilogue
-    LOG(Message) << "Grid is finalizing now" << std::endl;
-    Grid_finalize();
-    
-    return EXIT_SUCCESS;
-}
+template class Grid::Hadrons::MSource::TSeqGammaWall<FIMPL>;
+template class Grid::Hadrons::MSource::TSeqGammaWall<ZFIMPL>;
