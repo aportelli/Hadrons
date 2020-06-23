@@ -261,13 +261,14 @@ void TBaryon<FImpl>::execute(void)
     const int epsilon[6][3] = {{0,1,2},{1,2,0},{2,0,1},{0,2,1},{2,1,0},{1,0,2}};
         
     bool wick_contractions[6];
-    for (int ie=0; ie < 6 ; ie++) 
+    for (int ie=0; ie < 6 ; ie++) {
         wick_contractions[ie] = (quarksL[0] == quarksR[epsilon[ie][0]] && quarksL[1] == quarksR[epsilon[ie][1]] && quarksL[2] == quarksR[epsilon[ie][2]]) ? 1 : 0;
-
-
-    PropagatorField &q1  = envGet(PropagatorField, par().q1);
-    PropagatorField &q2  = envGet(PropagatorField, par().q2);
-    PropagatorField &q3  = envGet(PropagatorField, par().q3);
+        LOG(Message) << "Contraction " << ie+1 << " : " << ( (wick_contractions[ie]) ? "true" : "false" )  << std::endl;
+    }
+    
+    PropagatorField &q1  = envGet(PropagatorField, propsL[0]);
+    PropagatorField &q2  = envGet(PropagatorField, propsL[1]);
+    PropagatorField &q3  = envGet(PropagatorField, propsL[2]);
 
     if (par().sim_sink) { 
         for (unsigned int i = 0; i < gammaList.size(); ++i)
@@ -323,49 +324,35 @@ void TBaryon<FImpl>::execute(void)
         sinkFn[1] = &envGet(SinkFn, par().sinkq2);
         sinkFn[2] = &envGet(SinkFn, par().sinkq3);
         
-        SlicedPropagator q1_slice;
-        SlicedPropagator q2_slice;
-        SlicedPropagator q3_slice;
+        SlicedPropagator q1_slice[6];
+        SlicedPropagator q2_slice[6];
+        SlicedPropagator q3_slice[6];
 
-        bool single_sink =     par().sinkq1 == par().sinkq2 
-                            && par().sinkq2 == par().sinkq3 
-                            && par().sinkq3 == par().sinkq1;
-
-        if (single_sink) {
-            q1_slice = (*sinkFn[0])(q1);
-            q2_slice = (*sinkFn[0])(q2);
-            q3_slice = (*sinkFn[0])(q3);
-        }
-
-        std::vector<std::vector<TComplex>> buf;
-        for (int iG = 0; iG < gammaList.size(); iG++) {
-            buf.push_back(std::vector<TComplex>(nt, Zero()));
-        }
         for (int ie=0; ie < 6 ; ie++) {
-            
-            for (int iG = 0; iG < gammaList.size(); iG++) {
+            q1_slice[ie] = (*sinkFn[epsilon[ie][0]])(q1);
+            q2_slice[ie] = (*sinkFn[epsilon[ie][1]])(q2);
+            q3_slice[ie] = (*sinkFn[epsilon[ie][2]])(q3);
+        }
+
+        std::vector<TComplex> buf;
+        for (int iG = 0; iG < gammaList.size(); iG++) {
+            buf = std::vector<TComplex>(nt, Zero());
+
+            Gamma gAl(gammaList[iG].first.first);
+            Gamma gBl(gammaList[iG].first.second);
+            Gamma gAr(gammaList[iG].second.first);
+            Gamma gBr(gammaList[iG].second.second);
+
+            for (int ie=0; ie < 6 ; ie++) {
                 if (wick_contractions[ie]) {
-                    if (!single_sink) {
-                        q1_slice = (*sinkFn[epsilon[ie][0]])(q1);
-                        q2_slice = (*sinkFn[epsilon[ie][1]])(q2);
-                        q3_slice = (*sinkFn[epsilon[ie][2]])(q3);
-                    }
-
-                    Gamma gAl(gammaList[iG].first.first);
-                    Gamma gBl(gammaList[iG].first.second);
-                    Gamma gAr(gammaList[iG].second.first);
-                    Gamma gBr(gammaList[iG].second.second);
-
-                    BaryonUtils<FIMPL>::ContractBaryons_Sliced( q1_slice,q2_slice,q3_slice,
+                    BaryonUtils<FIMPL>::ContractBaryons_Sliced( q1_slice[ie],q2_slice[ie],q3_slice[ie],
                                                                 gAl,gBl,gAr,gBr,
                                                                 ie,
                                                                 par().parity,
                                                                 nt,
-                                                                buf[iG]);
+                                                                buf);
                 }
             }
-        }
-        for (int iG = 0; iG < gammaList.size(); iG++) {
             r.info.gammaA_left = gammaList[iG].first.first;
             r.info.gammaB_left = gammaList[iG].first.second;
             r.info.gammaA_right = gammaList[iG].second.first;
@@ -373,7 +360,7 @@ void TBaryon<FImpl>::execute(void)
 
             r.corr.clear();
             for (int t = 0; t < nt; t++) {
-                r.corr.push_back(TensorRemove(buf[iG][t]));
+                r.corr.push_back(TensorRemove(buf[t]));
             }
             result.push_back(r);
         }
