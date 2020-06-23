@@ -118,9 +118,9 @@ void TFourQuark<FImpl1, FImpl2>::tensorprod(LatticeSpinColourSpinColourMatrix &l
             //         below loops in a helper function.
             //LOG(Message) << "sp co mat a is - " << a << std::endl;
             //LOG(Message) << "sp co mat b is - " << b << std::endl;
-	    auto  lret_v = lret.View();
-	    auto  a_v = a.View();
-	    auto  b_v = b.View();
+	    autoView(lret_v, lret, CpuWrite);
+	    autoView(a_v, a, CpuRead);
+	    autoView(b_v, b, CpuRead);
 #ifdef GRID_NVCC
 #warning "NVCC problem: Removed impossibly slow compile of simple NPR host code in FourQuark.hpp"
 #else
