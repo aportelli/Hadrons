@@ -97,6 +97,7 @@ public:
     // dependencies/products
     virtual std::vector<std::string> getInput(void);
     virtual std::vector<std::string> getOutput(void);
+    virtual std::vector<std::string> getOutputFiles(void);
 protected:
     // execution
     virtual void setup(void);
@@ -128,6 +129,14 @@ template <typename FImpl>
 std::vector<std::string> TWeakMesonDecayKl2<FImpl>::getOutput(void)
 {
     std::vector<std::string> output = {};
+    
+    return output;
+}
+
+template <typename FImpl>
+std::vector<std::string> TWeakMesonDecayKl2<FImpl>::getOutputFiles(void)
+{
+    std::vector<std::string> output = {resultFilename(par().output)};
     
     return output;
 }
