@@ -153,12 +153,17 @@ Database::~Database(void)
     }
 }
 
-// set DB filename /////////////////////////////////////////////////////////////
+// set/get DB filename /////////////////////////////////////////////////////////
 void Database::setFilename(const std::string filename, GridBase *grid)
 {
     grid_     = grid;
     filename_ = filename;
     connect();
+}
+
+std::string Database::getFilename(void) const
+{
+    return filename_;
 }
 
 // test if DB connected ////////////////////////////////////////////////////////
@@ -259,7 +264,20 @@ bool Database::tableExists(const std::string tableName)
     return (r.rows() > 0);
 }
 
+// test if table is empty //////////////////////////////////////////////////////
+bool Database::tableEmpty(const std::string tableName)
+{
+    QueryResult r = execute("SELECT COUNT(*) FROM " + tableName + ";");
+
+    return (std::stoi(r[0][0]) == 0);
+}
+
 // general tables interface ////////////////////////////////////////////////////
+QueryResult Database::getTable(const std::string tableName, const std::string extra)
+{
+    return execute("SELECT * FROM " + tableName + " " + extra + ";");
+}
+
 void Database::insert(const std::string tableName, const SqlEntry &entry, const bool replace)
 {
     std::string query;

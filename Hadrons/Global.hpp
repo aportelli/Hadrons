@@ -278,6 +278,9 @@ struct Correlator: Serializable
                                     std::vector<Scalar>, corr);
 };
 
+// check if grid is initlialised
+bool isGridInit(void);
+
 END_HADRONS_NAMESPACE
 
 #include <Hadrons/Exceptions.hpp>

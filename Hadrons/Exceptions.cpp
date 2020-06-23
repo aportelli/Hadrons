@@ -95,7 +95,10 @@ void Grid::Hadrons::Exceptions::abort(const std::exception& e)
         LOG(Error) << "---------------------------" << std::endl;
     }
     LOG(Error) << "Aborting program" << std::endl;
-    Grid_finalize();
+    if (isGridInit())
+    {
+        Grid_finalize();
+    }
 
     exit(EXIT_FAILURE);
 }

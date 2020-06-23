@@ -98,6 +98,8 @@ void VirtualMachine::dbRestoreMemoryProfile(void)
                 profile_.object[e.objectId].storage     = e.storageType;
                 profile_.module[e.moduleId][e.objectId] = e.size;
                 env().addObject(e.name, e.moduleId);
+                assert(env().getObjectAddress(e.name) == e.objectId);
+                env().setObjectStorage(e.objectId, e.storageType);
             }
             memoryProfileOutdated_ = false;
         }
@@ -203,8 +205,9 @@ void VirtualMachine::initDatabase(void)
         db_->createTable<ModuleEntry>("modules", "PRIMARY KEY(moduleId)"
             "FOREIGN KEY(moduleTypeId) REFERENCES moduleTypes(moduleTypeId)");
     }
-    else
+    else if (!db_->tableEmpty("modules"))
     {
+        LOG(Message) << "The module table in '" << db_->getFilename() << "' is not empty, it will not be altered" << std::endl;
         makeModuleDb_ = false;
     }
     if (!db_->tableExists("objectTypes"))
@@ -217,8 +220,9 @@ void VirtualMachine::initDatabase(void)
             "FOREIGN KEY(moduleId) REFERENCES modules(moduleId),"
             "FOREIGN KEY(objectTypeId) REFERENCES objectTypes(objectTypeId)");
     }
-    else
+    else if (!db_->tableEmpty("objects"))
     {
+        LOG(Message) << "The object table in '" << db_->getFilename() << "' is not empty, it will not be altered" << std::endl;
         makeObjectDb_ = false;
     }
     if (!db_->tableExists("schedule"))
@@ -226,8 +230,9 @@ void VirtualMachine::initDatabase(void)
         db_->createTable<ScheduleEntry>("schedule", "PRIMARY KEY(step)," 
             "FOREIGN KEY(moduleId) REFERENCES modules(moduleId)");
     }
-    else
+    else if (!db_->tableEmpty("schedule"))
     {
+        LOG(Message) << "The schedule table in '" << db_->getFilename() << "' is not empty, it will not be altered" << std::endl;
         makeScheduleDb_ = false;
     }
     db_->execute(
@@ -707,6 +712,7 @@ void VirtualMachine::printMemoryProfile(void) const
         for (auto &o: profile_.module[a])
         {
             LOG(Debug) << "|__ " << env().getObjectName(o.first) << " ("
+                       << profile_.object[o.first].storage << " "
                        << sizeString(o.second) << ")" << std::endl;
         }
         LOG(Debug) << std::endl;
