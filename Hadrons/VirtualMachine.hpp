@@ -114,7 +114,7 @@ public:
     {
         HADRONS_SQL_FIELDS(SqlUnique<unsigned int>           , objectTypeId,
                            SqlUnique<SqlNotNull<std::string>>, type,
-                           SqlUnique<SqlNotNull<std::string>>, baseType);
+                           SqlNotNull<std::string>, baseType);
     };
 
     struct ScheduleEntry: SqlEntry
