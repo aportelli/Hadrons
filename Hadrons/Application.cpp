@@ -50,7 +50,6 @@ Application::Application(void)
 
     if (dim.size())
     {
-        
         locVol_ = 1;
         for (unsigned int d = 0; d < dim.size(); ++d)
         {
