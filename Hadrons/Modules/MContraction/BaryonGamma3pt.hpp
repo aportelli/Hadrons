@@ -156,6 +156,7 @@ public:
     // dependency relation
     virtual std::vector<std::string> getInput(void);
     virtual std::vector<std::string> getOutput(void);
+    virtual std::vector<std::string> getOutputFiles(void);
     virtual void parseGammaJString(std::string gamma, std::vector<Gamma::Algebra> &gammaList);
     virtual void parseGammaLRString(std::string gammas, std::vector<GammaABPair> &gammaList);
 
@@ -205,6 +206,13 @@ std::vector<std::string> TBaryonGamma3pt<FImpl>::getOutput(void)
     std::vector<std::string> out = {};
     
     return out;
+}
+template <typename FImpl>
+std::vector<std::string> TBaryonGamma3pt<FImpl>::getOutputFiles(void)
+{
+    std::vector<std::string> output = {resultFilename(par().output)};
+    
+    return output;
 }
 
 // setup ///////////////////////////////////////////////////////////////////////
