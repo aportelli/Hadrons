@@ -29,8 +29,10 @@
 #ifndef Hadrons_Global_hpp_
 #define Hadrons_Global_hpp_
 
+#include <atomic>
 #include <set>
 #include <stack>
+#include <thread>
 #include <regex>
 #include <Grid/Grid.h>
 #include <cxxabi.h>
@@ -42,6 +44,10 @@
 #ifndef DEFAULT_ASCII_PREC
 #define DEFAULT_ASCII_PREC 16
 #endif
+
+#ifndef HADRONS_XML_TOPLEV
+#define HADRONS_XML_TOPLEV "grid"
+#endif 
 
 #define ARG(...) __VA_ARGS__
 
@@ -221,9 +227,6 @@ typedef XmlReader ResultReader;
 typedef XmlWriter ResultWriter;
 #endif
 
-#define RESULT_FILE_NAME(name, traj) \
-name + "." + std::to_string(traj) + "." + resultFileExt
-
 // recursive mkdir
 #define MAX_PATH_LENGTH 512u
 int         mkdir(const std::string dirName);
@@ -274,6 +277,9 @@ struct Correlator: Serializable
                                     Metadata,             info,
                                     std::vector<Scalar>, corr);
 };
+
+// check if grid is initlialised
+bool isGridInit(void);
 
 END_HADRONS_NAMESPACE
 

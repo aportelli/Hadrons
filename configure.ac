@@ -35,8 +35,10 @@ CXXFLAGS="$CXXFLAGS `grid-config --cxxflags`"
 LDFLAGS="$LDFLAGS `grid-config --ldflags`"
 CXXFLAGS="$AM_CXXFLAGS $CXXFLAGS"
 LDFLAGS="$AM_LDFLAGS $LDFLAGS"
-LIBS=" -lGrid $LIBS `grid-config --libs`"
+LIBS=" -ldl -lGrid $LIBS `grid-config --libs`"
 
+AC_PROG_CC
+AM_PROG_CC_C_O
 AC_PROG_CXX
 AC_PROG_RANLIB
 AM_PROG_AR
