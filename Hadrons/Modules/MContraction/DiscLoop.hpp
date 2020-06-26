@@ -34,6 +34,21 @@
 
 BEGIN_HADRONS_NAMESPACE
 
+/*
+ 
+ Disconnected loop contractions
+ ------------------------------
+ 
+ * options:
+ - q_loop: input propagator (string)
+ - gammas: gammas: gamma matrices to insert
+           (space-separated strings e.g. "GammaT GammaX GammaY") 
+
+           Special values: "all" - perform all possible contractions.
+ - mom:    momentum insertion, vector of space-separated int sequence
+           (e.g {"0 0 0", "1 0 0", "0 2 0"})
+*/
+
 /******************************************************************************
  *                                DiscLoop                                    *
  ******************************************************************************/
