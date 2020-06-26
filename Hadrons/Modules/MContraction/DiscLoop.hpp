@@ -175,7 +175,7 @@ void TDiscLoop<FImpl>::execute(void)
     const unsigned int                 nmom    = mom_.size();
     auto                               &q_loop = envGet(PropagatorField, par().q_loop);
     std::vector<Gamma::Algebra>        gammaList;
-    SitePropagator                           buf;
+    SitePropagator                     buf;
     std::vector<std::vector<SlicedOp>> slicedOp;
     std::vector<std::vector<Result>>   result;
     FFT                                fft(envGetGrid(PropagatorField));
