@@ -37,6 +37,14 @@ struct MesonEntry: public SqlEntry
                        SqlNotNull<std::string>, source);
 };
 
+struct BaryonEntry: public SqlEntry
+{
+    HADRONS_SQL_FIELDS(SqlNotNull<std::string>, q1, 
+                       SqlNotNull<std::string>, q2,
+                       SqlNotNull<std::string>, q3,
+                       SqlNotNull<std::string>, source);
+};
+
 int main(int argc, char *argv[])
 {
     // initialization //////////////////////////////////////////////////////////
@@ -151,17 +159,30 @@ int main(int argc, char *argv[])
     for (unsigned int k = j; k < flavour.size(); ++k)
     {
         MContraction::Baryon::Par barPar;
+        BaryonEntry               barEntry;
         
-        barPar.output = "baryons/pt_" + flavour[i] + flavour[j] + flavour[k];
-        barPar.q1     = "Qpt_" + flavour[i];
-        barPar.q2     = "Qpt_" + flavour[j];
-        barPar.q3     = "Qpt_" + flavour[k];
-        barPar.gammas     = "(j12 j12) (j32X j32Y)";
-        barPar.quarks     = flavour_baryon[i] + flavour_baryon[j] + flavour_baryon[k];
-        barPar.prefactors     = "1.0";
-        barPar.sink    = "sink";
+        barPar.output  = "baryons/pt_" + flavour[i] + flavour[j] + flavour[k];
+        barPar.q1      = "Qpt_" + flavour[i];
+        barPar.q2      = "Qpt_" + flavour[j];
+        barPar.q3      = "Qpt_" + flavour[k];
+        barPar.quarks  = flavour_baryon[i] + flavour_baryon[j] + flavour_baryon[k];
+        barPar.shuffle = "123";
+        barPar.sinkq1    = "sink";
+        barPar.sinkq2    = "sink";
+        barPar.sinkq3    = "sink";
+        barPar.sim_sink  = true;
+        barPar.gammas  = "(j12 j12) (j32X j32Y)";
+        barPar.parity  = 1;
+
+        barEntry.q1     = flavour[i];
+        barEntry.q2     = flavour[j];
+        barEntry.q3     = flavour[k];
+        barEntry.source = "pt";
+
         application.createModule<MContraction::Baryon>(
             "baryon_pt_" + flavour[i] + flavour[j] + flavour[k], barPar);
+        application.setResultMetadata("baryon_pt_" + flavour[i] + flavour[j] + flavour[k],
+                                      "baryon", barEntry);
     }
     
     // execution
