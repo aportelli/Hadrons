@@ -104,6 +104,8 @@ public:
     // module DB entry for result files
     template <typename EntryType>
     void setResultMetadata(const std::string moduleName, const std::string tableName, const EntryType &entry);
+    // generate result DB
+    void generateResultDb(void);
     // execute
     void run(void);
     // XML parameter file I/O

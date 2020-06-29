@@ -190,6 +190,7 @@ public:
     // result database
     template <typename EntryType>
     void setResultDbEntry(Database &db, const std::string tableName, EntryType &entry);
+    void generateResultDb(void);
     // setup
     virtual void setup(void) {};
     // execution

@@ -61,6 +61,20 @@ std::string ModuleBase::resultFilename(const std::string stem) const
     return resultFilename(stem, vm().getTrajectory());
 }
 
+// result database /////////////////////////////////////////////////////////////
+void ModuleBase::generateResultDb(void)
+{
+    if (db_ and db_->isConnected())
+    {
+        entryHeader_->traj = vm().getTrajectory();
+        for (auto filename: getOutputFiles())
+        {
+            entryHeader_->filename = filename;
+            db_->insert(dbTable_, *entry_, true);
+        }
+    }
+}
+
 // execution ///////////////////////////////////////////////////////////////////
 void ModuleBase::operator()(void)
 {
@@ -72,15 +86,7 @@ void ModuleBase::operator()(void)
     startTimer("_execute");
     execute();
     stopAllTimers();
-    if (db_ and db_->isConnected())
-    {
-        entryHeader_->traj = vm().getTrajectory();
-        for (auto filename: getOutputFiles())
-        {
-            entryHeader_->filename = filename;
-            db_->insert(dbTable_, *entry_, true);
-        }
-    }
+    generateResultDb();
 }
 
 // make module unique string ///////////////////////////////////////////////////

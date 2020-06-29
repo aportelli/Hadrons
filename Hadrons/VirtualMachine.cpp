@@ -1035,3 +1035,12 @@ void VirtualMachine::executeProgram(const std::vector<std::string> &p)
     }
     executeProgram(pAddress);
 }
+
+// generate result DB //////////////////////////////////////////////////////////
+void VirtualMachine::generateResultDb(void)
+{
+    for (auto &m: module_)
+    {
+        m.data->generateResultDb();
+    }
+}

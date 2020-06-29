@@ -140,6 +140,18 @@ void Application::createModule(const std::string name, const std::string type,
     vm().createModule(name, type, reader);
 }
 
+// generate result DB //////////////////////////////////////////////////////////
+void Application::generateResultDb(void)
+{
+    auto range = par_.trajCounter;
+    
+    for (unsigned int t = range.start; t < range.end; t += range.step)
+    {
+        vm().setTrajectory(t);
+        vm().generateResultDb();
+    }
+}
+
 // execute /////////////////////////////////////////////////////////////////////
 void Application::run(void)
 {

@@ -190,6 +190,8 @@ public:
     // general execution
     void                executeProgram(const Program &p);
     void                executeProgram(const std::vector<std::string> &p);
+    // generate result DB
+    void                generateResultDb(void);
 private:
     // environment shortcut
     DEFINE_ENV_ALIAS;
