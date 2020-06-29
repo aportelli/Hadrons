@@ -393,9 +393,15 @@ void TBaryonGamma3pt<FImpl>::execute(void)
     propQR[1]  = ( qR[1] == qRJ ) ? &envGet(PropagatorField, par().qR2) : nullptr;
     propQR[2]  = ( qR[2] == qRJ ) ? &envGet(PropagatorField, par().qR3) : nullptr;
 
-    SlicedPropagator propQL1_slice;
-    SlicedPropagator propQL2_slice;
-    SlicedPropagator propQL3_slice;
+    SlicedPropagator propQL1_slice[6];
+    SlicedPropagator propQL2_slice[6];
+    SlicedPropagator propQL3_slice[6];
+
+    for (int ie=0; ie<6; ie++) {
+        propQL1_slice[ie] = (*sink[epsilon[ie][0]])(propQL1);
+        propQL2_slice[ie] = (*sink[epsilon[ie][1]])(propQL2);
+        propQL3_slice[ie] = (*sink[epsilon[ie][2]])(propQL3);
+    }
 
 
     int nt = env().getDim(Tp);
@@ -432,39 +438,29 @@ void TBaryonGamma3pt<FImpl>::execute(void)
         for (int ie=0; ie<6; ie++) {
             if (wick_groups[0]) {
                 if (wick_contractions[0][ie]) {
-                    propQL2_slice = (*sink[epsilon[ie][1]])(propQL2);
-                    propQL3_slice = (*sink[epsilon[ie][2]])(propQL3);
-
-                    auto propQ2_spec = propQL2_slice[par().tf];
-                    auto propQ3_spec = propQL3_slice[par().tf];
+                    auto propQ2_spec = propQL2_slice[ie][par().tf];
+                    auto propQ3_spec = propQL3_slice[ie][par().tf];
 
                     BaryonUtils<FIMPL>::Baryon_Gamma_3pt(propQL1, propQ2_spec, propQ3_spec, *propQR[epsilon[ie][0]],
-                                                         1, ie, GJ, GLR.first.second, GLR.second.second, c);
+                                                         1, ie+1, GJ, GLR.first.second, GLR.second.second, c);
                 }
             }
             if (wick_groups[1]) {
-            
                 if (wick_contractions[1][ie]) {
-                    propQL1_slice = (*sink[epsilon[ie][0]])(propQL1);
-                    propQL3_slice = (*sink[epsilon[ie][2]])(propQL3);
-
-                    auto propQ1_spec = propQL1_slice[par().tf];
-                    auto propQ3_spec = propQL3_slice[par().tf];
+                    auto propQ1_spec = propQL1_slice[ie][par().tf];
+                    auto propQ3_spec = propQL3_slice[ie][par().tf];
 
                     BaryonUtils<FIMPL>::Baryon_Gamma_3pt(propQL2, propQ1_spec, propQ3_spec, *propQR[epsilon[ie][1]],
-                                                         2, ie, GJ, GLR.first.second, GLR.second.second, c);
+                                                         2, ie+1, GJ, GLR.first.second, GLR.second.second, c);
                 }
             }
             if (wick_groups[2]) {
                 if (wick_contractions[2][ie]) {
-                    propQL1_slice = (*sink[epsilon[ie][0]])(propQL1);
-                    propQL2_slice = (*sink[epsilon[ie][1]])(propQL2);
-
-                    auto propQ1_spec = propQL1_slice[par().tf];
-                    auto propQ2_spec = propQL2_slice[par().tf];
+                    auto propQ1_spec = propQL1_slice[ie][par().tf];
+                    auto propQ2_spec = propQL2_slice[ie][par().tf];
 
                     BaryonUtils<FIMPL>::Baryon_Gamma_3pt(propQL3, propQ1_spec, propQ2_spec, *propQR[epsilon[ie][2]],
-                                                         3, ie, GJ, GLR.first.second, GLR.second.second, c);
+                                                         3, ie+1, GJ, GLR.first.second, GLR.second.second, c);
                 }
             }
         }
