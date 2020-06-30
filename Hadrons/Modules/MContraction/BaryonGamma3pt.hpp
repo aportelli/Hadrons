@@ -308,16 +308,11 @@ void TBaryonGamma3pt<FImpl>::parseGammaLRString(std::string gammas, std::vector<
 template <typename FImpl>
 void TBaryonGamma3pt<FImpl>::execute(void)
 {
-    std::cout << par() << std::endl;
-
     std::string qL = {par().quarksL[0], par().quarksL[1], par().quarksL[2]};
     std::string qR = {par().quarksR[0], par().quarksR[1], par().quarksR[2]};
     char qLJ = par().quarksJ[0];
     char qRJ = par().quarksJ[1];
-    std::cout << "quarksL " << qL << std::endl;
-    std::cout << "quarksR " << qR << std::endl;
-    std::cout << "qLJ " << qLJ << " -> qRJ " << qRJ << std::endl;
-
+    
     std::vector<GammaABPair>    gammaLRList;
     parseGammaLRString(par().gammaLR, gammaLRList);
 
@@ -468,7 +463,7 @@ void TBaryonGamma3pt<FImpl>::execute(void)
         auto &ph = envGet(LatticeComplex, momphName_);
         
         if (mom_[0] != 0 || mom_[1] != 0 || mom_[2] != 0) {
-            std::cout << "Adding momentum phase " << mom_ << std::endl;
+            Log(Message) << "Adding momentum phase " << mom_ << std::endl;
 
             Complex           i(0.0,1.0);
 

@@ -205,19 +205,20 @@ void TBaryon<FImpl>::setup(void)
 template <typename FImpl>
 void TBaryon<FImpl>::execute(void)
 {
-    assert(par().quarks.size()==3 && "quark-structure must consist of 3 quarks");
-
-    std::regex rex_shuffle("^(?:([1-3])(?!.*\\1)){3}$");
-    std::smatch sm;
-    std::regex_match(par().shuffle, sm, rex_shuffle);
-    assert(sm[0].matched && "shuffle parameter must be a permulation of 123");
-
-    std::string quarksR = par().quarks;
-    std::string quarksL = quarksR;
+    // Check shuffle is a permutation of "123"
+    assert(par().shuffle.size()==3 && "shuffle parameter must be 3 characters long");
+    std::string shuffle_tmp = par().shuffle;
+    std::sort(shuffle_tmp.begin(), shuffle_tmp.end());
+    assert(shuffle_tmp == "123" && "shuffle parameter must be a permulation of 123");
 
     std::vector<int> shuffle = { std::stoi( par().shuffle.substr(0,1) ) -1,
                                  std::stoi( par().shuffle.substr(1,1) ) -1,
                                  std::stoi( par().shuffle.substr(2,1) ) -1 };
+
+
+    assert(par().quarks.size()==3 && "quark-structure must consist of 3 quarks");
+    std::string quarksR = par().quarks;
+    std::string quarksL = quarksR;
 
     // Shuffle quark flavours
     quarksL[0] = quarksR[shuffle[0]];
@@ -249,9 +250,9 @@ void TBaryon<FImpl>::execute(void)
     LOG(Message) << "  using quarksL (" << quarksL << ") with left propagators (" << propsL[0] << ", " << propsL[1] << ", and " << propsL[2] << ")" << std::endl;
     LOG(Message) << "  using quarksR (" << quarksR << ") ";
     if (par().sim_sink)
-        std::cout << "with simultaneous sink " << par().sinkq1 << std::endl;
+        LOG(Message) << "with simultaneous sink " << par().sinkq1 << std::endl;
     else 
-        std::cout << "with sinks (" << par().sinkq1 << ", " << par().sinkq2 << ", and " << par().sinkq3 << ")" << std::endl;
+        LOG(Message) << "with sinks (" << par().sinkq1 << ", " << par().sinkq2 << ", and " << par().sinkq3 << ")" << std::endl;
 
     for (int iG = 0; iG < gammaList.size(); iG++)
         LOG(Message) << "    with (Gamma^A,Gamma^B)_left = ( " << gammaList[iG].first.first << " , " << gammaList[iG].first.second << "') and (Gamma^A,Gamma^B)_right = ( " << gammaList[iG].second.first << " , " << gammaList[iG].second.second << ")" << std::endl;
