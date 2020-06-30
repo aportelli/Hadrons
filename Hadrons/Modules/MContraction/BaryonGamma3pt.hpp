@@ -463,7 +463,7 @@ void TBaryonGamma3pt<FImpl>::execute(void)
         auto &ph = envGet(LatticeComplex, momphName_);
         
         if (mom_[0] != 0 || mom_[1] != 0 || mom_[2] != 0) {
-            Log(Message) << "Adding momentum phase " << mom_ << std::endl;
+            LOG(Message) << "Adding momentum phase " << mom_ << std::endl;
 
             Complex           i(0.0,1.0);
 
