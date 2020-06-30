@@ -209,7 +209,6 @@ void TBaryon<FImpl>::execute(void)
     assert(par().shuffle.size()==3 && "shuffle parameter must be 3 characters long");
     std::string shuffle_tmp = par().shuffle;
     std::sort(shuffle_tmp.begin(), shuffle_tmp.end());
-    LOG(Message) << "shuffle_tmp = " << shuffle_tmp << std::endl;
     assert(shuffle_tmp == "123" && "shuffle parameter must be a permulation of 123");
 
     std::vector<int> shuffle = { std::stoi( par().shuffle.substr(0,1) ) -1,
