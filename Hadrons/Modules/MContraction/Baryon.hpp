@@ -250,9 +250,9 @@ void TBaryon<FImpl>::execute(void)
     LOG(Message) << "  using quarksL (" << quarksL << ") with left propagators (" << propsL[0] << ", " << propsL[1] << ", and " << propsL[2] << ")" << std::endl;
     LOG(Message) << "  using quarksR (" << quarksR << ") ";
     if (par().sim_sink)
-        std::cout << "with simultaneous sink " << par().sinkq1 << std::endl;
+        LOG(Message) << "with simultaneous sink " << par().sinkq1 << std::endl;
     else 
-        std::cout << "with sinks (" << par().sinkq1 << ", " << par().sinkq2 << ", and " << par().sinkq3 << ")" << std::endl;
+        LOG(Message) << "with sinks (" << par().sinkq1 << ", " << par().sinkq2 << ", and " << par().sinkq3 << ")" << std::endl;
 
     for (int iG = 0; iG < gammaList.size(); iG++)
         LOG(Message) << "    with (Gamma^A,Gamma^B)_left = ( " << gammaList[iG].first.first << " , " << gammaList[iG].first.second << "') and (Gamma^A,Gamma^B)_right = ( " << gammaList[iG].second.first << " , " << gammaList[iG].second.second << ")" << std::endl;
