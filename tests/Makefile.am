@@ -6,6 +6,7 @@ EXTRA_PROGRAMS = \
   Test_database          \
   Test_diskvector        \
   Test_distil            \
+  Test_field_io          \
   Test_free_prop         \
   Test_hadrons_meson_3pt \
   Test_hadrons_spectrum  \
@@ -26,6 +27,9 @@ Test_database_LDADD=-lHadrons -lGrid
 
 Test_distil_SOURCES=Test_distil.cpp
 Test_distil_LDADD=-lHadrons -lGrid
+
+Test_field_io_SOURCES=Test_field_io.cpp
+Test_field_io_LDADD=-lHadrons -lGrid
 
 Test_free_prop_SOURCES=Test_free_prop.cpp
 Test_free_prop_LDADD=-lHadrons -lGrid
