@@ -186,7 +186,8 @@ public:
     virtual std::string parString(void) const = 0;
     virtual std::string parClassName(void) const = 0;
     // result filename generation
-    static std::string resultFilename(const std::string stem, const unsigned int traj);
+    static std::string resultFilename(const std::string stem, const unsigned int traj, 
+                                      const std::string ext = resultFileExt);
     // result database
     template <typename EntryType>
     void setResultDbEntry(Database &db, const std::string tableName, EntryType &entry);
@@ -205,7 +206,7 @@ protected:
     GridParallelRNG &rng4d(void);
     GridSerialRNG &rngSerial(void);
     // result file utilities
-    std::string resultFilename(const std::string stem) const;
+    std::string resultFilename(const std::string stem, const std::string ext = resultFileExt) const;
     template <typename T>
     void saveResult(const std::string stem, const std::string name, const T &result) const;
 private:

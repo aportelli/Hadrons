@@ -51,14 +51,16 @@ std::string ModuleBase::getRegisteredName(void)
 }
 
 // result filename generation //////////////////////////////////////////////////
-std::string ModuleBase::resultFilename(const std::string stem, const unsigned int traj)
+std::string ModuleBase::resultFilename(const std::string stem, 
+                                       const unsigned int traj, 
+                                       const std::string ext)
 {
-    return stem + "." + std::to_string(traj) + "." + resultFileExt;
+    return stem + "." + std::to_string(traj) + "." + ext;
 }
 
-std::string ModuleBase::resultFilename(const std::string stem) const
+std::string ModuleBase::resultFilename(const std::string stem, const std::string ext) const
 {
-    return resultFilename(stem, vm().getTrajectory());
+    return resultFilename(stem, vm().getTrajectory(), ext);
 }
 
 // result database /////////////////////////////////////////////////////////////
