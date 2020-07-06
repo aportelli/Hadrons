@@ -173,6 +173,8 @@ bool Database::isConnected(void) const
 }
 
 // execute arbitrary SQL statement /////////////////////////////////////////////
+#define RETRY_STATUSES ((status == SQLITE_BUSY) or (status == SQLITE_IOERR))
+
 QueryResult Database::execute(const std::string query)
 {
     QueryResult result;
@@ -218,7 +220,7 @@ QueryResult Database::execute(const std::string query)
         do
         {
             status = sqlite3_exec(db_, query.c_str(), callback, &result, &errBuf);
-            if ((errBuf != nullptr) and (status != SQLITE_BUSY))
+            if ((errBuf != nullptr) and !RETRY_STATUSES)
             {
                 std::string errMsg = errBuf;
 
@@ -229,18 +231,18 @@ QueryResult Database::execute(const std::string query)
                 break;
             }
             attempt--;
-            if (status == SQLITE_BUSY)
+            if (RETRY_STATUSES)
             {
-                LOG(Warning) << "Database '" + filename_ + "' is locked, retrying in "
+                LOG(Warning) << "Database '" << filename_ << "' cannot be accessed (SQLite status " 
+                             << status << "), retrying in "
                              << HADRONS_SQLITE_RETRY_INTERVAL << " ms" << std::endl;
                 std::this_thread::sleep_for(std::chrono::milliseconds(HADRONS_SQLITE_RETRY_INTERVAL));
             }
-        } while ((status == SQLITE_BUSY) and (attempt > 0));
-        if (status == SQLITE_BUSY)
+        } while (RETRY_STATUSES and (attempt > 0));
+        if (errBuf != nullptr)
         {
             std::string errMsg = errBuf;
 
-            LOG(Error) << "Database '" + filename_ + "' is locked, giving up..." << std::endl;
             sqlite3_free(errBuf);
             HADRONS_ERROR(Database, "error executing query '" + query 
                         + "' in database '" + filename_ + "' (SQLite status " 
