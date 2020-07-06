@@ -40,10 +40,14 @@ class FieldWriter
 public:
     // constructors
     FieldWriter(void) = default;
+    FieldWriter(GridBase *grid, GridBase *gridIo = nullptr);
     FieldWriter(const std::string filename, GridBase *grid, GridBase *gridIo = nullptr);
     // destructor
     virtual ~FieldWriter(void);
+    // set grids
+    void setGrids(GridBase *grid, GridBase *gridIo = nullptr);
     // open/close file
+    void open(const std::string filename);
     void open(const std::string filename, GridBase *grid, GridBase *gridIo = nullptr);
     void close(void);
     // write data
@@ -68,10 +72,14 @@ class FieldReader
 public:
     // constructors
     FieldReader(void) = default;
+    FieldReader(GridBase *grid, GridBase *gridIo = nullptr);
     FieldReader(const std::string filename, GridBase *grid, GridBase *gridIo = nullptr);
     // destructor
     virtual ~FieldReader(void);
+    // set grids
+    void setGrids(GridBase *grid, GridBase *gridIo = nullptr);
     // open/close file
+    void open(const std::string filename);
     void open(const std::string filename, GridBase *grid, GridBase *gridIo = nullptr);
     void close(void);
     // read data
@@ -91,6 +99,12 @@ private:
  ******************************************************************************/
 // constructor /////////////////////////////////////////////////////////////////
 template <typename T, typename TIo>
+FieldWriter<T, TIo>::FieldWriter(GridBase *grid, GridBase *gridIo)
+{
+    setGrids(grid, gridIo);
+}
+
+template <typename T, typename TIo>
 FieldWriter<T, TIo>::FieldWriter(const std::string filename, GridBase *grid, GridBase *gridIo)
 {
     open(filename, grid, gridIo);
@@ -103,10 +117,32 @@ FieldWriter<T, TIo>::~FieldWriter(void)
     close();
 }
 
+// set grids ///////////////////////////////////////////////////////////////////
+template <typename T, typename TIo>
+void FieldWriter<T, TIo>::setGrids(GridBase *grid, GridBase *gridIo)
+{
+    grid_   = grid;
+    gridIo_ = gridIo;
+    if (typeHash<T>() != typeHash<TIo>())
+    {
+        if (gridIo_ == nullptr)
+        {
+            HADRONS_ERROR(Definition, 
+                          "I/O type different from field type but null I/O grid passed");
+        }
+        ioBuf_.reset(new TIo(gridIo_));
+        testBuf_.reset(new T(grid_));
+    }
+}
+
 // open/close file /////////////////////////////////////////////////////////////
 template <typename T, typename TIo>
-void FieldWriter<T, TIo>::open(const std::string filename, GridBase *grid, GridBase *gridIo)
+void FieldWriter<T, TIo>::open(const std::string filename)
 {
+    if (grid_ == nullptr)
+    {
+        HADRONS_ERROR(Definition, "no grid has been set");
+    }
     if (isOpened_)
     {
         if (filename != filename_)
@@ -119,22 +155,17 @@ void FieldWriter<T, TIo>::open(const std::string filename, GridBase *grid, GridB
         }
     }
     filename_ = filename;
-    grid_     = grid;
-    gridIo_   = gridIo;
     makeFileDir(filename_, grid_);
     binWriter_.reset(new ScidacWriter(grid_->IsBoss()));
     binWriter_->open(filename_);
-    if (typeHash<T>() != typeHash<TIo>())
-    {
-        if (gridIo_ == nullptr)
-        {
-            HADRONS_ERROR(Definition, 
-                          "I/O type different from field type but null I/O grid passed");
-        }
-        ioBuf_.reset(new TIo(gridIo_));
-        testBuf_.reset(new T(grid_));
-    }
     isOpened_ = true;
+}
+
+template <typename T, typename TIo>
+void FieldWriter<T, TIo>::open(const std::string filename, GridBase *grid, GridBase *gridIo)
+{
+    setGrids(grid, gridIo);
+    open(filename);
 }
 
 template <typename T, typename TIo>
@@ -143,12 +174,8 @@ void FieldWriter<T, TIo>::close(void)
     if (isOpened_)
     {
         filename_ = "";
-        grid_     = nullptr;
-        gridIo_   = nullptr;
         binWriter_->close();
         binWriter_.reset(nullptr);
-        ioBuf_.reset(nullptr);
-        testBuf_.reset(nullptr);
         isOpened_ = false;
     }
 }
@@ -197,6 +224,12 @@ void FieldWriter<T, TIo>::writeField(T &field, const Metadata &md)
  ******************************************************************************/
 // constructor /////////////////////////////////////////////////////////////////
 template<typename T, typename TIo>
+FieldReader<T, TIo>::FieldReader(GridBase *grid, GridBase *gridIo)
+{
+    setGrids(grid, gridIo);
+}
+
+template<typename T, typename TIo>
 FieldReader<T, TIo>::FieldReader(const std::string filename, 
                                  GridBase *grid, GridBase *gridIo)
 {
@@ -210,10 +243,26 @@ FieldReader<T, TIo>::~FieldReader(void)
     close();
 }
 
+// set grids ///////////////////////////////////////////////////////////////////
+template <typename T, typename TIo>
+void FieldReader<T, TIo>::setGrids(GridBase *grid, GridBase *gridIo)
+{
+    grid_   = grid;
+    gridIo_ = gridIo;
+    if (typeHash<T>() != typeHash<TIo>())
+    {
+        if (gridIo_ == nullptr)
+        {
+            HADRONS_ERROR(Definition, 
+                          "I/O type different from field type but null I/O grid passed");
+        }
+        ioBuf_.reset(new TIo(gridIo_));
+    }
+}
+
 // open/close file /////////////////////////////////////////////////////////////
 template<typename T, typename TIo>
-void FieldReader<T, TIo>::open(const std::string filename, 
-                               GridBase *grid, GridBase *gridIo)
+void FieldReader<T, TIo>::open(const std::string filename)
 {
     if (isOpened_)
     {
@@ -227,20 +276,17 @@ void FieldReader<T, TIo>::open(const std::string filename,
         }
     }
     filename_ = filename;
-    grid_     = grid;
-    gridIo_   = gridIo;
     binReader_.reset(new ScidacReader);
     binReader_->open(filename_);
-    if (typeHash<T>() != typeHash<TIo>())
-    {
-        if (gridIo_ == nullptr)
-        {
-            HADRONS_ERROR(Definition, 
-                          "I/O type different from field type but null I/O grid passed");
-        }
-        ioBuf_.reset(new TIo(gridIo_));
-    }
     isOpened_ = true;
+}
+
+template<typename T, typename TIo>
+void FieldReader<T, TIo>::open(const std::string filename, 
+                               GridBase *grid, GridBase *gridIo)
+{
+    setGrids(grid, gridIo);
+    open(filename);
 }
 
 template<typename T, typename TIo>
@@ -249,11 +295,8 @@ void FieldReader<T, TIo>::close(void)
     if (isOpened_)
     {
         filename_ = "";
-        grid_     = nullptr;
-        gridIo_   = nullptr;
         binReader_->close();
         binReader_.reset(nullptr);
-        ioBuf_.reset(nullptr);
         isOpened_ = false;
     }
 }
