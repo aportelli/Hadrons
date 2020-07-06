@@ -4,6 +4,7 @@
  * Copyright (C) 2015 - 2020
  *
  * Author: Antonin Portelli <antonin.portelli@me.com>
+ * Author: Fionn O hOgain <fionn.o.hogain@ed.ac.uk>
  * Author: Julia Kettle J.R.Kettle-2@sms.ed.ac.uk
  * Author: Peter Boyle <paboyle@ph.ed.ac.uk>
  *

@@ -3,6 +3,7 @@
  *
  * Copyright (C) 2015 - 2020
  *
+ * Author: Andrew Zhen Ning Yong <andrew.yong@ed.ac.uk>
  * Author: Antonin Portelli <antonin.portelli@me.com>
  *
  * Hadrons is free software: you can redistribute it and/or modify

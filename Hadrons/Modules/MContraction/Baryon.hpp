@@ -7,6 +7,7 @@
  * Author: Felix Erben <dc-erbe1@tesseract-login1.ib0.sgi.cluster.dirac.ed.ac.uk>
  * Author: Felix Erben <felix.erben@ed.ac.uk>
  * Author: Raoul Hodgson <raoul.hodgson@ed.ac.uk>
+ * Author: ferben <ferben@debian.felix.com>
  *
  * Hadrons is free software: you can redistribute it and/or modify
  * it under the terms of the GNU General Public License as published by

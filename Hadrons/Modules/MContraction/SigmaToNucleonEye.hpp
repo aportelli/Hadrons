@@ -5,6 +5,7 @@
  *
  * Author: Antonin Portelli <antonin.portelli@me.com>
  * Author: Felix Erben <felix.erben@ed.ac.uk>
+ * Author: Raoul Hodgson <raoul.hodgson@ed.ac.uk>
  * Author: ferben <ferben@debian.felix.com>
  *
  * Hadrons is free software: you can redistribute it and/or modify
