@@ -41,7 +41,6 @@ BEGIN_MODULE_NAMESPACE(MDistil)
  *                             Perambulator                                    *
  ******************************************************************************/
 
-GRID_SERIALIZABLE_ENUM(Mode, undef, perambOnly, 0, inputSolve, 1, outputSolve, 2);
 
 
 class PerambulatorPar: Serializable
@@ -54,7 +53,7 @@ public:
                                     std::string, perambFileName,
                                     std::string, unsmearedSolveFileName,
                                     std::string, unsmearedSolve,
-                                    Mode, perambMode,
+                                    pMode, perambMode,
                                     int, nVec,
                                     std::string, DistilParams);
 };
@@ -96,10 +95,10 @@ template <typename FImpl>
 std::vector<std::string> TPerambulator<FImpl>::getInput(void)
 {
     std::vector<std::string> out={par().lapevec, par().solver, par().noise, par().DistilParams};
-    Mode perambMode{par().perambMode};
-    if(perambMode == Mode::inputSolve)
+    pMode perambMode{par().perambMode};
+    if(perambMode == pMode::inputSolve)
     {
-        std::cout<< "unsmeared solves are an input" << std::endl;
+        LOG(Message) << "unsmeared solves are an input" << std::endl;
         out.push_back(par().unsmearedSolve);
     }
     return out;
@@ -112,10 +111,10 @@ std::vector<std::string> TPerambulator<FImpl>::getOutput(void)
     // Always return perambulator with name of module
     std::string objName{ getName() };
     std::vector<std::string> output{ objName };
-    Mode perambMode{par().perambMode};
-    if(perambMode == Mode::outputSolve)
+    pMode perambMode{par().perambMode};
+    if(perambMode == pMode::outputSolve)
     {
-        std::cout<< "unsmeared solves are an output" << std::endl;
+        LOG(Message)<< "unsmeared solves are an output" << std::endl;
         objName.append( "_unsmeared_solve" );
         output.push_back( objName );
     }
@@ -132,10 +131,10 @@ void TPerambulator<FImpl>::setup(void)
 
     std::string objName{ getName() };
     envCreate(PerambTensor, objName, 1, Nt, dp.nvec, dp.LI, dp.nnoise, dp.inversions, dp.SI);
-    Mode perambMode{par().perambMode};
-    if(perambMode == Mode::outputSolve)
+    pMode perambMode{par().perambMode};
+    if(perambMode == pMode::outputSolve)
     {
-        std::cout<< "setting up output field for unsmeared solves" << std::endl;
+        LOG(Message)<< "setting up output field for unsmeared solves" << std::endl;
         objName.append( "_unsmeared_solve" );
         envCreate(std::vector<FermionField>, objName, 1, dp.nnoise*dp.LI*Ns*dp.inversions,
                   envGetGrid(FermionField));
@@ -179,11 +178,11 @@ void TPerambulator<FImpl>::execute(void)
     const int Ntlocal{grid4d->LocalDimensions()[3]};
     const int Ntfirst{grid4d->LocalStarts()[3]};
 
-    Mode perambMode{par().perambMode};
-    std::cout<< "Mode " << perambMode << std::endl;
+    pMode perambMode{par().perambMode};
+    LOG(Message)<< "Mode " << perambMode << std::endl;
 
     std::vector<FermionField> solveIn;
-    if(perambMode == Mode::inputSolve){
+    if(perambMode == pMode::inputSolve){
         solveIn         = envGet(std::vector<FermionField>, par().unsmearedSolve);
     }
 
@@ -195,7 +194,7 @@ void TPerambulator<FImpl>::execute(void)
             {
                 for (int ds = 0; ds < dp.SI; ds++)
                 {
-                    if(perambMode == Mode::inputSolve){
+                    if(perambMode == pMode::inputSolve){
                         fermion4dtmp = solveIn[inoise+dp.nnoise*(dk+dp.LI*(dt+dp.inversions*ds))];
 		    } else {
                         LOG(Message) <<  "LapH source vector from noise " << inoise << " and dilution component (d_k,d_t,d_alpha) : (" << dk << ","<< dt << "," << ds << ")" << std::endl;
@@ -231,7 +230,7 @@ void TPerambulator<FImpl>::execute(void)
                             solver(v5dtmp_sol, v5dtmp);
                             mat.ExportPhysicalFermionSolution(v5dtmp_sol, fermion4dtmp);
                         }
-                        if(perambMode == Mode::outputSolve)
+                        if(perambMode == pMode::outputSolve)
                         {
                             auto &solveOut = envGet(std::vector<FermionField>, objName);
                             solveOut[inoise+dp.nnoise*(dk+dp.LI*(dt+dp.inversions*ds))] = fermion4dtmp;
@@ -288,7 +287,7 @@ void TPerambulator<FImpl>::execute(void)
     }
     
     //Save the unsmeared solves if module outpus them and filename specified
-    if(perambMode == Mode::outputSolve and !par().unsmearedSolveFileName.empty())
+    if(perambMode == pMode::outputSolve and !par().unsmearedSolveFileName.empty())
     {
         LOG(Message) << "Writing unsmeared solve to " << par().unsmearedSolveFileName << std::endl;
         auto &solveOut = envGet(std::vector<FermionField>, objName);

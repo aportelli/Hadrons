@@ -66,6 +66,8 @@ BEGIN_MODULE_NAMESPACE(MDistil)
  ******************************************************************************/
 
 
+GRID_SERIALIZABLE_ENUM(pMode, undef, perambOnly, 0, inputSolve, 1, outputSolve, 2);
+
 #define DIST_SOURCE \
 for (int it = dt; it < Nt; it += dp.TI) \
 { \
