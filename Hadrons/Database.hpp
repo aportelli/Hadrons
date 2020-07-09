@@ -31,8 +31,8 @@
 #include <Hadrons/SqlEntry.hpp>
 #include <Hadrons/sqlite/sqlite3.h>
 
-#ifndef HADRONS_SQLITE_JOURNAL_MODE
-#define HADRONS_SQLITE_JOURNAL_MODE "WAL"
+#ifndef HADRONS_SQLITE_DEFAULT_JOURNAL_MODE
+#define HADRONS_SQLITE_DEFAULT_JOURNAL_MODE "WAL"
 #endif
 
 BEGIN_HADRONS_NAMESPACE
@@ -76,11 +76,13 @@ public:
 public:
     // constructors
     Database(void) = default;
-    Database(const std::string filename, GridBase *grid = nullptr);
+    Database(const std::string filename, GridBase *grid = nullptr,
+             const std::string mode = HADRONS_SQLITE_DEFAULT_JOURNAL_MODE);
     // destructor
     virtual ~Database(void);
     // set/get DB filename
-    void        setFilename(const std::string filename, GridBase *grid = nullptr);
+    void        setFilename(const std::string filename, GridBase *grid = nullptr, 
+                            const std::string mode = HADRONS_SQLITE_DEFAULT_JOURNAL_MODE);
     std::string getFilename(void) const;
     // test if DB connected
     bool isConnected(void) const;
