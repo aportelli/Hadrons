@@ -235,6 +235,5 @@ void Hadrons::randomWait(const unsigned int maxMs, GridBase *grid)
     
     auto ms = dis(gen);
 
-    LOG(Debug) << "Random wait " << ms << " ms" << std::endl;
     std::this_thread::sleep_for(std::chrono::milliseconds(ms));
 }
