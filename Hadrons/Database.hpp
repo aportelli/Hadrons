@@ -31,6 +31,10 @@
 #include <Hadrons/SqlEntry.hpp>
 #include <Hadrons/sqlite/sqlite3.h>
 
+#ifndef HADRONS_SQLITE_JOURNAL_MODE
+#define HADRONS_SQLITE_JOURNAL_MODE "WAL"
+#endif
+
 BEGIN_HADRONS_NAMESPACE
 
 /******************************************************************************

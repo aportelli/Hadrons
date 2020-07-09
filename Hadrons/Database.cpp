@@ -333,6 +333,9 @@ void Database::connect(void)
         }
     }
     isConnected_ = true;
+#ifdef HADRONS_SQLITE_JOURNAL_MODE
+    execute(std::string("PRAGMA journal_mode=") + HADRONS_SQLITE_JOURNAL_MODE + ";");
+#endif
 }
 
 void Database::disconnect(void)
