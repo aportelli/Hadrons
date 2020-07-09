@@ -30,8 +30,8 @@
 #define HADRONS_SQLITE_MAX_RETRY 10
 #endif
 
-#ifndef HADRONS_SQLITE_RETRY_INTERVAL
-#define HADRONS_SQLITE_RETRY_INTERVAL 10
+#ifndef HADRONS_SQLITE_BUSY_TIMEOUT
+#define HADRONS_SQLITE_BUSY_TIMEOUT 1000
 #endif
 
 using namespace Grid;
@@ -161,6 +161,7 @@ void Database::setFilename(const std::string filename, GridBase *grid, const std
     connect();
     if (!mode.empty())
     {
+        randomWait(100, grid_);
         execute("PRAGMA journal_mode=" + mode + ";");
     }
 }
@@ -237,11 +238,10 @@ QueryResult Database::execute(const std::string query)
             attempt--;
             if (RETRY_STATUSES)
             {
-                int ms = rand() % 100 + 1;
-
                 LOG(Warning) << "Database '" << filename_ << "' cannot be accessed (SQLite status " 
-                             << status << "), retrying in " << ms << " ms" << std::endl;
-                std::this_thread::sleep_for(std::chrono::milliseconds(ms));
+                             << status << "), randomly retrying in less than 100 ms" << std::endl;
+                LOG(Debug) << "Query: '" << query << "'" << std::endl;
+                randomWait(100, grid_);
             }
         } while (RETRY_STATUSES and (attempt > 0));
         if (errBuf != nullptr)
@@ -331,6 +331,7 @@ void Database::connect(void)
                 HADRONS_ERROR(Io, "cannot connect database in file '" + filename_
                               + "' (SQLite error '" + msg + "')")
             }
+            sqlite3_busy_timeout(db_, HADRONS_SQLITE_BUSY_TIMEOUT);
         }
         else
         {
