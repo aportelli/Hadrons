@@ -58,6 +58,20 @@ public:
                                     std::string, DistilParams);
 };
 
+
+class PerambulatorIO : Serializable
+{
+public:
+    GRID_SERIALIZABLE_CLASS_MEMBERS(PerambulatorIO,
+                                    PerambTensor,     perambulator,
+                                    std::vector<std::vector<int>>, sourceTimes );
+    PerambulatorIO(PerambTensor peramb, std::vector<std::vector<int>> sT)
+    {
+	    perambulator=peramb;
+	    sourceTimes=sT;
+    }
+};
+
 template <typename FImpl>
 class TPerambulator: public Module<PerambulatorPar>
 {
@@ -187,6 +201,8 @@ void TPerambulator<FImpl>::execute(void)
     }
 
     std::vector<std::vector<int>> sourceTimes;
+    PerambulatorIO perambObject(perambulator, sourceTimes);
+
 
     for (int dt = 0; dt < dp.inversions; dt++)
     {
@@ -195,9 +211,9 @@ void TPerambulator<FImpl>::execute(void)
         {
 	    sT.push_back(it);
 	}
-	sourceTimes.push_back(sT);
+	perambObject.sourceTimes.push_back(sT);
     }
-    LOG(Message) << "Source times" << sourceTimes << std::endl;
+    LOG(Message) << "Source times" << perambObject.sourceTimes << std::endl;
 
     for (int inoise = 0; inoise < dp.nnoise; inoise++)
     {
