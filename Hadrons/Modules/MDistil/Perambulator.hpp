@@ -62,14 +62,11 @@ public:
 class PerambulatorIO : Serializable
 {
 public:
+    using ET = Eigen::Tensor<SpinVector, 6, Eigen::RowMajor>;
     GRID_SERIALIZABLE_CLASS_MEMBERS(PerambulatorIO,
-                                    PerambTensor,     perambulator,
+		                    Eigen::TensorMap<ET>,     tensor,
+                                    std::vector<std::string>, IndexNames,
                                     std::vector<std::vector<int>>, sourceTimes );
-    PerambulatorIO(PerambTensor peramb, std::vector<std::vector<int>> sT)
-    {
-	    perambulator=peramb;
-	    sourceTimes=sT;
-    }
 };
 
 template <typename FImpl>
@@ -201,7 +198,7 @@ void TPerambulator<FImpl>::execute(void)
     }
 
     std::vector<std::vector<int>> sourceTimes;
-    PerambulatorIO perambObject(perambulator, sourceTimes);
+    PerambulatorIO perambObject;
 
 
     for (int dt = 0; dt < dp.inversions; dt++)
