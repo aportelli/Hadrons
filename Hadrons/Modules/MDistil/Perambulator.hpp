@@ -186,6 +186,19 @@ void TPerambulator<FImpl>::execute(void)
         solveIn         = envGet(std::vector<FermionField>, par().unsmearedSolve);
     }
 
+    std::vector<std::vector<int>> sourceTimes;
+
+    for (int dt = 0; dt < dp.inversions; dt++)
+    {
+	std::vector<int> sT;
+        for (int it = dt; it < Nt; it += dp.TI)
+        {
+	    sT.push_back(it);
+	}
+	sourceTimes.push_back(sT);
+    }
+    LOG(Message) << "Source times" << sourceTimes << std::endl;
+
     for (int inoise = 0; inoise < dp.nnoise; inoise++)
     {
         for (int dk = 0; dk < dp.LI; dk++)
