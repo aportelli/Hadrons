@@ -58,17 +58,6 @@ public:
                                     std::string, DistilParams);
 };
 
-
-class PerambulatorIO : Serializable
-{
-public:
-    using ET = Eigen::Tensor<SpinVector, 6, Eigen::RowMajor>;
-    GRID_SERIALIZABLE_CLASS_MEMBERS(PerambulatorIO,
-		                    Eigen::TensorMap<ET>,     tensor,
-                                    std::vector<std::string>, IndexNames,
-                                    std::vector<std::vector<int>>, sourceTimes );
-};
-
 template <typename FImpl>
 class TPerambulator: public Module<PerambulatorPar>
 {
@@ -198,7 +187,6 @@ void TPerambulator<FImpl>::execute(void)
     }
 
     std::vector<std::vector<int>> sourceTimes;
-    PerambulatorIO perambObject;
 
 
     for (int dt = 0; dt < dp.inversions; dt++)
@@ -208,9 +196,9 @@ void TPerambulator<FImpl>::execute(void)
         {
 	    sT.push_back(it);
 	}
-	perambObject.sourceTimes.push_back(sT);
+	perambulator.MetaData.sourceTimes.push_back(sT);
     }
-    LOG(Message) << "Source times" << perambObject.sourceTimes << std::endl;
+    LOG(Message) << "Source times" << perambulator.MetaData.sourceTimes << std::endl;
 
     for (int inoise = 0; inoise < dp.nnoise; inoise++)
     {
@@ -310,14 +298,6 @@ void TPerambulator<FImpl>::execute(void)
         sPerambName.append(".");
         sPerambName.append(std::to_string(vm().getTrajectory()));
         perambulator.write(sPerambName.c_str());
-    }
-    
-    //Save the unsmeared solves if module outpus them and filename specified
-    if(perambMode == pMode::outputSolve and !par().unsmearedSolveFileName.empty())
-    {
-        LOG(Message) << "Writing unsmeared solve to " << par().unsmearedSolveFileName << std::endl;
-        auto &solveOut = envGet(std::vector<FermionField>, objName);
-        A2AVectorsIo::write(par().unsmearedSolveFileName, solveOut, false, vm().getTrajectory());
     }
 }
 
