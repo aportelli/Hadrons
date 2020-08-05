@@ -293,6 +293,9 @@ struct Correlator: Serializable
 // check if grid is initlialised
 bool isGridInit(void);
 
+// thread random wait
+void randomWait(const unsigned int maxMs, GridBase *grid = nullptr);
+
 END_HADRONS_NAMESPACE
 
 #include <Hadrons/Exceptions.hpp>

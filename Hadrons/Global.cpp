@@ -216,3 +216,24 @@ bool Hadrons::isGridInit(void)
     // not super satisfying, but there is no public interface to check if Grid was initialised
     return GridLogger::GlobalStopWatch.isRunning();
 }
+
+// thread random wait //////////////////////////////////////////////////////////
+void Hadrons::randomWait(const unsigned int maxMs, GridBase *grid)
+{
+    std::random_device              rd;
+    std::mt19937                    gen;
+    std::uniform_int_distribution<> dis(5, maxMs);
+
+    if (grid == nullptr)
+    {
+        gen.seed(rd());
+    }
+    else
+    {
+        gen.seed(grid->ThisRank()*rd());
+    }
+    
+    auto ms = dis(gen);
+
+    std::this_thread::sleep_for(std::chrono::milliseconds(ms));
+}
