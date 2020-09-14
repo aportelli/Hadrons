@@ -248,7 +248,6 @@ void TPerambulator<FImpl>::execute(void)
         PerambTensor::Scalar * const MyData {perambulator.tensor.data()+MySlice*SliceCount};
         Coordinate coor(Nd);
         for (int i = 0 ; i < Tdir ; i++) coor[i] = grid4d->_processor_coor[i];
-        std::vector<CommsRequest_t> reqs(0);
         for (int i = 1; i < NumSlices ; i++)
         {
             coor[Tdir] = (MySlice+i)%NumSlices;
@@ -256,10 +255,9 @@ void TPerambulator<FImpl>::execute(void)
             const int RecvSlice { ( MySlice - i + NumSlices ) % NumSlices };
             coor[Tdir] = RecvSlice;
             const auto RecvRank = grid4d->RankFromProcessorCoor(coor);
-            grid4d->SendToRecvFromBegin(reqs,MyData,SendRank, perambulator.tensor.data()
+            grid4d->SendToRecvFrom(MyData,SendRank, perambulator.tensor.data()
                                         + RecvSlice*SliceCount,RecvRank,SliceCount*sizeof(PerambTensor::Scalar));
         }
-        grid4d->SendToRecvFromComplete(reqs);
     }
     
     // Save the perambulator to disk from the boss node
