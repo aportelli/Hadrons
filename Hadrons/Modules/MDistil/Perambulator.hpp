@@ -143,19 +143,6 @@ void TPerambulator<FImpl>::setup(void)
     envTmpLat(FermionField, "v5dtmp_sol", Ls_);
 }
 
-template <typename T> typename std::enable_if<!::Grid::EigenIO::is_complex<T>::value>::type
-GlobalSumHelper(GridCartesian * const grid,T * data,int N)
-{
-    grid->GlobalSumVector(data,N);
-}
-template <typename T> typename std::enable_if<::Grid::EigenIO::is_complex<T>::value>::type
-GlobalSumHelper(GridCartesian * const grid,T * data,int N)
-{
-    using Scalar = typename ::Grid::RealPart<T>::type;
-    Scalar * p = reinterpret_cast<Scalar *>( data );
-    grid->GlobalSumVector(p,2*N);
-}
-
 // execution ///////////////////////////////////////////////////////////////////
 template <typename FImpl>
 void TPerambulator<FImpl>::execute(void)
@@ -274,7 +261,7 @@ void TPerambulator<FImpl>::execute(void)
                 }
             }
         }
-        GlobalSumHelper(grid4d, PerambData, TensorSize);
+        grid4d->GlobalSumVector(PerambData, TensorSize);
     }
     
     // Save the perambulator to disk from the boss node
