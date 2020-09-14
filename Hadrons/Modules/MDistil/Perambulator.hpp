@@ -143,6 +143,19 @@ void TPerambulator<FImpl>::setup(void)
     envTmpLat(FermionField, "v5dtmp_sol", Ls_);
 }
 
+template <typename T> typename std::enable_if<!::Grid::EigenIO::is_complex<T>::value>::type
+GlobalSumHelper(GridCartesian * const grid,T * data,int N)
+{
+    grid->GlobalSumVector(data,N);
+}
+template <typename T> typename std::enable_if<::Grid::EigenIO::is_complex<T>::value>::type
+GlobalSumHelper(GridCartesian * const grid,T * data,int N)
+{
+    using Scalar = typename ::Grid::RealPart<T>::type;
+    Scalar * p = reinterpret_cast<Scalar *>( data );
+    grid->GlobalSumVector(p,2*N);
+}
+
 // execution ///////////////////////////////////////////////////////////////////
 template <typename FImpl>
 void TPerambulator<FImpl>::execute(void)
@@ -244,20 +257,24 @@ void TPerambulator<FImpl>::execute(void)
     {
         LOG(Debug) <<  "Sharing perambulator data with other nodes" << std::endl;
         const int MySlice {grid4d->_processor_coor[Tdir]};
-        const int SliceCount {static_cast<int>(perambulator.tensor.size()/NumSlices)};
-        PerambTensor::Scalar * const MyData {perambulator.tensor.data()+MySlice*SliceCount};
-        Coordinate coor(Nd);
-        for (int i = 0 ; i < Tdir ; i++) coor[i] = grid4d->_processor_coor[i];
-        for (int i = 1; i < NumSlices ; i++)
+        const int TensorSize {static_cast<int>(perambulator.tensor.size() * PerambTensor::Traits::count)};
+        assert (TensorSize == perambulator.tensor.size() * PerambTensor::Traits::count && "peramb size overflow");
+        const int SliceCount {TensorSize/NumSlices};
+        using InnerScalar = typename PerambTensor::Traits::scalar_type;
+        InnerScalar * const PerambData {EigenIO::getFirstScalar( perambulator.tensor )};
+        // Zero data for all timeslices other than the slice computed by 3d boss nodes
+        for (int Slice = 0 ; Slice < SliceCount ; ++Slice)
         {
-            coor[Tdir] = (MySlice+i)%NumSlices;
-            const int SendRank { grid4d->RankFromProcessorCoor(coor) };
-            const int RecvSlice { ( MySlice - i + NumSlices ) % NumSlices };
-            coor[Tdir] = RecvSlice;
-            const auto RecvRank = grid4d->RankFromProcessorCoor(coor);
-            grid4d->SendToRecvFrom(MyData,SendRank, perambulator.tensor.data()
-                                        + RecvSlice*SliceCount,RecvRank,SliceCount*sizeof(PerambTensor::Scalar));
+            if (!grid3d->IsBoss() || Slice != MySlice)
+            {
+                InnerScalar * const SliceData {PerambData + Slice * SliceCount};
+                for (int j = 0 ; j < SliceCount ; ++j)
+                {
+                    SliceData[j] = 0.;
+                }
+            }
         }
+        GlobalSumHelper(grid4d, PerambData, TensorSize);
     }
     
     // Save the perambulator to disk from the boss node
