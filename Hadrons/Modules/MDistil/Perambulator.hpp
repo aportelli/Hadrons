@@ -7,7 +7,6 @@
  *  Author: Michael Marshall <Michael.Marshall@ed.ac.uk>
  * Author: Antonin Portelli <antonin.portelli@me.com>
  * Author: Felix Erben <dc-erbe1@tesseract-login1.ib0.sgi.cluster.dirac.ed.ac.uk>
- * Author: Michael Marshall <43034299+mmphys@users.noreply.github.com>
  * Author: ferben <ferben@debian.felix.com>
  *
  * Hadrons is free software: you can redistribute it and/or modify
@@ -250,7 +249,7 @@ void TPerambulator<FImpl>::execute(void)
         using InnerScalar = typename PerambTensor::Traits::scalar_type;
         InnerScalar * const PerambData {EigenIO::getFirstScalar( perambulator.tensor )};
         // Zero data for all timeslices other than the slice computed by 3d boss nodes
-        for (int Slice = 0 ; Slice < SliceCount ; ++Slice)
+        for (int Slice = 0 ; Slice < NumSlices ; ++Slice)
         {
             if (!grid3d->IsBoss() || Slice != MySlice)
             {
