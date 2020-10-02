@@ -112,10 +112,30 @@ void Environment::addObject(const std::string name, const int moduleAddress)
     }
 }
 
+void Environment::setObjectStorage(const unsigned int objAddress, 
+                                   const Environment::Storage storage)
+{
+    if (hasObject(objAddress))
+    {
+        object_[objAddress].storage = storage;
+    }
+    else
+    {
+        ERROR_NO_ADDRESS(objAddress);
+    }
+}
+
 void Environment::setObjectModule(const unsigned int objAddress,
                                   const int modAddress)
 {
-    object_[objAddress].module = modAddress;
+    if (hasObject(objAddress))
+    {
+        object_[objAddress].module = modAddress;
+    }
+    else
+    {
+        ERROR_NO_ADDRESS(objAddress);
+    }
 }
 
 unsigned int Environment::getMaxAddress(void) const
@@ -169,6 +189,30 @@ std::string Environment::getObjectType(const unsigned int address) const
 std::string Environment::getObjectType(const std::string name) const
 {
     return getObjectType(getObjectAddress(name));
+}
+
+std::string Environment::getObjectDerivedType(const unsigned int address) const
+{
+    if (hasObject(address))
+    {
+        if (object_[address].derivedType)
+        {
+            return typeName(object_[address].derivedType);
+        }
+        else
+        {
+            return "<no type>";
+        }
+    }
+    else
+    {
+        ERROR_NO_ADDRESS(address);
+    }
+}
+
+std::string Environment::getObjectDerivedType(const std::string name) const
+{
+    return getObjectDerivedType(getObjectAddress(name));
 }
 
 Environment::Size Environment::getObjectSize(const unsigned int address) const
@@ -305,7 +349,6 @@ void Environment::freeObject(const unsigned int address)
                      << "'" << std::endl;
     }
     object_[address].size = 0;
-    object_[address].type = nullptr;
     object_[address].data.reset(nullptr);
 }
 

@@ -26,6 +26,7 @@
 
 #include <Hadrons/VirtualMachine.hpp>
 #include <Hadrons/GeneticScheduler.hpp>
+#include <Hadrons/StatLogger.hpp>
 #include <Hadrons/ModuleFactory.hpp>
 
 using namespace Grid;
@@ -57,6 +58,264 @@ std::string VirtualMachine::getRunId(void) const
     return runId_;
 }
 
+// database ////////////////////////////////////////////////////////////////////
+void VirtualMachine::setDatabase(Database &db)
+{
+    db_ = &db;
+    initDatabase();
+}
+
+void VirtualMachine::dbRestoreMemoryProfile(void)
+{
+    if (hasDatabase())
+    {
+        if (db_->tableExists("objects"))
+        {
+            auto         table = db_->getTable<ObjectEntry>("objects", "ORDER BY objectId");
+            unsigned int nMod;
+
+            auto comp  = [](const ObjectEntry &a, const ObjectEntry &b)
+            {
+                return (a.moduleId < b.moduleId);
+            };
+
+            if (env().getMaxAddress() > 0)
+            {
+                HADRONS_ERROR(Database, "environment is not empty");
+            }
+            if (table.size() == 0)
+            {
+                HADRONS_ERROR(Database, "object table is empty");
+            }
+            resetProfile();
+            nMod = std::max_element(table.begin(), table.end(), comp)->moduleId + 1;
+            profile_.module.resize(nMod);
+            profile_.object.resize(table.size());
+            for (auto &e: table)
+            {
+                profile_.object[e.objectId].module      = e.moduleId;
+                profile_.object[e.objectId].size        = e.size;
+                profile_.object[e.objectId].storage     = e.storageType;
+                profile_.module[e.moduleId][e.objectId] = e.size;
+                env().addObject(e.name, e.moduleId);
+                assert(env().getObjectAddress(e.name) == e.objectId);
+                env().setObjectStorage(e.objectId, e.storageType);
+            }
+            memoryProfileOutdated_ = false;
+        }
+    }
+    else
+    {
+        HADRONS_ERROR(Database, "no database connected");
+    }
+}
+
+void VirtualMachine::dbRestoreModules(void)
+{
+    if (hasDatabase())
+    {
+        if (db_->tableExists("modules"))
+        {
+            std::string prefix    = "Grid::Hadrons::";
+            auto        modTable  = db_->getTable<ModuleEntry>("modules", "ORDER BY moduleId");
+           
+            if (getNModule() > 0)
+            {
+                HADRONS_ERROR(Database, "module graph is not empty");
+            }
+            if (modTable.size() == 0)
+            {
+                HADRONS_ERROR(Database, "module table is empty");
+            }
+            for (auto &e: modTable)
+            {
+                auto typeTable = db_->getTable<ModuleTypeEntry>("moduleTypes", 
+                    "WHERE moduleTypeId = " + std::to_string(e.moduleTypeId));
+                std::string type = typeTable.front().type;
+
+                if ((type.size() > prefix.size()) 
+                    and (type.substr(0, prefix.size()) == prefix))
+                {
+                    type = type.substr(prefix.size(), type.size() - prefix.size());
+                }
+
+                std::string par = "<top>" + e.parameters + "</top>";
+                XmlReader   reader(par, true, "top");
+                auto        &factory = ModuleFactory::getInstance();
+                auto        pt       = factory.create(type, e.name);
+
+                pt->parseParameters(reader, pt->parClassName());
+                pushModule(pt);
+            }
+        }
+    }
+    else
+    {
+        HADRONS_ERROR(Database, "no database connected");
+    }
+}
+
+VirtualMachine::Program VirtualMachine::dbRestoreSchedule(void)
+{
+    Program program;
+
+    if (hasDatabase())
+    {
+        if (db_->tableExists("schedule"))
+        {
+            auto table = db_->getTable<ScheduleEntry>("schedule");
+
+            if (table.size() == 0)
+            {
+                HADRONS_ERROR(Database, "schedule table is empty");
+            }
+            program.resize(table.size());
+            for (auto &e: table)
+            {
+                program[e.step] = e.moduleId;
+            }
+        }
+    }
+    else
+    {
+        HADRONS_ERROR(Database, "no database connected");
+    }
+
+    return program;
+}
+
+bool VirtualMachine::hasDatabase(void) const
+{
+    return ((db_ != nullptr) and db_->isConnected());
+}
+
+void VirtualMachine::initDatabase(void)
+{
+    db_->execute("PRAGMA foreign_keys = ON;");
+    if (!db_->tableExists("global"))
+    {
+        db_->createTable<GlobalEntry>("global");
+    }
+    if (!db_->tableExists("moduleTypes"))
+    {
+        db_->createTable<ModuleTypeEntry>("moduleTypes", "PRIMARY KEY(moduleTypeId)");
+    }
+    if (!db_->tableExists("modules"))
+    {
+        db_->createTable<ModuleEntry>("modules", "PRIMARY KEY(moduleId)"
+            "FOREIGN KEY(moduleTypeId) REFERENCES moduleTypes(moduleTypeId)");
+    }
+    else if (!db_->tableEmpty("modules"))
+    {
+        LOG(Message) << "The module table in '" << db_->getFilename() << "' is not empty, it will not be altered" << std::endl;
+        makeModuleDb_ = false;
+    }
+    if (!db_->tableExists("objectTypes"))
+    {
+        db_->createTable<ObjectTypeEntry>("objectTypes", "PRIMARY KEY(objectTypeId)");
+    }
+    if (!db_->tableExists("objects"))
+    {
+        db_->createTable<ObjectEntry>("objects", "PRIMARY KEY(objectId)," 
+            "FOREIGN KEY(moduleId) REFERENCES modules(moduleId),"
+            "FOREIGN KEY(objectTypeId) REFERENCES objectTypes(objectTypeId)");
+    }
+    else if (!db_->tableEmpty("objects"))
+    {
+        LOG(Message) << "The object table in '" << db_->getFilename() << "' is not empty, it will not be altered" << std::endl;
+        makeObjectDb_ = false;
+    }
+    if (!db_->tableExists("schedule"))
+    {
+        db_->createTable<ScheduleEntry>("schedule", "PRIMARY KEY(step)," 
+            "FOREIGN KEY(moduleId) REFERENCES modules(moduleId)");
+    }
+    else if (!db_->tableEmpty("schedule"))
+    {
+        LOG(Message) << "The schedule table in '" << db_->getFilename() << "' is not empty, it will not be altered" << std::endl;
+        makeScheduleDb_ = false;
+    }
+    db_->execute(
+        "CREATE VIEW IF NOT EXISTS vModules AS                                     "
+        "SELECT moduleId,                                                          "
+        "       modules.name,                                                      "
+        "       moduleTypes.type AS type,                                          "
+        "       modules.parameters                                                 "
+        "FROM modules                                                              "
+        "INNER JOIN moduleTypes ON modules.moduleTypeId = moduleTypes.moduleTypeId "
+        "ORDER BY moduleId;                                                        "
+    );
+    db_->execute(
+        "CREATE VIEW IF NOT EXISTS vObjects AS                                     "
+        "SELECT objectId,                                                          "
+        "       objects.name,                                                      "
+        "       objectTypes.type AS type,                                          "
+        "       objectTypes.baseType AS baseType,                                  "
+        "       objects.size*1.0/1024/1024 AS sizeMB,                              "
+        "       objects.storageType,                                               "
+        "       modules.name AS module                                             "
+        "FROM objects                                                              "
+        "INNER JOIN objectTypes ON objects.objectTypeId = objectTypes.objectTypeId "
+        "INNER JOIN modules     ON objects.moduleId = modules.moduleId             "
+        "ORDER BY objectId;                                                        "
+    );
+    db_->execute(
+        "CREATE VIEW IF NOT EXISTS vSchedule AS                                    "
+        "SELECT step,                                                              "
+        "       modules.name AS module                                             "
+        "FROM schedule                                                             "
+        "INNER JOIN modules ON schedule.moduleId = modules.moduleId                "
+        "ORDER BY step;                                                            "
+    );
+}
+
+unsigned int VirtualMachine::dbInsertModuleType(const std::string type)
+{
+    QueryResult r = db_->execute("SELECT moduleTypeId FROM moduleTypes "
+                                 "WHERE type = '" + type + "';");
+
+    if (r.rows() == 0)
+    {
+        ModuleTypeEntry e;
+
+        r = db_->execute("SELECT COUNT(*) FROM moduleTypes;");
+        e.moduleTypeId = std::stoi(r[0][0]);
+        e.type         = type;
+        db_->insert("moduleTypes", e);
+
+        return e.moduleTypeId;
+    }
+    else
+    {
+        return std::stoi(r[0][0]);
+    }
+}
+
+unsigned int VirtualMachine::dbInsertObjectType(const std::string type, 
+                                             const std::string baseType)
+{
+    QueryResult r = db_->execute("SELECT objectTypeId FROM objectTypes "
+                                 "WHERE type = '" + type + "' "
+                                 "AND baseType = '" + baseType + "';");
+
+    if (r.rows() == 0)
+    {
+        ObjectTypeEntry e;
+
+        r = db_->execute("SELECT COUNT(*) FROM objectTypes;");
+        e.objectTypeId = std::stoi(r[0][0]);
+        e.type         = type;
+        e.baseType     = baseType;
+        db_->insert("objectTypes", e);
+
+        return e.objectTypeId;
+    }
+    else
+    {
+        return std::stoi(r[0][0]);
+    }
+}
+
 // module management ///////////////////////////////////////////////////////////
 void VirtualMachine::pushModule(VirtualMachine::ModPt &pt)
 {
@@ -79,6 +338,7 @@ void VirtualMachine::pushModule(VirtualMachine::ModPt &pt)
             {
                 // if object does not exist, add it with no creator module
                 env().addObject(in , -1);
+                memoryProfileOutdated_ = true;
             }
             m.input.push_back(env().getObjectAddress(in));
         }
@@ -89,6 +349,7 @@ void VirtualMachine::pushModule(VirtualMachine::ModPt &pt)
             {
                 // if object does not exist, add it with no creator module
                 env().addObject(ref , -1);
+                memoryProfileOutdated_ = true;
             }
             m.input.push_back(env().getObjectAddress(ref));
         }
@@ -120,6 +381,7 @@ void VirtualMachine::pushModule(VirtualMachine::ModPt &pt)
             {
                 // output does not exists, add it
                 env().addObject(out, address);
+                memoryProfileOutdated_ = true;
                 module_[address].output.push_back(env().getObjectAddress(out));
             }
             else
@@ -129,9 +391,9 @@ void VirtualMachine::pushModule(VirtualMachine::ModPt &pt)
                     // output exists but without creator, correct it
                     env().setObjectModule(env().getObjectAddress(out), address);
                 }
-                else
+                else if (env().getObjectModule(env().getObjectAddress(out)) != address)
                 {
-                    // output already fully registered, error
+                    // output already produced by another module, error
                     HADRONS_ERROR_REF(ObjectDefinition, "object '" + out
                                  + "' is already produced by module '"
                                  + module_[env().getObjectModule(out)].name
@@ -163,8 +425,18 @@ void VirtualMachine::pushModule(VirtualMachine::ModPt &pt)
                 }
             }
         }
+        // creating entry in database ------------------------------------------
+        if (hasDatabase() and makeModuleDb_)
+        {
+            ModuleEntry e;
+
+            e.moduleId     = address;
+            e.name         = name;
+            e.moduleTypeId = dbInsertModuleType(getModuleType(address));
+            e.parameters   = getModule(address)->parString();
+            db_->insert("modules", e);
+        }
         graphOutdated_         = true;
-        memoryProfileOutdated_ = true;
     }
     else
     {
@@ -178,12 +450,12 @@ unsigned int VirtualMachine::getNModule(void) const
 }
 
 void VirtualMachine::createModule(const std::string name, const std::string type,
-                                  XmlReader &reader)
+                                  XmlReader &reader, const std::string blockName)
 {
     auto &factory = ModuleFactory::getInstance();
     auto pt       = factory.create(type, name);
     
-    pt->parseParameters(reader, "options");
+    pt->parseParameters(reader, blockName);
     pushModule(pt);
 }
 
@@ -412,6 +684,26 @@ void VirtualMachine::makeMemoryProfile(void)
     env().protectObjects(protect);
     GridLogMessage.Active(gmsg);
     HadronsLogMessage.Active(hmsg);
+    if (hasDatabase() and makeObjectDb_)
+    {
+        for (unsigned int i = 0; i < profile_.object.size(); ++i)
+        {
+            ObjectEntry o;
+
+            o.objectId     = i;
+            o.name         = env().getObjectName(i);
+            o.objectTypeId = dbInsertObjectType(env().getObjectDerivedType(i),
+                                                env().getObjectType(i));
+            o.size         = profile_.object[i].size;
+            o.moduleId     = profile_.object[i].module;
+            o.storageType  = profile_.object[i].storage;
+            db_->insert("objects", o);
+        }
+    }
+}
+
+void VirtualMachine::printMemoryProfile(void) const
+{
     LOG(Debug) << "Memory profile:" << std::endl;
     LOG(Debug) << "----------------" << std::endl;
     for (unsigned int a = 0; a < profile_.module.size(); ++a)
@@ -420,6 +712,7 @@ void VirtualMachine::makeMemoryProfile(void)
         for (auto &o: profile_.module[a])
         {
             LOG(Debug) << "|__ " << env().getObjectName(o.first) << " ("
+                       << profile_.object[o.first].storage << " "
                        << sizeString(o.second) << ")" << std::endl;
         }
         LOG(Debug) << std::endl;
@@ -526,7 +819,7 @@ VirtualMachine::makeGarbageSchedule(const Program &p) const
                 freeProg[std::distance(p.begin(), it)].insert(a);
             }
         }
-        else if (env().getObjectStorage(a) == Environment::Storage::object)
+        else if (env().getObjectStorage(a) == Environment::Storage::standard)
         {
             auto pred = [a, this](const unsigned int b)
             {
@@ -625,6 +918,19 @@ VirtualMachine::Program VirtualMachine::schedule(const GeneticPar &par)
         
         gen++;
     } while ((gen < par.maxGen) and (nCstPeak < par.maxCstGen));
+    if (hasDatabase() and makeScheduleDb_)
+    {
+        Program p = scheduler.getMinSchedule();
+
+        for (unsigned int i = 0; i < p.size(); ++i)
+        {
+            ScheduleEntry s;
+
+            s.step     = i;
+            s.moduleId = p[i];
+            db_->insert("schedule", s);
+        }
+    }
     
     return scheduler.getMinSchedule();
 }
@@ -633,7 +939,6 @@ VirtualMachine::Program VirtualMachine::schedule(const GeneticPar &par)
 #define BIG_SEP   "================"
 #define SEP       "----------------"
 #define SMALL_SEP "................"
-#define MEM_MSG(size) sizeString(size)
 
 void VirtualMachine::executeProgram(const Program &p)
 {
@@ -691,8 +996,7 @@ void VirtualMachine::executeProgram(const Program &p)
         totalTime_ += total;
         // print used memory after execution
         LOG(Message) << SMALL_SEP << " Memory management" << std::endl;
-        LOG(Message) << "Allocated objects: " << MEM_MSG(sizeBefore)
-                     << std::endl;
+        MemoryUtils::printMemory();
         if (sizeBefore > memPeak)
         {
             memPeak = sizeBefore;
@@ -707,8 +1011,7 @@ void VirtualMachine::executeProgram(const Program &p)
         sizeAfter = env().getTotalSize();
         if (sizeBefore != sizeAfter)
         {
-            LOG(Message) << "Allocated objects: " << MEM_MSG(sizeAfter)
-                            << std::endl;
+            MemoryUtils::printMemory();
         }
         else
         {
@@ -731,4 +1034,13 @@ void VirtualMachine::executeProgram(const std::vector<std::string> &p)
         pAddress.push_back(getModuleAddress(n));
     }
     executeProgram(pAddress);
+}
+
+// generate result DB //////////////////////////////////////////////////////////
+void VirtualMachine::generateResultDb(void)
+{
+    for (auto &m: module_)
+    {
+        m.data->generateResultDb();
+    }
 }

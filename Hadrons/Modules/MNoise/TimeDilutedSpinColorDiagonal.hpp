@@ -4,6 +4,8 @@
  * Copyright (C) 2015 - 2020
  *
  * Author: Antonin Portelli <antonin.portelli@me.com>
+ * Author: Fionn O hOgain <fionn.o.hogain@ed.ac.uk>
+ * Author: Fionn Ó hÓgáin <fionnoh@gmail.com>
  *
  * Hadrons is free software: you can redistribute it and/or modify
  * it under the terms of the GNU General Public License as published by
@@ -90,16 +92,16 @@ std::vector<std::string> TTimeDilutedSpinColorDiagonal<FImpl>::getOutput(void)
 template <typename FImpl>
 void TTimeDilutedSpinColorDiagonal<FImpl>::setup(void)
 {
-    envCreateDerived(DilutedNoise<FImpl>, 
-                     TimeDilutedSpinColorDiagonalNoise<FImpl>,
-                     getName(), 1, envGetGrid(FermionField));
+    envCreateDerived(SpinColorDiagonalNoise<FImpl>, 
+                     TimeDilutedNoise<FImpl>,
+                     getName(), 1, envGetGrid(FermionField), 1);
 }
 
 // execution ///////////////////////////////////////////////////////////////////
 template <typename FImpl>
 void TTimeDilutedSpinColorDiagonal<FImpl>::execute(void)
 {
-    auto &noise = envGet(DilutedNoise<FImpl>, getName());
+    auto &noise = envGet(SpinColorDiagonalNoise<FImpl>, getName());
 
     LOG(Message) << "Generating time-diluted, spin-color diagonal noise" << std::endl;
     noise.generateNoise(rng4d());

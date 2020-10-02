@@ -2,6 +2,8 @@
 _[Grid](https://github.com/paboyle/Grid)-based workflow management system for
 lattice field theory simulations_
 
+__If Grid & Hadrons played an important role in the production of scientific results leading to a peer-reviewed publication, we would be grateful if you consider linking the GitHub repositories in the acknowledgements of your paper, and/or invite some contributors for authorship if relevant (especially PhD students & postdoctoral researchers).__
+
 Documentation (work in progress): https://aportelli.github.io/Hadrons-doc/
 
 ## Install
@@ -19,7 +21,7 @@ mkdir build; cd build
 ../configure --with-grid=<dir>
 make -j<N>
 ```
-`<dir>` is the installation prefix ogf Grid and `<N>` is the number of parallel
+`<dir>` is the installation prefix of Grid and `<N>` is the number of parallel
 build tasks. All the compilation flags used for compiling Grid will be reused to
 compile Hadrons. You can extend these flags or change the compiler by modifying
 the `CXXFLAGS` and `CXX` environment variables.

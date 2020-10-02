@@ -21,12 +21,24 @@ AC_CHECK_PROG([GRIDCONF],[grid-config],[yes])
 if test x"$GRIDCONF" != x"yes" ; then
     AC_MSG_ERROR([grid-config not found])
 fi
+if test x"$CXX" == x ; then
+    CXX="`grid-config --cxx`"
+elif test "$CXX" != "`grid-config --cxx`" ; then
+    AC_MSG_WARN([CXX differs from that reported by grid-config])
+fi
+if test x"$CXXLD" == x ; then
+    CXXLD="`grid-config --cxxld`"
+elif test "$CXXLD" != "`grid-config --cxxld`" ; then
+    AC_MSG_WARN([CXXLD differs from that reported by grid-config])
+fi
 CXXFLAGS="$CXXFLAGS `grid-config --cxxflags`"
 LDFLAGS="$LDFLAGS `grid-config --ldflags`"
 CXXFLAGS="$AM_CXXFLAGS $CXXFLAGS"
 LDFLAGS="$AM_LDFLAGS $LDFLAGS"
-LIBS=" -lGrid $LIBS `grid-config --libs`"
+LIBS=" -ldl -lGrid $LIBS `grid-config --libs`"
 
+AC_PROG_CC
+AM_PROG_CC_C_O
 AC_PROG_CXX
 AC_PROG_RANLIB
 AM_PROG_AR
@@ -53,15 +65,18 @@ AC_LINK_IFELSE(
     [AC_MSG_ERROR([impossible to compile a minimal Grid program])])
 
 HADRONS_CXX="$CXX"
+HADRONS_CXXLD="$CXXLD"
 HADRONS_CXXFLAGS="$CXXFLAGS"
 HADRONS_LDFLAGS="$LDFLAGS"
 HADRONS_LIBS="$LIBS"
 HADRONS_SHA=`git rev-parse HEAD`
 HADRONS_BRANCH=`git rev-parse --abbrev-ref HEAD`
 
+AC_SUBST([CXXLD])
 AC_SUBST([AM_CXXFLAGS])
 AC_SUBST([AM_LDFLAGS])
 AC_SUBST([HADRONS_CXX])
+AC_SUBST([HADRONS_CXXLD])
 AC_SUBST([HADRONS_CXXFLAGS])
 AC_SUBST([HADRONS_LDFLAGS])
 AC_SUBST([HADRONS_LIBS])

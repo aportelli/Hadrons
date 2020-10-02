@@ -4,6 +4,7 @@
  * Copyright (C) 2015 - 2020
  *
  * Author: Antonin Portelli <antonin.portelli@me.com>
+ * Author: guelpers <Vera.Guelpers@ed.ac.uk>
  *
  * Hadrons is free software: you can redistribute it and/or modify
  * it under the terms of the GNU General Public License as published by
@@ -91,7 +92,8 @@ int main(int argc, char *argv[])
         MFermion::FreeProp::Par freePar;
         freePar.source = "pt";
 	freePar.action = "free_DWF_" + lepton_flavour[i];
-	freePar.twist = "0 0 0 0.5";
+	freePar.twist = "0 0 0 0";
+	freePar.boundary = boundary;
         freePar.mass = lepton_mass[i];
         application.createModule<MFermion::FreeProp>("Lpt_" + lepton_flavour[i],
 							 freePar);
@@ -107,7 +109,8 @@ int main(int argc, char *argv[])
         MFermion::FreeProp::Par freePar_W;
         freePar_W.source = "pt";
 	freePar_W.action = "free_W_" + lepton_flavour[i];
-	freePar_W.twist = "0 0 0 0.5";
+	freePar_W.twist = "0 0 0 0";
+	freePar_W.boundary = boundary;
         freePar_W.mass = lepton_mass[i];
         application.createModule<MFermion::FreeProp>("W_Lpt_" + lepton_flavour[i],
 							 freePar_W);
@@ -200,7 +203,7 @@ int main(int argc, char *argv[])
 
     }
 
-    //2pt contraction for Propagators from inverion
+    //2pt contraction for Propagators from inversion
     for (unsigned int i = 0; i < flavour.size(); ++i)
     for (unsigned int j = i; j < flavour.size(); ++j)
     {

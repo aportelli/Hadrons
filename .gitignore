@@ -1,4 +1,4 @@
-/build
+/build*
 /.buildutils
 /.vscode
 /autom4te.cache
@@ -11,3 +11,6 @@
 /install-sh
 /missing
 Makefile.in
+/Hadrons/sqlite
+/Hadrons/Modules.hpp
+/Hadrons/modules.inc

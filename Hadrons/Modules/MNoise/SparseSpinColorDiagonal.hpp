@@ -5,6 +5,7 @@
  *
  * Author: Antonin Portelli <antonin.portelli@me.com>
  * Author: Fionn O hOgain <fionn.o.hogain@ed.ac.uk>
+ * Author: Fionn Ó hÓgáin <fionnoh@gmail.com>
  *
  * Hadrons is free software: you can redistribute it and/or modify
  * it under the terms of the GNU General Public License as published by
@@ -99,19 +100,19 @@ std::vector<std::string> TSparseSpinColorDiagonal<FImpl>::getOutput(void)
 template <typename FImpl>
 void TSparseSpinColorDiagonal<FImpl>::setup(void)
 {
-    envCreateDerived(DilutedNoise<FImpl>, 
-                     SparseSpinColorDiagonalNoise<FImpl>,
-                     getName(), 1, envGetGrid(FermionField), par().nsrc, par().nsparse);
-    
+    envCreateDerived(SpinColorDiagonalNoise<FImpl>, 
+                     SparseNoise<FImpl>,
+                     getName(), 1, envGetGrid(FermionField), par().nsrc, par().nsparse);    
 }
 
 // execution ///////////////////////////////////////////////////////////////////
 template <typename FImpl>
 void TSparseSpinColorDiagonal<FImpl>::execute(void)
 {
-    auto &noise = envGet(DilutedNoise<FImpl>, getName());
-    LOG(Message) << "Generating sparse, spin-color diagonal noise with nSparse = "
-                    << par().nsparse << std::endl;
+    auto &noise = envGet(SpinColorDiagonalNoise<FImpl>, getName());
+    LOG(Message) << "Generating sparse spin-color diagonal noise with" 
+                 << " nsrc = " << par().nsrc
+                 << " and nSparse = " << par().nsparse << std::endl;
     noise.generateNoise(rng4d());
 }
 

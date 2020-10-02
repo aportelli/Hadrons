@@ -6,6 +6,8 @@
  * Author: Antonin Portelli <antonin.portelli@me.com>
  * Author: Felix Erben <dc-erbe1@tesseract-login1.ib0.sgi.cluster.dirac.ed.ac.uk>
  * Author: Felix Erben <felix.erben@ed.ac.uk>
+ * Author: Raoul Hodgson <raoul.hodgson@ed.ac.uk>
+ * Author: ferben <ferben@debian.felix.com>
  *
  * Hadrons is free software: you can redistribute it and/or modify
  * it under the terms of the GNU General Public License as published by
@@ -51,21 +53,23 @@ public:
                                     std::string, q1,
                                     std::string, q2,
                                     std::string, q3,
-                                    std::string, gammas,
                                     std::string, quarks,
-                                    std::string, prefactors,
-                                    std::string, parity,
-                                    std::string, sink,
+                                    std::string, shuffle,
+                                    std::string, sinkq1,
+                                    std::string, sinkq2,
+                                    std::string, sinkq3,
+                                    bool, sim_sink,
+                                    std::string, gammas,
+                                    int, parity,
                                     std::string, output);
 };
 
-template <typename FImpl1, typename FImpl2, typename FImpl3>
+template <typename FImpl>
 class TBaryon: public Module<BaryonPar>
 {
 public:
-    FERM_TYPE_ALIASES(FImpl1, 1);
-    FERM_TYPE_ALIASES(FImpl2, 2);
-    FERM_TYPE_ALIASES(FImpl3, 3);
+    FERM_TYPE_ALIASES(FImpl,);
+    SINK_TYPE_ALIASES();
     BASIC_TYPE_ALIASES(ScalarImplCR, Scalar);
     SINK_TYPE_ALIASES(Scalar);
     class Metadata: Serializable
@@ -76,8 +80,9 @@ public:
                                         Gamma::Algebra, gammaB_left,
                                         Gamma::Algebra, gammaA_right,
                                         Gamma::Algebra, gammaB_right,
-                                        std::string, quarks,
-                                        std::string, prefactors,
+                                        std::string, quarksR,
+                                        std::string, quarksL,
+                                        std::string, shuffle,
                                         int, parity);
     };
     typedef Correlator<Metadata> Result;
@@ -89,6 +94,7 @@ public:
     // dependency relation
     virtual std::vector<std::string> getInput(void);
     virtual std::vector<std::string> getOutput(void);
+    virtual std::vector<std::string> getOutputFiles(void);
     virtual void parseGammaString(std::vector<GammaABPair> &gammaList);
 protected:
     // setup
@@ -99,36 +105,43 @@ protected:
     Gamma::Algebra  al;
 };
 
-MODULE_REGISTER_TMP(Baryon, ARG(TBaryon<FIMPL, FIMPL, FIMPL>), MContraction);
+MODULE_REGISTER_TMP(Baryon, ARG(TBaryon<FIMPL>), MContraction);
 
 /******************************************************************************
  *                         TBaryon implementation                             *
  ******************************************************************************/
 // constructor /////////////////////////////////////////////////////////////////
-template <typename FImpl1, typename FImpl2, typename FImpl3>
-TBaryon<FImpl1, FImpl2, FImpl3>::TBaryon(const std::string name)
+template <typename FImpl>
+TBaryon<FImpl>::TBaryon(const std::string name)
 : Module<BaryonPar>(name)
 {}
 
 // dependencies/products ///////////////////////////////////////////////////////
-template <typename FImpl1, typename FImpl2, typename FImpl3>
-std::vector<std::string> TBaryon<FImpl1, FImpl2, FImpl3>::getInput(void)
+template <typename FImpl>
+std::vector<std::string> TBaryon<FImpl>::getInput(void)
 {
-    std::vector<std::string> input = {par().q1, par().q2, par().q3, par().sink};
+    std::vector<std::string> input = {par().q1, par().q2, par().q3, par().sinkq1, par().sinkq2, par().sinkq3};
     
     return input;
 }
 
-template <typename FImpl1, typename FImpl2, typename FImpl3>
-std::vector<std::string> TBaryon<FImpl1, FImpl2, FImpl3>::getOutput(void)
+template <typename FImpl>
+std::vector<std::string> TBaryon<FImpl>::getOutput(void)
 {
     std::vector<std::string> out = {};
     
     return out;
 }
+template <typename FImpl>
+std::vector<std::string> TBaryon<FImpl>::getOutputFiles(void)
+{
+    std::vector<std::string> output = {resultFilename(par().output)};
+    
+    return output;
+}
 
-template <typename FImpl1, typename FImpl2, typename FImpl3>
-void TBaryon<FImpl1, FImpl2,FImpl3>::parseGammaString(std::vector<GammaABPair> &gammaList)
+template <typename FImpl>
+void TBaryon<FImpl>::parseGammaString(std::vector<GammaABPair> &gammaList)
 {
     gammaList.clear();
     
@@ -183,61 +196,91 @@ void TBaryon<FImpl1, FImpl2,FImpl3>::parseGammaString(std::vector<GammaABPair> &
 }
 
 // setup ///////////////////////////////////////////////////////////////////////
-template <typename FImpl1, typename FImpl2, typename FImpl3>
-void TBaryon<FImpl1, FImpl2, FImpl3>::setup(void)
+template <typename FImpl>
+void TBaryon<FImpl>::setup(void)
 {
     envTmpLat(LatticeComplex, "c");
-    envTmpLat(LatticeComplex, "c2");
 }
 
 // execution ///////////////////////////////////////////////////////////////////
-template <typename FImpl1, typename FImpl2, typename FImpl3>
-void TBaryon<FImpl1, FImpl2, FImpl3>::execute(void)
+template <typename FImpl>
+void TBaryon<FImpl>::execute(void)
 {
+    // Check shuffle is a permutation of "123"
+    assert(par().shuffle.size()==3 && "shuffle parameter must be 3 characters long");
+    std::string shuffle_tmp = par().shuffle;
+    std::sort(shuffle_tmp.begin(), shuffle_tmp.end());
+    assert(shuffle_tmp == "123" && "shuffle parameter must be a permulation of 123");
 
-    std::vector<std::string> quarks = strToVec<std::string>(par().quarks);    
-    std::vector<double> prefactors = strToVec<double>(par().prefactors);    
-    int nQ=quarks.size();
-    const int  parity {par().parity.size()>0 ? std::stoi(par().parity) : 1};
+    std::vector<int> shuffle = { std::stoi( par().shuffle.substr(0,1) ) -1,
+                                 std::stoi( par().shuffle.substr(1,1) ) -1,
+                                 std::stoi( par().shuffle.substr(2,1) ) -1 };
+
+
+    assert(par().quarks.size()==3 && "quark-structure must consist of 3 quarks");
+    std::string quarksR = par().quarks;
+    std::string quarksL = quarksR;
+
+    // Shuffle quark flavours
+    quarksL[0] = quarksR[shuffle[0]];
+    quarksL[1] = quarksR[shuffle[1]];
+    quarksL[2] = quarksR[shuffle[2]];
+
+    std::vector<std::string> props(3, "");
+    props[0] = par().q1;
+    props[1] = par().q2;
+    props[2] = par().q3;
+
+    // Shuffle propagators
+    std::vector<std::string> propsL(props);
+    propsL[0] = props[shuffle[0]];
+    propsL[1] = props[shuffle[1]];
+    propsL[2] = props[shuffle[2]];
+
+    if (par().sim_sink)
+        assert(par().sinkq1==par().sinkq2 && par().sinkq2==par().sinkq3 && "when sim_sink is true all three sinks must be the same");
+
+    assert(par().parity == 1 || par().parity == -1 && "parity must be 1 or -1");
 
     std::vector<GammaABPair> gammaList;
     parseGammaString(gammaList);
 
-    assert(prefactors.size()==nQ && "number of prefactors needs to match number of quark-structures.");
-    for (int iQ = 0; iQ < nQ; iQ++)
-        assert(quarks[iQ].size()==3 && "quark-structures must consist of 3 quarks each.");
 
     LOG(Message) << "Computing baryon contractions '" << getName() << "'" << std::endl;
-    for (int iQ1 = 0; iQ1 < nQ; iQ1++)
-        for (int iQ2 = 0; iQ2 < nQ; iQ2++)
-            LOG(Message) << prefactors[iQ1]*prefactors[iQ2] << "*<" << quarks[iQ1] << "|" << quarks[iQ2] << ">" << std::endl;
-    LOG(Message) << " using quarks " << par().q1 << "', " << par().q2 << "', and '" << par().q3 << std::endl;
-     for (int iG = 0; iG < gammaList.size(); iG++)
-         LOG(Message) << "' with (Gamma^A,Gamma^B)_left = ( " << gammaList[iG].first.first << " , " << gammaList[iG].first.second << "') and (Gamma^A,Gamma^B)_right = ( " << gammaList[iG].second.first << " , " << gammaList[iG].second.second << ")" << std::endl; 
-      LOG(Message) << "and parity " << parity << " using sink " << par().sink << "." << std::endl;
-        
+    LOG(Message) << "  using shuffle " << shuffle << " and parity " << par().parity << std::endl;
+    LOG(Message) << "  using quarksL (" << quarksL << ") with left propagators (" << propsL[0] << ", " << propsL[1] << ", and " << propsL[2] << ")" << std::endl;
+    LOG(Message) << "  using quarksR (" << quarksR << ") ";
+    if (par().sim_sink)
+        LOG(Message) << "with simultaneous sink " << par().sinkq1 << std::endl;
+    else 
+        LOG(Message) << "with sinks (" << par().sinkq1 << ", " << par().sinkq2 << ", and " << par().sinkq3 << ")" << std::endl;
+
+    for (int iG = 0; iG < gammaList.size(); iG++)
+        LOG(Message) << "    with (Gamma^A,Gamma^B)_left = ( " << gammaList[iG].first.first << " , " << gammaList[iG].first.second << "') and (Gamma^A,Gamma^B)_right = ( " << gammaList[iG].second.first << " , " << gammaList[iG].second.second << ")" << std::endl;
+    
     envGetTmp(LatticeComplex, c);
-    envGetTmp(LatticeComplex, c2);
     int nt = env().getDim(Tp);
-    std::vector<TComplex> buf;
-    TComplex cs;
-    TComplex ch;
 
     std::vector<Result> result;
     Result              r;
-    r.info.parity = parity;
-    r.info.quarks = par().quarks;
-    r.info.prefactors = par().prefactors;
+    r.info.parity  = par().parity;
 
-    if (envHasType(SlicedPropagator1, par().q1) and
-        envHasType(SlicedPropagator2, par().q2) and
-        envHasType(SlicedPropagator3, par().q3))
-    {
-        auto &q1 = envGet(SlicedPropagator1, par().q1);
-        auto &q2 = envGet(SlicedPropagator2, par().q2);
-        auto &q3 = envGet(SlicedPropagator3, par().q3);
+    r.info.quarksR  = quarksR;
+    r.info.quarksL  = quarksL;
+    r.info.shuffle = par().shuffle;
+        
+    bool wick_contractions[6];
+    BaryonUtils<FIMPL>::Wick_Contractions(quarksL,quarksR,wick_contractions);
+    
+    PropagatorField &q1  = envGet(PropagatorField, propsL[0]);
+    PropagatorField &q2  = envGet(PropagatorField, propsL[1]);
+    PropagatorField &q3  = envGet(PropagatorField, propsL[2]);
+
+    if (par().sim_sink) { 
         for (unsigned int i = 0; i < gammaList.size(); ++i)
         {
+            std::vector<TComplex> buf;
+
             r.info.gammaA_left = gammaList[i].first.first;
             r.info.gammaB_left = gammaList[i].first.second;
             r.info.gammaA_right = gammaList[i].second.first;
@@ -248,65 +291,30 @@ void TBaryon<FImpl1, FImpl2, FImpl3>::execute(void)
             Gamma gAr(gammaList[i].second.first);
             Gamma gBr(gammaList[i].second.second);
         
-            LOG(Message) << "(propagator already sinked)" << std::endl;
-            r.corr.clear();
-            for (unsigned int t = 0; t < buf.size(); ++t)
-            {
-                cs = Zero();
-                for (int iQ1 = 0; iQ1 < nQ; iQ1++){
-                    for (int iQ2 = 0; iQ2 < nQ; iQ2++){
-                        BaryonUtils<FIMPL>::ContractBaryons_Sliced(q1[t],q2[t],q3[t],gAl,gBl,gAr,gBr,quarks[iQ1].c_str(),quarks[iQ2].c_str(),parity,ch);
-                        cs += prefactors[iQ1]*prefactors[iQ2]*ch;
-                    }
-                }
-                r.corr.push_back(TensorRemove(cs));
-            }
-            result.push_back(r);
-        }
-    }
-    else
-    {
-        auto       &q1 = envGet(PropagatorField1, par().q1);
-        auto       &q2 = envGet(PropagatorField2, par().q2);
-        auto       &q3 = envGet(PropagatorField3, par().q3);
-        for (unsigned int i = 0; i < gammaList.size(); ++i)
-        {
-            r.info.gammaA_left = gammaList[i].first.first;
-            r.info.gammaB_left = gammaList[i].first.second;
-            r.info.gammaA_right = gammaList[i].second.first;
-            r.info.gammaB_right = gammaList[i].second.second;
-
-            Gamma gAl(gammaList[i].first.first);
-            Gamma gBl(gammaList[i].first.second);
-            Gamma gAr(gammaList[i].second.first);
-            Gamma gBr(gammaList[i].second.second);
-        
-            std::string ns;
-                
-            ns = vm().getModuleNamespace(env().getObjectModule(par().sink));
+            std::string ns = vm().getModuleNamespace(env().getObjectModule(par().sinkq1));
             if (ns == "MSource")
             {
                 c=Zero();
-                for (int iQ1 = 0; iQ1 < nQ; iQ1++){
-                    for (int iQ2 = 0; iQ2 < nQ; iQ2++){
-                        BaryonUtils<FIMPL>::ContractBaryons(q1,q2,q3,gAl,gBl,gAr,gBr,quarks[iQ1].c_str(),quarks[iQ2].c_str(),parity,c2);
-                        c+=prefactors[iQ1]*prefactors[iQ2]*c2;
-                    }
-                }
-                PropagatorField1 &sink = envGet(PropagatorField1, par().sink);
+                BaryonUtils<FIMPL>::ContractBaryons(q1,q2,q3,
+                                                    gAl,gBl,gAr,gBr,
+                                                    wick_contractions,
+                                                    par().parity,
+                                                    c);
+
+                PropagatorField &sink = envGet(PropagatorField, par().sinkq1);
                 auto test = closure(trace(sink*c));     
                 sliceSum(test, buf, Tp); 
             }
             else if (ns == "MSink")
             {
                 c=Zero();
-                for (int iQ1 = 0; iQ1 < nQ; iQ1++){
-                    for (int iQ2 = 0; iQ2 < nQ; iQ2++){
-                        BaryonUtils<FIMPL>::ContractBaryons(q1,q2,q3,gAl,gBl,gAr,gBr,quarks[iQ1].c_str(),quarks[iQ2].c_str(),parity,c2);
-                        c+=prefactors[iQ1]*prefactors[iQ2]*c2;
-                    }
-                }
-                SinkFnScalar &sink = envGet(SinkFnScalar, par().sink);
+                BaryonUtils<FIMPL>::ContractBaryons(q1,q2,q3,
+                                                    gAl,gBl,gAr,gBr,
+                                                    wick_contractions,
+                                                    par().parity,
+                                                    c);
+
+                SinkFnScalar &sink = envGet(SinkFnScalar, par().sinkq1);
                 buf = sink(c);
             } 
             r.corr.clear();
@@ -316,6 +324,61 @@ void TBaryon<FImpl1, FImpl2, FImpl3>::execute(void)
             }
             result.push_back(r);
         }
+    } else {
+        const int epsilon[6][3] = {{0,1,2},{1,2,0},{2,0,1},{0,2,1},{2,1,0},{1,0,2}};
+
+        SinkFn* sinkFn[3];
+        sinkFn[0] = &envGet(SinkFn, par().sinkq1);
+        sinkFn[1] = &envGet(SinkFn, par().sinkq2);
+        sinkFn[2] = &envGet(SinkFn, par().sinkq3);
+        
+        SlicedPropagator q1_slice[6];
+        SlicedPropagator q2_slice[6];
+        SlicedPropagator q3_slice[6];
+
+        // Compute all sinked propagators
+        for (int ie=0; ie < 6 ; ie++) {
+            q1_slice[ie] = (*sinkFn[epsilon[ie][0]])(q1);
+            q2_slice[ie] = (*sinkFn[epsilon[ie][1]])(q2);
+            q3_slice[ie] = (*sinkFn[epsilon[ie][2]])(q3);
+        }
+
+        std::vector<TComplex> buf;
+        for (int iG = 0; iG < gammaList.size(); iG++) {
+            buf = std::vector<TComplex>(nt, Zero());
+
+            Gamma gAl(gammaList[iG].first.first);
+            Gamma gBl(gammaList[iG].first.second);
+            Gamma gAr(gammaList[iG].second.first);
+            Gamma gBr(gammaList[iG].second.second);
+
+            for (int ie=0; ie < 6 ; ie++) {
+                if (wick_contractions[ie]) {
+                    // Perform the current contraction only
+                    bool wc[6];
+                    for (int i=0; i<6; i++)
+                        wc[i] = (i == ie);
+
+                    BaryonUtils<FIMPL>::ContractBaryons_Sliced( q1_slice[ie],q2_slice[ie],q3_slice[ie],
+                                                                gAl,gBl,gAr,gBr,
+                                                                wc,
+                                                                par().parity,
+                                                                nt,
+                                                                buf);
+                }
+            }
+            r.info.gammaA_left = gammaList[iG].first.first;
+            r.info.gammaB_left = gammaList[iG].first.second;
+            r.info.gammaA_right = gammaList[iG].second.first;
+            r.info.gammaB_right = gammaList[iG].second.second;
+
+            r.corr.clear();
+            for (int t = 0; t < nt; t++) {
+                r.corr.push_back(TensorRemove(buf[t]));
+            }
+            result.push_back(r);
+        }
+        
     }
 
     saveResult(par().output, "baryon", result);

@@ -4,6 +4,8 @@
  * Copyright (C) 2015 - 2020
  *
  * Author: Antonin Portelli <antonin.portelli@me.com>
+ * Author: Fionn O hOgain <fionn.o.hogain@ed.ac.uk>
+ * Author: Fionn Ó hÓgáin <fionnoh@gmail.com>
  * Author: Vera Guelpers <Vera.Guelpers@ed.ac.uk>
  * Author: Vera Guelpers <vmg1n14@soton.ac.uk>
  *
@@ -99,8 +101,8 @@ std::vector<std::string> TFullVolumeSpinColorDiagonal<FImpl>::getOutput(void)
 template <typename FImpl>
 void TFullVolumeSpinColorDiagonal<FImpl>::setup(void)
 {
-    envCreateDerived(DilutedNoise<FImpl>, 
-                     FullVolumeSpinColorDiagonalNoise<FImpl>,
+    envCreateDerived(SpinColorDiagonalNoise<FImpl>, 
+                     FullVolumeNoise<FImpl>,
                      getName(), 1, envGetGrid(FermionField), par().nsrc);
 }
 
@@ -108,7 +110,7 @@ void TFullVolumeSpinColorDiagonal<FImpl>::setup(void)
 template <typename FImpl>
 void TFullVolumeSpinColorDiagonal<FImpl>::execute(void)
 {
-    auto &noise = envGet(DilutedNoise<FImpl>, getName());
+    auto &noise = envGet(SpinColorDiagonalNoise<FImpl>, getName());
     LOG(Message) << "Generating full volume, spin-color diagonal noise" << std::endl;
     noise.generateNoise(rng4d());
 }

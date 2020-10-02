@@ -128,13 +128,11 @@ void TDistilVectors<FImpl>::setup(void)
 
     const DistilParameters &dp{envGet(DistilParameters, par().DistilParams)};
     const int Nt{env().getDim(Tdir)};
-    const bool full_tdil{ dp.TI == Nt };
-    const int Nt_inv{ full_tdil ? 1 : dp.TI };
     
     if (!RhoName.empty())
-        envCreate(std::vector<FermionField>, RhoName, 1, dp.nnoise*dp.LI*dp.SI*Nt_inv, envGetGrid(FermionField));
+        envCreate(std::vector<FermionField>, RhoName, 1, dp.nnoise*dp.LI*dp.SI*dp.inversions, envGetGrid(FermionField));
     if (!PhiName.empty())
-        envCreate(std::vector<FermionField>, PhiName, 1, dp.nnoise*dp.LI*dp.SI*Nt_inv, envGetGrid(FermionField));
+        envCreate(std::vector<FermionField>, PhiName, 1, dp.nnoise*dp.LI*dp.SI*dp.inversions, envGetGrid(FermionField));
     
     Coordinate latt_size   = GridDefaultLatt();
     Coordinate mpi_layout  = GridDefaultMpi();
@@ -145,11 +143,11 @@ void TDistilVectors<FImpl>::setup(void)
     GridCartesian * const grid4d{env().getGrid()};
     MakeLowerDimGrid(grid3d, grid4d);
     
-    envTmp(LatticeSpinColourVector, "source4d",1,LatticeSpinColourVector(grid4d));
-    envTmp(LatticeSpinColourVector, "source3d",1,LatticeSpinColourVector(grid3d.get()));
-    envTmp(LatticeColourVector, "source3d_nospin",1,LatticeColourVector(grid3d.get()));
-    envTmp(LatticeSpinColourVector, "sink3d",1,LatticeSpinColourVector(grid3d.get()));
-    envTmp(LatticeColourVector, "evec3d",1,LatticeColourVector(grid3d.get()));
+    envTmpLat(FermionField,     "source4d");
+    envTmp(FermionField,        "source3d", 1, grid3d.get());
+    envTmp(ColourVectorField,   "source3d_nospin", 1, grid3d.get());
+    envTmp(FermionField,        "sink3d", 1, grid3d.get());
+    envTmp(ColourVectorField,   "evec3d", 1, grid3d.get());
 }
 
 // execution ///////////////////////////////////////////////////////////////////
@@ -158,22 +156,20 @@ void TDistilVectors<FImpl>::execute(void)
 {
     auto &noise        = envGet(NoiseTensor,  par().noise);
     auto &perambulator = envGet(PerambTensor, par().perambulator);
-    auto &epack        = envGet(Grid::Hadrons::EigenPack<LatticeColourVector>, par().lapevec);
+    auto &epack        = envGet(Grid::Hadrons::EigenPack<ColourVectorField>, par().lapevec);
     const DistilParameters &dp{envGet(DistilParameters, par().DistilParams)};
     
-    envGetTmp(LatticeSpinColourVector, source4d);
-    envGetTmp(LatticeSpinColourVector, source3d);
-    envGetTmp(LatticeColourVector,     source3d_nospin);
-    envGetTmp(LatticeSpinColourVector, sink3d);
-    envGetTmp(LatticeColourVector,     evec3d);
+    envGetTmp(FermionField, source4d);
+    envGetTmp(FermionField, source3d);
+    envGetTmp(ColourVectorField,     source3d_nospin);
+    envGetTmp(FermionField, sink3d);
+    envGetTmp(ColourVectorField,     evec3d);
     
     GridCartesian * const grid4d{env().getGrid()};
     const int Ntlocal{ grid4d->LocalDimensions()[3] };
     const int Ntfirst{ grid4d->LocalStarts()[3] };
     
     const int Nt{env().getDim(Tdir)}; 
-    const bool full_tdil{ dp.TI == Nt }; 
-    const int Nt_inv{ full_tdil ? 1 : dp.TI };
     
     int vecindex;
     if (!RhoName.empty())
@@ -183,7 +179,7 @@ void TDistilVectors<FImpl>::execute(void)
 	{
             for (int dk = 0; dk < dp.LI; dk++) 
 	    {
-                for (int dt = 0; dt < Nt_inv; dt++) 
+                for (int dt = 0; dt < dp.inversions; dt++) 
 		{
                     for (int ds = 0; ds < dp.SI; ds++) 
 		    {
@@ -191,7 +187,7 @@ void TDistilVectors<FImpl>::execute(void)
                         rho[vecindex] = 0;
                         for (int it = dt; it < Nt; it += dp.TI)
 			{
-                            const int t_inv{full_tdil ? dp.tsrc : it};
+                            const int t_inv{(dp.tsrc + it)%Nt};
                             if (t_inv >= Ntfirst && t_inv < Ntfirst + Ntlocal) 
 			    {
                                 for (int ik = dk; ik < dp.nvec; ik += dp.LI)
@@ -221,7 +217,7 @@ void TDistilVectors<FImpl>::execute(void)
 	{
             for (int dk = 0; dk < dp.LI; dk++) 
 	    {
-                for (int dt = 0; dt < Nt_inv; dt++) 
+                for (int dt = 0; dt < dp.inversions; dt++) 
 		{
                     for (int ds = 0; ds < dp.SI; ds++) 
 		    {

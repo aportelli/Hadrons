@@ -29,8 +29,9 @@
 #define Hadrons_Application_hpp_
 
 #include <Hadrons/Global.hpp>
-#include <Hadrons/VirtualMachine.hpp>
+#include <Hadrons/Database.hpp>
 #include <Hadrons/Module.hpp>
+#include <Hadrons/VirtualMachine.hpp>
 
 BEGIN_HADRONS_NAMESPACE
 
@@ -40,34 +41,57 @@ BEGIN_HADRONS_NAMESPACE
 class Application
 {
 public:
-    class TrajRange: Serializable
+    // serializable classes for parameter input
+    struct TrajRange: Serializable
     {
-    public:
         GRID_SERIALIZABLE_CLASS_MEMBERS(TrajRange,
                                         unsigned int, start,
                                         unsigned int, end,
                                         unsigned int, step);
     };
-    class GlobalPar: Serializable
+
+    struct DatabasePar: Serializable
     {
-    public:
+        GRID_SERIALIZABLE_CLASS_MEMBERS(DatabasePar,
+                                        std::string, applicationDb,
+                                        std::string, resultDb,
+                                        bool,        restoreModules,
+                                        bool,        restoreMemoryProfile,
+                                        bool,        restoreSchedule,
+                                        bool,        makeStatDb);
+        DatabasePar(void): 
+        restoreModules{false}, restoreMemoryProfile{false},
+        restoreSchedule{false}, makeStatDb{false} {}
+    };
+
+    struct GlobalPar: Serializable
+    {
         GRID_SERIALIZABLE_CLASS_MEMBERS(GlobalPar,
                                         TrajRange,                  trajCounter,
+                                        DatabasePar,                database,
                                         VirtualMachine::GeneticPar, genetic,
                                         std::string,                runId,
                                         std::string,                graphFile,
                                         std::string,                scheduleFile,
                                         bool,                       saveSchedule,
                                         int,                        parallelWriteMaxRetry);
-        GlobalPar(void): parallelWriteMaxRetry{-1} {}
+        GlobalPar(void): parallelWriteMaxRetry{-1}, saveSchedule{false} {}
     };
+
+    struct ObjectId: Serializable
+    {
+        GRID_SERIALIZABLE_CLASS_MEMBERS(ObjectId,
+                                        std::string, name,
+                                        std::string, type);
+    };
+
 public:
     // constructors
     Application(void);
     Application(const GlobalPar &par);
     Application(const std::string parameterFileName);
     // destructor
-    virtual ~Application(void) = default;
+    virtual ~Application(void);
     // access
     void              setPar(const GlobalPar &par);
     const GlobalPar & getPar(void);
@@ -76,11 +100,17 @@ public:
     void createModule(const std::string name);
     template <typename M>
     void createModule(const std::string name, const typename M::Par &par);
+    void createModule(const std::string name, const std::string type, XmlReader &reader);
+    // module DB entry for result files
+    template <typename EntryType>
+    void setResultMetadata(const std::string moduleName, const std::string tableName, const EntryType &entry);
+    // generate result DB
+    void generateResultDb(void);
     // execute
     void run(void);
     // XML parameter file I/O
     void parseParameterFile(const std::string parameterFileName);
-    void saveParameterFile(const std::string parameterFileName, unsigned int prec=15);
+    void saveParameterFile(const std::string parameterFileName, unsigned int prec = 15);
     // schedule computation
     void schedule(void);
     void saveSchedule(const std::string filename);
@@ -98,6 +128,8 @@ private:
     std::string             parameterFileName_{""};
     GlobalPar               par_;
     VirtualMachine::Program program_;
+    Database                db_, resultDb_;
+    Grid::MemoryStats       memStats_;
     bool                    scheduled_{false}, loadedSchedule_{false};
 };
 
@@ -118,6 +150,17 @@ void Application::createModule(const std::string name,
 {
     vm().createModule<M>(name, par);
     scheduled_ = false;
+}
+
+// module DB entry /////////////////////////////////////////////////////////////
+template <typename EntryType>
+void Application::setResultMetadata(const std::string moduleName,
+                                   const std::string tableName, 
+                                   const EntryType &entry)
+{
+    auto m = vm().getModule(moduleName);
+
+    m->setResultDbEntry(resultDb_, tableName, entry);
 }
 
 END_HADRONS_NAMESPACE

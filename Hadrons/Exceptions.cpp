@@ -33,12 +33,12 @@
 #endif
 
 #define CTOR_EXC(name, init) \
-name::name(std::string msg, std::string loc)\
+Exceptions::name::name(std::string msg, std::string loc)\
 :init\
 {}
 
 #define CTOR_EXC_REF(name, init) \
-name::name(std::string msg, std::string loc, const unsigned int address)\
+Exceptions::name::name(std::string msg, std::string loc, const unsigned int address)\
 :init\
 {}
 
@@ -59,6 +59,7 @@ CTOR_EXC(Size, Logic("size error: " + msg, loc))
 // runtime errors
 CTOR_EXC(Runtime, runtime_error(msg + ERR_SUFF))
 CTOR_EXC(Argument, Runtime("argument error: " + msg, loc))
+CTOR_EXC(Database, Runtime("database error: " + msg, loc))
 CTOR_EXC(Io, Runtime("IO error: " + msg, loc))
 CTOR_EXC(Memory, Runtime("memory error: " + msg, loc))
 CTOR_EXC(Parsing, Runtime("parsing error: " + msg, loc))
@@ -94,7 +95,10 @@ void Grid::Hadrons::Exceptions::abort(const std::exception& e)
         LOG(Error) << "---------------------------" << std::endl;
     }
     LOG(Error) << "Aborting program" << std::endl;
-    Grid_finalize();
+    if (isGridInit())
+    {
+        Grid_finalize();
+    }
 
     exit(EXIT_FAILURE);
 }

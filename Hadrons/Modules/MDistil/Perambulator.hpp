@@ -117,27 +117,25 @@ void TPerambulator<FImpl>::setup(void)
     MakeLowerDimGrid(grid3d, env().getGrid());
     const DistilParameters &dp = envGet(DistilParameters, par().DistilParams);
     const int  Nt{env().getDim(Tdir)};
-    const bool full_tdil{ dp.TI == Nt };
-    const int  Nt_inv{ full_tdil ? 1 : dp.TI };
 
     std::string objName{ getName() };
-    envCreate(PerambTensor, objName, 1, Nt, dp.nvec, dp.LI, dp.nnoise, Nt_inv, dp.SI);
+    envCreate(PerambTensor, objName, 1, Nt, dp.nvec, dp.LI, dp.nnoise, dp.inversions, dp.SI);
     const std::string UnsmearedSinkFileName{ par().UnsmearedSinkFileName };
     if( !UnsmearedSinkFileName.empty() )
     {
         objName.append( UnsmearedSink );
-        envCreate(std::vector<FermionField>, objName, 1, dp.nnoise*dp.LI*Ns*Nt_inv,
+        envCreate(std::vector<FermionField>, objName, 1, dp.nnoise*dp.LI*Ns*dp.inversions,
                   envGetGrid(FermionField));
     }
     
-    envTmpLat(LatticeSpinColourVector,   "dist_source");
-    envTmpLat(LatticeSpinColourVector,   "source4d");
-    envTmp(LatticeSpinColourVector,      "source3d",1,LatticeSpinColourVector(grid3d.get()));
-    envTmp(LatticeColourVector,          "source3d_nospin",1,LatticeColourVector(grid3d.get()));
-    envTmpLat(LatticeSpinColourVector,   "result4d");
-    envTmpLat(LatticeColourVector,       "result4d_nospin");
-    envTmp(LatticeColourVector,          "result3d_nospin",1,LatticeColourVector(grid3d.get()));
-    envTmp(LatticeColourVector,          "evec3d",1,LatticeColourVector(grid3d.get()));
+    envTmpLat(FermionField,   "dist_source");
+    envTmpLat(FermionField,   "source4d");
+    envTmp(FermionField,      "source3d",        1, grid3d.get());
+    envTmp(ColourVectorField,          "source3d_nospin", 1, grid3d.get());
+    envTmpLat(FermionField,   "result4d");
+    envTmpLat(ColourVectorField,       "result4d_nospin");
+    envTmp(ColourVectorField,          "result3d_nospin", 1, grid3d.get());
+    envTmp(ColourVectorField,          "evec3d",          1, grid3d.get());
     
     Ls_ = env().getObjectLs(par().solver);
     envTmpLat(FermionField, "v4dtmp");
@@ -151,8 +149,6 @@ void TPerambulator<FImpl>::execute(void)
 {
     const DistilParameters &dp{ envGet(DistilParameters, par().DistilParams) };
     const int Nt{env().getDim(Tdir)};
-    const bool full_tdil{ dp.TI == Nt }; 
-    const int Nt_inv{ full_tdil ? 1 : dp.TI };
 
     auto &solver=envGet(Solver, par().solver);
     auto &mat = solver.getFMat();
@@ -166,14 +162,14 @@ void TPerambulator<FImpl>::execute(void)
     objName.append( UnsmearedSink );
     const std::string UnsmearedSinkFileName{ par().UnsmearedSinkFileName };
     const bool bSaveUnsmearedSink( !UnsmearedSinkFileName.empty() );
-    envGetTmp(LatticeSpinColourVector, dist_source);
-    envGetTmp(LatticeSpinColourVector, source4d);
-    envGetTmp(LatticeSpinColourVector, source3d);
-    envGetTmp(LatticeColourVector, source3d_nospin);
-    envGetTmp(LatticeSpinColourVector, result4d);
-    envGetTmp(LatticeColourVector, result4d_nospin);
-    envGetTmp(LatticeColourVector, result3d_nospin);
-    envGetTmp(LatticeColourVector, evec3d);
+    envGetTmp(FermionField, dist_source);
+    envGetTmp(FermionField, source4d);
+    envGetTmp(FermionField, source3d);
+    envGetTmp(ColourVectorField, source3d_nospin);
+    envGetTmp(FermionField, result4d);
+    envGetTmp(ColourVectorField, result4d_nospin);
+    envGetTmp(ColourVectorField, result3d_nospin);
+    envGetTmp(ColourVectorField, evec3d);
     GridCartesian * const grid4d{ env().getGrid() }; // Owned by environment (so I won't delete it)
     const int Ntlocal{grid4d->LocalDimensions()[3]};
     const int Ntfirst{grid4d->LocalStarts()[3]};
@@ -182,7 +178,7 @@ void TPerambulator<FImpl>::execute(void)
     {
         for (int dk = 0; dk < dp.LI; dk++)
         {
-            for (int dt = 0; dt < Nt_inv; dt++)
+            for (int dt = 0; dt < dp.inversions; dt++)
             {
                 for (int ds = 0; ds < dp.SI; ds++)
                 {
@@ -191,7 +187,7 @@ void TPerambulator<FImpl>::execute(void)
                     evec3d = 0;
                     for (int it = dt; it < Nt; it += dp.TI)
                     {
-                        const int t_inv{full_tdil ? dp.tsrc : it};
+                        const int t_inv{(dp.tsrc + it)%Nt};
                         if( t_inv >= Ntfirst && t_inv < Ntfirst + Ntlocal )
                         {
                             for (int ik = dk; ik < dp.nvec; ik += dp.LI)
@@ -223,7 +219,7 @@ void TPerambulator<FImpl>::execute(void)
                     if( bSaveUnsmearedSink )
                     {
                         auto &unsmeared_sink = envGet(std::vector<FermionField>, objName);
-                        unsmeared_sink[inoise+dp.nnoise*(dk+dp.LI*(dt+Nt_inv*ds))] = result4d;
+                        unsmeared_sink[inoise+dp.nnoise*(dk+dp.LI*(dt+dp.inversions*ds))] = result4d;
                     }
                     for (int is = 0; is < Ns; is++)
                     {
@@ -252,7 +248,6 @@ void TPerambulator<FImpl>::execute(void)
         PerambTensor::Scalar * const MyData {perambulator.tensor.data()+MySlice*SliceCount};
         Coordinate coor(Nd);
         for (int i = 0 ; i < Tdir ; i++) coor[i] = grid4d->_processor_coor[i];
-        std::vector<CommsRequest_t> reqs(0);
         for (int i = 1; i < NumSlices ; i++)
         {
             coor[Tdir] = (MySlice+i)%NumSlices;
@@ -260,10 +255,9 @@ void TPerambulator<FImpl>::execute(void)
             const int RecvSlice { ( MySlice - i + NumSlices ) % NumSlices };
             coor[Tdir] = RecvSlice;
             const auto RecvRank = grid4d->RankFromProcessorCoor(coor);
-            grid4d->SendToRecvFromBegin(reqs,MyData,SendRank, perambulator.tensor.data()
+            grid4d->SendToRecvFrom(MyData,SendRank, perambulator.tensor.data()
                                         + RecvSlice*SliceCount,RecvRank,SliceCount*sizeof(PerambTensor::Scalar));
         }
-        grid4d->SendToRecvFromComplete(reqs);
     }
     
     // Save the perambulator to disk from the boss node

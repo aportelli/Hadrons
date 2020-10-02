@@ -115,16 +115,14 @@ void TPerambFromSolve<FImpl>::setup(void)
 {
     const DistilParameters & dp{envGet(MDistil::DistilParameters, par().DistilParams)};
     const int Nt{env().getDim(Tdir)};
-    const bool full_tdil{ dp.TI == Nt };
-    const int Nt_inv{ full_tdil ? 1 : dp.TI };
     MakeLowerDimGrid( grid3d, env().getGrid() );
     const int nvec_reduced{par().nvec_reduced};
     const int LI_reduced{  par().LI_reduced};
-    envCreate(PerambTensor, getName(), 1, Nt,nvec_reduced,LI_reduced,dp.nnoise,Nt_inv,dp.SI);
+    envCreate(PerambTensor, getName(), 1, Nt,nvec_reduced,LI_reduced,dp.nnoise,dp.inversions,dp.SI);
     envCreate(NoiseTensor, getName() + "_noise", 1, dp.nnoise, Nt, dp.nvec, Ns );
-    envTmp(LatticeColourVector, "result3d_nospin",1,LatticeColourVector(grid3d.get()));
-    envTmp(LatticeColourVector, "evec3d",1,LatticeColourVector(grid3d.get()));
-    envTmpLat(LatticeColourVector, "result4d_nospin");
+    envTmp(ColourVectorField, "result3d_nospin", 1, grid3d.get());
+    envTmp(ColourVectorField, "evec3d",          1, grid3d.get());
+    envTmpLat(ColourVectorField, "result4d_nospin");
 }
 
 // execution ///////////////////////////////////////////////////////////////////
@@ -137,28 +135,27 @@ void TPerambFromSolve<FImpl>::execute(void)
     const DistilParameters &dp{envGet(DistilParameters, par().DistilParams)};
     const int Nt{env().getDim(Tdir)};
     const bool full_tdil{ dp.TI == Nt };
-    const int Nt_inv{ full_tdil ? 1 : dp.TI };
     const int nvec_reduced{par().nvec_reduced};
     const int LI_reduced{  par().LI_reduced};
     auto &perambulator  = envGet(PerambTensor, getName());
     auto &solve         = envGet(std::vector<FermionField>, par().solve);
-    auto &epack         = envGet(Grid::Hadrons::EigenPack<LatticeColourVector>, par().lapevec);
+    auto &epack         = envGet(Grid::Hadrons::EigenPack<ColourVectorField>, par().lapevec);
     
-    envGetTmp(LatticeColourVector, result4d_nospin);
-    envGetTmp(LatticeColourVector, result3d_nospin);
-    envGetTmp(LatticeColourVector, evec3d);
+    envGetTmp(ColourVectorField, result4d_nospin);
+    envGetTmp(ColourVectorField, result3d_nospin);
+    envGetTmp(ColourVectorField, evec3d);
     
     for (int inoise = 0; inoise < dp.nnoise; inoise++)
     {
         for (int dk = 0; dk < LI_reduced; dk++)
        	{
-            for (int dt = 0; dt < Nt_inv; dt++)
+            for (int dt = 0; dt < dp.inversions; dt++)
 	    {
                 for (int ds = 0; ds < dp.SI; ds++)
 	       	{
                     for (int is = 0; is < Ns; is++)
 		    {
-                        result4d_nospin = peekSpin(solve[inoise+dp.nnoise*(dk+dp.LI*(dt+Nt_inv*ds))],is);
+                        result4d_nospin = peekSpin(solve[inoise+dp.nnoise*(dk+dp.LI*(dt+dp.inversions*ds))],is);
                         for (int t = Ntfirst; t < Ntfirst + Ntlocal; t++)
 		       	{
                             ExtractSliceLocal(result3d_nospin,result4d_nospin,0,t-Ntfirst,Tdir);

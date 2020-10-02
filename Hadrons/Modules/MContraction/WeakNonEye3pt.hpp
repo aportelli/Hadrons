@@ -4,6 +4,7 @@
  * Copyright (C) 2015 - 2020
  *
  * Author: Antonin Portelli <antonin.portelli@me.com>
+ * Author: Fionn O hOgain <fionn.o.hogain@ed.ac.uk>
  * Author: Lanny91 <andrew.lawson@gmail.com>
  * Author: ferben <ferben@debian.felix.com>
  *
@@ -95,6 +96,7 @@ public:
     // dependency relation
     virtual std::vector<std::string> getInput(void);
     virtual std::vector<std::string> getOutput(void);
+    virtual std::vector<std::string> getOutputFiles(void);
     // setup
     virtual void setup(void);
     // execution
@@ -128,6 +130,14 @@ std::vector<std::string> TWeakNonEye3pt<FImpl>::getOutput(void)
     std::vector<std::string> out = {};
     
     return out;
+}
+
+template <typename FImpl>
+std::vector<std::string> TWeakNonEye3pt<FImpl>::getOutputFiles(void)
+{
+    std::vector<std::string> output = {resultFilename(par().output)};
+    
+    return output;
 }
 
 // setup ///////////////////////////////////////////////////////////////////////
