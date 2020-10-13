@@ -3,6 +3,7 @@
  *
  * Copyright (C) 2015 - 2020
  *
+ * Author: Andrew Zhen Ning Yong <andrew.yong@ed.ac.uk>
  * Author: Antonin Portelli <antonin.portelli@me.com>
  *
  * Hadrons is free software: you can redistribute it and/or modify
@@ -114,7 +115,7 @@ public:
     {
         HADRONS_SQL_FIELDS(SqlUnique<unsigned int>           , objectTypeId,
                            SqlUnique<SqlNotNull<std::string>>, type,
-                           SqlUnique<SqlNotNull<std::string>>, baseType);
+                           SqlNotNull<std::string>, baseType);
     };
 
     struct ScheduleEntry: SqlEntry
@@ -190,6 +191,8 @@ public:
     // general execution
     void                executeProgram(const Program &p);
     void                executeProgram(const std::vector<std::string> &p);
+    // generate result DB
+    void                generateResultDb(void);
 private:
     // environment shortcut
     DEFINE_ENV_ALIAS;

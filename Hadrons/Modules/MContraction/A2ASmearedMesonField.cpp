@@ -1,9 +1,9 @@
 /*
- * Random.cpp, part of Hadrons (https://github.com/aportelli/Hadrons)
+ * A2ASmearedMesonField.cpp, part of Hadrons (https://github.com/aportelli/Hadrons)
  *
  * Copyright (C) 2015 - 2020
  *
- * Author: ferben <ferben@debian.felix.com>
+ * Author: Nils Asmussen <n.asmussen@soton.ac.uk>
  *
  * Hadrons is free software: you can redistribute it and/or modify
  * it under the terms of the GNU General Public License as published by
@@ -23,10 +23,10 @@
  */
 
 /*  END LEGAL */
-#include <Hadrons/Modules/MSource/Random.hpp>
+#include <Hadrons/Modules/MContraction/A2ASmearedMesonField.hpp>
 
 using namespace Grid;
 using namespace Hadrons;
-using namespace MSource;
+using namespace MContraction;
 
-template class Grid::Hadrons::MSource::TRandom<FIMPL>;
+template class Grid::Hadrons::MContraction::TA2ASmearedMesonField<FIMPL>;

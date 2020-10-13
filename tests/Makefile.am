@@ -2,13 +2,15 @@ AM_LDFLAGS  += -L$(top_builddir)/Hadrons
 AM_CXXFLAGS += -I$(top_srcdir)
  
 EXTRA_PROGRAMS = \
-  Test_QED               \
-  Test_database          \
-  Test_diskvector        \
-  Test_distil            \
-  Test_free_prop         \
-  Test_hadrons_meson_3pt \
-  Test_hadrons_spectrum  \
+  Test_QED                  \
+  Test_database             \
+  Test_database_concurrency \
+  Test_diskvector           \
+  Test_distil               \
+  Test_field_io             \
+  Test_free_prop            \
+  Test_hadrons_meson_3pt    \
+  Test_hadrons_spectrum     \
   Test_sigma_to_nucleon
 
 CLEANFILES = $(EXTRA_PROGRAMS)
@@ -24,8 +26,14 @@ Test_diskvector_LDADD=-lHadrons -lGrid
 Test_database_SOURCES=Test_database.cpp
 Test_database_LDADD=-lHadrons -lGrid
 
+Test_database_concurrency_SOURCES=Test_database_concurrency.cpp
+Test_database_concurrency_LDADD=-lHadrons -lGrid
+
 Test_distil_SOURCES=Test_distil.cpp
 Test_distil_LDADD=-lHadrons -lGrid
+
+Test_field_io_SOURCES=Test_field_io.cpp
+Test_field_io_LDADD=-lHadrons -lGrid
 
 Test_free_prop_SOURCES=Test_free_prop.cpp
 Test_free_prop_LDADD=-lHadrons -lGrid

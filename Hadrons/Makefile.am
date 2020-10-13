@@ -29,6 +29,7 @@ nobase_libHadrons_a_HEADERS = \
 	Environment.hpp           \
 	Exceptions.hpp            \
 	Factory.hpp               \
+	FieldIo.hpp               \
 	GeneticScheduler.hpp      \
 	Global.hpp                \
 	Graph.hpp                 \

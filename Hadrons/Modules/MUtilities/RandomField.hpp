@@ -1,9 +1,9 @@
 /*
- * Loop.hpp, part of Hadrons (https://github.com/aportelli/Hadrons)
+ * RandomField.hpp, part of Hadrons (https://github.com/aportelli/Hadrons)
  *
  * Copyright (C) 2015 - 2020
  *
- * Author: Fionn O hOgain <fionn.o.hogain@ed.ac.uk>
+ * Author: Antonin Portelli <antonin.portelli@me.com>
  *
  * Hadrons is free software: you can redistribute it and/or modify
  * it under the terms of the GNU General Public License as published by
@@ -23,8 +23,8 @@
  */
 
 /*  END LEGAL */
-#ifndef Hadrons_MContraction_Loop_hpp_
-#define Hadrons_MContraction_Loop_hpp_
+#ifndef Hadrons_MUtilities_RandomField_hpp_
+#define Hadrons_MUtilities_RandomField_hpp_
 
 #include <Hadrons/Global.hpp>
 #include <Hadrons/Module.hpp>
@@ -32,41 +32,26 @@
 
 BEGIN_HADRONS_NAMESPACE
 
-/*
- 
- Noise loop propagator
- -----------------------------
- * loop_x = q_x * adj(eta_x)
- 
- * options:
- - q = Result of inversion on noise source.
- - eta = noise source.
-
- */
-
 /******************************************************************************
- *                         Loop                                 *
+ *                         RandomField                                 *
  ******************************************************************************/
-BEGIN_MODULE_NAMESPACE(MContraction)
+BEGIN_MODULE_NAMESPACE(MUtilities)
 
-class LoopPar: Serializable
+class RandomFieldPar: Serializable
 {
 public:
-    GRID_SERIALIZABLE_CLASS_MEMBERS(LoopPar,
-                                    std::string, q,
-                                    std::string, eta);
+    GRID_SERIALIZABLE_CLASS_MEMBERS(RandomFieldPar,
+                                    unsigned int, Ls);
 };
 
-template <typename FImpl>
-class TLoop: public Module<LoopPar>
+template <typename Field>
+class TRandomField: public Module<RandomFieldPar>
 {
 public:
-    BASIC_TYPE_ALIASES(FImpl,);
-public:
     // constructor
-    TLoop(const std::string name);
+    TRandomField(const std::string name);
     // destructor
-    virtual ~TLoop(void) {};
+    virtual ~TRandomField(void) {};
     // dependency relation
     virtual std::vector<std::string> getInput(void);
     virtual std::vector<std::string> getOutput(void);
@@ -76,28 +61,30 @@ public:
     virtual void execute(void);
 };
 
-MODULE_REGISTER_TMP(Loop, TLoop<FIMPL>, MContraction);
+MODULE_REGISTER_TMP(RandomPropagator, TRandomField<FIMPL::PropagatorField>, MUtilities);
+MODULE_REGISTER_TMP(RandomFermion, TRandomField<FIMPL::FermionField>, MUtilities);
+MODULE_REGISTER_TMP(RandomComplex, TRandomField<FIMPL::ComplexField>, MUtilities);
 
 /******************************************************************************
- *                 TLoop implementation                             *
+ *                 TRandomField implementation                             *
  ******************************************************************************/
 // constructor /////////////////////////////////////////////////////////////////
-template <typename FImpl>
-TLoop<FImpl>::TLoop(const std::string name)
-: Module<LoopPar>(name)
+template <typename Field>
+TRandomField<Field>::TRandomField(const std::string name)
+: Module<RandomFieldPar>(name)
 {}
 
 // dependencies/products ///////////////////////////////////////////////////////
-template <typename FImpl>
-std::vector<std::string> TLoop<FImpl>::getInput(void)
+template <typename Field>
+std::vector<std::string> TRandomField<Field>::getInput(void)
 {
-    std::vector<std::string> in = {par().q, par().eta};
+    std::vector<std::string> in;
     
     return in;
 }
 
-template <typename FImpl>
-std::vector<std::string> TLoop<FImpl>::getOutput(void)
+template <typename Field>
+std::vector<std::string> TRandomField<Field>::getOutput(void)
 {
     std::vector<std::string> out = {getName()};
     
@@ -105,24 +92,33 @@ std::vector<std::string> TLoop<FImpl>::getOutput(void)
 }
 
 // setup ///////////////////////////////////////////////////////////////////////
-template <typename FImpl>
-void TLoop<FImpl>::setup(void)
+template <typename Field>
+void TRandomField<Field>::setup(void)
 {
-    envCreateLat(PropagatorField, getName());
+    if (par().Ls > 1)
+    {
+        envCreateLat(Field, getName(), par().Ls);
+    }
+    else
+    {
+        envCreateLat(Field, getName());
+    }
 }
 
 // execution ///////////////////////////////////////////////////////////////////
-template <typename FImpl>
-void TLoop<FImpl>::execute(void)
+template <typename Field>
+void TRandomField<Field>::execute(void)
 {
-    auto &loop = envGet(PropagatorField, getName());
-    auto &q    = envGet(PropagatorField, par().q);
-    auto &eta  = envGet(PropagatorField, par().eta);
-    loop = q*adj(eta);
+    LOG(Message) << "Generating random field" << std::endl;
+    LOG(Message) << "Field type: " << typeName<Field>() << std::endl;
+    
+    auto &field = envGet(Field, getName());
+
+    random(rng4d(), field);
 }
 
 END_MODULE_NAMESPACE
 
 END_HADRONS_NAMESPACE
 
-#endif // Hadrons_MContraction_Loop_hpp_
+#endif // Hadrons_MUtilities_RandomField_hpp_

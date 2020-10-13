@@ -50,7 +50,6 @@ Application::Application(void)
 
     if (dim.size())
     {
-        
         locVol_ = 1;
         for (unsigned int d = 0; d < dim.size(); ++d)
         {
@@ -139,6 +138,18 @@ void Application::createModule(const std::string name, const std::string type,
                                XmlReader &reader)
 {
     vm().createModule(name, type, reader);
+}
+
+// generate result DB //////////////////////////////////////////////////////////
+void Application::generateResultDb(void)
+{
+    auto range = par_.trajCounter;
+    
+    for (unsigned int t = range.start; t < range.end; t += range.step)
+    {
+        vm().setTrajectory(t);
+        vm().generateResultDb();
+    }
 }
 
 // execute /////////////////////////////////////////////////////////////////////

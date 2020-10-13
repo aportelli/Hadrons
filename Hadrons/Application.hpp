@@ -59,6 +59,9 @@ public:
                                         bool,        restoreMemoryProfile,
                                         bool,        restoreSchedule,
                                         bool,        makeStatDb);
+        DatabasePar(void): 
+        restoreModules{false}, restoreMemoryProfile{false},
+        restoreSchedule{false}, makeStatDb{false} {}
     };
 
     struct GlobalPar: Serializable
@@ -72,7 +75,7 @@ public:
                                         std::string,                scheduleFile,
                                         bool,                       saveSchedule,
                                         int,                        parallelWriteMaxRetry);
-        GlobalPar(void): parallelWriteMaxRetry{-1} {}
+        GlobalPar(void): parallelWriteMaxRetry{-1}, saveSchedule{false} {}
     };
 
     struct ObjectId: Serializable
@@ -101,6 +104,8 @@ public:
     // module DB entry for result files
     template <typename EntryType>
     void setResultMetadata(const std::string moduleName, const std::string tableName, const EntryType &entry);
+    // generate result DB
+    void generateResultDb(void);
     // execute
     void run(void);
     // XML parameter file I/O

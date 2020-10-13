@@ -1,9 +1,9 @@
 /*
- * Random.cpp, part of Hadrons (https://github.com/aportelli/Hadrons)
+ * LoadField.cpp, part of Hadrons (https://github.com/aportelli/Hadrons)
  *
  * Copyright (C) 2015 - 2020
  *
- * Author: ferben <ferben@debian.felix.com>
+ * Author: Antonin Portelli <antonin.portelli@me.com>
  *
  * Hadrons is free software: you can redistribute it and/or modify
  * it under the terms of the GNU General Public License as published by
@@ -23,10 +23,13 @@
  */
 
 /*  END LEGAL */
-#include <Hadrons/Modules/MSource/Random.hpp>
+#include <Hadrons/Modules/MIO/LoadField.hpp>
 
 using namespace Grid;
 using namespace Hadrons;
-using namespace MSource;
+using namespace MIO;
 
-template class Grid::Hadrons::MSource::TRandom<FIMPL>;
+template class Grid::Hadrons::MIO::TLoadField<FIMPL::PropagatorField>;
+#ifdef GRID_DEFAULT_PRECISION_DOUBLE
+template class Grid::Hadrons::MIO::TLoadField<FIMPL::PropagatorField, FIMPLF::PropagatorField>;
+#endif

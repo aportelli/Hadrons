@@ -3,6 +3,7 @@
  *
  * Copyright (C) 2015 - 2020
  *
+ * Author: Andrew Zhen Ning Yong <andrew.yong@ed.ac.uk>
  * Author: Antonin Portelli <antonin.portelli@me.com>
  * Author: Peter Boyle <paboyle@ph.ed.ac.uk>
  * Author: Vera Guelpers <Vera.Guelpers@ed.ac.uk>
@@ -97,6 +98,7 @@ public:
     // dependencies/products
     virtual std::vector<std::string> getInput(void);
     virtual std::vector<std::string> getOutput(void);
+    virtual std::vector<std::string> getOutputFiles(void);
 protected:
     // execution
     virtual void setup(void);
@@ -128,6 +130,14 @@ template <typename FImpl>
 std::vector<std::string> TWeakMesonDecayKl2<FImpl>::getOutput(void)
 {
     std::vector<std::string> output = {};
+    
+    return output;
+}
+
+template <typename FImpl>
+std::vector<std::string> TWeakMesonDecayKl2<FImpl>::getOutputFiles(void)
+{
+    std::vector<std::string> output = {resultFilename(par().output)};
     
     return output;
 }

@@ -194,6 +194,10 @@ NOT_SER(T, std::string) SqlEntry::xmlStrFrom(const T &x)
 }
 
 // SQL string from an arbitrary type
+// NB: numerical types are assignable to std::string through char
+// implicit conversion! So PODs will use NOT_SER_AND_STR
+// that's weird sementically but in principle guaranteed by the Standard
+// and avoids an extra POD case below. AP.
 template <typename T>
 SER_AND_ENUM(T, std::string) SqlEntry::sqlStrFrom(const T &x)
 {
@@ -318,25 +322,33 @@ SqlEntry::sqlType(void)
 /******************************************************************************
  *                 "Macro Magic" for SQL entry class declarations             *
  ******************************************************************************/
-#define HADRONS_SQL_MEMBER(A, B) CppType<A>::type B;
-#define HADRONS_SQL_SCHEMA(A, B) schema += std::string(#B) + " " + sqlType<A>() + ",";
+#define HADRONS_SQL_MEMBER(A, B)      CppType<A>::type B;
+#define HADRONS_SQL_BOOL_MEMBER(A, B) bool B{false};
+#define HADRONS_SQL_SCHEMA(A, B)      schema += std::string(#B) + " " + sqlType<A>() + ",";
 #define HADRONS_SQL_INSERT(A, B)\
-if (sqlType<CppType<A>::type>() == "TEXT")\
+if (nullify.B)\
 {\
-    std::string s;\
-    s = sqlStrFrom(B);\
-    if (!s.empty())\
-    {\
-        list += "'" + s + "'";\
-    }\
-    else\
-    {\
-        list += "NULL";\
-    }\
+    list += "NULL";\
 }\
 else\
 {\
-    list += sqlStrFrom(B);\
+    if (sqlType<CppType<A>::type>() == "TEXT")\
+    {\
+        std::string s;\
+        s = sqlStrFrom(B);\
+        if (!s.empty())\
+        {\
+            list += "'" + s + "'";\
+        }\
+        else\
+        {\
+            list += "NULL";\
+        }\
+    }\
+    else\
+    {\
+        list += sqlStrFrom(B);\
+    }\
 }\
 list += ",";
 #define HADRONS_SQL_DESERIALIZE(A, B) B = sqlStrTo<CppType<A>::type>(*it); it++;
@@ -344,6 +356,11 @@ list += ",";
 
 #define HADRONS_SQL_FIELDS(...)\
 GRID_MACRO_EVAL(GRID_MACRO_MAP(HADRONS_SQL_MEMBER, __VA_ARGS__))\
+struct Nullify\
+{\
+    GRID_MACRO_EVAL(GRID_MACRO_MAP(HADRONS_SQL_BOOL_MEMBER, __VA_ARGS__))\
+};\
+Nullify nullify;\
 static std::string sqlSchema(void)\
 {\
     std::string schema;\

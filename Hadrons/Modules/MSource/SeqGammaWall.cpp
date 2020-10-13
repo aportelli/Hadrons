@@ -4,6 +4,7 @@
  * Copyright (C) 2015 - 2020
  *
  * Author: Antonin Portelli <antonin.portelli@me.com>
+ * Author: Michael Marshall <43034299+mmphys@users.noreply.github.com>
  * Author: Michael Marshall <michael.marshall@ed.ac.uk>
  *
  * Hadrons is free software: you can redistribute it and/or modify

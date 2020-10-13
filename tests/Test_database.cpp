@@ -98,6 +98,9 @@ int main(int argc, char *argv[])
     entry.st  = st;
     LOG(Message) << TestEntry::sqlSchema() << std::endl;
     LOG(Message) << entry.sqlInsert() << std::endl;
+    entry.nullify.e = true;
+    LOG(Message) << entry.sqlInsert() << std::endl;
+    entry.nullify.e = false;
 
     // test merging SqlEntry classes ///////////////////////////////////////////
     typedef MergedSqlEntry<IndexEntry, TestEntry> TableEntry;
@@ -154,6 +157,10 @@ int main(int argc, char *argv[])
     {
         entry.msg  = "result_" + std::to_string(t);
         entry.st.x = t*2;
+        if (t > 1200)
+        {
+            entry.nullify.e = true;
+        }
         db.insert("test2", entry);
     }
     auto table2 = db.getTable<TestEntry>("test2");

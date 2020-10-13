@@ -202,6 +202,18 @@ size_t typeHash(void)
     return typeHash(typeIdPt<T>());
 }
 
+template <typename T, typename U>
+bool sameType(const T &x, const U &y)
+{
+    return (typeHash(x) == typeHash(y));
+}
+
+template <typename T, typename U>
+bool sameType(void)
+{
+    return (typeHash<T>() == typeHash<U>());
+}
+
 std::string typeName(const std::type_info *info);
 
 template <typename T>
@@ -280,6 +292,9 @@ struct Correlator: Serializable
 
 // check if grid is initlialised
 bool isGridInit(void);
+
+// thread random wait
+void randomWait(const unsigned int maxMs, GridBase *grid = nullptr);
 
 END_HADRONS_NAMESPACE
 
