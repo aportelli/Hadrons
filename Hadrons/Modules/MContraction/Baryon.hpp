@@ -256,7 +256,7 @@ void TBaryon<FImpl>::execute(void)
     if (par().sim_sink)
         assert(par().sinkq1==par().sinkq2 && par().sinkq2==par().sinkq3 && "when sim_sink is true all three sinks must be the same");
 
-    assert(par().parity == 1 || par().parity == -1 && "parity must be 1 or -1"); // TODO: allow 0 for traceless?
+    assert(par().parity == 1 || par().parity == -1 || par().parity == 0 && "parity must be 1 or -1 (or tracless 0)");
 
     std::vector<GammaABPair> gammaList;
     parseGammaString(gammaList);
@@ -279,8 +279,6 @@ void TBaryon<FImpl>::execute(void)
     for (int iG = 0; iG < gammaList.size(); iG++)
         LOG(Message) << "    with (Gamma^A,Gamma^B)_left = ( " << gammaList[iG].first.first << " , " << gammaList[iG].first.second << "') and (Gamma^A,Gamma^B)_right = ( " << gammaList[iG].second.first << " , " << gammaList[iG].second.second << ")" << std::endl;
     
-    envGetTmp(LatticeComplex, c);
-    envGetTmp(SpinMatrixField, cMat);
     int nt = env().getDim(Tp);
         
     bool wick_contractions[6];
@@ -299,7 +297,7 @@ void TBaryon<FImpl>::execute(void)
 
     std::vector<ResultMat> resultMat;
     ResultMat              rMat;
-    rMat.info.parity     = 0; // TODO: what should this be?
+    rMat.info.parity     = 0;
     rMat.info.quarksR    = quarksR;
     rMat.info.quarksL    = quarksL;
     rMat.info.shuffle    = par().shuffle;
@@ -331,6 +329,7 @@ void TBaryon<FImpl>::execute(void)
                 PropagatorField &sink = envGet(PropagatorField, par().sinkq1);
 
                 if (par().trace) {
+                    envGetTmp(LatticeComplex, c);
                     c=Zero();
                     BaryonUtils<FIMPL>::ContractBaryons(q1,q2,q3,
                                                         gAl,gBl,gAr,gBr,
@@ -341,6 +340,7 @@ void TBaryon<FImpl>::execute(void)
                     auto test = closure(trace(sink*c));     
                     sliceSum(test, buf, Tp); 
                 } else {
+                    envGetTmp(SpinMatrixField, cMat);
                     cMat=Zero();
                     BaryonUtils<FIMPL>::ContractBaryons_matrix(q1,q2,q3,
                                                         gAl,gBl,gAr,gBr,
@@ -364,6 +364,7 @@ void TBaryon<FImpl>::execute(void)
             else if (ns == "MSink")
             {
                 if (par().trace) {
+                    envGetTmp(LatticeComplex, c);
                     c=Zero();
                     BaryonUtils<FIMPL>::ContractBaryons(q1,q2,q3,
                                                         gAl,gBl,gAr,gBr,
@@ -374,6 +375,7 @@ void TBaryon<FImpl>::execute(void)
                     SinkFnScalar &sink = envGet(SinkFnScalar, par().sinkq1);
                     buf = sink(c);
                 } else {
+                    envGetTmp(SpinMatrixField, cMat);
                     cMat=Zero();
                     BaryonUtils<FIMPL>::ContractBaryons_matrix(q1,q2,q3,
                                                         gAl,gBl,gAr,gBr,
