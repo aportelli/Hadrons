@@ -282,7 +282,7 @@ void TBaryon<FImpl>::execute(void)
     int nt = env().getDim(Tp);
         
     bool wick_contractions[6];
-    BaryonUtils<FIMPL>::Wick_Contractions(quarksL,quarksR,wick_contractions);
+    BaryonUtils<FIMPL>::WickContractions(quarksL,quarksR,wick_contractions);
     
     PropagatorField &q1  = envGet(PropagatorField, propsL[0]);
     PropagatorField &q2  = envGet(PropagatorField, propsL[1]);
@@ -342,7 +342,7 @@ void TBaryon<FImpl>::execute(void)
                 } else {
                     envGetTmp(SpinMatrixField, cMat);
                     cMat=Zero();
-                    BaryonUtils<FIMPL>::ContractBaryons_matrix(q1,q2,q3,
+                    BaryonUtils<FIMPL>::ContractBaryonsMatrix(q1,q2,q3,
                                                         gAl,gBl,gAr,gBr,
                                                         wick_contractions,
                                                         cMat);
@@ -377,7 +377,7 @@ void TBaryon<FImpl>::execute(void)
                 } else {
                     envGetTmp(SpinMatrixField, cMat);
                     cMat=Zero();
-                    BaryonUtils<FIMPL>::ContractBaryons_matrix(q1,q2,q3,
+                    BaryonUtils<FIMPL>::ContractBaryonsMatrix(q1,q2,q3,
                                                         gAl,gBl,gAr,gBr,
                                                         wick_contractions,
                                                         cMat);
@@ -447,14 +447,14 @@ void TBaryon<FImpl>::execute(void)
                         wc[i] = (i == ie);
 
                     if (par().trace) {
-                        BaryonUtils<FIMPL>::ContractBaryons_Sliced( q1_slice[ie],q2_slice[ie],q3_slice[ie],
+                        BaryonUtils<FIMPL>::ContractBaryonsSliced( q1_slice[ie],q2_slice[ie],q3_slice[ie],
                                                                     gAl,gBl,gAr,gBr,
                                                                     wc,
                                                                     par().parity,
                                                                     nt,
                                                                     buf);
                     } else {
-                        BaryonUtils<FIMPL>::ContractBaryons_Sliced_matrix( q1_slice[ie],q2_slice[ie],q3_slice[ie],
+                        BaryonUtils<FIMPL>::ContractBaryonsSlicedMatrix( q1_slice[ie],q2_slice[ie],q3_slice[ie],
                                                                     gAl,gBl,gAr,gBr,
                                                                     wc,
                                                                     nt,
