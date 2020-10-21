@@ -183,7 +183,7 @@ void TBaryon<FImpl>::parseGammaString(std::vector<GammaABPair> &gammaList)
     //couldn't find out how to count the size in the iterator, other than looping through it...
   /*  int nGamma=0;
     for (std::sregex_iterator i = gamma_begin; i != gamma_end; ++i) {
-	nGamma++;
+        nGamma++;
     }
 */   
     gammaList.resize(nGamma/4);
@@ -194,13 +194,13 @@ void TBaryon<FImpl>::parseGammaString(std::vector<GammaABPair> &gammaList)
     for (std::sregex_iterator i = gamma_begin; i != gamma_end; ++i) {
         std::smatch match = *i;                                                 
         gS[iG] = match.str(); 
-	iG++;
+        iG++;
     }
     for (int i = 0; i < gammaList.size(); i++){
-	std::vector<Gamma::Algebra> gS1 = strToVec<Gamma::Algebra>(gS[4*i]);
-	std::vector<Gamma::Algebra> gS2 = strToVec<Gamma::Algebra>(gS[4*i+1]);
-	std::vector<Gamma::Algebra> gS3 = strToVec<Gamma::Algebra>(gS[4*i+2]);
-	std::vector<Gamma::Algebra> gS4 = strToVec<Gamma::Algebra>(gS[4*i+3]);
+        std::vector<Gamma::Algebra> gS1 = strToVec<Gamma::Algebra>(gS[4*i]);
+        std::vector<Gamma::Algebra> gS2 = strToVec<Gamma::Algebra>(gS[4*i+1]);
+        std::vector<Gamma::Algebra> gS3 = strToVec<Gamma::Algebra>(gS[4*i+2]);
+        std::vector<Gamma::Algebra> gS4 = strToVec<Gamma::Algebra>(gS[4*i+3]);
         gammaList[i].first.first=gS1[0];
         gammaList[i].first.second=gS2[0];
         gammaList[i].second.first=gS3[0];
