@@ -181,7 +181,8 @@ void TPerambulator<FImpl>::execute(void)
     LOG(Message)<< "Mode " << perambMode << std::endl;
 
     std::vector<FermionField> solveIn;
-    if(perambMode == pMode::inputSolve){
+    if(perambMode == pMode::inputSolve)
+    {
         solveIn         = envGet(std::vector<FermionField>, par().unsmearedSolve);
     }
 
@@ -204,7 +205,8 @@ void TPerambulator<FImpl>::execute(void)
             {
                 for (int ds = 0; ds < dp.SI; ds++)
                 {
-                    if(perambMode == pMode::inputSolve){
+                    if(perambMode == pMode::inputSolve)
+		    {
                         fermion4dtmp = solveIn[inoise+dp.nnoise*(dk+dp.LI*(dt+dp.inversions*ds))];
 		    } else {
                         LOG(Message) <<  "LapH source vector from noise " << inoise << " and dilution component (d_k,d_t,d_alpha) : (" << dk << ","<< dt << "," << ds << ")" << std::endl;
