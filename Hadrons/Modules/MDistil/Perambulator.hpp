@@ -208,31 +208,13 @@ void TPerambulator<FImpl>::execute(void)
                     if(perambMode == pMode::inputSolve)
 		    {
                         fermion4dtmp = solveIn[inoise+dp.nnoise*(dk+dp.LI*(dt+dp.inversions*ds))];
-		    } else {
+		    } 
+		    else 
+		    {
                         LOG(Message) <<  "LapH source vector from noise " << inoise << " and dilution component (d_k,d_t,d_alpha) : (" << dk << ","<< dt << "," << ds << ")" << std::endl;
                         dist_source = 0;
                         evec3d = 0;
 			DIST_SOURCE
-                        /*for (int it = dt; it < Nt; it += dp.TI)
-                        {
-                            const int t_inv{(dp.tsrc + it)%Nt};
-                            if( t_inv >= Ntfirst && t_inv < Ntfirst + Ntlocal )
-                            {
-                                for (int ik = dk; ik < dp.nvec; ik += dp.LI)
-                                {
-                                    for (int is = ds; is < Ns; is += dp.SI)
-                                    {
-                                        ExtractSliceLocal(evec3d,epack.evec[ik],0,t_inv-Ntfirst,Tdir);
-                                        cv3dtmp = evec3d * noise.tensor(inoise, t_inv, ik, is);
-                                        fermion3dtmp=0;
-                                        pokeSpin(fermion3dtmp,cv3dtmp,is);
-                                        fermion4dtmp=0;
-                                        InsertSliceLocal(fermion3dtmp,fermion4dtmp,0,t_inv-Ntfirst,Tdir);
-                                        dist_source += fermion4dtmp;
-                                    }
-                                }
-                            }
-                        }*/
                         fermion4dtmp=0;
                         if (Ls_ == 1)
                             solver(fermion4dtmp, dist_source);
