@@ -7,6 +7,7 @@
  * Author: Peter Boyle <paboyle@ph.ed.ac.uk>
  * Author: Vera Guelpers <Vera.Guelpers@ed.ac.uk>
  * Author: Vera Guelpers <vmg1n14@soton.ac.uk>
+ * Author: guelpers <Vera.Guelpers@ed.ac.uk>
  *
  * Hadrons is free software: you can redistribute it and/or modify
  * it under the terms of the GNU General Public License as published by

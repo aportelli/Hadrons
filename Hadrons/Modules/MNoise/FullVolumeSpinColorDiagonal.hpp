@@ -4,6 +4,8 @@
  * Copyright (C) 2015 - 2020
  *
  * Author: Antonin Portelli <antonin.portelli@me.com>
+ * Author: Fionn O hOgain <fionn.o.hogain@ed.ac.uk>
+ * Author: Fionn Ó hÓgáin <fionnoh@gmail.com>
  * Author: Vera Guelpers <Vera.Guelpers@ed.ac.uk>
  * Author: Vera Guelpers <vmg1n14@soton.ac.uk>
  *

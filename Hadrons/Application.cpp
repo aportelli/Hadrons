@@ -26,6 +26,7 @@
 
 #include <Hadrons/Application.hpp>
 #include <Hadrons/GeneticScheduler.hpp>
+#include <Hadrons/StatLogger.hpp>
 #include <Hadrons/Modules.hpp>
 
 using namespace Grid;
@@ -44,6 +45,7 @@ using namespace Hadrons;
 Application::Application(void)
 {
     initLogger();
+    Grid::MemoryProfiler::stats = &memStats_;
     auto dim = GridDefaultLatt(), mpi = GridDefaultMpi(), loc(dim);
 
     if (dim.size())
@@ -67,10 +69,15 @@ Application::Application(void)
         LOG(Message) << "Scalar implementation   : " << MACOUTS(SIMPLBASE) << std::endl;
         LOG(Message) << "Gauge implementation    : " << MACOUTS(GIMPLBASE) << std::endl;
         LOG(Message) << "Eigenvector base size   : " 
-                    << MACOUT(HADRONS_DEFAULT_LANCZOS_NBASIS) << std::endl;
+                     << MACOUT(HADRONS_DEFAULT_LANCZOS_NBASIS) << std::endl;
         LOG(Message) << "Schur decomposition     : " << MACOUTS(HADRONS_DEFAULT_SCHUR) << std::endl;
         LOG(Message) << std::endl;
     }
+}
+
+Application::~Application(void)
+{
+    Grid::MemoryProfiler::stats = nullptr;
 }
 
 Application::Application(const Application::GlobalPar &par)
@@ -89,6 +96,36 @@ Application::Application(const std::string parameterFileName)
 void Application::setPar(const Application::GlobalPar &par)
 {
     par_ = par;
+    if (!getPar().database.applicationDb.empty())
+    {
+        LOG(Message) << "Connecting to application database in file '" 
+                     << getPar().database.applicationDb << "'..." << std::endl;
+        db_.setFilename(getPar().database.applicationDb, isGridInit() ? env().getGrid() : nullptr);
+        vm().setDatabase(db_);
+        if (getPar().database.restoreMemoryProfile)
+        {
+            vm().dbRestoreMemoryProfile();
+            LOG(Message) << "Memory profile restored from application database" << std::endl;
+        }
+        if (getPar().database.restoreModules)
+        {
+            vm().dbRestoreModules();
+            LOG(Message) << "Modules restored from application database" << std::endl;
+        }
+        if (getPar().database.restoreSchedule)
+        {
+            program_ = vm().dbRestoreSchedule();
+            loadedSchedule_ = true;
+            scheduled_      = true;
+            LOG(Message) << "Schedule restored from application database" << std::endl;
+        }
+    }
+    if (!getPar().database.resultDb.empty())
+    {
+        LOG(Message) << "Connecting to result database in file '" 
+                     << getPar().database.resultDb << "'..." << std::endl;
+        resultDb_.setFilename(getPar().database.resultDb, isGridInit() ? env().getGrid() : nullptr);
+    }
 }
 
 const Application::GlobalPar & Application::getPar(void)
@@ -96,9 +133,31 @@ const Application::GlobalPar & Application::getPar(void)
     return par_;
 }
 
+// module creation /////////////////////////////////////////////////////////////
+void Application::createModule(const std::string name, const std::string type, 
+                               XmlReader &reader)
+{
+    vm().createModule(name, type, reader);
+}
+
+// generate result DB //////////////////////////////////////////////////////////
+void Application::generateResultDb(void)
+{
+    auto range = par_.trajCounter;
+    
+    for (unsigned int t = range.start; t < range.end; t += range.step)
+    {
+        vm().setTrajectory(t);
+        vm().generateResultDb();
+    }
+}
+
 // execute /////////////////////////////////////////////////////////////////////
 void Application::run(void)
 {
+    Database   statDb;
+    StatLogger statLogger;
+
     LOG(Message) << "====== HADRONS APPLICATION START ======" << std::endl;
     if (!parameterFileName_.empty() and (vm().getNModule() == 0))
     {
@@ -113,8 +172,23 @@ void Application::run(void)
     LOG(Message) << "Attempt(s) for resilient parallel I/O: " 
                  << BinaryIO::latticeWriteMaxRetry << std::endl;
     vm().setRunId(getPar().runId);
-    vm().printContent();
-    env().printContent();
+    if (getPar().database.makeStatDb)
+    {
+        std::string        statDbFilename;
+        std::ostringstream oss;
+        auto now      = std::chrono::system_clock::to_time_t(std::chrono::system_clock::now());
+        auto nowLocal = *std::localtime(&now);
+
+        oss << std::put_time(&nowLocal, "%Y%m%d-%H%M%S");
+        statDbFilename = getPar().runId + "-stat-" + oss.str() + ".db";
+        LOG(Message) << "Logging run statistics in '" << statDbFilename << "'" << std::endl;
+        if (env().getGrid()->IsBoss())
+        {
+            statDb.setFilename(statDbFilename);
+            statLogger.setDatabase(statDb);
+            statLogger.start(500);
+        }
+    }
     if (getPar().saveSchedule or getPar().scheduleFile.empty())
     {
         schedule();
@@ -132,49 +206,54 @@ void Application::run(void)
         loadSchedule(getPar().scheduleFile);
     }
     printSchedule();
+    vm().printMemoryProfile();
     if (!getPar().graphFile.empty())
     {
         makeFileDir(getPar().graphFile, env().getGrid());
         vm().dumpModuleGraph(getPar().graphFile);
     }
     configLoop();
+    if (getPar().database.makeStatDb and env().getGrid()->IsBoss())
+    {
+        statLogger.stop();
+    }
 }
 
 // parse parameter file ////////////////////////////////////////////////////////
-class ObjectId: Serializable
-{
-public:
-    GRID_SERIALIZABLE_CLASS_MEMBERS(ObjectId,
-                                    std::string, name,
-                                    std::string, type);
-};
-
 void Application::parseParameterFile(const std::string parameterFileName)
 {
-    XmlReader reader(parameterFileName);
+    XmlReader reader(parameterFileName, false, HADRONS_XML_TOPLEV);
     GlobalPar par;
     ObjectId  id;
     
     LOG(Message) << "Building application from '" << parameterFileName << "'..." << std::endl;
     read(reader, "parameters", par);
     setPar(par);
-    if (!push(reader, "modules"))
+    if (!par.database.restoreModules)
     {
-        HADRONS_ERROR(Parsing, "Cannot open node 'modules' in parameter file '" 
-                              + parameterFileName + "'");
+        if (!push(reader, "modules"))
+        {
+            HADRONS_ERROR(Parsing, "Cannot open node 'modules' in parameter file '" 
+                                + parameterFileName + "'");
+        }
+        if (!push(reader, "module"))
+        {
+            HADRONS_ERROR(Parsing, "Cannot open node 'modules/module' in parameter file '" 
+                                + parameterFileName + "'");
+        }
+        do
+        {
+            read(reader, "id", id);
+            createModule(id.name, id.type, reader);
+        } while (reader.nextElement("module"));
+        pop(reader);
+        pop(reader);
     }
-    if (!push(reader, "module"))
+    else
     {
-        HADRONS_ERROR(Parsing, "Cannot open node 'modules/module' in parameter file '" 
-                              + parameterFileName + "'");
+        LOG(Message) << "XML module list ignored (restored from database '"
+                     << par.database.applicationDb << "')" << std::endl;
     }
-    do
-    {
-        read(reader, "id", id);
-        vm().createModule(id.name, id.type, reader);
-    } while (reader.nextElement("module"));
-    pop(reader);
-    pop(reader);
 }
 
 void Application::saveParameterFile(const std::string parameterFileName, unsigned int prec)
@@ -182,11 +261,11 @@ void Application::saveParameterFile(const std::string parameterFileName, unsigne
     LOG(Message) << "Saving application to '" << parameterFileName << "'..." << std::endl;
     if (env().getGrid()->IsBoss())
     {
-        XmlWriter          writer(parameterFileName);
-        writer.setPrecision(prec);
+        XmlWriter          writer(parameterFileName, HADRONS_XML_TOPLEV);
         ObjectId           id;
         const unsigned int nMod = vm().getNModule();
 
+        writer.setPrecision(prec);
         write(writer, "parameters", getPar());
         push(writer, "modules");
         for (unsigned int i = 0; i < nMod; ++i)

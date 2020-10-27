@@ -4,6 +4,7 @@
  * Copyright (C) 2015 - 2020
  *
  * Author: Antonin Portelli <antonin.portelli@me.com>
+ * Author: Fionn O hOgain <fionn.o.hogain@ed.ac.uk>
  * Author: Julia Kettle J.R.Kettle-2@sms.ed.ac.uk
  * Author: Peter Boyle <paboyle@ph.ed.ac.uk>
  *
@@ -118,9 +119,9 @@ void TFourQuark<FImpl1, FImpl2>::tensorprod(LatticeSpinColourSpinColourMatrix &l
             //         below loops in a helper function.
             //LOG(Message) << "sp co mat a is - " << a << std::endl;
             //LOG(Message) << "sp co mat b is - " << b << std::endl;
-	    auto  lret_v = lret.View();
-	    auto  a_v = a.View();
-	    auto  b_v = b.View();
+	    autoView(lret_v, lret, CpuWrite);
+	    autoView(a_v, a, CpuRead);
+	    autoView(b_v, b, CpuRead);
 #ifdef GRID_NVCC
 #warning "NVCC problem: Removed impossibly slow compile of simple NPR host code in FourQuark.hpp"
 #else

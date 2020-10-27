@@ -3,6 +3,7 @@
  *
  * Copyright (C) 2015 - 2020
  *
+ * Author: Andrew Zhen Ning Yong <andrew.yong@ed.ac.uk>
  * Author: Antonin Portelli <antonin.portelli@me.com>
  *
  * Hadrons is free software: you can redistribute it and/or modify
@@ -28,6 +29,7 @@
 #define Hadrons_VirtualMachine_hpp_
 
 #include <Hadrons/Global.hpp>
+#include <Hadrons/Database.hpp>
 #include <Hadrons/Graph.hpp>
 #include <Hadrons/Environment.hpp>
 
@@ -76,6 +78,51 @@ public:
                                         unsigned int, maxCstGen,
                                         double      , mutationRate);
     };
+
+    // serializable classes for database entries
+    struct GlobalEntry: SqlEntry
+    {
+        HADRONS_SQL_FIELDS(SqlUnique<SqlNotNull<std::string>>, name,
+                           SqlNotNull<std::string>           , value);
+    };
+
+    struct ModuleEntry: SqlEntry
+    {
+        HADRONS_SQL_FIELDS(SqlUnique<SqlNotNull<unsigned int>>, moduleId,
+                           SqlUnique<SqlNotNull<std::string>> , name,
+                           SqlNotNull<unsigned int>           , moduleTypeId,
+                           std::string                        , parameters);
+    };
+
+    struct ModuleTypeEntry: SqlEntry
+    {
+        HADRONS_SQL_FIELDS(SqlUnique<unsigned int>           , moduleTypeId,
+                           SqlUnique<SqlNotNull<std::string>>, type);
+                           
+    };
+
+    struct ObjectEntry: SqlEntry
+    {
+        HADRONS_SQL_FIELDS(SqlUnique<SqlNotNull<unsigned int>>, objectId,
+                           SqlUnique<SqlNotNull<std::string>> , name,
+                           SqlNotNull<unsigned int>           , objectTypeId,
+                           SqlNotNull<SITE_SIZE_TYPE>         , size,
+                           SqlNotNull<Environment::Storage>   , storageType,
+                           SqlNotNull<unsigned int>           , moduleId);
+    };
+
+    struct ObjectTypeEntry: SqlEntry
+    {
+        HADRONS_SQL_FIELDS(SqlUnique<unsigned int>           , objectTypeId,
+                           SqlUnique<SqlNotNull<std::string>>, type,
+                           SqlNotNull<std::string>, baseType);
+    };
+
+    struct ScheduleEntry: SqlEntry
+    {
+        HADRONS_SQL_FIELDS(SqlUnique<SqlNotNull<unsigned int>>, step,
+                           SqlUnique<SqlNotNull<unsigned int>>, moduleId);
+    };
 private:
     struct ModuleInfo
     {
@@ -92,6 +139,11 @@ public:
     // run tag
     void                setRunId(const std::string id);
     std::string         getRunId(void) const;
+    // database
+    void                setDatabase(Database &db);
+    void                dbRestoreMemoryProfile(void);
+    void                dbRestoreModules(void);
+    Program             dbRestoreSchedule(void);
     // module management
     void                pushModule(ModPt &pt);
     template <typename M>
@@ -100,8 +152,9 @@ public:
     void                createModule(const std::string name,
                                          const typename M::Par &par);
     void                createModule(const std::string name,
-                                         const std::string type,
-                                         XmlReader &reader);
+                                     const std::string type,
+                                     XmlReader &reader,
+                                     const std::string blockName = "options");
     unsigned int        getNModule(void) const;
     ModuleBase *        getModule(const unsigned int address) const;
     ModuleBase *        getModule(const std::string name) const;
@@ -128,6 +181,7 @@ public:
     void                dumpModuleGraph(const std::string filename);
     // memory profile
     const MemoryProfile &getMemoryProfile(void);
+    void                printMemoryProfile(void) const;
     // garbage collector
     GarbageSchedule     makeGarbageSchedule(const Program &p) const;
     // high-water memory function
@@ -137,6 +191,8 @@ public:
     // general execution
     void                executeProgram(const Program &p);
     void                executeProgram(const std::vector<std::string> &p);
+    // generate result DB
+    void                generateResultDb(void);
 private:
     // environment shortcut
     DEFINE_ENV_ALIAS;
@@ -150,10 +206,18 @@ private:
     void cleanEnvironment(void);
     void memoryProfile(const std::string name);
     void memoryProfile(const unsigned int address);
+    // database handling
+    bool         hasDatabase(void) const;
+    void         initDatabase(void);
+    unsigned int dbInsertModuleType(const std::string type);
+    unsigned int dbInsertObjectType(const std::string type, const std::string baseType);
 private:
     // general
     std::string                         runId_;
     unsigned int                        traj_;
+    // database
+    Database                            *db_{nullptr};
+    bool                                makeModuleDb_{true}, makeObjectDb_{true}, makeScheduleDb_{true};
     // module and related maps
     std::vector<ModuleInfo>             module_;
     std::map<std::string, unsigned int> moduleAddress_;

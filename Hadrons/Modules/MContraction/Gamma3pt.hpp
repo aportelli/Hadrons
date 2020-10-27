@@ -85,6 +85,7 @@ class TGamma3pt: public Module<Gamma3ptPar>
     FERM_TYPE_ALIASES(FImpl1, 1);
     FERM_TYPE_ALIASES(FImpl2, 2);
     FERM_TYPE_ALIASES(FImpl3, 3);
+public:
     class Result: Serializable
     {
     public:
@@ -100,6 +101,7 @@ public:
     // dependency relation
     virtual std::vector<std::string> getInput(void);
     virtual std::vector<std::string> getOutput(void);
+    virtual std::vector<std::string> getOutputFiles(void);
     virtual void parseGammaString(std::vector<Gamma::Algebra> &gammaList);
 protected:
     // setup
@@ -134,6 +136,14 @@ std::vector<std::string> TGamma3pt<FImpl1, FImpl2, FImpl3>::getOutput(void)
     std::vector<std::string> out = {};
     
     return out;
+}
+
+template <typename FImpl1, typename FImpl2, typename FImpl3>
+std::vector<std::string> TGamma3pt<FImpl1, FImpl2, FImpl3>::getOutputFiles(void)
+{
+    std::vector<std::string> output = {resultFilename(par().output)};
+    
+    return output;
 }
 
 // setup ///////////////////////////////////////////////////////////////////////

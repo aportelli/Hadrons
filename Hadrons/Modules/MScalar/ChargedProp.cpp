@@ -143,7 +143,7 @@ void TChargedProp::execute(void)
         std::vector<int>    siteCoor;
 
         LOG(Message) << "Saving momentum-projected propagator to '"
-                     << RESULT_FILE_NAME(par().output, vm().getTrajectory()) << "'..."
+                     << resultFilename(par().output) << "'..."
                      << std::endl;
         result.projection.resize(par().outputMom.size());
         result.lattice_size = env().getGrid()->FullDimensions().toVector();

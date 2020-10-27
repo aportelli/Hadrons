@@ -27,7 +27,6 @@
 #include <Hadrons/Module.hpp>
 
 using namespace Grid;
- 
 using namespace Hadrons;
 
 /******************************************************************************
@@ -44,11 +43,38 @@ std::string ModuleBase::getName(void) const
     return name_;
 }
 
-// get factory registration name if available
+// get factory registration name if available //////////////////////////////////
 std::string ModuleBase::getRegisteredName(void)
 {
     HADRONS_ERROR(Definition, "module '" + getName() + "' has no registered type"
                  + " in the factory");
+}
+
+// result filename generation //////////////////////////////////////////////////
+std::string ModuleBase::resultFilename(const std::string stem, 
+                                       const unsigned int traj, 
+                                       const std::string ext)
+{
+    return stem + "." + std::to_string(traj) + "." + ext;
+}
+
+std::string ModuleBase::resultFilename(const std::string stem, const std::string ext) const
+{
+    return resultFilename(stem, vm().getTrajectory(), ext);
+}
+
+// result database /////////////////////////////////////////////////////////////
+void ModuleBase::generateResultDb(void)
+{
+    if (db_ and db_->isConnected())
+    {
+        entryHeader_->traj = vm().getTrajectory();
+        for (auto filename: getOutputFiles())
+        {
+            entryHeader_->filename = filename;
+            db_->insert(dbTable_, *entry_, true);
+        }
+    }
 }
 
 // execution ///////////////////////////////////////////////////////////////////
@@ -62,8 +88,10 @@ void ModuleBase::operator()(void)
     startTimer("_execute");
     execute();
     stopAllTimers();
+    generateResultDb();
 }
 
+// make module unique string ///////////////////////////////////////////////////
 std::string ModuleBase::makeSeedString(void)
 {
     std::string seed;
@@ -77,6 +105,7 @@ std::string ModuleBase::makeSeedString(void)
     return seed;
 }
 
+// get RNGs seeded from module string //////////////////////////////////////////
 GridParallelRNG & ModuleBase::rng4d(void)
 {
     auto &r = *env().get4dRng();

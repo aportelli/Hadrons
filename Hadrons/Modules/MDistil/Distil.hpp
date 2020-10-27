@@ -10,6 +10,7 @@
  * Author: Felix Erben <felix.erben@ed.ac.uk>
  * Author: Michael Marshall <43034299+mmphys@users.noreply.github.com>
  * Author: Michael Marshall <michael.marshall@ed.ac.uk>
+ * Author: ferben <ferben@debian.felix.com>
  * Author: ferben <ferben@localhost.localdomain>
  *
  * Hadrons is free software: you can redistribute it and/or modify

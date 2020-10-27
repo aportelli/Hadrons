@@ -136,9 +136,10 @@ void TPoint<FImpl>::execute(void)
         ph = exp((Real)(2*M_PI)*i*ph);
         hasPhase_ = true;
     }
-    auto sink = [&ph](const PropagatorField &field)
+    auto sink = [this](const PropagatorField &field)
     {
         SlicedPropagator res;
+        auto             &ph = envGet(LatticeComplex, momphName_);
         PropagatorField  tmp = ph*field;
         
         sliceSum(tmp, res, Tp);

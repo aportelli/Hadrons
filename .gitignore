@@ -11,5 +11,6 @@
 /install-sh
 /missing
 Makefile.in
+/Hadrons/sqlite
 /Hadrons/Modules.hpp
 /Hadrons/modules.inc
