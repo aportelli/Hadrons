@@ -47,12 +47,12 @@ public:
                                     std::string, sink);
 };
 
-template <typename FImpl>
+template <typename Field>
 class TSmear: public Module<SmearPar>
 {
 public:
-    FERM_TYPE_ALIASES(FImpl,);
-    SINK_TYPE_ALIASES();
+    typedef std::vector<typename Field::scalar_object> SlicedField;
+    typedef std::function<SlicedField (const Field &)> SinkFn;
 public:
     // constructor
     TSmear(const std::string name);
@@ -68,28 +68,28 @@ protected:
     virtual void execute(void);
 };
 
-MODULE_REGISTER_TMP(Smear, TSmear<FIMPL>, MSink);
+MODULE_REGISTER_TMP(Smear, TSmear<FIMPL::PropagatorField> , MSink);
 
 /******************************************************************************
  *                          TSmear implementation                             *
  ******************************************************************************/
 // constructor /////////////////////////////////////////////////////////////////
-template <typename FImpl>
-TSmear<FImpl>::TSmear(const std::string name)
+template <typename Field>
+TSmear<Field>::TSmear(const std::string name)
 : Module<SmearPar>(name)
 {}
 
 // dependencies/products ///////////////////////////////////////////////////////
-template <typename FImpl>
-std::vector<std::string> TSmear<FImpl>::getInput(void)
+template <typename Field>
+std::vector<std::string> TSmear<Field>::getInput(void)
 {
     std::vector<std::string> in = {par().q, par().sink};
     
     return in;
 }
 
-template <typename FImpl>
-std::vector<std::string> TSmear<FImpl>::getOutput(void)
+template <typename Field>
+std::vector<std::string> TSmear<Field>::getOutput(void)
 {
     std::vector<std::string> out = {getName()};
     
@@ -97,23 +97,23 @@ std::vector<std::string> TSmear<FImpl>::getOutput(void)
 }
 
 // setup ///////////////////////////////////////////////////////////////////////
-template <typename FImpl>
-void TSmear<FImpl>::setup(void)
+template <typename Field>
+void TSmear<Field>::setup(void)
 {
-    envCreate(SlicedPropagator, getName(), 1, env().getDim(Tp));
+    envCreate(SlicedField, getName(), 1, env().getDim(Tp));
 }
 
 // execution ///////////////////////////////////////////////////////////////////
-template <typename FImpl>
-void TSmear<FImpl>::execute(void)
+template <typename Field>
+void TSmear<Field>::execute(void)
 {
-    LOG(Message) << "Sink smearing propagator '" << par().q
+    LOG(Message) << "Sink smearing field '" << par().q
                  << "' using sink function '" << par().sink << "'."
                  << std::endl;
 
     auto &sink = envGet(SinkFn, par().sink);
-    auto &q    = envGet(PropagatorField, par().q);
-    auto &out  = envGet(SlicedPropagator, getName());
+    auto &q    = envGet(Field, par().q);
+    auto &out  = envGet(SlicedField, getName());
     
     out = sink(q);
 }
