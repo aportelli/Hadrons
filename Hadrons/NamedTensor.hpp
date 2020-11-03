@@ -49,7 +49,13 @@ BEGIN_HADRONS_NAMESPACE
 
 extern const std::string NamedTensorFileExtension;
 
-template<typename Scalar_, int NumIndices_>
+class NamedTensorDefaultMetadata : Serializable
+{
+public:
+    GRID_SERIALIZABLE_CLASS_MEMBERS(NamedTensorDefaultMetadata, int, Version);
+};
+
+template<typename Scalar_, int NumIndices_, typename MetaData_ = NamedTensorDefaultMetadata>
 class NamedTensor : Serializable
 {
 public:
@@ -63,7 +69,8 @@ public:
     public:
     GRID_SERIALIZABLE_CLASS_MEMBERS(NamedTensor,
                                     Eigen::TensorMap<ET>,     tensor,
-                                    std::vector<std::string>, IndexNames );
+                                    std::vector<std::string>, IndexNames,
+		                    MetaData_,                MetaData );
 
     // Name of the object and Index names as set in the constructor
     const std::string                          &Name_;
@@ -179,7 +186,14 @@ class NoiseTensor : public NamedTensor<Complex, 4>
     : NamedTensor{Name__, DefaultIndexNames__, nNoise, nT, nVec, nS} {}
 };
 
-class PerambTensor : public NamedTensor<SpinVector, 6>
+class PerambMetadata : Serializable
+{
+public:
+    GRID_SERIALIZABLE_CLASS_MEMBERS(PerambMetadata, int, Version,
+                                    std::vector<std::vector<int>>, sourceTimes );
+};
+
+class PerambTensor : public NamedTensor<SpinVector, 6, PerambMetadata>
 {
     public:
     static const std::string                Name__;
