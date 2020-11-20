@@ -190,7 +190,31 @@ void TDistilMesonField<FImpl>::setup(void)
         }
         momenta_.push_back(p);
     }
-    gamma_ = strToVec<Gamma::Algebra>(par().Gamma);
+    if (par().Gamma == "all")
+    {
+        gamma_ = {
+            Gamma::Algebra::Gamma5,
+            Gamma::Algebra::Identity,    
+            Gamma::Algebra::GammaX,
+            Gamma::Algebra::GammaY,
+            Gamma::Algebra::GammaZ,
+            Gamma::Algebra::GammaT,
+            Gamma::Algebra::GammaXGamma5,
+            Gamma::Algebra::GammaYGamma5,
+            Gamma::Algebra::GammaZGamma5,
+            Gamma::Algebra::GammaTGamma5,
+            Gamma::Algebra::SigmaXY,
+            Gamma::Algebra::SigmaXZ,
+            Gamma::Algebra::SigmaXT,
+            Gamma::Algebra::SigmaYZ,
+            Gamma::Algebra::SigmaYT,
+            Gamma::Algebra::SigmaZT
+        };
+    }
+    else
+    {
+        gamma_ = strToVec<Gamma::Algebra>(par().Gamma);
+    }
 
     // hard-coded dilution scheme (assuming dpL=dpR for now)
     const DistilParameters &dpL = envGet(DistilParameters, par().LeftDPar);
@@ -448,7 +472,6 @@ void TDistilMesonField<FImpl>::execute(void)
 
                         time_kernel += timer;
 
-                        
                         flops += vol*(2*8.0+6.0+8.0*nExt_)*icacheSize*jcacheSize*nStr_;
                         bytes += vol*(12.0*sizeof(ComplexD))*icacheSize*jcacheSize
                               +  vol*(2.0*sizeof(ComplexD)*nExt_)*icacheSize*jcacheSize*nStr_;
@@ -476,12 +499,16 @@ void TDistilMesonField<FImpl>::execute(void)
                             });
                         }
                         stopTimer("cache copy");
+
+                        
                     }
 
-                    LOG(Message) << "Kernel perf " << flops/time_kernel/1.0e3/nodes 
+                    LOG(Message) << "Kernel perf (flops) " << flops/time_kernel/1.0e3/nodes 
                                 << " Gflop/s/node " << std::endl;
-                    LOG(Message) << "Kernel perf " << bytes/time_kernel*1.0e6/1024/1024/1024/nodes 
+                    LOG(Message) << "Kernel perf (read) " << bytes/time_kernel*1.0e6/1024/1024/1024/nodes 
                                 << " GB/s/node "  << std::endl;
+                    
+                // std::cout << " " << bytes << " " << vol  << " " << nExt_ << " " << nStr_ << " " << sizeof(ComplexD) << std::endl;
 
                     // saving current block to disk
                     startTimer("io");
