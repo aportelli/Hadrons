@@ -1,5 +1,5 @@
 /*
- * PerambFromSolve.cpp, part of Hadrons (https://github.com/aportelli/Hadrons)
+ * SourceSink.cpp, part of Hadrons (https://github.com/aportelli/Hadrons)
  *
  * Copyright (C) 2015 - 2020
  *
@@ -23,11 +23,11 @@
  */
 
 /*  END LEGAL */
-
-#include <Hadrons/Modules/MDistil/PerambFromSolve.hpp>
+#include <Hadrons/Modules/MSink/SourceSink.hpp>
 
 using namespace Grid;
 using namespace Hadrons;
-using namespace MDistil;
+using namespace MSink;
 
-template class Grid::Hadrons::MDistil::TPerambFromSolve<FIMPL>;
+template class Grid::Hadrons::MSink::TSourceSink<FIMPL>;
+

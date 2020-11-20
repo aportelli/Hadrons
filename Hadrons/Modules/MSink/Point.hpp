@@ -48,12 +48,14 @@ public:
                                     std::string, mom);
 };
 
-template <typename FImpl>
+template <typename Field>
 class TPoint: public Module<PointPar>
 {
 public:
-    BASIC_TYPE_ALIASES(FImpl,);
-    SINK_TYPE_ALIASES();
+    typedef Field PropagatorField;
+    typedef std::vector<typename PropagatorField::scalar_object> SlicedPropagator;
+    typedef std::function<SlicedPropagator (const PropagatorField &)> SinkFn;
+
 public:
     // constructor
     TPoint(const std::string name);
@@ -72,30 +74,33 @@ private:
     std::string momphName_;
 };
 
-MODULE_REGISTER_TMP(Point,       TPoint<FIMPL>,        MSink);
-MODULE_REGISTER_TMP(ScalarPoint, TPoint<ScalarImplCR>, MSink);
+typedef Lattice<iScalar<iMatrix<iScalar<vComplex>,Ns>>> SpinMatField;
+
+MODULE_REGISTER_TMP(Point,       TPoint<FIMPL::PropagatorField> , MSink);
+MODULE_REGISTER_TMP(ScalarPoint, TPoint<ScalarImplCR::Field>    , MSink);
+MODULE_REGISTER_TMP(SMatPoint,   TPoint<SpinMatField>           , MSink);
 
 /******************************************************************************
  *                          TPoint implementation                             *
  ******************************************************************************/
 // constructor /////////////////////////////////////////////////////////////////
-template <typename FImpl>
-TPoint<FImpl>::TPoint(const std::string name)
+template <typename Field>
+TPoint<Field>::TPoint(const std::string name)
 : Module<PointPar>(name)
 , momphName_ (name + "_momph")
 {}
 
 // dependencies/products ///////////////////////////////////////////////////////
-template <typename FImpl>
-std::vector<std::string> TPoint<FImpl>::getInput(void)
+template <typename Field>
+std::vector<std::string> TPoint<Field>::getInput(void)
 {
     std::vector<std::string> in;
     
     return in;
 }
 
-template <typename FImpl>
-std::vector<std::string> TPoint<FImpl>::getOutput(void)
+template <typename Field>
+std::vector<std::string> TPoint<Field>::getOutput(void)
 {
     std::vector<std::string> out = {getName()};
     
@@ -103,8 +108,8 @@ std::vector<std::string> TPoint<FImpl>::getOutput(void)
 }
 
 // setup ///////////////////////////////////////////////////////////////////////
-template <typename FImpl>
-void TPoint<FImpl>::setup(void)
+template <typename Field>
+void TPoint<Field>::setup(void)
 {
     envTmpLat(LatticeComplex, "coor");
     envCacheLat(LatticeComplex, momphName_);
@@ -112,8 +117,8 @@ void TPoint<FImpl>::setup(void)
 }
 
 // execution ///////////////////////////////////////////////////////////////////
-template <typename FImpl>
-void TPoint<FImpl>::execute(void)
+template <typename Field>
+void TPoint<Field>::execute(void)
 {   
     LOG(Message) << "Setting up point sink function for momentum ["
                  << par().mom << "]" << std::endl;

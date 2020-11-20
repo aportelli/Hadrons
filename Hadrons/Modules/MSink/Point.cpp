@@ -29,6 +29,9 @@ using namespace Grid;
 using namespace Hadrons;
 using namespace MSink;
 
-template class Grid::Hadrons::MSink::TPoint<FIMPL>;
-template class Grid::Hadrons::MSink::TPoint<ScalarImplCR>;
+typedef Lattice<iScalar<iMatrix<iScalar<vComplex>,Ns>>> SpinMatField;
+
+template class Grid::Hadrons::MSink::TPoint<FIMPL::PropagatorField>;
+template class Grid::Hadrons::MSink::TPoint<ScalarImplCR::Field>;
+template class Grid::Hadrons::MSink::TPoint<SpinMatField>;
 

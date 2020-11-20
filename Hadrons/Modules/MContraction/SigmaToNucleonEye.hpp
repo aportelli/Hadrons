@@ -193,7 +193,7 @@ void TSigmaToNucleonEye<FImpl>::execute(void)
       r.info.gammaH = G.g;
       //Operator Q1, equivalent to the two-trace case in the rare-kaons module
       c=Zero();
-      BaryonUtils<FIMPL>::Sigma_to_Nucleon_Eye(qqLoop,qut,qdTf,qsTi,G,GammaB,GammaB,"Q1",c);
+      BaryonUtils<FIMPL>::SigmaToNucleonEye(qqLoop,qut,qdTf,qsTi,G,GammaB,GammaB,"Q1",c);
       sliceSum(c,buf,Tp);
       r.corr.clear();
       for (unsigned int t = 0; t < buf.size(); ++t)
@@ -204,7 +204,7 @@ void TSigmaToNucleonEye<FImpl>::execute(void)
       result.push_back(r);
       //Operator Q2, equivalent to the one-trace case in the rare-kaons module
       c=Zero();
-      BaryonUtils<FIMPL>::Sigma_to_Nucleon_Eye(qqLoop,qut,qdTf,qsTi,G,GammaB,GammaB,"Q2",c);
+      BaryonUtils<FIMPL>::SigmaToNucleonEye(qqLoop,qut,qdTf,qsTi,G,GammaB,GammaB,"Q2",c);
       sliceSum(c,buf,Tp);
       r.corr.clear();
       for (unsigned int t = 0; t < buf.size(); ++t)
