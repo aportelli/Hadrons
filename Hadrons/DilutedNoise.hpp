@@ -42,20 +42,21 @@ template <typename FImpl>
 class SpinColorDiagonalNoise
 {
 public:
-    typedef typename FImpl::FermionField FermionField;
+    typedef typename FImpl::FermionField    FermionField;
     typedef typename FImpl::PropagatorField PropagatorField;
+    typedef typename FImpl::ComplexField    ComplexField;
 public:
     // constructor/destructor
     SpinColorDiagonalNoise(GridCartesian *g);
     SpinColorDiagonalNoise(GridCartesian *g, const int nNoise);
     virtual ~SpinColorDiagonalNoise(void) = default;
     // access
-    std::vector<LatticeComplex> &       getNoise(void);
-    const std::vector<LatticeComplex> & getNoise(void) const;
+    std::vector<ComplexField> &         getNoise(void);
+    const std::vector<ComplexField> &   getNoise(void) const;
     FermionField &                      getFerm(const int i);
     PropagatorField &                   getProp(const int i);
-    void                                resize(const int nNoise);
-    int                                 size(void) const;
+    virtual void                        resize(const int nNoise);
+    virtual int                         size(void) const;
     int                                 fermSize(void) const;
     virtual int                         dilutionSize(void) const = 0;
     GridCartesian                       *getGrid(void) const;
@@ -64,18 +65,18 @@ public:
 private:
     void         setFerm(const int i);
     virtual void setProp(const int i) = 0;
-    LatticeComplex                 eta_;
+    ComplexField                   eta_;
     FermionField                   ferm_;
     GridCartesian                  *grid_;
-    std::vector<LatticeComplex>    noise_;
+    std::vector<ComplexField>      noise_;
     PropagatorField                prop_;
 protected:
-    LatticeComplex &  getEta(void);
+    ComplexField &    getEta(void);
     FermionField &    getFerm(void);
     int               getNd(void) const;
     int               getNsc(void) const;
     PropagatorField & getProp(void);
-    void              setPropagator(LatticeComplex & eta);
+    void              setPropagator(ComplexField & eta);
 };
 
 template <typename FImpl>
@@ -160,15 +161,15 @@ SpinColorDiagonalNoise<FImpl>::SpinColorDiagonalNoise(GridCartesian *g,
 }
 
 template <typename FImpl>
-std::vector<LatticeComplex> & SpinColorDiagonalNoise<FImpl>::
-getNoise(void)
+std::vector<typename SpinColorDiagonalNoise<FImpl>::ComplexField> & 
+SpinColorDiagonalNoise<FImpl>::getNoise(void)
 {
     return noise_;
 }
 
 template <typename FImpl>
-const std::vector<LatticeComplex> & SpinColorDiagonalNoise<FImpl>::
-getNoise(void) const
+const std::vector<typename SpinColorDiagonalNoise<FImpl>::ComplexField> & 
+SpinColorDiagonalNoise<FImpl>::getNoise(void) const
 {
     return noise_;
 }
@@ -203,7 +204,7 @@ SpinColorDiagonalNoise<FImpl>::getFerm(const int i)
 }
 
 template <typename FImpl>
-void SpinColorDiagonalNoise<FImpl>::setPropagator(LatticeComplex & eta)
+void SpinColorDiagonalNoise<FImpl>::setPropagator(ComplexField & eta)
 {
     prop_ = 1.;
     prop_ = prop_*eta;
@@ -237,7 +238,8 @@ int SpinColorDiagonalNoise<FImpl>::fermSize(void) const
 }
 
 template <typename FImpl>
-LatticeComplex & SpinColorDiagonalNoise<FImpl>::getEta(void)
+typename SpinColorDiagonalNoise<FImpl>::ComplexField & 
+SpinColorDiagonalNoise<FImpl>::getEta(void)
 {
     return eta_;
 }
