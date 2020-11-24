@@ -359,7 +359,10 @@ void TDistilMesonField<FImpl>::execute(void)
             matrixIoTable.push_back(matrixIo);
 
             //initialize file with no outputName group (containing atributes of momentum and gamma) but no dataset inside
-            matrixIoTable.back().initFile(md);
+            if(env().getGrid()->IsBoss())
+            {
+                matrixIoTable.back().initFile(md);
+            }
         }
 
         LOG(Message) << "Gamma:" << std::endl;
