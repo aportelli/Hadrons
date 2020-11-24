@@ -1,8 +1,7 @@
 <img src="graphics/hadrons-icon-title.png" height=100px>
 
 _[Grid](https://github.com/paboyle/Grid)-based workflow management system for
-lattice field theory simulations_
-
+lattice field theory simulations_  
 [![License: GPL v3](https://img.shields.io/badge/License-GPLv2-blue.svg)](https://www.gnu.org/licenses/gpl-2.0) [![DOI](https://zenodo.org/badge/250348196.svg)](https://zenodo.org/badge/latestdoi/250348196) [![Teamcity status](http://ci.cliath.ph.ed.ac.uk/app/rest/builds/aggregated/strob:(buildType:(affectedProject(id:GridBasedSoftware_Hadrons)),branch:name:develop)/statusIcon.svg)](http://ci.cliath.ph.ed.ac.uk/project.html?projectId=GridBasedSoftware_Hadrons&tab=projectOverview)
 ---
 
