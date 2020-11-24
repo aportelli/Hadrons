@@ -32,14 +32,132 @@
 #define Hadrons_DilutedNoise_hpp_
 
 #include <Hadrons/Global.hpp>
+#include <Hadrons/EigenPack.hpp>
 
 BEGIN_HADRONS_NAMESPACE
+
+class DilutedNoise
+{
+public:
+    DilutedNoise(void) = default;
+    virtual ~DilutedNoise(void) = default;
+    virtual void resize(const int nNoise) = 0;
+    virtual int  size(void) const = 0;
+    virtual int  dilutionSize(void) const = 0;
+};
+
+/******************************************************************************
+ *                 Abstract container for distillation noise                  *
+ ******************************************************************************/
+template <typename FImpl>
+class DistillationNoise: public DilutedNoise
+{
+public:
+    FERM_TYPE_ALIASES(FImpl,);
+    typedef EigenPack<ColourVectorField> LapPack;
+    typedef typename ComplexField::scalar_object Type;
+    typedef std::vector<std::array<std::set<unsigned int>, 3>> DilutionMap;
+    typedef Eigen::TensorMap<Eigen::Tensor<Type, 3, Eigen::RowMajor>> NoiseType;
+    enum Index {t = 0, l = 1, s = 2};
+public:
+    DistillationNoise(GridCartesian *g, const LapPack &pack);
+    DistillationNoise(GridCartesian *g, const LapPack &pack, const unsigned int nNoise);
+    virtual ~DistillationNoise(void) = default;
+    std::vector<Vector<Type>> & getNoise(void);
+    const std::vector<Vector<Type>> & getNoise(void) const;
+    unsigned int dilutionIndex(const unsigned t, const unsigned l, const unsigned s) const;
+    FermionField makeSource(const unsigned int i);
+    // access
+    virtual void resize(const int nNoise);
+    virtual int  size(void) const = 0;
+    virtual int  dilutionSize(void) const;
+    virtual int  dilutionSize(const Index i) const = 0;
+    GridCartesian *getGrid(void) const;
+    // generate noise
+    void generateNoise(GridSerialRNG &rng);
+protected:
+    DilutionMap               map_;
+private:
+    GridCartesian             *grid_;
+    const LapPack             &pack_;
+    std::vector<Vector<Type>> noise_;
+    size_t                    noiseSize_;
+};
+
+// template <typename FImpl>
+// class InterlacedDistillationNoise: public DistillationNoise<FImpl>
+// {
+// public:
+//     unsigned int getLi(void);
+//     // ...
+// private:
+//     unsigned int li_, ti_, si_;
+// };
+
+template <typename FImpl>
+DistillationNoise<FImpl>::DistillationNoise(GridCartesian *g, const LapPack &pack)
+: DilutedNoise(), grid_(g), pack_(pack)
+{
+    noiseSize_ = pack_.eval.size()*grid_->GlobalDimensions()[grid_->Nd() - 1]*Ns;
+}
+
+template <typename FImpl>
+DistillationNoise<FImpl>::DistillationNoise(GridCartesian *g, const LapPack &pack, const unsigned int nNoise)
+: DistillationNoise<FImpl>(g, pack)
+{
+    resize(nNoise);
+}
+
+template <typename FImpl>
+std::vector<Vector<typename DistillationNoise<FImpl>::Type>> &
+DistillationNoise<FImpl>::getNoise()
+{
+    return noise_;
+}
+
+template <typename FImpl>
+const std::vector<Vector<typename DistillationNoise<FImpl>::Type>> &
+DistillationNoise<FImpl>::getNoise() const
+{
+    return noise_;
+}
+
+template <typename FImpl>
+unsigned int DistillationNoise<FImpl>::dilutionIndex(const unsigned t,
+                                                     const unsigned l,
+                                                     const unsigned s) const
+{
+    unsigned int nl = dilutionSize(Index::l), ns = dilutionSize(Index::s);
+
+    return s + ns*(l + nl*t);
+}
+
+template <typename FImpl>
+void DistillationNoise<FImpl>::resize(const int nNoise)
+{
+    noise_.resize(nNoise, Vector<Type>(noiseSize_));
+}
+
+template <typename FImpl>
+void DistillationNoise<FImpl>::generateNoise(GridSerialRNG &rng)
+{
+    constexpr Type shift(1., 1.);
+    constexpr double invSqrt2 = 0.7071067812;
+    Type      eta;
+
+    for (auto &n: noise_)
+    for (unsigned int i = 0; i < n.size(); ++i)
+    {
+        random(rng, eta);
+        n[i] = (2.*eta - shift)*invSqrt2;
+    }
+}
 
 /******************************************************************************
  *              Abstract container for spin color diagonal noise              *
  ******************************************************************************/
 template <typename FImpl>
-class SpinColorDiagonalNoise
+class SpinColorDiagonalNoise: public DilutedNoise
 {
 public:
     typedef typename FImpl::FermionField    FermionField;
@@ -149,7 +267,7 @@ private:
  ******************************************************************************/
 template <typename FImpl>
 SpinColorDiagonalNoise<FImpl>::SpinColorDiagonalNoise(GridCartesian *g)
-: grid_(g), ferm_(g), prop_(g), eta_(g)
+: DilutedNoise(), grid_(g), ferm_(g), prop_(g), eta_(g)
 {}
 
 template <typename FImpl>
