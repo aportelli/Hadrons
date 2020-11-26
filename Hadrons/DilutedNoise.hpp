@@ -33,6 +33,7 @@
 
 #include <Hadrons/Global.hpp>
 #include <Hadrons/EigenPack.hpp>
+#include <Hadrons/Modules/MDistil/Distil.hpp> // TODO: for 3D grids, shodul be handled globally
 
 BEGIN_HADRONS_NAMESPACE
 
@@ -56,55 +57,45 @@ public:
     FERM_TYPE_ALIASES(FImpl,);
     typedef EigenPack<ColourVectorField> LapPack;
     typedef typename ComplexField::scalar_object Type;
-    typedef std::vector<std::array<std::set<unsigned int>, 3>> DilutionMap;
+    typedef std::array<std::vector<std::set<unsigned int>>, 3> DilutionMap;
     typedef Eigen::TensorMap<Eigen::Tensor<Type, 3, Eigen::RowMajor>> NoiseType;
     enum Index {t = 0, l = 1, s = 2};
 public:
-    DistillationNoise(GridCartesian *g, const LapPack &pack);
-    DistillationNoise(GridCartesian *g, const LapPack &pack, const unsigned int nNoise);
+    DistillationNoise(GridCartesian *g, const LapPack &pack, const unsigned int nNoise = 1);
     virtual ~DistillationNoise(void) = default;
     std::vector<Vector<Type>> & getNoise(void);
     const std::vector<Vector<Type>> & getNoise(void) const;
     unsigned int dilutionIndex(const unsigned t, const unsigned l, const unsigned s) const;
-    FermionField makeSource(const unsigned int i);
+    std::array<unsigned int, 3> dilutionCoordinates(const unsigned int d) const;
+    const FermionField & makeSource(const unsigned int d, const unsigned int i);
     // access
     virtual void resize(const int nNoise);
-    virtual int  size(void) const = 0;
+    virtual int  size(void) const;
     virtual int  dilutionSize(void) const;
-    virtual int  dilutionSize(const Index i) const = 0;
+    virtual int  dilutionSize(const Index ind) const = 0;
     GridCartesian *getGrid(void) const;
+    unsigned int getNt(void) const;
+    unsigned int getNl(void) const;
+    unsigned int getNs(void) const;
     // generate noise
     void generateNoise(GridSerialRNG &rng);
+protected:
+    virtual void buildMap(void) = 0;
 protected:
     DilutionMap               map_;
 private:
     GridCartesian             *grid_;
     const LapPack             &pack_;
+    FermionField              src_;
     std::vector<Vector<Type>> noise_;
     size_t                    noiseSize_;
 };
 
-// template <typename FImpl>
-// class InterlacedDistillationNoise: public DistillationNoise<FImpl>
-// {
-// public:
-//     unsigned int getLi(void);
-//     // ...
-// private:
-//     unsigned int li_, ti_, si_;
-// };
-
-template <typename FImpl>
-DistillationNoise<FImpl>::DistillationNoise(GridCartesian *g, const LapPack &pack)
-: DilutedNoise(), grid_(g), pack_(pack)
-{
-    noiseSize_ = pack_.eval.size()*grid_->GlobalDimensions()[grid_->Nd() - 1]*Ns;
-}
-
 template <typename FImpl>
 DistillationNoise<FImpl>::DistillationNoise(GridCartesian *g, const LapPack &pack, const unsigned int nNoise)
-: DistillationNoise<FImpl>(g, pack)
+: DilutedNoise(), grid_(g), pack_(pack), src_(grid_)
 {
+    noiseSize_ = getNt()*getNl()*getNs();
     resize(nNoise);
 }
 
@@ -133,10 +124,103 @@ unsigned int DistillationNoise<FImpl>::dilutionIndex(const unsigned t,
 }
 
 template <typename FImpl>
+std::array<unsigned int, 3> DistillationNoise<FImpl>::dilutionCoordinates(const unsigned int d) const
+{
+    std::array<unsigned int, 3> c;
+    unsigned int                nl = dilutionSize(Index::l), ns = dilutionSize(Index::s), buf;
+
+    buf         = d;
+    c[Index::s] = buf%ns;
+    buf         = (buf - c[Index::s])/ns;
+    c[Index::l] = buf%nl;
+    c[Index::t] = (buf - c[Index::l])/nl;
+
+    return c;
+}
+
+template <typename FImpl>
+const typename DistillationNoise<FImpl>::FermionField & 
+DistillationNoise<FImpl>::makeSource(const unsigned int d, const unsigned int i)
+{
+    std::unique_ptr<GridCartesian> g3d;
+    
+    MDistil::MakeLowerDimGrid(g3d, grid_);
+
+    const int         tDir    = grid_->Nd() - 1;
+    const int         nt      = grid_->GlobalDimensions()[tDir];
+    const int         ntLocal = grid_->LocalDimensions()[tDir];
+    const int         tFirst  = grid_->LocalStarts()[tDir];
+    ColourVectorField evec3d(g3d.get());
+    FermionField      tmp3d(grid_), tmp4d(grid_);
+    NoiseType         noise(noise_[i], nt, pack_.eval.size(), Ns);
+    auto              c = dilutionCoordinates(d);
+    
+    src_ = Zero();
+    for (int it: map_[Index::t][c[Index::t]])
+    { 
+        if(it >= tFirst && it < tFirst + ntLocal)
+        {
+            for (int ik: map_[Index::l][c[Index::l]])
+            {
+                for (int is: map_[Index::s][c[Index::s]])
+                {
+                    ExtractSliceLocal(evec3d, pack_.evec[ik], 0, it - tFirst, tDir);
+                    evec3d = evec3d*noise(it, ik, is);
+                    tmp3d  = Zero();
+                    pokeSpin(tmp3d, evec3d, is);
+                    tmp4d = Zero();
+                    InsertSliceLocal(tmp3d, tmp4d, 0, it - tFirst, tDir);
+                    src_ += tmp4d;
+                }
+            }
+        }
+    }
+
+    return src_;
+}
+
+template <typename FImpl>
 void DistillationNoise<FImpl>::resize(const int nNoise)
 {
     noise_.resize(nNoise, Vector<Type>(noiseSize_));
 }
+
+template <typename FImpl>
+int DistillationNoise<FImpl>::size(void) const
+{
+    return noise_.size();
+}
+
+template <typename FImpl>
+int DistillationNoise<FImpl>::dilutionSize(void) const
+{
+    return dilutionSize(Index::t)*dilutionSize(Index::l)*dilutionSize(Index::s);
+}
+
+template <typename FImpl>
+GridCartesian * DistillationNoise<FImpl>::getGrid(void) const
+{
+    return grid_;
+}
+
+template <typename FImpl>
+unsigned int DistillationNoise<FImpl>::getNt(void) const
+{
+    return grid_->GlobalDimensions()[grid_->Nd() - 1];
+}
+
+template <typename FImpl>
+unsigned int DistillationNoise<FImpl>::getNl(void) const
+{
+    return pack_.eval.size();
+}
+
+template <typename FImpl>
+unsigned int DistillationNoise<FImpl>::getNs(void) const
+{
+    return Ns;
+}
+
 
 template <typename FImpl>
 void DistillationNoise<FImpl>::generateNoise(GridSerialRNG &rng)
@@ -150,6 +234,86 @@ void DistillationNoise<FImpl>::generateNoise(GridSerialRNG &rng)
     {
         random(rng, eta);
         n[i] = (2.*eta - shift)*invSqrt2;
+    }
+}
+
+/******************************************************************************
+ *                 Container for interlaced distillation noise                *
+ ******************************************************************************/
+template <typename FImpl>
+class InterlacedDistillationNoise: public DistillationNoise<FImpl>
+{
+public:
+    typedef typename DistillationNoise<FImpl>::Index Index;
+    typedef typename DistillationNoise<FImpl>::LapPack LapPack;
+public:
+    InterlacedDistillationNoise(GridCartesian *g, const LapPack &pack,
+                                const unsigned int ti, const unsigned int li, 
+                                const unsigned int si, const unsigned nNoise = 1);
+    unsigned int getInterlacing(const Index ind) const;
+    virtual int  dilutionSize(const Index ind) const;
+protected:
+    virtual void buildMap(void);
+private:
+    std::array<unsigned int, 3> interlacing_;
+};
+template <typename FImpl>
+InterlacedDistillationNoise<FImpl>::InterlacedDistillationNoise(GridCartesian *g, 
+                                                                const LapPack &pack,
+                                                                const unsigned int ti, 
+                                                                const unsigned int li, 
+                                                                const unsigned int si,
+                                                                const unsigned nNoise)
+: interlacing_({ti, li, si}), DistillationNoise<FImpl>(g, pack, nNoise)
+{}
+
+template <typename FImpl>
+unsigned int InterlacedDistillationNoise<FImpl>::getInterlacing(const Index ind) const
+{
+    return interlacing_[ind];
+}
+
+template <typename FImpl>
+int InterlacedDistillationNoise<FImpl>::dilutionSize(const Index ind) const
+{
+    return getInterlacing(ind);
+}
+
+template <typename FImpl>
+void InterlacedDistillationNoise<FImpl>::buildMap(void)
+{
+    auto                   &map = this->map_;
+    std::set<unsigned int> set;
+
+    map[Index::t].clear();
+    for (unsigned int it = 0; it < getInterlacing(Index::t); ++it)
+    {
+        set.clear();
+        for (unsigned int t = it; t < this->getNt(); t += getInterlacing(Index::t))
+        {
+            set.insert(t);
+        }
+        map[Index::t].push_back(set);
+    }
+    map[Index::l].clear();
+    for (unsigned int il = 0; il < getInterlacing(Index::l); ++il)
+    {
+        set.clear();
+        for (unsigned int l = il; l < this->getNl(); l += getInterlacing(Index::l))
+        {
+            set.insert(l);
+        }
+        map[Index::l].push_back(set);
+    }
+    map[Index::s].clear();
+    for (unsigned int is = 0; is < getInterlacing(Index::s); ++is)
+    {
+        set.clear();
+        for (unsigned int s = is; s < this->getNs(); s += getInterlacing(Index::s))
+        {
+            set.insert(s);
+        }
+        map[Index::s].push_back(set);
     }
 }
 

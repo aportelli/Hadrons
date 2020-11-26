@@ -40,7 +40,6 @@
 #include <Hadrons/ModuleFactory.hpp>
 #include <Hadrons/Solver.hpp>
 #include <Hadrons/A2AVectors.hpp>
-#include <Hadrons/DilutedNoise.hpp>
 
 BEGIN_HADRONS_NAMESPACE
 BEGIN_MODULE_NAMESPACE(MDistil)
