@@ -1,10 +1,10 @@
 /*
- * Z2Diluted.cpp, part of Hadrons (https://github.com/aportelli/Hadrons)
+ * WilsonFlow.cpp, part of Hadrons (https://github.com/aportelli/Hadrons)
  *
  * Copyright (C) 2015 - 2020
  *
  * Author: Antonin Portelli <antonin.portelli@me.com>
- * Author: Fionn O hOgain <fionn.o.hogain@ed.ac.uk>
+ * Author: Joseph Lee <joseph.lee@ed.ac.uk>
  *
  * Hadrons is free software: you can redistribute it and/or modify
  * it under the terms of the GNU General Public License as published by
@@ -24,10 +24,14 @@
  */
 
 /*  END LEGAL */
-#include <Hadrons/Modules/MSource/Z2Diluted.hpp>
+#include <Hadrons/Modules/MScalarSUN/WilsonFlow.hpp>
 
 using namespace Grid;
 using namespace Hadrons;
-using namespace MSource;
+using namespace MScalarSUN;
 
-template class Grid::Hadrons::MSource::TZ2Diluted<FIMPL>;
+template class Grid::Hadrons::MScalarSUN::TWilsonFlow<ScalarNxNAdjImplR<2>>;
+template class Grid::Hadrons::MScalarSUN::TWilsonFlow<ScalarNxNAdjImplR<3>>;
+template class Grid::Hadrons::MScalarSUN::TWilsonFlow<ScalarNxNAdjImplR<4>>;
+template class Grid::Hadrons::MScalarSUN::TWilsonFlow<ScalarNxNAdjImplR<5>>;
+template class Grid::Hadrons::MScalarSUN::TWilsonFlow<ScalarNxNAdjImplR<6>>;
