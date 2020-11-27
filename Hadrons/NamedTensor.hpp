@@ -6,6 +6,7 @@
  *  Author: Felix Erben <ferben@ed.ac.uk>
  *  Author: Michael Marshall <Michael.Marshall@ed.ac.uk>
  * Author: Antonin Portelli <antonin.portelli@me.com>
+ * Author: Felix Erben <felix.erben@ed.ac.uk>
  * Author: Michael Marshall <43034299+mmphys@users.noreply.github.com>
  * Author: ferben <ferben@debian.felix.com>
  *

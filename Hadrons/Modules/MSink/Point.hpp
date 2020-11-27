@@ -7,6 +7,7 @@
  * Author: Guido Cossu <guido.cossu@ed.ac.uk>
  * Author: Lanny91 <andrew.lawson@gmail.com>
  * Author: Peter Boyle <paboyle@ph.ed.ac.uk>
+ * Author: Raoul Hodgson <raoul.hodgson@ed.ac.uk>
  *
  * Hadrons is free software: you can redistribute it and/or modify
  * it under the terms of the GNU General Public License as published by
