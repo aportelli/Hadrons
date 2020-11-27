@@ -163,6 +163,9 @@ void Database::setFilename(const std::string filename, GridBase *grid, const std
     {
         randomWait(100, grid_);
         execute("PRAGMA journal_mode=" + mode + ";");
+#ifndef HADRONS_SQLITE_SYNC
+        execute("PRAGMA synchronous = 0;");
+#endif
     }
 }
 

@@ -4,6 +4,7 @@
  * Copyright (C) 2015 - 2020
  *
  * Author: Antonin Portelli <antonin.portelli@me.com>
+ * Author: Raoul Hodgson <raoul.hodgson@ed.ac.uk>
  *
  * Hadrons is free software: you can redistribute it and/or modify
  * it under the terms of the GNU General Public License as published by
@@ -29,6 +30,9 @@ using namespace Grid;
 using namespace Hadrons;
 using namespace MSink;
 
-template class Grid::Hadrons::MSink::TPoint<FIMPL>;
-template class Grid::Hadrons::MSink::TPoint<ScalarImplCR>;
+typedef Lattice<iScalar<iMatrix<iScalar<vComplex>,Ns>>> SpinMatField;
+
+template class Grid::Hadrons::MSink::TPoint<FIMPL::PropagatorField>;
+template class Grid::Hadrons::MSink::TPoint<ScalarImplCR::Field>;
+template class Grid::Hadrons::MSink::TPoint<SpinMatField>;
 

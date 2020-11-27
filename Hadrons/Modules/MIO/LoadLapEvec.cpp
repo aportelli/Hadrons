@@ -1,10 +1,9 @@
 /*
- * Z2Diluted.cpp, part of Hadrons (https://github.com/aportelli/Hadrons)
+ * LoadLapEvec.cpp, part of Hadrons (https://github.com/aportelli/Hadrons)
  *
  * Copyright (C) 2015 - 2020
  *
- * Author: Antonin Portelli <antonin.portelli@me.com>
- * Author: Fionn O hOgain <fionn.o.hogain@ed.ac.uk>
+ * Author: Felix Erben <felix.erben@ed.ac.uk>
  *
  * Hadrons is free software: you can redistribute it and/or modify
  * it under the terms of the GNU General Public License as published by
@@ -24,10 +23,10 @@
  */
 
 /*  END LEGAL */
-#include <Hadrons/Modules/MSource/Z2Diluted.hpp>
+#include <Hadrons/Modules/MIO/LoadLapEvec.hpp>
 
 using namespace Grid;
 using namespace Hadrons;
-using namespace MSource;
+using namespace MIO;
 
-template class Grid::Hadrons::MSource::TZ2Diluted<FIMPL>;
+template class Grid::Hadrons::MIO::TLoadLapEvec<FIMPL>;

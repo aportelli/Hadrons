@@ -4,6 +4,7 @@
  * Copyright (C) 2015 - 2020
  *
  * Author: Antonin Portelli <antonin.portelli@me.com>
+ * Author: Felix Erben <felix.erben@ed.ac.uk>
  * Author: Raoul Hodgson <raoul.hodgson@ed.ac.uk>
  *
  * Hadrons is free software: you can redistribute it and/or modify
@@ -90,6 +91,7 @@ int main(int argc, char *argv[])
     MSink::Point::Par sinkPar;
     sinkPar.mom = "0 0 0";
     application.createModule<MSink::ScalarPoint>("sink", sinkPar);
+    application.createModule<MSink::SMatPoint>("sinkMat", sinkPar);
     
     // set fermion boundary conditions to be periodic space, antiperiodic time.
     std::string boundary = "1 1 1 -1";
@@ -155,6 +157,7 @@ int main(int argc, char *argv[])
         application.setResultMetadata("meson_Z2_" + flavour[i] + flavour[j],
                                       "meson", mesEntry);
     }
+    bool computeTrace = false;
     for (unsigned int i = 0; i < flavour.size(); ++i)
     for (unsigned int j = i; j < flavour.size(); ++j)
     for (unsigned int k = j; k < flavour.size(); ++k)
@@ -168,17 +171,30 @@ int main(int argc, char *argv[])
         barPar.q3      = "Qpt_" + flavour[k];
         barPar.quarks  = flavour_baryon[i] + flavour_baryon[j] + flavour_baryon[k];
         barPar.shuffle = "123";
-        barPar.sinkq1    = "sink";
-        barPar.sinkq2    = "sink";
-        barPar.sinkq3    = "sink";
+	if (computeTrace)
+	{
+            barPar.trace     = 1;
+            barPar.sinkq1    = "sink";
+            barPar.sinkq2    = "sink";
+            barPar.sinkq3    = "sink";
+	    computeTrace     = false; // alternate between trace and matrix to test both 
+	}
+	else
+	{
+            barPar.trace     = 0;
+            barPar.sinkq1    = "sinkMat";
+            barPar.sinkq2    = "sinkMat";
+            barPar.sinkq3    = "sinkMat";
+	    computeTrace     = true; // alternate between trace and matrix to test both 
+	}
         barPar.sim_sink  = true;
-        barPar.gammas  = "(j12 j12) (j32X j32Y)";
-        barPar.parity  = 1;
+        barPar.gammas    = "(j12 j12) (j32X j32Y)";
+        barPar.parity    = 1;
 
-        barEntry.q1     = flavour[i];
-        barEntry.q2     = flavour[j];
-        barEntry.q3     = flavour[k];
-        barEntry.source = "pt";
+        barEntry.q1      = flavour[i];
+        barEntry.q2      = flavour[j];
+        barEntry.q3      = flavour[k];
+        barEntry.source  = "pt";
 
         application.createModule<MContraction::Baryon>(
             "baryon_pt_" + flavour[i] + flavour[j] + flavour[k], barPar);

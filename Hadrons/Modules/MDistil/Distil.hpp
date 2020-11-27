@@ -66,6 +66,31 @@ BEGIN_MODULE_NAMESPACE(MDistil)
 
  ******************************************************************************/
 
+
+GRID_SERIALIZABLE_ENUM(pMode, undef, perambOnly, 0, inputSolve, 1, outputSolve, 2);
+
+#define DIST_SOURCE \
+for (int it = dt; it < Nt; it += dp.TI) \
+{ \
+    const int t_inv{(dp.tsrc + it)%Nt}; \
+    if( t_inv >= Ntfirst && t_inv < Ntfirst + Ntlocal ) \
+    { \
+        for (int ik = dk; ik < dp.nvec; ik += dp.LI) \
+        { \
+            for (int is = ds; is < Ns; is += dp.SI) \
+            { \
+                ExtractSliceLocal(evec3d,epack.evec[ik],0,t_inv-Ntfirst,Tdir); \
+                cv3dtmp = evec3d * noise.tensor(inoise, t_inv, ik, is); \
+                fermion3dtmp=0; \
+                pokeSpin(fermion3dtmp,cv3dtmp,is); \
+                fermion4dtmp=0; \
+                InsertSliceLocal(fermion3dtmp,fermion4dtmp,0,t_inv-Ntfirst,Tdir); \
+                dist_source += fermion4dtmp; \
+            } \
+        } \
+    } \
+}
+
 struct DistilParameters: Serializable {
     GRID_SERIALIZABLE_CLASS_MEMBERS(DistilParameters,
                                     int, nvec,
