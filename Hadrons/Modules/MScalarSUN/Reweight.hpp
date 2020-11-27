@@ -107,11 +107,15 @@ void TReweight<FImpl>::execute(void)
     ComplexField Trphi3 = trace(phi*phi*phi);
     ComplexField Tr2dphi = 0.*trace(phi);
     
-    
     for (int mu=0;mu<nd;++mu) Tr2dphi = Tr2dphi + trace(Cshift(phi,mu,1)-phi)*trace(Cshift(phi,mu,1)-phi);
 
-    result.value = (1./par().g)*real(TensorRemove(sum( -Tr2dphi - par().m2*Trphi*Trphi + par().lambda*(  (-3./pow(N,2))*Trphi*Trphi*Trphi*Trphi + (6./N)*Trphi*Trphi*Trphi2 - 4.*Trphi*Trphi3  )  )));
+    result.value = (1./par().g)*real(TensorRemove(sum( Tr2dphi + par().m2*Trphi*Trphi + par().lambda*(  (-3./pow(N,2))*Trphi*Trphi*Trphi*Trphi + (6./N)*Trphi*Trphi*Trphi2 - 4.*Trphi*Trphi3  )  )));
 
+
+    LOG(Message) << "Trace(phi) sum = " << TensorRemove(sum(timesMinusI(Trphi))).real() << std::endl;
+    LOG(Message) << "Trace^2(dphi) sum = " << -TensorRemove(sum(Tr2dphi)).real() << std::endl;
+    LOG(Message) << "Trace(phi^2) sum = " << -TensorRemove(sum(Trphi2)).real() << std::endl;
+    LOG(Message) << "Trace(phi^3) sum = " << -TensorRemove(sum(timesI(Trphi3))).real() << std::endl;
     LOG(Message) << "Reweight Factor = " << result.value << std::endl;
     saveResult(par().output, "reweight", result);
     
