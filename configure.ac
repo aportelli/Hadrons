@@ -1,5 +1,5 @@
 AC_PREREQ([2.63])
-AC_INIT(Hadrons,[v1.0],[antonin.portelli@ed.ac.uk],[hadrons])
+AC_INIT(Hadrons,[v1.2-dev],[antonin.portelli@ed.ac.uk],[hadrons])
 AC_CANONICAL_BUILD
 AC_CANONICAL_HOST
 AC_CANONICAL_TARGET

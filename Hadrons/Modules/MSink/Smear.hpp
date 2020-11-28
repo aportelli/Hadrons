@@ -5,6 +5,7 @@
  *
  * Author: Antonin Portelli <antonin.portelli@me.com>
  * Author: Lanny91 <andrew.lawson@gmail.com>
+ * Author: Raoul Hodgson <raoul.hodgson@ed.ac.uk>
  *
  * Hadrons is free software: you can redistribute it and/or modify
  * it under the terms of the GNU General Public License as published by
