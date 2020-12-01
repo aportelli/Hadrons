@@ -24,6 +24,8 @@
 
 /*  END LEGAL */
 
+#include <Hadrons/Database.hpp>
+
 using namespace Grid;
 using namespace Hadrons;
 

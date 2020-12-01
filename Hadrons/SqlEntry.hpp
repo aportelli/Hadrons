@@ -167,8 +167,6 @@ std::string SqlEntry::strFrom(const T &x)
 {
     std::ostringstream stream;
     
-    stream.precision(15);
-
     stream << x;
 
     return stream.str();
@@ -180,8 +178,6 @@ SER(T, std::string) SqlEntry::xmlStrFrom(const T &x)
 {
     XmlWriter writer("", "");
 
-    writer.setPrecision(15);
-
     write(writer, x.SerialisableClassName(), x);
 
     return writer.string();
@@ -191,8 +187,6 @@ template <typename T>
 NOT_SER(T, std::string) SqlEntry::xmlStrFrom(const T &x)
 {
     XmlWriter writer("", "");
-
-    writer.setPrecision(15);
 
     write(writer, "object", x);
 
