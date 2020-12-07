@@ -78,8 +78,8 @@ private:
     std::vector<std::vector<RealF>>     momenta_;
     int                                 nExt_;
     int                                 nStr_;
-    Vector<ComplexF>                    buf_;
-    Vector<Complex>                     cache_;
+    Vector<ComplexF>                    blockbuf_;
+    Vector<Complex>                     cachebuf_;
     int                                 nt_nonzero_;
     std::vector<std::vector<int>>       noisePairs_;           // read from extermal object (diluted noise class)
     std::map<std::string, std::string>                      lrInput_;
@@ -130,35 +130,47 @@ void TDistilMesonField<FImpl>::setup(void)
     {
         HADRONS_ERROR(Argument,"Bad meson field case");
     }
-    LOG(Message) << "Meson field case " << dmf_case.at("left") << "-" << dmf_case.at("right") << std::endl;
+    LOG(Message) << "Meson field case: " << dmf_case.at("left") << "-" << dmf_case.at("right") << std::endl;
     const std::vector<std::string> lrPair = {"left","right"};
+    LOG(Message) << "Meson field time extension: " << nt_nonzero_ << std::endl;
 
-    // parse source times lr
+    // parse source times l/r
     std::vector<std::vector<int>>       stL;      // should this come from perambulator in the future? no only if we want to use subsets of the inversions we have
     stL.clear();
     for(auto &stl : par().SourceTimesLeft)
         stL.push_back(strToVec<int>(stl));
-        
     std::vector<std::vector<int>>       stR;
     stR.clear();
     for(auto &str : par().SourceTimesRight)
         stR.push_back(strToVec<int>(str));
     // outermost dimension is the time-dilution index, innermost one are the non-zero source timeslices
     // in phi-phi save all timeslices, but in the other cases save only the non-zero  ones...
+
+    // compute nt_nonzero_ (<nt), the number of non-zero timeslices in the final object, when there's at least one rho involved
+    // std::cout << stL << std::endl;
+    // std::cout << stR << std::endl;
+    nt_nonzero_ = 0;
+    if(par().MesonFieldCase=="rho-rho" || par().MesonFieldCase=="rho-phi")
+        for(auto elem : stL)
+            elem.size() > nt_nonzero_ ? nt_nonzero_ = elem.size() : 0;      //get the highest possible nt_nonzero_ from stL
+    else if(par().MesonFieldCase=="phi-rho")    //distinguishing between L and R dilution, remove if not necessary
+        for(auto elem : stR)
+            elem.size() > nt_nonzero_ ? nt_nonzero_ = elem.size() : 0;
+    else
+        nt_nonzero_ = env().getDim(Tdir);
     
     lrInput_       = {{"left",par().LeftInput},{"right",par().RightInput}};
     lrSourceTimes_ = {{"left",stL},{"right",stR}};  
 
-    // parse and validate noise pairs
+    // parse and validate input
     noisePairs_.clear();
     for(auto &npair : par().NoisePairs)
     {
         noisePairs_.push_back(strToVec<int>(npair));
         std::map<std::string, int>    noiseMapTemp = { {"left", noisePairs_.back()[0]} , {"right",noisePairs_.back()[1]} };
         for(auto &side : lrPair){
-            if(dmf_case.at(side)=="phi")
+            if(dmf_case.at(side)=="phi")    // turn this into macro?
             {
-                // turn this into macro?
                 auto &inTensor = envGet(PerambTensor , lrInput_.at(side));
                 if( noiseMapTemp.at(side) > inTensor.tensor.dimensions().at(3) )
                 {
@@ -175,7 +187,8 @@ void TDistilMesonField<FImpl>::setup(void)
             }
         }
     }
-
+    
+    
     // momenta and gamma parse
     momenta_.clear();
     for(auto &p_string : par().Momenta)
@@ -221,23 +234,11 @@ void TDistilMesonField<FImpl>::setup(void)
     const DistilParameters &dpR = envGet(DistilParameters, par().RightDPar);
 
     //matrix sets
-    nExt_ = momenta_.size(); // * nNoiseLeft * nNoiseRight;   // remember to take into account the noise pair in the filename later
+    nExt_ = momenta_.size(); //noise pairs computed independently, but can optmize embedding it into nExt??
     nStr_ = gamma_.size();
-
-    // compute nt_nonzero_ (<nt), the number of non-zero timeslices when there's at least one rho involved
-    nt_nonzero_ = 0;
-    if(par().MesonFieldCase=="rho-rho" || par().MesonFieldCase=="rho-phi")
-        for(auto elem : stL)
-            elem.size() > nt_nonzero_ ? nt_nonzero_ = elem.size() : 0;      //get the highest possible nt_nonzero_ from stL
-    else if(par().MesonFieldCase=="phi-rho")
-        for(auto elem : stR)
-            elem.size() > nt_nonzero_ ? nt_nonzero_ = elem.size() : 0;
-    else
-        nt_nonzero_ = env().getDim(Tdir);
     
-    // std::cout << "Smallest time extension = " << nt_nonzero_ << std::endl << std::endl;
-    buf_.resize(nExt_*nStr_*nt_nonzero_*par().BlockSize*par().BlockSize);
-    cache_.resize(nExt_*nStr_*env().getDim(Tdir)*par().CacheSize*par().CacheSize);
+    blockbuf_.resize(nExt_*nStr_*nt_nonzero_*par().BlockSize*par().BlockSize);
+    cachebuf_.resize(nExt_*nStr_*env().getDim(Tdir)*par().CacheSize*par().CacheSize);
     
     // 3d grid (as a 4d one with collapsed time dimension)
     const unsigned int nd{env().getNd()};
@@ -287,6 +288,7 @@ void TDistilMesonField<FImpl>::execute(void)
     
     auto &epack = envGet(LapEvecs, par().LapEvec);
     auto &phase = envGet(std::vector<ComplexField>, "phasename");
+
     if (!hasPhase_)
     {
         startTimer("momentum phases");
@@ -329,6 +331,10 @@ void TDistilMesonField<FImpl>::execute(void)
     std::map<std::string, std::vector<FermionField>&>       lrDistVector  = {{"left",left},{"right",right}};
     const std::vector<std::string> lrPair = {"left","right"};
 
+    long    global_counter = 0;
+    double  global_flops = 0.0;
+    double  global_bytes = 0.0;
+
     for(auto &inoise : noisePairs_)
     {
         //set up io object and metadata for all gamma/momenta
@@ -361,7 +367,9 @@ void TDistilMesonField<FImpl>::execute(void)
             //initialize file with no outputName group (containing atributes of momentum and gamma) but no dataset inside
             if(env().getGrid()->IsBoss())
             {
+                startTimer("io: initialization");
                 matrixIoTable.back().initFile(md);
+                stopTimer("io: initialization");
             }
         }
 
@@ -375,10 +383,10 @@ void TDistilMesonField<FImpl>::execute(void)
         // computation, still ignoring gamma5 hermiticity
         for(auto &side : lrPair)
         {
-            //each dtL, dtR pair corresponds to a different dataset
-            for (int dt = 0; dt<lrSourceTimes_.at(side).size(); dt++)         //loop over left time dilution index
+            //each dtL, dtR pair corresponds to a different dataset here
+            for (int dt = 0; dt<lrSourceTimes_.at(side).size(); dt++)         //loop over time dilution index
             {
-                // left computation
+                // computation of phi or rho
                 for(int iD=0 ; iD<dilutionSize_LS ; iD++)
                 {
                     int dk = iD%LI;
@@ -432,7 +440,7 @@ void TDistilMesonField<FImpl>::execute(void)
             if(!(par().MesonFieldCase=="rho-rho" && dtL!=dtR))
             {
                 std::string datasetName = "dtL"+std::to_string(dtL)+"_dtR"+std::to_string(dtR);
-                LOG(Message) << "Computing dilution block " << datasetName << std::endl;
+                LOG(Message) << "Computing dilution dataset " << datasetName << "..." << std::endl;
 
                 // int nblocki = left.size()/blockSize_ + (((left.size() % blockSize_) != 0) ? 1 : 0);
                 // int nblockj = right.size()/blockSize_ + (((right.size() % blockSize_) != 0) ? 1 : 0);
@@ -445,18 +453,20 @@ void TDistilMesonField<FImpl>::execute(void)
                 {
                     int iblockSize = MIN(dilutionSize_LS-iblock,blockSize_);    // iblockSize is the size of the current block (indexed by i); N_i-i is the size of the eventual remainder block
                     int jblockSize = MIN(dilutionSize_LS-jblock,blockSize_);
-                    A2AMatrixSet<ComplexF> block(buf_.data(), nExt_ , nStr_ , nt, iblockSize, jblockSize);
-                    // std::cout << "  Computing block at (" << iblock << "," << jblock << ")..." << std::endl;
+                    A2AMatrixSet<ComplexF> block(blockbuf_.data(), nExt_ , nStr_ , nt_nonzero_, iblockSize, jblockSize);
 
                     LOG(Message) << "Distil matrix block " 
                     << jblock/blockSize_ + nblocki*iblock/blockSize_ + 1 
-                    << "/" << nblocki*nblockj << " [" << iblock <<" .. " 
-                    << iblock+iblockSize-1 << ", " << jblock <<" .. " << jblock+jblockSize-1 << "]" 
+                    << "/" << nblocki*nblockj << " [" << iblock << " .. " 
+                    << iblock+iblockSize-1 << ", " << jblock << " .. " << jblock+jblockSize-1 << "]" 
                     << std::endl;
 
-                    int flops       = 0.0;
-                    int bytes       = 0.0;
-                    int time_kernel = 0.0;
+                    // LOG(Message) << "Block size = "         << nt_nonzero_*iblockSize*jblockSize*sizeof(ComplexF) << "MB/momentum/gamma" << std::endl;
+                        // LOG(Message) << "Cache blocks size = "   << nt*cacheSize_*cacheSize_*sizeof(ComplexD) << "MB/momentum/gamma" << std::endl;  //remember to change this in case I change chunk size from nt to something else
+
+                    double flops       = 0.0;
+                    double bytes       = 0.0;
+                    double time_kernel = 0.0;
                     double nodes    = env().getGrid()->NodeCount();
 
                     // loop over cache_ blocks in the current block
@@ -465,19 +475,22 @@ void TDistilMesonField<FImpl>::execute(void)
                     {
                         int icacheSize = MIN(iblockSize-icache,cacheSize_);      // icacheSize is the size of the current cache_ block (indexed by ii); N_ii-ii is the size of the remainder cache_ block
                         int jcacheSize = MIN(jblockSize-jcache,cacheSize_);
-                        A2AMatrixSet<Complex> blockCache(cache_.data(), nExt_, nStr_, nt, icacheSize, jcacheSize);
-                        // std::cout << "      Chunk (" << icache << "," << jcache << ")..." << std::endl;
+                        A2AMatrixSet<Complex> blockCache(cachebuf_.data(), nExt_, nStr_, nt, icacheSize, jcacheSize);
 
-                        double timer=0;
+                        double timer = 0.0;
                         startTimer("kernel");
                         A2Autils<FIMPL>::MesonField(blockCache, &left[dtL*dilutionSize_LS+iblock+icache], &right[dtR*dilutionSize_LS+jblock+jcache], gamma_, phase, Tdir, &timer);
                         stopTimer("kernel");
 
                         time_kernel += timer;
-
+                        
+                        // nExt is currently # of momenta , nStr is # of gamma matrices
                         flops += vol*(2*8.0+6.0+8.0*nExt_)*icacheSize*jcacheSize*nStr_;
                         bytes += vol*(12.0*sizeof(ComplexD))*icacheSize*jcacheSize
                               +  vol*(2.0*sizeof(ComplexD)*nExt_)*icacheSize*jcacheSize*nStr_;
+
+                        // std::cout<< "block dimensions " << block.dimensions().at(2) << std::endl;
+                        // std::cout<< "blockcache dimensions " << blockCache.dimensions().at(2) << std::endl << std::cin.get();
 
                         // loop through the cacheblock (inside them) and point blockCache to block
                         startTimer("cache copy");
@@ -493,28 +506,30 @@ void TDistilMesonField<FImpl>::execute(void)
                         }
                         else
                         {
+                            // std::cout << lrSourceTimes_.at("left") << std::cin.get();
                             thread_for_collapse( 5, iExt ,nExt_,{
+                            // for ( uint64_t iExt=0;iExt<nExt_;iExt++) { 
                             for(int iStr=0 ;iStr<nStr_ ; iStr++)
-                            for(int it=0 ; it<nt_nonzero_ ; it++)  //only wish to copy non-zero timeslices to block (referencing LEFT-rho dilution scheme)
+                            for(int it=0 ; it<nt_nonzero_ ; it++)  //only wish to copy non-zero timeslices to block
                             for(int iicache=0 ; iicache<icacheSize ; iicache++)
                             for(int jjcache=0;  jjcache<jcacheSize ; jjcache++)
                                 block(iExt,iStr,it,icache+iicache,jcache+jjcache) = blockCache(iExt,iStr,lrSourceTimes_.at("left")[dtL][it],iicache,jjcache);
+                            // }
                             });
                         }
                         stopTimer("cache copy");
-
-                        
                     }
 
                     LOG(Message) << "Kernel perf (flops) " << flops/time_kernel/1.0e3/nodes 
                                 << " Gflop/s/node " << std::endl;
                     LOG(Message) << "Kernel perf (read) " << bytes/time_kernel*1.0e6/1024/1024/1024/nodes 
                                 << " GB/s/node "  << std::endl;
-                    
-                // std::cout << " " << bytes << " " << vol  << " " << nExt_ << " " << nStr_ << " " << sizeof(ComplexD) << std::endl;
+                    global_counter++;
+                    global_flops += flops/time_kernel/1.0e3/nodes ;
+                    global_bytes += bytes/time_kernel*1.0e6/1024/1024/1024/nodes ;
 
                     // saving current block to disk
-                    startTimer("io");
+                    startTimer("io: write");
 #ifdef HADRONS_A2AM_PARALLEL_IO
                     //parallel io
                     int inode = env().getGrid()->ThisRank();
@@ -546,11 +561,15 @@ void TDistilMesonField<FImpl>::execute(void)
                         }
                     }
 #endif
-                    stopTimer("io");
+                    stopTimer("io: write");
                 }
             }
         }
     }
+
+    LOG(Message) << "MesonField kernel executed " << global_counter << " times on " << cacheSize_ << "^2 cache blocks" << std::endl;
+    LOG(Message) << "Average kernel perf (flops) " << global_flops/global_counter << " Gflop/s/node " << std::endl;
+    LOG(Message) << "Average kernel perf (read) " << global_bytes/global_counter  << " GB/s/node "  << std::endl;
 }
 
 
