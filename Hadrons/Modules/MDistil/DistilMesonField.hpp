@@ -367,18 +367,22 @@ void TDistilMesonField<FImpl>::execute(void)
             //initialize file with no outputName group (containing atributes of momentum and gamma) but no dataset inside
             if(env().getGrid()->IsBoss())
             {
-                startTimer("io: initialization");
+                startTimer("IO: total");
+                startTimer("IO: file creation");
                 matrixIoTable.back().initFile(md);
-                stopTimer("io: initialization");
+                stopTimer("IO: file creation");
+                stopTimer("IO: total");
             }
         }
+
+        std::map<std::string,int&> lfNoise = {{"left",inoise[0]},{"right",inoise[1]}}; //do not use []
+
+        LOG(Message) << "Noise pair: " << inoise << std::endl;
 
         LOG(Message) << "Gamma:" << std::endl;
         LOG(Message) << gamma_ << std::endl;
         LOG(Message) << "Momenta:" << std::endl;
         LOG(Message) << momenta_ << std::endl;
-
-        std::map<std::string,int&> lfNoise = {{"left",inoise[0]},{"right",inoise[1]}}; //do not use []
 
         // computation, still ignoring gamma5 hermiticity
         for(auto &side : lrPair)
@@ -440,7 +444,7 @@ void TDistilMesonField<FImpl>::execute(void)
             if(!(par().MesonFieldCase=="rho-rho" && dtL!=dtR))
             {
                 std::string datasetName = "dtL"+std::to_string(dtL)+"_dtR"+std::to_string(dtR);
-                LOG(Message) << "Computing dilution dataset " << datasetName << "..." << std::endl;
+                LOG(Message) << "- Computing dilution dataset " << datasetName << "..." << std::endl;
 
                 // int nblocki = left.size()/blockSize_ + (((left.size() % blockSize_) != 0) ? 1 : 0);
                 // int nblockj = right.size()/blockSize_ + (((right.size() % blockSize_) != 0) ? 1 : 0);
@@ -522,14 +526,17 @@ void TDistilMesonField<FImpl>::execute(void)
 
                     LOG(Message) << "Kernel perf (flops) " << flops/time_kernel/1.0e3/nodes 
                                 << " Gflop/s/node " << std::endl;
-                    LOG(Message) << "Kernel perf (read) " << bytes/time_kernel*1.0e6/1024/1024/1024/nodes 
+                    LOG(Message) << "Kernel perf (read) " << bytes/time_kernel*0.000931322574615478515625/nodes //  1.0e6/1024/1024/1024/nodes
                                 << " GB/s/node "  << std::endl;
                     global_counter++;
                     global_flops += flops/time_kernel/1.0e3/nodes ;
-                    global_bytes += bytes/time_kernel*1.0e6/1024/1024/1024/nodes ;
+                    global_bytes += bytes/time_kernel*0.000931322574615478515625/nodes ; // 1.0e6/1024/1024/1024/nodes
 
                     // saving current block to disk
-                    startTimer("io: write");
+                    LOG(Message) << "Writing block to disk" << std::endl;
+                    startTimer("IO: total");
+                    startTimer("IO: write block");
+                    double ioTime = -getDTimer("IO: write block");
 #ifdef HADRONS_A2AM_PARALLEL_IO
                     //parallel io
                     int inode = env().getGrid()->ThisRank();
@@ -548,7 +555,7 @@ void TDistilMesonField<FImpl>::execute(void)
                     }
                     env().getGrid()->Barrier();
 #else
-                    // serial io
+                    // serial io, can remove later
                     LOG(Message) << "Starting serial IO" << std::endl;
                     for(int iExt=0; iExt<nExt_; iExt++)
                     for(int iStr=0; iStr<nStr_; iStr++)
@@ -561,7 +568,14 @@ void TDistilMesonField<FImpl>::execute(void)
                         }
                     }
 #endif
-                    stopTimer("io: write");
+                    stopTimer("IO: total");
+                    stopTimer("IO: write block");
+                    ioTime    += getDTimer("IO: write block");
+                    int bytesBlockSize  = static_cast<double>(nExt_*nStr_*nt_nonzero_*iblockSize*jblockSize*sizeof(ComplexF));
+                    LOG(Message)    << "HDF5 IO done " << sizeString(bytesBlockSize) << " in "
+                                    << ioTime  << " us (" 
+                                    << bytesBlockSize/ioTime*0.95367431640625 // 1.0e6/1024/1024
+                                    << " MB/s)" << std::endl;
                 }
             }
         }
