@@ -62,7 +62,7 @@ public:
                                     std::string, action,
                                     std::string, source,
                                     double,      mass,
-                                    bool,        test_axial,
+                                    //bool,        test_axial,
                                     std::string, output);
 };
 
@@ -78,8 +78,11 @@ public:
     public:
         GRID_SERIALIZABLE_CLASS_MEMBERS(Result,
                                         double,               mass,
-                                        std::vector<Scalar>,  DmuJmu,
-                                        std::vector<Scalar>,  PDmuAmu,
+                                        std::vector<Scalar>,  SV,
+                                        std::vector<Scalar>,  VV,
+                                        std::vector<Scalar>,  PA,
+                                        std::vector<Scalar>,  DmuPA,
+                                        std::vector<Scalar>,  DefectPA,
                                         std::vector<Scalar>,  PP,
                                         std::vector<Scalar>,  PJ5q,
                                         std::vector<Scalar>,  mres);
@@ -98,6 +101,16 @@ protected:
     virtual void setup(void);
     // execution
     virtual void execute(void);
+    // Perform Slice Sum and then save delta
+    void SliceOut(std::vector<Scalar> &Out, std::vector<TensorScalar> &Sum, ComplexField &f)
+    {
+        sliceSum(f, Sum, Tp);
+        const auto nt = Sum.size();
+        for (size_t t = 0; t < nt; ++t)
+        {
+            Out[t] = TensorRemove(Sum[t] - Sum[(t-1+nt)%nt]);
+        }
+    }
 private:
     unsigned int Ls_;
     std::string qName;
@@ -149,15 +162,10 @@ void TWardIdentity<FImpl>::setup(void)
     }
     // These temporaries are always 4d
     envTmpLat(PropagatorField, "tmp");
-    envTmpLat(PropagatorField, "vector_WI");
-    envTmpLat(ComplexField, "vector_current");
-    if (par().test_axial)
+    envTmpLat(ComplexField, "tmp_current");
+    //if (par().test_axial)
     {
         envTmpLat(PropagatorField, "psi");
-        envTmpLat(ComplexField, "axial_defect");
-        envTmpLat(ComplexField, "axial_defect_fin");
-        envTmpLat(ComplexField, "PJ5q");
-        envTmpLat(ComplexField, "PP");
     }
 }
 
@@ -172,105 +180,81 @@ void TWardIdentity<FImpl>::execute(void)
     LOG(Message) << "Physical source " << par().source << std::endl;
     auto &phys_source = envGet(PropagatorField, par().source);
     Gamma g5(Gamma::Algebra::Gamma5);
+    Gamma gT(Gamma::Algebra::GammaT);
 
     // Create results = zero
     Result result;
     result.mass = par().mass;
     const int nt { env().getDim(Tp) };
-    result.DmuJmu.resize(nt, 0.);
-    result.PDmuAmu.resize(nt, 0.);
+    result.SV.resize(nt, 0.);
+    result.VV.resize(nt, 0.);
+    result.PA.resize(nt, 0.);
+    result.DmuPA.resize(nt, 0.);
+    result.DefectPA.resize(nt, 0.);
     result.PP.resize(nt, 0.);
     result.PJ5q.resize(nt, 0.);
     result.mres.resize(nt, 0.);
 
     // Compute D_mu V_mu (D here is backward derivative)
-    LOG(Message) << "Getting vector conserved current" << std::endl;
+    // There is no point performing Dmu on spatial directions, because after the spatial sum, these become zero
     envGetTmp(PropagatorField, tmp);
-    envGetTmp(PropagatorField, vector_WI);
-    vector_WI = Zero();
-    for (unsigned int mu = 0; mu < Nd; ++mu)
-    {
-        act.ContractConservedCurrent(q, q, tmp, phys_source, Current::Vector, mu);
-        tmp -= Cshift(tmp, mu, -1);
-        vector_WI += tmp;
-    }
-    // Log ward identity D_mu V_mu = 0;
-    LOG(Message) << "Vector Ward Identity check Delta_mu V_mu = " << norm2(vector_WI) << std::endl;
-
-    // Save the spatial sum for each time-plane
-    std::vector<TensorScalar> vector_buf;
-    envGetTmp(ComplexField, vector_current);
-    vector_current = trace(vector_WI);
-    sliceSum(vector_current, vector_buf, Tp);
+    envGetTmp(ComplexField, tmp_current);
+    LOG(Message) << "Getting vector conserved current" << std::endl;
+    act.ContractConservedCurrent(q, q, tmp, phys_source, Current::Vector, Tdir);
+    // Scalar-vector current density
+    tmp_current = trace(tmp);
+    std::vector<TensorScalar> tmp_buf(nt);
+    SliceOut(result.SV, tmp_buf, tmp_current);
+    // Vector-vector current density
+    tmp_current = trace(gT*tmp);
+    SliceOut(result.VV, tmp_buf, tmp_current);
+    // For comparison with Grid Test_Cayley_mres
+    LOG(Message) << "Vector Ward Identity by timeslice" << std::endl;
     for (int t = 0; t < nt; ++t)
     {
-        result.DmuJmu[t] = TensorRemove(vector_buf[t]);
+        LOG(Message) << " t=" << t << ", SV=" << real(result.SV[t]) << ", VV=" << real(result.VV[t]) << std::endl;
     }
 
+    // Save the spatial sum for each time-plane
+
     // Not sure why axial tests should be optional
-    if (par().test_axial)
+    //if (par().test_axial)
     {
-        // Compute <P|D_mu A_mu>, D is backwards derivative.
-        envGetTmp(PropagatorField, psi);
-        envGetTmp(ComplexField, axial_defect);
-        axial_defect = Zero();
-        for (unsigned int mu = 0; mu < Nd; ++mu)
-        {
-            act.ContractConservedCurrent(q, q, tmp, phys_source, Current::Axial, mu);
-            tmp -= Cshift(tmp, mu, -1);
-            axial_defect += trace(g5 * tmp);
-        }
+        LOG(Message) << "Getting axial conserved current" << std::endl;
+        act.ContractConservedCurrent(q, q, tmp, phys_source, Current::Axial, Tdir);
+        // Pseudoscalar-Axial current density
+        tmp_current = trace(g5 * tmp);
+        SliceOut(result.PA, tmp_buf, tmp_current);
 
         // Get <P|J5q> for 5D (zero for 4D) and <P|P>.
-        envGetTmp(ComplexField, PP);
-        envGetTmp(ComplexField, PJ5q);
         if (Ls_ > 1)
         {
+            // <P|5Jq>
+            act.ContractJ5q(q, tmp_current);
+            SliceOut(result.PJ5q, tmp_buf, tmp_current);
             // <P|P>
+            envGetTmp(PropagatorField, psi);
             ExtractSlice(tmp, q, 0, 0);
             psi = 0.5 * (g5 * tmp - tmp);
             ExtractSlice(tmp, q, Ls_ - 1, 0);
             psi += 0.5 * (tmp + g5 * tmp);
-            PP = trace(adj(psi) * psi);
-            // <P|5Jq>
-            act.ContractJ5q(q, PJ5q);
+            tmp_current = trace(adj(psi) * psi);
         }
         else
         {
             // 4d action
-            PP = trace(adj(q) * q);
-            PJ5q = Zero();
+            tmp_current = trace(adj(q) * q);
         }
-        envGetTmp(ComplexField, axial_defect_fin);
-        axial_defect_fin = axial_defect - 2. * (par().mass * PP + PJ5q);
-
-        // Test ward identity <P|D_mu A_mu> = 2m<P|P> + 2<P|J5q>
-        LOG(Message) << "|D_mu A_mu|^2 = " << norm2(axial_defect) << std::endl;
-        LOG(Message) << "|PP|^2        = " << norm2(PP) << std::endl;
-        LOG(Message) << "|PJ5q|^2      = " << norm2(PJ5q) << std::endl;
-        LOG(Message) << "Axial Ward Identity defect Delta_mu A_mu = "
-                     << norm2(axial_defect_fin) << std::endl;
-
-        // Axial defect by timeslice.
-        LOG(Message) << "Check Axial defect by timeslice" << std::endl;
-        std::vector<TensorScalar> fin_buf;
-        std::vector<TensorScalar> axial_buf;
-        std::vector<TensorScalar> PP_buf;
-        std::vector<TensorScalar> PJ5q_buf;
-        sliceSum(axial_defect_fin, fin_buf, Tp);
-        sliceSum(axial_defect, axial_buf, Tp);
-        sliceSum(PP, PP_buf, Tp);
-        sliceSum(PJ5q, PJ5q_buf, Tp);
+        SliceOut(result.PP, tmp_buf, tmp_current);
+        LOG(Message) << "Axial Ward Identity by timeslice" << std::endl;
         for (int t = 0; t < nt; ++t)
         {
+            result.DmuPA[t]    = result.PA[t] - result.PA[(t-1+nt)%nt];
+            result.DefectPA[t] = result.DmuPA[t] - 2.*(result.mass*result.PP[t] + result.PJ5q[t]);
+            result.mres[t]     = result.PJ5q[t] / result.PP[t];
             // This output can be compared with Grid Test_cayley_mres
-            LOG(Message) << "t=" << t << ", Axial defect PAc=" << TensorRemove(axial_buf[t])
-                         << ", PJ5q[" << t << "]=" << TensorRemove(fin_buf[t])
-                         << ", PCAC_relation[" << t << "]=" << TensorRemove(fin_buf[t]) << std::endl;
-            result.PDmuAmu[t] = TensorRemove(axial_buf[t]);
-            result.PP[t]     = TensorRemove(PP_buf[t]);
-            result.PJ5q[t]   = TensorRemove(PJ5q_buf[t]);
-            result.mres[t]   = TensorRemove(PJ5q_buf[t]) / TensorRemove(PP_buf[t]);
+            LOG(Message) << " t=" << t << ", PAc=" << real(result.PA[t]) << ", PJ5q=" << real(result.PJ5q[t])
+                         << ", PCAC/AWI defect=" << real(result.DefectPA[t]) << std::endl;
         }
     }
 
