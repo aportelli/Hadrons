@@ -279,10 +279,8 @@ void TBaryon<FImpl>::execute(void)
     for (int iG = 0; iG < gammaList.size(); iG++)
         LOG(Message) << "    with (Gamma^A,Gamma^B)_left = ( " << gammaList[iG].first.first << " , " << gammaList[iG].first.second << "') and (Gamma^A,Gamma^B)_right = ( " << gammaList[iG].second.first << " , " << gammaList[iG].second.second << ")" << std::endl;
     
-        LOG(Message) << "  1" << std::endl;
     int nt = env().getDim(Tp);
         
-        LOG(Message) << "  12" << std::endl;
     bool wick_contractions[6];
     BaryonUtils<FIMPL>::WickContractions(quarksL,quarksR,wick_contractions);
     
@@ -290,7 +288,6 @@ void TBaryon<FImpl>::execute(void)
     PropagatorField &q2  = envGet(PropagatorField, propsL[1]);
     PropagatorField &q3  = envGet(PropagatorField, propsL[2]);
 
-        LOG(Message) << "  13" << std::endl;
     std::vector<Result> result;
     Result              r;
     r.info.parity     = par().parity;
@@ -298,7 +295,6 @@ void TBaryon<FImpl>::execute(void)
     r.info.quarksL    = quarksL;
     r.info.shuffle    = par().shuffle;
 
-        LOG(Message) << "  14" << std::endl;
     std::vector<ResultMat> resultMat;
     ResultMat              rMat;
     rMat.info.parity     = 0;
@@ -306,39 +302,32 @@ void TBaryon<FImpl>::execute(void)
     rMat.info.quarksL    = quarksL;
     rMat.info.shuffle    = par().shuffle;
 
-        LOG(Message) << "  15" << std::endl;
     if (par().sim_sink) {
-        LOG(Message) << "  1a" << std::endl;
         for (unsigned int i = 0; i < gammaList.size(); ++i)
         {
             std::vector<TComplex> buf;
             std::vector<SpinMatrix> bufMat(nt, Zero());
-        LOG(Message) << "  1t" << std::endl;
 
             r.info.gammaA_left = gammaList[i].first.first;
             r.info.gammaB_left = gammaList[i].first.second;
             r.info.gammaA_right = gammaList[i].second.first;
             r.info.gammaB_right = gammaList[i].second.second;
-        LOG(Message) << "  1r" << std::endl;
 
             rMat.info.gammaA_left = gammaList[i].first.first;
             rMat.info.gammaB_left = gammaList[i].first.second;
             rMat.info.gammaA_right = gammaList[i].second.first;
             rMat.info.gammaB_right = gammaList[i].second.second;
-        LOG(Message) << "  1e" << std::endl;
 
             Gamma gAl(gammaList[i].first.first);
             Gamma gBl(gammaList[i].first.second);
             Gamma gAr(gammaList[i].second.first);
             Gamma gBr(gammaList[i].second.second);
-        LOG(Message) << "  1a" << std::endl;
         
             std::string ns = vm().getModuleNamespace(env().getObjectModule(par().sinkq1));
-        LOG(Message) << "  1s" << std::endl;
             if (ns == "MSource")
             {
-        LOG(Message) << "  ??" << std::endl;
-                PropagatorField &sink = envGet(PropagatorField, par().sinkq1);
+                // PropagatorField &sink = envGet(PropagatorField, par().sinkq1);
+                PropagatorFieldScalar &sink = envGet(PropagatorFieldScalar, par().sinkq1);
 
                 if (par().trace) {
                     envGetTmp(LatticeComplex, c);
@@ -359,25 +348,25 @@ void TBaryon<FImpl>::execute(void)
                                                         wick_contractions,
                                                         cMat);
 
-                    auto sinkTr = closure(trace(sink));
+                    // auto sinkTr = closure(trace(sink));
 
-                    GridBase *grid = sink.Grid();
+                    // GridBase *grid = sink.Grid();
       
-                    autoView( vsinkTr, sinkTr, CpuRead);
-                    autoView( vcMat  , cMat  , CpuWrite);
+                    // autoView( vsinkTr, sinkTr, CpuRead);
+                    // autoView( vcMat  , cMat  , CpuWrite);
 
-                    accelerator_for(ss, grid->oSites(), grid->Nsimd(), {
-                        vcMat[ss] = vsinkTr[ss]*vcMat[ss]; 
-                    }  );//end loop over lattice sites
+                    // accelerator_for(ss, grid->oSites(), grid->Nsimd(), {
+                    //     vcMat[ss] = vsinkTr[ss]*vcMat[ss]; 
+                    // }  );//end loop over lattice sites
+
+                    cMat = cMat*sink;
 
                     sliceSum(cMat, bufMat, Tp);
                 }
             }
             else if (ns == "MSink")
             {
-        LOG(Message) << "  !!" << std::endl;
                 if (par().trace) {
-        LOG(Message) << "  !!?" << std::endl;
                     envGetTmp(LatticeComplex, c);
                     c=Zero();
                     BaryonUtils<FIMPL>::ContractBaryons(q1,q2,q3,
@@ -389,21 +378,15 @@ void TBaryon<FImpl>::execute(void)
                     SinkFnScalar &sink = envGet(SinkFnScalar, par().sinkq1);
                     buf = sink(c);
                 } else {
-        LOG(Message) << "  1" << std::endl;
                     envGetTmp(SpinMatrixField, cMat);
-        LOG(Message) << "  2" << std::endl;
                     cMat=Zero();
-        LOG(Message) << "  3" << std::endl;
                     BaryonUtils<FIMPL>::ContractBaryonsMatrix(q1,q2,q3,
                                                         gAl,gBl,gAr,gBr,
                                                         wick_contractions,
                                                         cMat);
-        LOG(Message) << "  4" << std::endl;
 
                     SinkFnMat &sink = envGet(SinkFnMat, par().sinkq1);
-        LOG(Message) << "  5" << std::endl;
                     bufMat = sink(cMat);
-        LOG(Message) << "  6" << std::endl;
                 }
             }
 
