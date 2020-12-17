@@ -579,8 +579,8 @@ void TDistilMesonField<FImpl>::execute(void)
                 }
             }
         }
+        LOG(Message) << "Meson fields saved at " << outputMFStem << std::endl;
     }
-
     LOG(Message) << "MesonField kernel executed " << global_counter << " times on " << cacheSize_ << "^2 cache blocks" << std::endl;
     LOG(Message) << "Average kernel perf (flops) " << global_flops/global_counter << " Gflop/s/node " << std::endl;
     LOG(Message) << "Average kernel perf (read) " << global_bytes/global_counter  << " GB/s/node "  << std::endl;
