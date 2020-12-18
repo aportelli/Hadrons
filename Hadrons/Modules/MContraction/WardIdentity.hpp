@@ -78,14 +78,13 @@ public:
     public:
         GRID_SERIALIZABLE_CLASS_MEMBERS(Result,
                                         double,               mass,
-                                        std::vector<Scalar>,  SV,
-                                        std::vector<Scalar>,  VV,
-                                        std::vector<Scalar>,  PA,
-                                        std::vector<Scalar>,  DmuPA,
-                                        std::vector<Scalar>,  DefectPA,
-                                        std::vector<Scalar>,  PP,
-                                        std::vector<Scalar>,  PJ5q,
-                                        std::vector<Scalar>,  mres);
+                                        std::vector<Scalar>,  DmuJmu,  // D_mu trace(Scalar*conserved_vector_mu)
+                                        std::vector<Scalar>,  PDmuAmu, // D_mu trace(pseudoscalar*conserved_axial_mu)
+                                        std::vector<Scalar>,  PP,      // Pseudoscalar density
+                                        std::vector<Scalar>,  PJ5q,    // Midpoint axial current density
+                                        std::vector<Scalar>,  mres,    // residual mass = PJ5q / PP
+                                        std::vector<Scalar>,  VDmuJmu, // D_mu trace(local_vector*conserved_vector_mu)
+                                        std::vector<Scalar>,  DefectPA);
     };
 
 public:
@@ -102,13 +101,13 @@ protected:
     // execution
     virtual void execute(void);
     // Perform Slice Sum and then save delta
-    void SliceOut(std::vector<Scalar> &Out, std::vector<TensorScalar> &Sum, ComplexField &f)
+    void SliceOut(std::vector<Scalar> &Out, std::vector<TensorScalar> &Sum, const ComplexField &f, bool bDiff=true) const
     {
         sliceSum(f, Sum, Tp);
         const auto nt = Sum.size();
         for (size_t t = 0; t < nt; ++t)
         {
-            Out[t] = TensorRemove(Sum[t] - Sum[(t-1+nt)%nt]);
+            Out[t] = TensorRemove(bDiff ? Sum[t] - Sum[(t-1+nt)%nt] : Sum[t]);
         }
     }
 private:
@@ -186,33 +185,34 @@ void TWardIdentity<FImpl>::execute(void)
     Result result;
     result.mass = par().mass;
     const int nt { env().getDim(Tp) };
-    result.SV.resize(nt, 0.);
-    result.VV.resize(nt, 0.);
-    result.PA.resize(nt, 0.);
-    result.DmuPA.resize(nt, 0.);
-    result.DefectPA.resize(nt, 0.);
+    result.DmuJmu.resize(nt, 0.);
+    result.PDmuAmu.resize(nt, 0.);
     result.PP.resize(nt, 0.);
     result.PJ5q.resize(nt, 0.);
     result.mres.resize(nt, 0.);
+    result.VDmuJmu.resize(nt, 0.);
+    result.DefectPA.resize(nt, 0.);
 
     // Compute D_mu V_mu (D here is backward derivative)
     // There is no point performing Dmu on spatial directions, because after the spatial sum, these become zero
     envGetTmp(PropagatorField, tmp);
     envGetTmp(ComplexField, tmp_current);
+    std::vector<TensorScalar> sumSV(nt);
+    std::vector<TensorScalar> sumVV(nt);
     LOG(Message) << "Getting vector conserved current" << std::endl;
     act.ContractConservedCurrent(q, q, tmp, phys_source, Current::Vector, Tdir);
     // Scalar-vector current density
     tmp_current = trace(tmp);
-    std::vector<TensorScalar> tmp_buf(nt);
-    SliceOut(result.SV, tmp_buf, tmp_current);
+    SliceOut(result.DmuJmu, sumSV, tmp_current);
     // Vector-vector current density
     tmp_current = trace(gT*tmp);
-    SliceOut(result.VV, tmp_buf, tmp_current);
+    SliceOut(result.VDmuJmu, sumVV, tmp_current);
     // For comparison with Grid Test_Cayley_mres
     LOG(Message) << "Vector Ward Identity by timeslice" << std::endl;
     for (int t = 0; t < nt; ++t)
     {
-        LOG(Message) << " t=" << t << ", SV=" << real(result.SV[t]) << ", VV=" << real(result.VV[t]) << std::endl;
+        LOG(Message) << " t=" << t << ", SV=" << real(TensorRemove(sumSV[t]))
+                     << ", VV=" << real(TensorRemove(sumVV[t])) << std::endl;
     }
 
     // Save the spatial sum for each time-plane
@@ -224,14 +224,16 @@ void TWardIdentity<FImpl>::execute(void)
         act.ContractConservedCurrent(q, q, tmp, phys_source, Current::Axial, Tdir);
         // Pseudoscalar-Axial current density
         tmp_current = trace(g5 * tmp);
-        SliceOut(result.PA, tmp_buf, tmp_current);
+        std::vector<TensorScalar> sumPA(nt);
+        SliceOut(result.PDmuAmu, sumPA, tmp_current);
 
         // Get <P|J5q> for 5D (zero for 4D) and <P|P>.
+        std::vector<TensorScalar> sumTmp(nt);
         if (Ls_ > 1)
         {
             // <P|5Jq>
             act.ContractJ5q(q, tmp_current);
-            SliceOut(result.PJ5q, tmp_buf, tmp_current);
+            SliceOut(result.PJ5q, sumTmp, tmp_current, false);
             // <P|P>
             envGetTmp(PropagatorField, psi);
             ExtractSlice(tmp, q, 0, 0);
@@ -245,15 +247,14 @@ void TWardIdentity<FImpl>::execute(void)
             // 4d action
             tmp_current = trace(adj(q) * q);
         }
-        SliceOut(result.PP, tmp_buf, tmp_current);
+        SliceOut(result.PP, sumTmp, tmp_current, false);
         LOG(Message) << "Axial Ward Identity by timeslice" << std::endl;
         for (int t = 0; t < nt; ++t)
         {
-            result.DmuPA[t]    = result.PA[t] - result.PA[(t-1+nt)%nt];
-            result.DefectPA[t] = result.DmuPA[t] - 2.*(result.mass*result.PP[t] + result.PJ5q[t]);
+            result.DefectPA[t] = result.PDmuAmu[t] - 2.*(result.mass*result.PP[t] + result.PJ5q[t]);
             result.mres[t]     = result.PJ5q[t] / result.PP[t];
             // This output can be compared with Grid Test_cayley_mres
-            LOG(Message) << " t=" << t << ", PAc=" << real(result.PA[t]) << ", PJ5q=" << real(result.PJ5q[t])
+            LOG(Message) << " t=" << t << ", PAc=" << real(TensorRemove(sumPA[t])) << ", PJ5q=" << real(result.PJ5q[t])
                          << ", PCAC/AWI defect=" << real(result.DefectPA[t]) << std::endl;
         }
     }
