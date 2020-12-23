@@ -41,7 +41,8 @@ BEGIN_HADRONS_NAMESPACE
  -----------------------------
  
  * options:
- - q:          propagator NB: "_5d" suffix will be appended (string)
+ - prop:       propagator
+ - prop5d:     5d propagator (for 5d actions)
  - source:     source module for the quark, used to remove contact terms (string)
  - action:     action module used for propagator solution (string)
  - mass:       mass of quark (double)
@@ -58,7 +59,8 @@ class WardIdentityPar: Serializable
 {
 public:
     GRID_SERIALIZABLE_CLASS_MEMBERS(WardIdentityPar,
-                                    std::string, q,
+                                    std::string, prop,      // Name of the quark we are checking Ward identity
+                                    std::string, prop5d,    // 5D version of the quark for 5D action
                                     std::string, action,
                                     std::string, source,
                                     double,      mass,
@@ -112,7 +114,7 @@ protected:
     }
 private:
     unsigned int Ls_;
-    std::string qName;
+    std::string qName, qName4d;
 };
 
 MODULE_REGISTER_TMP(WardIdentity, TWardIdentity<FIMPL>, MContraction);
@@ -131,8 +133,19 @@ TWardIdentity<FImpl>::TWardIdentity(const std::string name)
 template <typename FImpl>
 std::vector<std::string> TWardIdentity<FImpl>::getInput(void)
 {
-    qName = par().q; // If you want the 5d version, you must say so
-    return {qName, par().action, par().source};
+    std::vector<std::string> in{ par().action, par().source };
+    if (par().prop5d.empty())
+    {
+        qName=par().prop;
+    }
+    else
+    {
+        qName = par().prop5d;
+        qName4d = par().prop;
+        in.push_back( qName4d );
+    }
+    in.push_back( qName );
+    return in;
 }
 
 template <typename FImpl>
@@ -154,9 +167,6 @@ void TWardIdentity<FImpl>::setup(void)
         sError.append( std::to_string( Ls_ ) );
         sError.append( ", action Ls=" );
         sError.append( std::to_string( ActionLs_ ) );
-        sError.append( ". Did you mean quark='" );
-        sError.append( qName );
-        sError.append( "_5d' ?" );
         HADRONS_ERROR(Size, sError);
     }
     // These temporaries are always 4d
@@ -228,18 +238,17 @@ void TWardIdentity<FImpl>::execute(void)
         SliceOut(result.PDmuAmu, sumPA, tmp_current);
 
         // Get <P|J5q> for 5D (zero for 4D) and <P|P>.
-        std::vector<TensorScalar> sumTmp(nt);
+        std::vector<TensorScalar> sumPJ5q(nt);
+        std::vector<TensorScalar> sumPP(nt);
         if (Ls_ > 1)
         {
             // <P|5Jq>
             act.ContractJ5q(q, tmp_current);
-            SliceOut(result.PJ5q, sumTmp, tmp_current, false);
+            SliceOut(result.PJ5q, sumPJ5q, tmp_current, false);
             // <P|P>
-            envGetTmp(PropagatorField, psi);
-            ExtractSlice(tmp, q, 0, 0);
-            psi = 0.5 * (g5 * tmp - tmp);
-            ExtractSlice(tmp, q, Ls_ - 1, 0);
-            psi += 0.5 * (tmp + g5 * tmp);
+	    LOG(Message) << "Getting 4d propagator" << std::endl;
+	    auto &psi = envGet(PropagatorField, qName4d);
+	    LOG(Message) << "Contracting 4d current" << std::endl;
             tmp_current = trace(adj(psi) * psi);
         }
         else
@@ -247,15 +256,15 @@ void TWardIdentity<FImpl>::execute(void)
             // 4d action
             tmp_current = trace(adj(q) * q);
         }
-        SliceOut(result.PP, sumTmp, tmp_current, false);
-        LOG(Message) << "Axial Ward Identity by timeslice" << std::endl;
+        SliceOut(result.PP, sumPP, tmp_current, false);
+        //LOG(Message) << "Axial Ward Identity by timeslice" << std::endl;
+        //LOG(Message) << "Mass=" << result.mass << std::endl;
         for (int t = 0; t < nt; ++t)
         {
             result.DefectPA[t] = result.PDmuAmu[t] - 2.*(result.mass*result.PP[t] + result.PJ5q[t]);
             result.mres[t]     = result.PJ5q[t] / result.PP[t];
             // This output can be compared with Grid Test_cayley_mres
-            LOG(Message) << " t=" << t << ", PAc=" << real(TensorRemove(sumPA[t])) << ", PJ5q=" << real(result.PJ5q[t])
-                         << ", PCAC/AWI defect=" << real(result.DefectPA[t]) << std::endl;
+            //LOG(Message) << " t=" << t << ", PDmuAmu=" << real(result.PDmuAmu[t]) << ", PP=" << real(result.PP[t]) << ", PJ5q=" << real(result.PJ5q[t]) << ", PCAC/AWI defect=" << real(result.DefectPA[t]) << std::endl;
         }
     }
 
