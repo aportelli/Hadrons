@@ -241,15 +241,17 @@ void TDistilMesonField<FImpl>::setup(void)
     cachebuf_.resize(nExt_*nStr_*env().getDim(Tdir)*par().CacheSize*par().CacheSize);
     
     // 3d grid (as a 4d one with collapsed time dimension)
-    const unsigned int nd{env().getNd()};
-    GridCartesian * const grid4d{env().getGrid()};
-    Coordinate latt_size_3          = grid4d->_gdimensions;
-    latt_size_3[nd-1]               = 1;
-    Coordinate simd_layout_3        = GridDefaultSimd(nd-1, vComplex::Nsimd());
-    simd_layout_3.push_back( 1 );
-    Coordinate mpi_layout_3         = grid4d->_processors;
-    mpi_layout_3[nd-1]              = 1;
-    grid3d.reset( new GridCartesian(latt_size_3, simd_layout_3, mpi_layout_3, *grid4d) );
+    MakeLowerDimGrid(grid3d , env().getGrid());
+
+    // const unsigned int nd{env().getNd()};
+    // GridCartesian * const grid4d{env().getGrid()};
+    // Coordinate latt_size_3          = grid4d->_gdimensions;
+    // latt_size_3[nd-1]               = 1;
+    // Coordinate simd_layout_3        = GridDefaultSimd(nd-1, vComplex::Nsimd());
+    // simd_layout_3.push_back( 1 );
+    // Coordinate mpi_layout_3         = grid4d->_processors;
+    // mpi_layout_3[nd-1]              = 1;
+    // grid3d.reset( new GridCartesian(latt_size_3, simd_layout_3, mpi_layout_3, *grid4d) );
 
     envTmp(FermionField,                    "fermion3dtmp",         1, grid3d.get());
     envTmp(ColourVectorField,               "fermion3dtmp_nospin",  1, grid3d.get());
