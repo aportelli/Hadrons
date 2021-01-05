@@ -132,7 +132,9 @@ void TDistilMesonField<FImpl>::setup(void)
     }
     LOG(Message) << "Meson field case: " << dmf_case.at("left") << "-" << dmf_case.at("right") << std::endl;
     const std::vector<std::string> lrPair = {"left","right"};
-    LOG(Message) << "Meson field time extension: " << nt_nonzero_ << std::endl;
+    LOG(Message) << "Time dimension = " << nt_nonzero_ << std::endl;
+    LOG(Message) << "Selected block size: " << par().BlockSize << std::endl;
+    LOG(Message) << "Selected cache size: " << par().CacheSize << std::endl;
 
     // parse source times l/r
     std::vector<std::vector<int>>       stL;      // should this come from perambulator in the future? no only if we want to use subsets of the inversions we have
@@ -242,16 +244,6 @@ void TDistilMesonField<FImpl>::setup(void)
     
     // 3d grid (as a 4d one with collapsed time dimension)
     MakeLowerDimGrid(grid3d , env().getGrid());
-
-    // const unsigned int nd{env().getNd()};
-    // GridCartesian * const grid4d{env().getGrid()};
-    // Coordinate latt_size_3          = grid4d->_gdimensions;
-    // latt_size_3[nd-1]               = 1;
-    // Coordinate simd_layout_3        = GridDefaultSimd(nd-1, vComplex::Nsimd());
-    // simd_layout_3.push_back( 1 );
-    // Coordinate mpi_layout_3         = grid4d->_processors;
-    // mpi_layout_3[nd-1]              = 1;
-    // grid3d.reset( new GridCartesian(latt_size_3, simd_layout_3, mpi_layout_3, *grid4d) );
 
     envTmp(FermionField,                    "fermion3dtmp",         1, grid3d.get());
     envTmp(ColourVectorField,               "fermion3dtmp_nospin",  1, grid3d.get());
