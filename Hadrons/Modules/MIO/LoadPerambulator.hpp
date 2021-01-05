@@ -96,7 +96,7 @@ void TLoadPerambulator<FImpl>::setup(void)
     const MDistil::DistilParameters &dp{envGet(MDistil::DistilParameters,  par().DistilParams)};
     const int Nt{env().getDim(Tdir)}; 
     const bool full_tdil{ dp.TI == Nt };
-    const int Nt_inv{ full_tdil ? 1 : dp.TI };
+    const int Nt_inv{ dp.inversions };
     envCreate(MDistil::PerambTensor, getName(), 1, Nt,dp.nvec,dp.LI,dp.nnoise,Nt_inv,dp.SI);
 }
 
