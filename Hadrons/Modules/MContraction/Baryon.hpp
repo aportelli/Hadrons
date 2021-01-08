@@ -302,7 +302,8 @@ void TBaryon<FImpl>::execute(void)
     rMat.info.quarksL    = quarksL;
     rMat.info.shuffle    = par().shuffle;
 
-    if (par().sim_sink) {
+    if (par().sim_sink) 
+    {
         for (unsigned int i = 0; i < gammaList.size(); ++i)
         {
             std::vector<TComplex> buf;
@@ -326,10 +327,10 @@ void TBaryon<FImpl>::execute(void)
             std::string ns = vm().getModuleNamespace(env().getObjectModule(par().sinkq1));
             if (ns == "MSource")
             {
-                // PropagatorField &sink = envGet(PropagatorField, par().sinkq1);
                 PropagatorFieldScalar &sink = envGet(PropagatorFieldScalar, par().sinkq1);
 
-                if (par().trace) {
+                if (par().trace) 
+                {
                     envGetTmp(LatticeComplex, c);
                     c=Zero();
                     BaryonUtils<FIMPL>::ContractBaryons(q1,q2,q3,
@@ -340,25 +341,15 @@ void TBaryon<FImpl>::execute(void)
 
                     auto test = closure(trace(sink*c));     
                     sliceSum(test, buf, Tp); 
-                } else {
+                } 
+                else 
+                {
                     envGetTmp(SpinMatrixField, cMat);
                     cMat=Zero();
                     BaryonUtils<FIMPL>::ContractBaryonsMatrix(q1,q2,q3,
                                                         gAl,gBl,gAr,gBr,
                                                         wick_contractions,
                                                         cMat);
-
-                    // auto sinkTr = closure(trace(sink));
-
-                    // GridBase *grid = sink.Grid();
-      
-                    // autoView( vsinkTr, sinkTr, CpuRead);
-                    // autoView( vcMat  , cMat  , CpuWrite);
-
-                    // accelerator_for(ss, grid->oSites(), grid->Nsimd(), {
-                    //     vcMat[ss] = vsinkTr[ss]*vcMat[ss]; 
-                    // }  );//end loop over lattice sites
-
                     cMat = cMat*sink;
 
                     sliceSum(cMat, bufMat, Tp);
@@ -366,7 +357,8 @@ void TBaryon<FImpl>::execute(void)
             }
             else if (ns == "MSink")
             {
-                if (par().trace) {
+                if (par().trace) 
+                {
                     envGetTmp(LatticeComplex, c);
                     c=Zero();
                     BaryonUtils<FIMPL>::ContractBaryons(q1,q2,q3,
@@ -377,7 +369,9 @@ void TBaryon<FImpl>::execute(void)
 
                     SinkFnScalar &sink = envGet(SinkFnScalar, par().sinkq1);
                     buf = sink(c);
-                } else {
+                } 
+                else 
+                {
                     envGetTmp(SpinMatrixField, cMat);
                     cMat=Zero();
                     BaryonUtils<FIMPL>::ContractBaryonsMatrix(q1,q2,q3,
@@ -390,12 +384,15 @@ void TBaryon<FImpl>::execute(void)
                 }
             }
 
-            if (par().trace) {
+            if (par().trace) 
+            {
                 r.corr.clear();
                 for (unsigned int t = 0; t < buf.size(); ++t)
                     r.corr.push_back(TensorRemove(buf[t]));
                 result.push_back(r);
-            } else {
+            } 
+            else 
+            {
                 rMat.corr.clear();
                 for (unsigned int t = 0; t < bufMat.size(); ++t)
                     rMat.corr.push_back(bufMat[t]);      
@@ -403,7 +400,9 @@ void TBaryon<FImpl>::execute(void)
             }
         }
 
-    } else {
+    } 
+    else 
+    {
 
         const int epsilon[6][3] = {{0,1,2},{1,2,0},{2,0,1},{0,2,1},{2,1,0},{1,0,2}};
 
@@ -417,13 +416,15 @@ void TBaryon<FImpl>::execute(void)
         SlicedPropagator q3_slice[6];
 
         // Compute all sinked propagators
-        for (int ie=0; ie < 6 ; ie++) {
+        for (int ie=0; ie < 6 ; ie++) 
+        {
             q1_slice[ie] = (*sinkFn[epsilon[ie][0]])(q1);
             q2_slice[ie] = (*sinkFn[epsilon[ie][1]])(q2);
             q3_slice[ie] = (*sinkFn[epsilon[ie][2]])(q3);
         }
 
-        for (int iG = 0; iG < gammaList.size(); iG++) {
+        for (int iG = 0; iG < gammaList.size(); iG++) 
+        {
             std::vector<TComplex> buf(nt, Zero());
             std::vector<SpinMatrix> bufMat(nt, Zero());
 
@@ -442,21 +443,26 @@ void TBaryon<FImpl>::execute(void)
             Gamma gAr(gammaList[iG].second.first);
             Gamma gBr(gammaList[iG].second.second);
 
-            for (int ie=0; ie < 6 ; ie++) {
-                if (wick_contractions[ie]) {
+            for (int ie=0; ie < 6 ; ie++) 
+            {
+                if (wick_contractions[ie]) 
+                {
                     // Perform the current contraction only
                     bool wc[6];
                     for (int i=0; i<6; i++)
                         wc[i] = (i == ie);
 
-                    if (par().trace) {
+                    if (par().trace) 
+                    {
                         BaryonUtils<FIMPL>::ContractBaryonsSliced( q1_slice[ie],q2_slice[ie],q3_slice[ie],
                                                                     gAl,gBl,gAr,gBr,
                                                                     wc,
                                                                     par().parity,
                                                                     nt,
                                                                     buf);
-                    } else {
+                    } 
+                    else 
+                    {
                         BaryonUtils<FIMPL>::ContractBaryonsSlicedMatrix( q1_slice[ie],q2_slice[ie],q3_slice[ie],
                                                                     gAl,gBl,gAr,gBr,
                                                                     wc,
@@ -466,12 +472,15 @@ void TBaryon<FImpl>::execute(void)
                 }
             }
 
-            if (par().trace) {
+            if (par().trace) 
+            {
                 r.corr.clear();
                 for (int t = 0; t < nt; t++)
                     r.corr.push_back(TensorRemove(buf[t]));
                 result.push_back(r);
-            } else {
+            } 
+            else 
+            {
                 rMat.corr.clear();
                 for (unsigned int t = 0; t < bufMat.size(); ++t)
                     rMat.corr.push_back(bufMat[t]);      
