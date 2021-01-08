@@ -3,6 +3,7 @@
  *
  * Copyright (C) 2015 - 2020
  *
+ * Author: Antonin Portelli <antonin.portelli@me.com>
  * Author: ferben <ferben@debian.felix.com>
  *
  * Hadrons is free software: you can redistribute it and/or modify

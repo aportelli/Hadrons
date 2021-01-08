@@ -1,10 +1,9 @@
 /*
- * Smear.hpp, part of Hadrons (https://github.com/aportelli/Hadrons)
+ * SourceSink.hpp, part of Hadrons (https://github.com/aportelli/Hadrons)
  *
  * Copyright (C) 2015 - 2020
  *
- * Author: Antonin Portelli <antonin.portelli@me.com>
- * Author: Lanny91 <andrew.lawson@gmail.com>
+ * Author: Raoul Hodgson <raoul.hodgson@ed.ac.uk.com>
  * Author: Raoul Hodgson <raoul.hodgson@ed.ac.uk>
  *
  * Hadrons is free software: you can redistribute it and/or modify
@@ -26,8 +25,8 @@
 
 /*  END LEGAL */
 
-#ifndef Hadrons_MSink_Smear_hpp_
-#define Hadrons_MSink_Smear_hpp_
+#ifndef Hadrons_MSink_SourceSink_hpp_
+#define Hadrons_MSink_SourceSink_hpp_
 
 #include <Hadrons/Global.hpp>
 #include <Hadrons/Module.hpp>
@@ -36,29 +35,28 @@
 BEGIN_HADRONS_NAMESPACE
 
 /******************************************************************************
- *                                 Smear                                      *
+ *                                 SourceSink                                 *
  ******************************************************************************/
 BEGIN_MODULE_NAMESPACE(MSink)
 
-class SmearPar: Serializable
+class SourceSinkPar: Serializable
 {
 public:
-    GRID_SERIALIZABLE_CLASS_MEMBERS(SmearPar,
-                                    std::string, q,
-                                    std::string, sink);
+    GRID_SERIALIZABLE_CLASS_MEMBERS(SourceSinkPar,
+                                    std::string, source);
 };
 
-template <typename Field>
-class TSmear: public Module<SmearPar>
+template <typename FImpl>
+class TSourceSink: public Module<SourceSinkPar>
 {
 public:
-    typedef std::vector<typename Field::scalar_object> SlicedField;
-    typedef std::function<SlicedField (const Field &)> SinkFn;
+    FERM_TYPE_ALIASES(FImpl,);
+    SINK_TYPE_ALIASES();
 public:
     // constructor
-    TSmear(const std::string name);
+    TSourceSink(const std::string name);
     // destructor
-    virtual ~TSmear(void) {};
+    virtual ~TSourceSink(void) {};
     // dependency relation
     virtual std::vector<std::string> getInput(void);
     virtual std::vector<std::string> getOutput(void);
@@ -69,28 +67,28 @@ protected:
     virtual void execute(void);
 };
 
-MODULE_REGISTER_TMP(Smear, TSmear<FIMPL::PropagatorField> , MSink);
+MODULE_REGISTER_TMP(SourceSink,       TSourceSink<FIMPL>,        MSink);
 
 /******************************************************************************
- *                          TSmear implementation                             *
+ *                          TSourceSink implementation                             *
  ******************************************************************************/
 // constructor /////////////////////////////////////////////////////////////////
-template <typename Field>
-TSmear<Field>::TSmear(const std::string name)
-: Module<SmearPar>(name)
+template <typename FImpl>
+TSourceSink<FImpl>::TSourceSink(const std::string name)
+: Module<SourceSinkPar>(name)
 {}
 
 // dependencies/products ///////////////////////////////////////////////////////
-template <typename Field>
-std::vector<std::string> TSmear<Field>::getInput(void)
+template <typename FImpl>
+std::vector<std::string> TSourceSink<FImpl>::getInput(void)
 {
-    std::vector<std::string> in = {par().q, par().sink};
+    std::vector<std::string> in = {par().source};
     
     return in;
 }
 
-template <typename Field>
-std::vector<std::string> TSmear<Field>::getOutput(void)
+template <typename FImpl>
+std::vector<std::string> TSourceSink<FImpl>::getOutput(void)
 {
     std::vector<std::string> out = {getName()};
     
@@ -98,29 +96,35 @@ std::vector<std::string> TSmear<Field>::getOutput(void)
 }
 
 // setup ///////////////////////////////////////////////////////////////////////
-template <typename Field>
-void TSmear<Field>::setup(void)
+template <typename FImpl>
+void TSourceSink<FImpl>::setup(void)
 {
-    envCreate(SlicedField, getName(), 1, env().getDim(Tp));
+    envCreate(SinkFn, getName(), 1, nullptr);
 }
 
-// execution ///////////////////////////////////////////////////////////////////
-template <typename Field>
-void TSmear<Field>::execute(void)
-{
-    LOG(Message) << "Sink smearing field '" << par().q
-                 << "' using sink function '" << par().sink << "'."
-                 << std::endl;
 
-    auto &sink = envGet(SinkFn, par().sink);
-    auto &q    = envGet(Field, par().q);
-    auto &out  = envGet(SlicedField, getName());
+// execution ///////////////////////////////////////////////////////////////////
+template <typename FImpl>
+void TSourceSink<FImpl>::execute(void)
+{
+    LOG(Message) << "Setting up sink function with source '" << par().source << "' as the sink" << std::endl;
+
+    PropagatorField &source  = envGet(PropagatorField, par().source);
     
-    out = sink(q);
+    auto sink = [this, source](const PropagatorField &field)
+    {
+        SlicedPropagator res;
+        PropagatorField tmp = source*field;
+        
+        sliceSum(tmp, res, Tp);
+        
+        return res;
+    };
+    envGet(SinkFn, getName()) = sink;
 }
 
 END_MODULE_NAMESPACE
 
 END_HADRONS_NAMESPACE
 
-#endif // Hadrons_MSink_Smear_hpp_
+#endif // Hadrons_MSink_SourceSink_hpp_

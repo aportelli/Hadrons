@@ -1,0 +1,52 @@
+<?xml version="1.0"?>
+<grid>
+  <global>
+    <!-- trajectory loop, the trajectory number is appended as a suffix -->
+    <!-- to file read an written by modules. It is also part of the     -->
+    <!-- RNG seed.                                                      -->
+    <trajCounter>
+      <start>1500</start>
+      <end>1520</end>
+      <step>20</step>
+    </trajCounter>
+    <database>
+      <!-- application database (schedule, graph, object catalog, ...) -->
+      <applicationDb>app.db</applicationDb>
+      <!-- result database (result file catalog) -->
+      <resultDb>results.db</resultDb>
+      <!-- restore module graph from application DB? -->
+      <restoreModules>false</restoreModules>
+      <!-- restore memory profile from application DB? -->
+      <restoreMemoryProfile>false</restoreMemoryProfile>
+      <!-- restore schedule from application DB? -->
+      <restoreSchedule>false</restoreSchedule>
+      <!-- produce statistics DB? -->
+      <makeStatDb>true</makeStatDb>
+    </database>
+    <!-- genetic scheduler parameters -->
+    <genetic>
+      <!-- population of schedules -->
+      <popSize>20</popSize>
+      <!-- maximum number of generations -->
+      <maxGen>1000</maxGen>
+      <!-- stop if memory footprint does no improve for maxCstGen generations -->
+      <maxCstGen>100</maxCstGen>
+      <!-- mutation rate -->
+      <mutationRate>0.1</mutationRate>
+    </genetic>
+    <!-- run id (is part of seed for random numbers!) -->
+    <runId>id</runId>
+    <!-- output GraphViz file if not empty -->
+    <graphFile></graphFile>
+    <!-- output schedule file name (deprecated, use DB) -->
+    <scheduleFile></scheduleFile>
+    <!-- save schedule file? (deprecated, use DB) -->
+    <saveSchedule>false</saveSchedule>
+    <!-- Resilient IO, reread files after parallel file and try to re-write -->
+    <!-- them if checksum test fails. parallelWriteMaxRetry is the number   -->
+    <!-- of retry after checksum failure, -1 means no check at all.         -->
+    <!-- Unless you have some suspicion your parallel FS or MPI is          -->
+    <!-- corrupting files you should probably use -1.                       -->
+    <parallelWriteMaxRetry>-1</parallelWriteMaxRetry>
+  </global>
+</grid>

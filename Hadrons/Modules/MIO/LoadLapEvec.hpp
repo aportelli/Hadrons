@@ -1,11 +1,11 @@
 /*
- * Smear.hpp, part of Hadrons (https://github.com/aportelli/Hadrons)
+ * LoadLapEvec.hpp, part of Hadrons (https://github.com/aportelli/Hadrons)
  *
  * Copyright (C) 2015 - 2020
  *
- * Author: Antonin Portelli <antonin.portelli@me.com>
- * Author: Lanny91 <andrew.lawson@gmail.com>
- * Author: Raoul Hodgson <raoul.hodgson@ed.ac.uk>
+ *  Author: Felix Erben <felix.erben@ed.ac.uk>
+ *  Author: Michael Marshall <Michael.Marshall@ed.ac.uk>
+ * Author: Felix Erben <felix.erben@ed.ac.uk>
  *
  * Hadrons is free software: you can redistribute it and/or modify
  * it under the terms of the GNU General Public License as published by
@@ -25,72 +25,69 @@
  */
 
 /*  END LEGAL */
-
-#ifndef Hadrons_MSink_Smear_hpp_
-#define Hadrons_MSink_Smear_hpp_
+#ifndef Hadrons_MIO_LoadLapEvec_hpp_
+#define Hadrons_MIO_LoadLapEvec_hpp_
 
 #include <Hadrons/Global.hpp>
 #include <Hadrons/Module.hpp>
 #include <Hadrons/ModuleFactory.hpp>
 
+#include <Hadrons/Modules/MDistil/Distil.hpp>
+
 BEGIN_HADRONS_NAMESPACE
 
 /******************************************************************************
- *                                 Smear                                      *
+ *                         LoadLapEvec                                 *
  ******************************************************************************/
-BEGIN_MODULE_NAMESPACE(MSink)
+BEGIN_MODULE_NAMESPACE(MIO)
 
-class SmearPar: Serializable
+class LoadLapEvecPar: Serializable
 {
 public:
-    GRID_SERIALIZABLE_CLASS_MEMBERS(SmearPar,
-                                    std::string, q,
-                                    std::string, sink);
+    GRID_SERIALIZABLE_CLASS_MEMBERS(LoadLapEvecPar,
+                                    std::string, LapEvecFileName,
+				    int, nVec);
 };
 
-template <typename Field>
-class TSmear: public Module<SmearPar>
+template <typename FImpl>
+class TLoadLapEvec: public Module<LoadLapEvecPar>
 {
 public:
-    typedef std::vector<typename Field::scalar_object> SlicedField;
-    typedef std::function<SlicedField (const Field &)> SinkFn;
-public:
     // constructor
-    TSmear(const std::string name);
+    TLoadLapEvec(const std::string name);
     // destructor
-    virtual ~TSmear(void) {};
+    virtual ~TLoadLapEvec(void) {};
     // dependency relation
     virtual std::vector<std::string> getInput(void);
     virtual std::vector<std::string> getOutput(void);
-protected:
     // setup
     virtual void setup(void);
     // execution
     virtual void execute(void);
 };
 
-MODULE_REGISTER_TMP(Smear, TSmear<FIMPL::PropagatorField> , MSink);
+MODULE_REGISTER_TMP(LoadLapEvec, TLoadLapEvec<FIMPL>, MIO);
 
 /******************************************************************************
- *                          TSmear implementation                             *
+ *                 TLoadLapEvec implementation                             *
  ******************************************************************************/
 // constructor /////////////////////////////////////////////////////////////////
-template <typename Field>
-TSmear<Field>::TSmear(const std::string name)
-: Module<SmearPar>(name)
+template <typename FImpl>
+TLoadLapEvec<FImpl>::TLoadLapEvec(const std::string name)
+: Module<LoadLapEvecPar>(name)
 {}
 
 // dependencies/products ///////////////////////////////////////////////////////
-template <typename Field>
-std::vector<std::string> TSmear<Field>::getInput(void)
+template <typename FImpl>
+std::vector<std::string> TLoadLapEvec<FImpl>::getInput(void)
 {
-    std::vector<std::string> in = {par().q, par().sink};
+    std::vector<std::string> in;
     
     return in;
 }
 
-template <typename Field>
-std::vector<std::string> TSmear<Field>::getOutput(void)
+template <typename FImpl>
+std::vector<std::string> TLoadLapEvec<FImpl>::getOutput(void)
 {
     std::vector<std::string> out = {getName()};
     
@@ -98,29 +95,25 @@ std::vector<std::string> TSmear<Field>::getOutput(void)
 }
 
 // setup ///////////////////////////////////////////////////////////////////////
-template <typename Field>
-void TSmear<Field>::setup(void)
+template <typename FImpl>
+void TLoadLapEvec<FImpl>::setup(void)
 {
-    envCreate(SlicedField, getName(), 1, env().getDim(Tp));
+    envCreate(MDistil::LapEvecs, getName(), 1, par().nVec, env().getGrid());
 }
 
 // execution ///////////////////////////////////////////////////////////////////
-template <typename Field>
-void TSmear<Field>::execute(void)
+template <typename FImpl>
+void TLoadLapEvec<FImpl>::execute(void)
 {
-    LOG(Message) << "Sink smearing field '" << par().q
-                 << "' using sink function '" << par().sink << "'."
-                 << std::endl;
-
-    auto &sink = envGet(SinkFn, par().sink);
-    auto &q    = envGet(Field, par().q);
-    auto &out  = envGet(SlicedField, getName());
-    
-    out = sink(q);
+    auto & LapEvec4d = envGet(MDistil::LapEvecs, getName() );
+    std::string fileName{ par().LapEvecFileName };
+    fileName.append( 1, '.' );
+    fileName.append( std::to_string( vm().getTrajectory() ) );
+    LapEvec4d.read(fileName.c_str(),false);
 }
 
 END_MODULE_NAMESPACE
 
 END_HADRONS_NAMESPACE
 
-#endif // Hadrons_MSink_Smear_hpp_
+#endif // Hadrons_MIO_LoadLapEvec_hpp_

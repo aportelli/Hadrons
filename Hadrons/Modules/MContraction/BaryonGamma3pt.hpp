@@ -437,7 +437,7 @@ void TBaryonGamma3pt<FImpl>::execute(void)
                     auto propQ2_spec = propQL2_slice[ie][par().tf];
                     auto propQ3_spec = propQL3_slice[ie][par().tf];
 
-                    BaryonUtils<FIMPL>::Baryon_Gamma_3pt(propQL1, propQ2_spec, propQ3_spec, *propQR[epsilon[ie][0]],
+                    BaryonUtils<FIMPL>::BaryonGamma3pt(propQL1, propQ2_spec, propQ3_spec, *propQR[epsilon[ie][0]],
                                                          1, ie+1, GJ, GLR.first.second, GLR.second.second, c);
                 }
             }
@@ -446,7 +446,7 @@ void TBaryonGamma3pt<FImpl>::execute(void)
                     auto propQ1_spec = propQL1_slice[ie][par().tf];
                     auto propQ3_spec = propQL3_slice[ie][par().tf];
 
-                    BaryonUtils<FIMPL>::Baryon_Gamma_3pt(propQL2, propQ1_spec, propQ3_spec, *propQR[epsilon[ie][1]],
+                    BaryonUtils<FIMPL>::BaryonGamma3pt(propQL2, propQ1_spec, propQ3_spec, *propQR[epsilon[ie][1]],
                                                          2, ie+1, GJ, GLR.first.second, GLR.second.second, c);
                 }
             }
@@ -455,7 +455,7 @@ void TBaryonGamma3pt<FImpl>::execute(void)
                     auto propQ1_spec = propQL1_slice[ie][par().tf];
                     auto propQ2_spec = propQL2_slice[ie][par().tf];
 
-                    BaryonUtils<FIMPL>::Baryon_Gamma_3pt(propQL3, propQ1_spec, propQ2_spec, *propQR[epsilon[ie][2]],
+                    BaryonUtils<FIMPL>::BaryonGamma3pt(propQL3, propQ1_spec, propQ2_spec, *propQR[epsilon[ie][2]],
                                                          3, ie+1, GJ, GLR.first.second, GLR.second.second, c);
                 }
             }
