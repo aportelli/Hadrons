@@ -124,7 +124,7 @@ void TDistilMesonField<FImpl>::setup(void)
     if(par().MesonFieldCase=="phi-phi" || par().MesonFieldCase=="phi-rho" || par().MesonFieldCase=="rho-phi" || par().MesonFieldCase=="rho-rho")
     {
         dmf_case.emplace("left",par().MesonFieldCase.substr(0,3));   //left
-        dmf_case.emplace("right",par().MesonFieldCase.substr(4,3));  //right
+        dmf_case.emplace("right",par().MesonFieldCase.substr(4,7));  //right
     }
     else
     {
@@ -149,8 +149,6 @@ void TDistilMesonField<FImpl>::setup(void)
     // in phi-phi save all timeslices, but in the other cases save only the non-zero  ones...
 
     // compute nt_nonzero_ (<nt), the number of non-zero timeslices in the final object, when there's at least one rho involved
-    // std::cout << stL << std::endl;
-    // std::cout << stR << std::endl;
     nt_nonzero_ = 0;
     if(par().MesonFieldCase=="rho-rho" || par().MesonFieldCase=="rho-phi")
         for(auto elem : stL)
@@ -176,7 +174,7 @@ void TDistilMesonField<FImpl>::setup(void)
                 auto &inTensor = envGet(PerambTensor , lrInput_.at(side));
                 if( noiseMapTemp.at(side) > inTensor.tensor.dimensions().at(3) )
                 {
-                    HADRONS_ERROR(Size,"Noise pair element " + std::to_string(noiseMapTemp.at(side)) + ">" +std::to_string(inTensor.tensor.dimensions().at(3)) + " unavailable on input tensor");
+                    HADRONS_ERROR(Size,"Noise pair element " + std::to_string(noiseMapTemp.at(side)) + ">" +std::to_string(inTensor.tensor.dimensions().at(3)) + " unavailable in input tensor");
                 }
             }
             else
@@ -184,7 +182,7 @@ void TDistilMesonField<FImpl>::setup(void)
                 auto &inTensor = envGet(NoiseTensor , lrInput_.at(side));
                 if( noiseMapTemp.at(side) > inTensor.tensor.dimensions().at(3) )
                 {
-                    HADRONS_ERROR(Size,"Noise pair element " + std::to_string(noiseMapTemp.at(side)) + ">" +std::to_string(inTensor.tensor.dimensions().at(3)) + " unavailable on input tensor");
+                    HADRONS_ERROR(Size,"Noise pair element " + std::to_string(noiseMapTemp.at(side)) + ">" +std::to_string(inTensor.tensor.dimensions().at(3)) + " unavailable in input tensor");
                 }
             }
         }
@@ -410,7 +408,6 @@ void TDistilMesonField<FImpl>::execute(void)
                         {
                             if (t >= Ntfirst && t < Ntfirst + Ntlocal)
                             {
-                                fermion3dtmp = Zero();
                                 for (int k = dk; k < nVec; k += LI)
                                 {
                                     for (int s = ds; s < Ns; s += SI)
