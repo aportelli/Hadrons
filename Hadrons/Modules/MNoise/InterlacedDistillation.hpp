@@ -1,5 +1,5 @@
-#ifndef Hadrons_MNoise_InterlacedDilutionNoise_hpp_
-#define Hadrons_MNoise_InterlacedDilutionNoise_hpp_
+#ifndef Hadrons_MNoise_InterlacedDistillation_hpp_
+#define Hadrons_MNoise_InterlacedDistillation_hpp_
 
 #include <Hadrons/Global.hpp>
 #include <Hadrons/Module.hpp>
@@ -14,10 +14,10 @@ BEGIN_HADRONS_NAMESPACE
  ******************************************************************************/
 BEGIN_MODULE_NAMESPACE(MNoise)
 
-class InterlacedDilutionNoisePar: Serializable
+class InterlacedDistillationPar: Serializable
 {
 public:
-    GRID_SERIALIZABLE_CLASS_MEMBERS(InterlacedDilutionNoisePar,
+    GRID_SERIALIZABLE_CLASS_MEMBERS(InterlacedDistillationPar,
                                     unsigned int, ti,
                                     unsigned int, li,
                                     unsigned int, si,
@@ -26,15 +26,15 @@ public:
 };
 
 template <typename FImpl>
-class TInterlacedDilutionNoise: public Module<InterlacedDilutionNoisePar>
+class TInterlacedDistillation: public Module<InterlacedDistillationPar>
 {
 public:
     FERM_TYPE_ALIASES(FImpl,);
 public:
     // constructor
-    TInterlacedDilutionNoise(const std::string name);
+    TInterlacedDistillation(const std::string name);
     // destructor
-    virtual ~TInterlacedDilutionNoise(void) {};
+    virtual ~TInterlacedDistillation(void) {};
     // dependency relation
     virtual std::vector<std::string> getInput(void);
     virtual std::vector<std::string> getReference(void);
@@ -48,22 +48,22 @@ private:
     std::unique_ptr<GridCartesian> g3d_;
 };
 
-MODULE_REGISTER_TMP(InterlacedDilutionNoise, TInterlacedDilutionNoise<FIMPL>, MNoise);
+MODULE_REGISTER_TMP(InterlacedDistillation, TInterlacedDistillation<FIMPL>, MNoise);
 
 /******************************************************************************
- *                 TInterlacedDilutionNoise implementation                    *
+ *                 TInterlacedDistillation implementation                    *
  ******************************************************************************/
 // constructor /////////////////////////////////////////////////////////////////
 template <typename FImpl>
-TInterlacedDilutionNoise<FImpl>::TInterlacedDilutionNoise(const std::string name)
-: Module<InterlacedDilutionNoisePar>(name)
+TInterlacedDistillation<FImpl>::TInterlacedDistillation(const std::string name)
+: Module<InterlacedDistillationPar>(name)
 {
     MDistil::MakeLowerDimGrid(g3d_, envGetGrid(FermionField));
 }
 
 // dependencies/products ///////////////////////////////////////////////////////
 template <typename FImpl>
-std::vector<std::string> TInterlacedDilutionNoise<FImpl>::getInput(void)
+std::vector<std::string> TInterlacedDistillation<FImpl>::getInput(void)
 {
     std::vector<std::string> in = {};
     
@@ -71,7 +71,7 @@ std::vector<std::string> TInterlacedDilutionNoise<FImpl>::getInput(void)
 }
 
 template <typename FImpl>
-std::vector<std::string> TInterlacedDilutionNoise<FImpl>::getReference(void)
+std::vector<std::string> TInterlacedDistillation<FImpl>::getReference(void)
 {
     std::vector<std::string> ref = {par().lapEigenPack};
 
@@ -79,7 +79,7 @@ std::vector<std::string> TInterlacedDilutionNoise<FImpl>::getReference(void)
 }
 
 template <typename FImpl>
-std::vector<std::string> TInterlacedDilutionNoise<FImpl>::getOutput(void)
+std::vector<std::string> TInterlacedDistillation<FImpl>::getOutput(void)
 {
     std::vector<std::string> out = {getName()};
     
@@ -88,7 +88,7 @@ std::vector<std::string> TInterlacedDilutionNoise<FImpl>::getOutput(void)
 
 // setup ///////////////////////////////////////////////////////////////////////
 template <typename FImpl>
-void TInterlacedDilutionNoise<FImpl>::setup(void)
+void TInterlacedDistillation<FImpl>::setup(void)
 {
     auto &epack = envGet(typename DistillationNoise<FImpl>::LapPack, 
                          par().lapEigenPack);
@@ -101,7 +101,7 @@ void TInterlacedDilutionNoise<FImpl>::setup(void)
 
 // execution ///////////////////////////////////////////////////////////////////
 template <typename FImpl>
-void TInterlacedDilutionNoise<FImpl>::execute(void)
+void TInterlacedDistillation<FImpl>::execute(void)
 {
     LOG(Message) << "Generating interlaced distillation noise with (ti, li, si) = (" 
                  << par().ti << ", " << par().li << ", " << par().si << ")"
@@ -118,4 +118,4 @@ END_MODULE_NAMESPACE
 
 END_HADRONS_NAMESPACE
 
-#endif // Hadrons_MNoise_InterlacedDilutionNoise_hpp_
+#endif // Hadrons_MNoise_InterlacedDistillation_hpp_
