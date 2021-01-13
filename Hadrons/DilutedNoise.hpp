@@ -33,7 +33,6 @@
 
 #include <Hadrons/Global.hpp>
 #include <Hadrons/EigenPack.hpp>
-#include <Hadrons/Modules/MDistil/Distil.hpp> // TODO: for 3D grids, shodul be handled globally
 
 BEGIN_HADRONS_NAMESPACE
 
@@ -56,12 +55,13 @@ class DistillationNoise: public DilutedNoise
 public:
     FERM_TYPE_ALIASES(FImpl,);
     typedef EigenPack<ColourVectorField> LapPack;
-    typedef typename ComplexField::scalar_object Type;
+    typedef typename ComplexField::scalar_type Type;
     typedef std::array<std::vector<std::set<unsigned int>>, 3> DilutionMap;
     typedef Eigen::TensorMap<Eigen::Tensor<Type, 3, Eigen::RowMajor>> NoiseType;
     enum Index {t = 0, l = 1, s = 2};
 public:
-    DistillationNoise(GridCartesian *g, const LapPack &pack, const unsigned int nNoise = 1);
+    DistillationNoise(GridCartesian *g, GridCartesian *g3d, const LapPack &pack, 
+                      const unsigned int nNoise = 1);
     virtual ~DistillationNoise(void) = default;
     std::vector<Vector<Type>> & getNoise(void);
     const std::vector<Vector<Type>> & getNoise(void) const;
@@ -77,23 +77,33 @@ public:
     unsigned int getNt(void) const;
     unsigned int getNl(void) const;
     unsigned int getNs(void) const;
+    // dump dilution map
+    void dumpDilutionMap(void);
     // generate noise
     void generateNoise(GridSerialRNG &rng);
 protected:
     virtual void buildMap(void) = 0;
+private:
+    bool mapEmpty(void) const;
 protected:
     DilutionMap               map_;
 private:
-    GridCartesian             *grid_;
-    const LapPack             &pack_;
-    FermionField              src_;
-    std::vector<Vector<Type>> noise_;
-    size_t                    noiseSize_;
+    GridCartesian                  *grid_, *grid3d_;
+    const LapPack                  &pack_;
+    FermionField                   src_, tmp3d_, tmp4d_;
+    ColourVectorField              evec3d_;
+    std::vector<Vector<Type>>      noise_;
+    size_t                         noiseSize_;
 };
 
 template <typename FImpl>
-DistillationNoise<FImpl>::DistillationNoise(GridCartesian *g, const LapPack &pack, const unsigned int nNoise)
-: DilutedNoise(), grid_(g), pack_(pack), src_(grid_)
+DistillationNoise<FImpl>::DistillationNoise(GridCartesian *g, 
+                                            GridCartesian *g3d,
+                                            const LapPack &pack, 
+                                            const unsigned int nNoise)
+: DilutedNoise()
+, grid_(g), grid3d_(g3d), pack_(pack)
+, src_(grid_), tmp3d_(grid3d_), tmp4d_(grid_), evec3d_(grid3d_)
 {
     noiseSize_ = getNt()*getNl()*getNs();
     resize(nNoise);
@@ -142,19 +152,25 @@ template <typename FImpl>
 const typename DistillationNoise<FImpl>::FermionField & 
 DistillationNoise<FImpl>::makeSource(const unsigned int d, const unsigned int i)
 {
-    std::unique_ptr<GridCartesian> g3d;
-    
-    MDistil::MakeLowerDimGrid(g3d, grid_);
-
     const int         tDir    = grid_->Nd() - 1;
     const int         nt      = grid_->GlobalDimensions()[tDir];
     const int         ntLocal = grid_->LocalDimensions()[tDir];
     const int         tFirst  = grid_->LocalStarts()[tDir];
-    ColourVectorField evec3d(g3d.get());
-    FermionField      tmp3d(grid_), tmp4d(grid_);
-    NoiseType         noise(noise_[i], nt, pack_.eval.size(), Ns);
+    NoiseType         noise(noise_[i].data(), nt, pack_.eval.size(), Ns);
     auto              c = dilutionCoordinates(d);
+    std::string       cstr;
     
+    for (auto i: c)
+    {
+        cstr += std::to_string(i) + " ";
+    }
+    cstr.pop_back();
+    LOG(Message) << "Making distillation source for dilution index " << d
+                 << " ~ (" << cstr << ")" << std::endl;
+    if (mapEmpty())
+    {
+        buildMap();
+    }
     src_ = Zero();
     for (int it: map_[Index::t][c[Index::t]])
     { 
@@ -164,13 +180,15 @@ DistillationNoise<FImpl>::makeSource(const unsigned int d, const unsigned int i)
             {
                 for (int is: map_[Index::s][c[Index::s]])
                 {
-                    ExtractSliceLocal(evec3d, pack_.evec[ik], 0, it - tFirst, tDir);
-                    evec3d = evec3d*noise(it, ik, is);
-                    tmp3d  = Zero();
-                    pokeSpin(tmp3d, evec3d, is);
-                    tmp4d = Zero();
-                    InsertSliceLocal(tmp3d, tmp4d, 0, it - tFirst, tDir);
-                    src_ += tmp4d;
+                    LOG(Message) << it << " " << ik << " " << is << std::endl;
+                    ExtractSliceLocal(evec3d_, pack_.evec[ik], 0, it - tFirst, tDir);
+                    LOG(Message) << noise(it, ik, is) << std::endl;
+                    evec3d_ = evec3d_*noise(it, ik, is);
+                    tmp3d_  = Zero();
+                    pokeSpin(tmp3d_, evec3d_, is);
+                    tmp4d_ = Zero();
+                    InsertSliceLocal(tmp3d_, tmp4d_, 0, it - tFirst, tDir);
+                    src_ += tmp4d_;
                 }
             }
         }
@@ -221,6 +239,35 @@ unsigned int DistillationNoise<FImpl>::getNs(void) const
     return Ns;
 }
 
+template <typename FImpl>
+void DistillationNoise<FImpl>::dumpDilutionMap(void)
+{
+    auto dump = [this](const unsigned int index)
+    {
+        for (unsigned int i = 0; i < map_[index].size(); ++i)
+        {
+            std::string s;
+
+            for (auto t: map_[index][i])
+            {
+                s += std::to_string(t) + " "; 
+            }
+            s.pop_back();
+            LOG(Message) << "  " << i << ": {" << s << "}" << std::endl;
+        }
+    };
+
+    if (mapEmpty())
+    {
+        buildMap();
+    }
+    LOG(Message) << "Time index sets:" << std::endl;
+    dump(Index::t);
+    LOG(Message) << "Laplacian index sets:" << std::endl;
+    dump(Index::l);
+    LOG(Message) << "Spin index sets:" << std::endl;
+    dump(Index::s);
+}
 
 template <typename FImpl>
 void DistillationNoise<FImpl>::generateNoise(GridSerialRNG &rng)
@@ -232,9 +279,22 @@ void DistillationNoise<FImpl>::generateNoise(GridSerialRNG &rng)
     for (auto &n: noise_)
     for (unsigned int i = 0; i < n.size(); ++i)
     {
-        random(rng, eta);
+        bernoulli(rng, eta);
         n[i] = (2.*eta - shift)*invSqrt2;
     }
+}
+
+template <typename FImpl>
+bool DistillationNoise<FImpl>::mapEmpty(void) const
+{
+    bool empty = false;
+
+    for (auto &m: map_)
+    {
+        empty = empty or m.empty();
+    }
+
+    return empty;
 }
 
 /******************************************************************************
@@ -247,9 +307,10 @@ public:
     typedef typename DistillationNoise<FImpl>::Index Index;
     typedef typename DistillationNoise<FImpl>::LapPack LapPack;
 public:
-    InterlacedDistillationNoise(GridCartesian *g, const LapPack &pack,
-                                const unsigned int ti, const unsigned int li, 
-                                const unsigned int si, const unsigned nNoise = 1);
+    InterlacedDistillationNoise(GridCartesian *g, GridCartesian *g3d,
+                                const LapPack &pack, const unsigned int ti, 
+                                const unsigned int li, const unsigned int si, 
+                                const unsigned nNoise = 1);
     unsigned int getInterlacing(const Index ind) const;
     virtual int  dilutionSize(const Index ind) const;
 protected:
@@ -259,12 +320,13 @@ private:
 };
 template <typename FImpl>
 InterlacedDistillationNoise<FImpl>::InterlacedDistillationNoise(GridCartesian *g, 
+                                                                GridCartesian *g3d, 
                                                                 const LapPack &pack,
                                                                 const unsigned int ti, 
                                                                 const unsigned int li, 
                                                                 const unsigned int si,
                                                                 const unsigned nNoise)
-: interlacing_({ti, li, si}), DistillationNoise<FImpl>(g, pack, nNoise)
+: interlacing_({ti, li, si}), DistillationNoise<FImpl>(g, g3d, pack, nNoise)
 {}
 
 template <typename FImpl>
