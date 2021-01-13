@@ -73,20 +73,18 @@ class TWardIdentity: public Module<WardIdentityPar>
 {
 public:
     FERM_TYPE_ALIASES(FImpl,);
-    using Scalar = typename FImpl::Scalar; // Effectively a Complex
-    using TensorScalar = iScalar<iScalar<iScalar<Scalar>>>;
     class Result: Serializable
     {
     public:
         GRID_SERIALIZABLE_CLASS_MEMBERS(Result,
                                         double,               mass,
-                                        std::vector<Scalar>,  DmuJmu,  // D_mu trace(Scalar*conserved_vector_mu)
-                                        std::vector<Scalar>,  PDmuAmu, // D_mu trace(pseudoscalar*conserved_axial_mu)
-                                        std::vector<Scalar>,  PP,      // Pseudoscalar density
-                                        std::vector<Scalar>,  PJ5q,    // Midpoint axial current density
-                                        std::vector<Scalar>,  mres,    // residual mass = PJ5q / PP
-                                        std::vector<Scalar>,  VDmuJmu, // D_mu trace(local_vector*conserved_vector_mu)
-                                        std::vector<Scalar>,  DefectPA);
+                                        std::vector<Complex>, DmuJmu,  // D_mu trace(Scalar*conserved_vector_mu)
+                                        std::vector<Complex>, PDmuAmu, // D_mu trace(pseudoscalar*conserved_axial_mu)
+                                        std::vector<Complex>, PP,      // Pseudoscalar density
+                                        std::vector<Complex>, PJ5q,    // Midpoint axial current density
+                                        std::vector<Complex>, mres,    // residual mass = PJ5q / PP
+                                        std::vector<Complex>, VDmuJmu, // D_mu trace(local_vector*conserved_vector_mu)
+                                        std::vector<Complex>, DefectPA); // PDmuAmu[t] - 2.*(result.mass*result.PP[t] + result.PJ5q[t])
     };
 
 public:
@@ -103,7 +101,7 @@ protected:
     // execution
     virtual void execute(void);
     // Perform Slice Sum and then save delta
-    void SliceOut(std::vector<Scalar> &Out, std::vector<TensorScalar> &Sum, const ComplexField &f, bool bDiff=true) const
+    void SliceOut(std::vector<Complex> &Out, SlicedComplex &Sum, const ComplexField &f, bool bDiff=true) const
     {
         sliceSum(f, Sum, Tp);
         const auto nt = Sum.size();
@@ -207,8 +205,8 @@ void TWardIdentity<FImpl>::execute(void)
     // There is no point performing Dmu on spatial directions, because after the spatial sum, these become zero
     envGetTmp(PropagatorField, tmp);
     envGetTmp(ComplexField, tmp_current);
-    std::vector<TensorScalar> sumSV(nt);
-    std::vector<TensorScalar> sumVV(nt);
+    SlicedComplex sumSV(nt);
+    SlicedComplex sumVV(nt);
     LOG(Message) << "Getting vector conserved current" << std::endl;
     act.ContractConservedCurrent(q, q, tmp, phys_source, Current::Vector, Tdir);
     // Scalar-vector current density
@@ -234,12 +232,12 @@ void TWardIdentity<FImpl>::execute(void)
         act.ContractConservedCurrent(q, q, tmp, phys_source, Current::Axial, Tdir);
         // Pseudoscalar-Axial current density
         tmp_current = trace(g5 * tmp);
-        std::vector<TensorScalar> sumPA(nt);
+        SlicedComplex sumPA(nt);
         SliceOut(result.PDmuAmu, sumPA, tmp_current);
 
         // Get <P|J5q> for 5D (zero for 4D) and <P|P>.
-        std::vector<TensorScalar> sumPJ5q(nt);
-        std::vector<TensorScalar> sumPP(nt);
+        SlicedComplex sumPJ5q(nt);
+        SlicedComplex sumPP(nt);
         if (Ls_ > 1)
         {
             // <P|5Jq>
