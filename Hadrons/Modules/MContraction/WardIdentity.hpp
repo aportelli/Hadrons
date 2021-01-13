@@ -215,6 +215,8 @@ void TWardIdentity<FImpl>::execute(void)
     // Vector-vector current density
     tmp_current = trace(gT*tmp);
     SliceOut(result.VDmuJmu, sumVV, tmp_current);
+//#define COMPARE_Test_Cayley_mres
+#ifdef  COMPARE_Test_Cayley_mres
     // For comparison with Grid Test_Cayley_mres
     LOG(Message) << "Vector Ward Identity by timeslice" << std::endl;
     for (int t = 0; t < nt; ++t)
@@ -222,6 +224,7 @@ void TWardIdentity<FImpl>::execute(void)
         LOG(Message) << " t=" << t << ", SV=" << real(TensorRemove(sumSV[t]))
                      << ", VV=" << real(TensorRemove(sumVV[t])) << std::endl;
     }
+#endif
 
     // Save the spatial sum for each time-plane
 
@@ -255,14 +258,18 @@ void TWardIdentity<FImpl>::execute(void)
             tmp_current = trace(adj(q) * q);
         }
         SliceOut(result.PP, sumPP, tmp_current, false);
-        //LOG(Message) << "Axial Ward Identity by timeslice" << std::endl;
-        //LOG(Message) << "Mass=" << result.mass << std::endl;
+#ifdef  COMPARE_Test_Cayley_mres
+        LOG(Message) << "Axial Ward Identity by timeslice" << std::endl;
+        LOG(Message) << "Mass=" << result.mass << std::endl;
+#endif
         for (int t = 0; t < nt; ++t)
         {
             result.DefectPA[t] = result.PDmuAmu[t] - 2.*(result.mass*result.PP[t] + result.PJ5q[t]);
             result.mres[t]     = result.PJ5q[t] / result.PP[t];
+#ifdef  COMPARE_Test_Cayley_mres
             // This output can be compared with Grid Test_cayley_mres
-            //LOG(Message) << " t=" << t << ", PDmuAmu=" << real(result.PDmuAmu[t]) << ", PP=" << real(result.PP[t]) << ", PJ5q=" << real(result.PJ5q[t]) << ", PCAC/AWI defect=" << real(result.DefectPA[t]) << std::endl;
+            LOG(Message) << " t=" << t << ", PDmuAmu=" << real(result.PDmuAmu[t]) << ", PP=" << real(result.PP[t]) << ", PJ5q=" << real(result.PJ5q[t]) << ", PCAC/AWI defect=" << real(result.DefectPA[t]) << std::endl;
+#endif
         }
     }
 
