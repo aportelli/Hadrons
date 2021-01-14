@@ -5,7 +5,6 @@
 #include <Hadrons/Module.hpp>
 #include <Hadrons/ModuleFactory.hpp>
 #include <Hadrons/DilutedNoise.hpp>
-#include <Hadrons/Modules/MDistil/Distil.hpp> // TODO: for 3D grids, shodul be handled globally
 
 BEGIN_HADRONS_NAMESPACE
 
@@ -43,9 +42,6 @@ public:
     virtual void setup(void);
     // execution
     virtual void execute(void);
-private:
-    // 3D grid, not great, needs to come from the environment
-    std::unique_ptr<GridCartesian> g3d_;
 };
 
 MODULE_REGISTER_TMP(InterlacedDistillation, TInterlacedDistillation<FIMPL>, MNoise);
@@ -57,9 +53,7 @@ MODULE_REGISTER_TMP(InterlacedDistillation, TInterlacedDistillation<FIMPL>, MNoi
 template <typename FImpl>
 TInterlacedDistillation<FImpl>::TInterlacedDistillation(const std::string name)
 : Module<InterlacedDistillationPar>(name)
-{
-    MDistil::MakeLowerDimGrid(g3d_, envGetGrid(FermionField));
-}
+{}
 
 // dependencies/products ///////////////////////////////////////////////////////
 template <typename FImpl>
@@ -90,13 +84,14 @@ std::vector<std::string> TInterlacedDistillation<FImpl>::getOutput(void)
 template <typename FImpl>
 void TInterlacedDistillation<FImpl>::setup(void)
 {
-    auto &epack = envGet(typename DistillationNoise<FImpl>::LapPack, 
-                         par().lapEigenPack);
-    
-    envCreateDerived(DistillationNoise<FImpl>, InterlacedDistillationNoise<FImpl>,
-                     getName(), 1, envGetGrid(FermionField), g3d_.get(), 
-                     epack, par().ti, par().li, par().si, par().nNoise);
+    auto          &epack = envGet(typename DistillationNoise<FImpl>::LapPack, 
+                                  par().lapEigenPack);
+    GridCartesian *g     = envGetGrid(FermionField);
+    GridCartesian *g3d   = envGetSliceGrid(FermionField, g->Nd() - 1);
 
+    envCreateDerived(DistillationNoise<FImpl>, InterlacedDistillationNoise<FImpl>,
+                     getName(), 1, g, g3d, epack, par().ti, par().li, par().si, 
+                     par().nNoise);
 }
 
 // execution ///////////////////////////////////////////////////////////////////
