@@ -23,8 +23,6 @@ if test x"$GRIDCONF" != x"yes" ; then
 fi
 if test x"$CC" == x ; then
     CC="`grid-config --cxx`"
-elif test "$CC" != "`grid-config --cxx`" ; then
-    AC_MSG_WARN([CC differs from that reported by grid-config])
 fi
 if test x"$CXX" == x ; then
     CXX="`grid-config --cxx`"
@@ -36,8 +34,10 @@ if test x"$CXXLD" == x ; then
 elif test "$CXXLD" != "`grid-config --cxxld`" ; then
     AC_MSG_WARN([CXXLD differs from that reported by grid-config])
 fi
+CFLAGS="$CFLAGS `grid-config --cxxflags`"
 CXXFLAGS="$CXXFLAGS `grid-config --cxxflags`"
 LDFLAGS="$LDFLAGS `grid-config --ldflags`"
+CFLAGS="$AM_CFLAGS $CFLAGS"
 CXXFLAGS="$AM_CXXFLAGS $CXXFLAGS"
 LDFLAGS="$AM_LDFLAGS $LDFLAGS"
 LIBS=" -ldl -lGrid $LIBS `grid-config --libs`"
