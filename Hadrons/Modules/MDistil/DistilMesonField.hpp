@@ -69,8 +69,6 @@ public:
     virtual void setup(void);
     // execution
     virtual void execute(void);
-protected:
-    std::unique_ptr<GridCartesian> grid3d;
 private:
     std::map<std::string,std::string>   dmf_case;
     // std::string                        momphName_;
@@ -119,8 +117,16 @@ std::vector<std::string> TDistilMesonField<FImpl>::getOutput(void)
 template <typename FImpl>
 void TDistilMesonField<FImpl>::setup(void)
 {
-    outputMFStem = par().OutputStem;
+    GridCartesian *g     = envGetGrid(FermionField);
+    GridCartesian *g3d   = envGetSliceGrid(FermionField, g->Nd() - 1);  // 3d grid (as a 4d one with collapsed time dimension)
+    std::vector<std::vector<int>>       stL;      // should this come from perambulator in the future? no only if we want to use subsets of the inversions we have
+    std::vector<std::vector<int>>       stR;
+    const std::vector<std::string> lrPair = {"left","right"};
+    // hard-coded dilution scheme (assuming dpL=dpR for now)
+    const DistilParameters &dpL = envGet(DistilParameters, par().LeftDPar);
+    const DistilParameters &dpR = envGet(DistilParameters, par().RightDPar);
 
+    outputMFStem = par().OutputStem;
     if(par().MesonFieldCase=="phi-phi" || par().MesonFieldCase=="phi-rho" || par().MesonFieldCase=="rho-phi" || par().MesonFieldCase=="rho-rho")
     {
         dmf_case.emplace("left",par().MesonFieldCase.substr(0,3));   //left
@@ -131,24 +137,21 @@ void TDistilMesonField<FImpl>::setup(void)
         HADRONS_ERROR(Argument,"Bad meson field case");
     }
     LOG(Message) << "Meson field case: " << dmf_case.at("left") << "-" << dmf_case.at("right") << std::endl;
-    const std::vector<std::string> lrPair = {"left","right"};
     LOG(Message) << "Time dimension = " << nt_nonzero_ << std::endl;
     LOG(Message) << "Selected block size: " << par().BlockSize << std::endl;
     LOG(Message) << "Selected cache size: " << par().CacheSize << std::endl;
 
-    // parse source times l/r
-    std::vector<std::vector<int>>       stL;      // should this come from perambulator in the future? no only if we want to use subsets of the inversions we have
+    // parse source times l/r -> turn into method
     stL.clear();
     for(auto &stl : par().SourceTimesLeft)
         stL.push_back(strToVec<int>(stl));
-    std::vector<std::vector<int>>       stR;
     stR.clear();
     for(auto &str : par().SourceTimesRight)
         stR.push_back(strToVec<int>(str));
     // outermost dimension is the time-dilution index, innermost one are the non-zero source timeslices
     // in phi-phi save all timeslices, but in the other cases save only the non-zero  ones...
 
-    // compute nt_nonzero_ (<nt), the number of non-zero timeslices in the final object, when there's at least one rho involved
+    // compute nt_nonzero_ (<nt), the number of non-zero timeslices in the final object, when there's at least one rho involved -> turn into method
     nt_nonzero_ = 0;
     if(par().MesonFieldCase=="rho-rho" || par().MesonFieldCase=="rho-phi")
         for(auto elem : stL)
@@ -157,12 +160,13 @@ void TDistilMesonField<FImpl>::setup(void)
         for(auto elem : stR)
             elem.size() > nt_nonzero_ ? nt_nonzero_ = elem.size() : 0;
     else
-        nt_nonzero_ = env().getDim(Tdir);
+        nt_nonzero_ = env().getDim(g->Nd() - 1);
     
+    // populate lrInput_ and lrSourceTimes_
     lrInput_       = {{"left",par().LeftInput},{"right",par().RightInput}};
     lrSourceTimes_ = {{"left",stL},{"right",stR}};  
 
-    // parse and validate input
+    // parse and validate input -> turn into method
     noisePairs_.clear();
     for(auto &npair : par().NoisePairs)
     {
@@ -189,7 +193,7 @@ void TDistilMesonField<FImpl>::setup(void)
     }
     
     
-    // momenta and gamma parse
+    // momenta and gamma parse -> turn into method
     momenta_.clear();
     for(auto &p_string : par().Momenta)
     {
@@ -229,29 +233,20 @@ void TDistilMesonField<FImpl>::setup(void)
         gamma_ = strToVec<Gamma::Algebra>(par().Gamma);
     }
 
-    // hard-coded dilution scheme (assuming dpL=dpR for now)
-    const DistilParameters &dpL = envGet(DistilParameters, par().LeftDPar);
-    const DistilParameters &dpR = envGet(DistilParameters, par().RightDPar);
-
-    //matrix sets
+    //populate matrix sets
     nExt_ = momenta_.size(); //noise pairs computed independently, but can optmize embedding it into nExt??
     nStr_ = gamma_.size();
-    
     blockbuf_.resize(nExt_*nStr_*nt_nonzero_*par().BlockSize*par().BlockSize);
-    cachebuf_.resize(nExt_*nStr_*env().getDim(Tdir)*par().CacheSize*par().CacheSize);
+    cachebuf_.resize(nExt_*nStr_*env().getDim(g->Nd() - 1)*par().CacheSize*par().CacheSize);
     
-    // 3d grid (as a 4d one with collapsed time dimension)
-    MakeLowerDimGrid(grid3d , env().getGrid());
-
-    envTmp(FermionField,                    "fermion3dtmp",         1, grid3d.get());
-    envTmp(ColourVectorField,               "fermion3dtmp_nospin",  1, grid3d.get());
-    envTmp(ColourVectorField,               "evec3d",               1, grid3d.get());
-    envTmp(std::vector<FermionField>,       "left",                 1, stL.size()*dpL.LI*dpL.SI,   envGetGrid(FermionField));
-    envTmp(std::vector<FermionField>,       "right",                1, stL.size()*dpR.LI*dpR.SI,   envGetGrid(FermionField));
+    envTmp(FermionField,                    "fermion3dtmp",         1, g3d);
+    envTmp(ColourVectorField,               "fermion3dtmp_nospin",  1, g3d);
+    envTmp(ColourVectorField,               "evec3d",               1, g3d);
+    envTmp(std::vector<FermionField>,       "left",                 1, stL.size()*dpL.LI*dpL.SI, g);
+    envTmp(std::vector<FermionField>,       "right",                1, stL.size()*dpR.LI*dpR.SI, g);
     envTmpLat(ComplexField, "coor");
-    envCache(std::vector<ComplexField>,     "phasename",            1, momenta_.size(), envGetGrid(ComplexField));
+    envCache(std::vector<ComplexField>,     "phasename",            1, momenta_.size(), g);
     envTmpLat(FermionField,                 "fermion4dtmp");
-
 }
 
 // execution ///////////////////////////////////////////////////////////////////
@@ -265,15 +260,17 @@ void TDistilMesonField<FImpl>::execute(void)
     envGetTmp(ColourVectorField,            evec3d);
     envGetTmp(std::vector<FermionField>,    left);
     envGetTmp(std::vector<FermionField>,    right);
+    
+    GridCartesian * g = env().getGrid();
 
-    int blockSize_{par().BlockSize};
-    int cacheSize_{par().CacheSize};
-    const int nt{env().getDim(Tdir)};
-    const unsigned int nd{env().getNd()};
-    const int Ntlocal{ env().getGrid()->LocalDimensions()[Tdir] };
-    const int Ntfirst{ env().getGrid()->LocalStarts()[Tdir] };
+    int blockSize_ = par().BlockSize;
+    int cacheSize_ = par().CacheSize;
+    // const unsigned int g->Nd() = g->Nd();
+    const int nt = env().getDim(g->Nd() - 1);
+    const int Ntlocal = g->LocalDimensions()[g->Nd() - 1];
+    const int Ntfirst = g->LocalStarts()[g->Nd() - 1];
     int vol = 1;
-    for(int v; v<Nd ; v++)
+    for(int v; v<g->Nd() ; v++)
     {
         vol *= env().getGrid()->GlobalDimensions()[v];
     }
@@ -396,10 +393,10 @@ void TDistilMesonField<FImpl>::execute(void)
                             fermion3dtmp = Zero();
                             for (int k = 0; k < nVec; k++)
                             {
-                                ExtractSliceLocal(evec3d,epack.evec[k],0,t-Ntfirst,Tdir);
+                                ExtractSliceLocal(evec3d,epack.evec[k],0,t-Ntfirst,g->Nd() - 1);
                                 fermion3dtmp += evec3d * inTensor.tensor(t, k, dk, lfNoise.at(side), dt, ds);
                             }
-                            InsertSliceLocal(fermion3dtmp,lrDistVector.at(side)[dt*dilutionSize_LS + iD],0,t-Ntfirst,Tdir);
+                            InsertSliceLocal(fermion3dtmp,lrDistVector.at(side)[dt*dilutionSize_LS + iD],0,t-Ntfirst,g->Nd() - 1);
                         }
                     }
                     else if(dmf_case.at(side)=="rho"){
@@ -412,12 +409,12 @@ void TDistilMesonField<FImpl>::execute(void)
                                 {
                                     for (int s = ds; s < Ns; s += SI)
                                     {
-                                        ExtractSliceLocal(evec3d,epack.evec[k],0,t-Ntfirst,Tdir);
+                                        ExtractSliceLocal(evec3d,epack.evec[k],0,t-Ntfirst,g->Nd() - 1);
                                         fermion3dtmp_nospin = evec3d * inTensor.tensor(lfNoise.at(side), t, k , s);
                                         fermion3dtmp = Zero();
                                         pokeSpin(fermion3dtmp,fermion3dtmp_nospin,s);
                                         fermion4dtmp = Zero();
-                                        InsertSliceLocal(fermion3dtmp,fermion4dtmp,0,t-Ntfirst,Tdir);
+                                        InsertSliceLocal(fermion3dtmp,fermion4dtmp,0,t-Ntfirst,g->Nd() - 1);
                                         lrDistVector.at(side)[dt*dilutionSize_LS + iD] += fermion4dtmp;
                                     }
                                 }
@@ -474,7 +471,7 @@ void TDistilMesonField<FImpl>::execute(void)
 
                         double timer = 0.0;
                         startTimer("kernel");
-                        A2Autils<FIMPL>::MesonField(blockCache, &left[dtL*dilutionSize_LS+iblock+icache], &right[dtR*dilutionSize_LS+jblock+jcache], gamma_, phase, Tdir, &timer);
+                        A2Autils<FIMPL>::MesonField(blockCache, &left[dtL*dilutionSize_LS+iblock+icache], &right[dtR*dilutionSize_LS+jblock+jcache], gamma_, phase, g->Nd() - 1, &timer);
                         stopTimer("kernel");
 
                         time_kernel += timer;
