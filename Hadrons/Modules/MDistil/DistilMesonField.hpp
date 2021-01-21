@@ -333,8 +333,8 @@ void TDistilMesonField<FImpl>::execute(void)
     const DistilParameters &dpL = envGet(DistilParameters, par().LeftDPar);
     const DistilParameters &dpR = envGet(DistilParameters, par().RightDPar);
 
-    int nInversions             = MIN(dpL.inversions,dpR.inversions);   // should nInversions be greater or equal to SourceTimesLeft.size() == SourceTimesRight.size() always? I guess so
-    assert(nInversions >= lrSourceTimes_.at("left").size());
+    int nInversions             = MIN(dpL.inversions,dpR.inversions);   // when different dilution schemes are useful? here I'm taking just the 'smaller'
+    assert(nInversions >= lrSourceTimes_.at("left").size());    // should nInversions be greater or equal to SourceTimesLeft.size() , SourceTimesRight.size() always? I guess so
     assert(nInversions >= lrSourceTimes_.at("right").size());
 
     int vol = 1;
