@@ -6,6 +6,7 @@
 #include <Hadrons/ModuleFactory.hpp>
 #include <Hadrons/Modules/MDistil/Distil.hpp>
 #include <Hadrons/A2AMatrix.hpp>
+#include <Hadrons/DilutedNoise.hpp>
 
 BEGIN_HADRONS_NAMESPACE
 
@@ -88,16 +89,16 @@ private:
 
 MODULE_REGISTER_TMP(DistilMesonField, TDistilMesonField<FIMPL>, MDistil);
 
-
 // aux class
-class DMesonFieldUtils
+template <typename FImpl>
+class DMesonFieldHelper
 {
 private:
     int nt;
     int nd;
     std::string mfCase;
 public:
-    DMesonFieldUtils(int _nt , int _nd , std::string _case) : nt(_nt) , nd(_nd) , mfCase(_case)
+    DMesonFieldHelper(int _nt , int _nd , std::string _case) : nt(_nt) , nd(_nd) , mfCase(_case)
     {
         if(mfCase=="phi phi" || mfCase=="phi rho" || mfCase=="rho phi" || mfCase=="rho rho")
         {
@@ -207,6 +208,21 @@ public:
         }
         return(nPairs);
     }
+
+    void computePhase(std::vector<std::vector<RealF>> momenta_, typename FImpl::ComplexField &coor, std::vector<int> dim, std::vector<typename FImpl::ComplexField> &phase)
+    {
+        Complex           i(0.0,1.0);
+        for (unsigned int j = 0; j < momenta_.size(); ++j)
+        {
+            phase[j] = Zero();
+            for(unsigned int mu = 0; mu < momenta_[j].size(); mu++)
+            {
+                LatticeCoordinate(coor, mu);
+                phase[j] = phase[j] + (momenta_[j][mu]/dim[mu])*coor;
+            }
+            phase[j] = exp((Real)(2*M_PI)*i*phase[j]);
+        }
+    }
 };
 
 /******************************************************************************
@@ -248,7 +264,7 @@ void TDistilMesonField<FImpl>::setup(void)
 
     outputMFStem = par().OutputStem;
 
-    DMesonFieldUtils mf_utils(env().getDim(g->Nd() - 1) , g->Nd() , par().MesonFieldCase);
+    DMesonFieldHelper<FImpl> helper(env().getDim(g->Nd() - 1) , g->Nd() , par().MesonFieldCase);
 
     dmf_case.emplace("left" , par().MesonFieldCase.substr(0,3));   //left
     dmf_case.emplace("right" , par().MesonFieldCase.substr(4,7));  //right
@@ -266,7 +282,7 @@ void TDistilMesonField<FImpl>::setup(void)
     for(auto &str : par().SourceTimesRight)
         stR.push_back(strToVec<int>(str));
 
-    nt_nonzero_ = mf_utils.computeTimeDimension(stL,stR);
+    nt_nonzero_ = helper.computeTimeDimension(stL,stR);
     
     // populate lrInput_ and lrSourceTimes_
     lrInput_       = {{"left",par().LeftInput},{"right",par().RightInput}};
@@ -287,11 +303,11 @@ void TDistilMesonField<FImpl>::setup(void)
             noiseDimension.at(side) = inTensor.tensor.dimensions().at(3);
         }
     }
-    noisePairs_ = mf_utils.parseNoisePairs(par().NoisePairs , dmf_case , noiseDimension);
+    noisePairs_ = helper.parseNoisePairs(par().NoisePairs , dmf_case , noiseDimension);
     
     // momenta and gamma parse -> turn into method
-    momenta_ = mf_utils.parseMomenta(par().Momenta);
-    gamma_ = mf_utils.parseGamma(par().Gamma);
+    momenta_ = helper.parseMomenta(par().Momenta);
+    gamma_ = helper.parseGamma(par().Gamma);
     nExt_ = momenta_.size(); //noise pairs computed independently, but can optmize embedding it into nExt??
     nStr_ = gamma_.size();
     
@@ -323,10 +339,12 @@ void TDistilMesonField<FImpl>::execute(void)
 
     int blockSize_ = par().BlockSize;
     int cacheSize_ = par().CacheSize;
+    int vol = env().getGrid()->_gsites;
     const unsigned int nd = env().getGrid()->Nd();
     const int nt = env().getDim(nd - 1);
     const int Ntlocal = env().getGrid()->LocalDimensions()[nd - 1];
     const int Ntfirst = env().getGrid()->LocalStarts()[nd - 1];
+    DMesonFieldHelper<FImpl> helper(nt , nd , par().MesonFieldCase);
 
     // hard-coded dilution schem &  assuming dilution_left == dilution_right; other cases?...
     // replace by noise class
@@ -337,32 +355,15 @@ void TDistilMesonField<FImpl>::execute(void)
     assert(nInversions >= lrSourceTimes_.at("left").size());    // should nInversions be greater or equal to SourceTimesLeft.size() , SourceTimesRight.size() always? I guess so
     assert(nInversions >= lrSourceTimes_.at("right").size());
 
-    int vol = 1;
-    for(int v; v<nd ; v++)
-    {
-        vol *= env().getGrid()->GlobalDimensions()[v];
-    }
-
     auto &epack = envGet(LapEvecs, par().LapEvec);
     auto &phase = envGet(std::vector<ComplexField>, "phasename");
 
+    //compute momentum phase
     if (!hasPhase_)
     {
         startTimer("momentum phases");
-        for (unsigned int j = 0; j < momenta_.size(); ++j)
-        {
-            Complex           i(0.0,1.0);
-            std::vector<Real> p;
-
-            envGetTmp(ComplexField, coor);
-            phase[j] = Zero();
-            for(unsigned int mu = 0; mu < momenta_[j].size(); mu++)
-            {
-                LatticeCoordinate(coor, mu);
-                phase[j] = phase[j] + (momenta_[j][mu]/env().getDim(mu))*coor;
-            }
-            phase[j] = exp((Real)(2*M_PI)*i*phase[j]);
-        }
+        envGetTmp(ComplexField, coor);
+        helper.computePhase(momenta_, coor, env().getDim(), phase);
         hasPhase_ = true;
         stopTimer("momentum phases");
     }
