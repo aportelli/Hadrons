@@ -36,22 +36,20 @@ class DistilMesonFieldPar: Serializable
 {
 public:
     GRID_SERIALIZABLE_CLASS_MEMBERS(DistilMesonFieldPar,
-                                    std::string,    OutputStem,
-                                    std::string,    MesonFieldCase,
-                                    std::string,    LapEvec,
-                                    std::string,    LeftPeramb,
-                                    std::string,    RightPeramb,
-                                    std::string,    LeftDPar,
-                                    std::string,    RightDPar,
-                                    std::vector<std::string>, NoisePairs,
-                                    std::vector<std::string>, SourceTimesLeft,
-                                    std::vector<std::string>, SourceTimesRight,
-                                    std::string,    Gamma,
-                                    std::vector<std::string>, Momenta,
-                                    int,            BlockSize,
-                                    int,            CacheSize,
-                                    std::string,    LeftNoise,
-                                    std::string,    RightNoise,)
+                                    std::string,    outputStem,
+                                    std::string,    mesonFieldCase,
+                                    std::string,    lapEvec,
+                                    std::string,    leftPeramb,
+                                    std::string,    rightPeramb,
+                                    std::string,    leftDPar,
+                                    std::string,    rightDPar,
+                                    std::vector<std::string>, noisePairs,
+                                    std::string,    gamma,
+                                    std::vector<std::string>, momenta,
+                                    int,            blockSize,
+                                    int,            cacheSize,
+                                    std::string,    leftNoise,
+                                    std::string,    rightNoise,)
 };
 
 template <typename FImpl>
@@ -275,7 +273,7 @@ TDistilMesonField<FImpl>::TDistilMesonField(const std::string name)
 template <typename FImpl>
 std::vector<std::string> TDistilMesonField<FImpl>::getInput(void)
 {   
-    return{par().LapEvec, par().LeftPeramb, par().RightPeramb, par().LeftDPar, par().RightDPar, par().LeftNoise, par().RightNoise};
+    return{par().lapEvec, par().leftPeramb, par().rightPeramb, par().leftDPar, par().rightDPar, par().leftNoise, par().rightNoise};
 }
 
 template <typename FImpl>
@@ -290,28 +288,28 @@ std::vector<std::string> TDistilMesonField<FImpl>::getOutput(void)
 template <typename FImpl>
 void TDistilMesonField<FImpl>::setup(void)
 {
-    std::map<std::string, std::string>  noiseInput_     = {{"left",par().LeftNoise},{"right",par().RightNoise}};
-    std::map<std::string, std::string>  perambInput_    = {{"left",par().LeftPeramb},{"right",par().RightPeramb}};
+    std::map<std::string, std::string>  noiseInput_     = {{"left",par().leftNoise},{"right",par().rightNoise}};
+    std::map<std::string, std::string>  perambInput_    = {{"left",par().leftPeramb},{"right",par().rightPeramb}};
     std::vector<std::string>            sides           = {"left","right"};
 
-    outputMFStem_ = par().OutputStem;
+    outputMFStem_ = par().outputStem;
     GridCartesian *g     = envGetGrid(FermionField);
     GridCartesian *g3d   = envGetSliceGrid(FermionField, g->Nd() - 1);  // 3d grid (as a 4d one with collapsed time dimension)
     // hard-coded dilution scheme (assuming dpL=dpR for now)
-    const DistilParameters &dpL = envGet(DistilParameters, par().LeftDPar);
-    const DistilParameters &dpR = envGet(DistilParameters, par().RightDPar);
+    const DistilParameters &dpL = envGet(DistilParameters, par().leftDPar);
+    const DistilParameters &dpR = envGet(DistilParameters, par().rightDPar);
 
-    DNoise &noisel = envGet( DNoise , par().LeftNoise);
-    DNoise &noiser = envGet( DNoise , par().RightNoise);
+    DNoise &noisel = envGet( DNoise , par().leftNoise);
+    DNoise &noiser = envGet( DNoise , par().rightNoise);
 
-    DMesonFieldHelper<FImpl> helper(noisel, noiser, par().MesonFieldCase);
+    DMesonFieldHelper<FImpl> helper(noisel, noiser, par().mesonFieldCase);
 
-    dmf_case_.emplace("left" , par().MesonFieldCase.substr(0,3));   //left
-    dmf_case_.emplace("right" , par().MesonFieldCase.substr(4,7));  //right
+    dmf_case_.emplace("left" , par().mesonFieldCase.substr(0,3));   //left
+    dmf_case_.emplace("right" , par().mesonFieldCase.substr(4,7));  //right
     
     LOG(Message) << "Time dimension = " << eff_nt_ << std::endl;
-    LOG(Message) << "Selected block size: " << par().BlockSize << std::endl;
-    LOG(Message) << "Selected cache size: " << par().CacheSize << std::endl;
+    LOG(Message) << "Selected block size: " << par().blockSize << std::endl;
+    LOG(Message) << "Selected cache size: " << par().cacheSize << std::endl;
 
     // parse source times
     // outermost dimension is the time-dilution index, innermost one are the non-zero source timeslices
@@ -334,20 +332,20 @@ void TDistilMesonField<FImpl>::setup(void)
             noiseDimension.at(side) = inNoise.size();
         }
     }
-    noisePairs_ = helper.parseNoisePairs(par().NoisePairs , dmf_case_ , noiseDimension);
+    noisePairs_ = helper.parseNoisePairs(par().noisePairs , dmf_case_ , noiseDimension);
     
-    blockSize_ = {par().BlockSize};
-    cacheSize_ ={par().CacheSize};
+    blockSize_ = {par().blockSize};
+    cacheSize_ ={par().cacheSize};
 
     // momenta and gamma parse -> turn into method
-    momenta_ = helper.parseMomenta(par().Momenta);
-    gamma_ = helper.parseGamma(par().Gamma);
+    momenta_ = helper.parseMomenta(par().momenta);
+    gamma_ = helper.parseGamma(par().gamma);
     nExt_ = momenta_.size(); //noise pairs computed independently, but can optmize embedding it into nExt??
     nStr_ = gamma_.size();
     
     //populate matrix sets
-    blockbuf_.resize(nExt_*nStr_*eff_nt_*par().BlockSize*par().BlockSize);
-    cachebuf_.resize(nExt_*nStr_*env().getDim(g->Nd() - 1)*par().CacheSize*par().CacheSize);
+    blockbuf_.resize(nExt_*nStr_*eff_nt_*par().blockSize*par().blockSize);
+    cachebuf_.resize(nExt_*nStr_*env().getDim(g->Nd() - 1)*par().cacheSize*par().cacheSize);
     
     assert( noisel.getMap()[1].size()*noisel.getMap()[2].size() == noiser.getMap()[1].size()*noiser.getMap()[2].size() );
     dilutionSize_LS_ = noisel.getMap()[1].size()*noisel.getMap()[2].size();
@@ -382,18 +380,18 @@ void TDistilMesonField<FImpl>::execute(void)
 
     // hard-coded dilution schem &  assuming dilution_left == dilution_right; other cases?...
     // replace by noise class
-    const DistilParameters &dpL = envGet(DistilParameters, par().LeftDPar);
-    const DistilParameters &dpR = envGet(DistilParameters, par().RightDPar);
+    const DistilParameters &dpL = envGet(DistilParameters, par().leftDPar);
+    const DistilParameters &dpR = envGet(DistilParameters, par().rightDPar);
 
-    DistillationNoise<FImpl> &noisel = envGet( DistillationNoise<FImpl> , par().LeftNoise);
-    DistillationNoise<FImpl> &noiser = envGet( DistillationNoise<FImpl> , par().RightNoise);
-    DMesonFieldHelper<FImpl> helper(noisel, noiser,  par().MesonFieldCase);
+    DistillationNoise<FImpl> &noisel = envGet( DistillationNoise<FImpl> , par().leftNoise);
+    DistillationNoise<FImpl> &noiser = envGet( DistillationNoise<FImpl> , par().rightNoise);
+    DMesonFieldHelper<FImpl> helper(noisel, noiser,  par().mesonFieldCase);
     noisel.dumpDilutionMap();
 
     int nInversions = MIN(dpL.inversions,dpR.inversions);   //number of inversions on perambulator
     assert(nInversions >= st_.size());   //just check this on the case where there is a perambulator, check somewhere else
 
-    auto &epack = envGet(LapEvecs, par().LapEvec);
+    auto &epack = envGet(LapEvecs, par().lapEvec);
     auto &phase = envGet(std::vector<ComplexField>, "phasename");
 
     //compute momentum phase
@@ -466,7 +464,7 @@ void TDistilMesonField<FImpl>::execute(void)
 
         LOG(Message) << "Gamma:" << std::endl;
         LOG(Message) << gamma_ << std::endl;
-        LOG(Message) << "Momenta:" << std::endl;
+        LOG(Message) << "momenta:" << std::endl;
         LOG(Message) << momenta_ << std::endl;
 
         for(auto &side : sides)    // computation, still ignoring gamma5 hermiticity
@@ -504,7 +502,7 @@ void TDistilMesonField<FImpl>::execute(void)
         for (int dtL = 0; dtL < lrNoise.at("left").getMap()[0].size() ; dtL++)
         for (int dtR = 0; dtR < lrNoise.at("right").getMap()[0].size() ; dtR++)
         {
-            if(!(par().MesonFieldCase=="rho rho" && dtL!=dtR))
+            if(!(par().mesonFieldCase=="rho rho" && dtL!=dtR))
             {
                 std::string datasetName = "dtL"+std::to_string(dtL)+"_dtR"+std::to_string(dtR);
                 LOG(Message) << "- Computing dilution dataset " << datasetName << "..." << std::endl;
@@ -562,7 +560,7 @@ void TDistilMesonField<FImpl>::execute(void)
 
                         // loop through the cacheblock (inside them) and point blockCache to block
                         startTimer("cache copy");
-                        if(par().MesonFieldCase=="phi phi")
+                        if(par().mesonFieldCase=="phi phi")
                         {
                             thread_for_collapse( 5, iExt ,nExt_,{
                             for(int iStr=0 ;iStr<nStr_ ; iStr++)
