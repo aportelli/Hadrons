@@ -81,6 +81,7 @@ public:
     void dumpDilutionMap(void);
     // generate noise
     void generateNoise(GridSerialRNG &rng);
+    DilutionMap getMap(void);
 protected:
     virtual void buildMap(void) = 0;
 private:
@@ -282,6 +283,12 @@ void DistillationNoise<FImpl>::generateNoise(GridSerialRNG &rng)
         bernoulli(rng, eta);
         n[i] = (2.*eta - shift)*invSqrt2;
     }
+}
+
+template <typename FImpl>
+typename DistillationNoise<FImpl>::DilutionMap DistillationNoise<FImpl>::getMap(void)
+{
+    return map_;
 }
 
 template <typename FImpl>
