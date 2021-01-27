@@ -281,7 +281,7 @@ void TBaryon<FImpl>::execute(void)
     
     int nt = env().getDim(Tp);
         
-    bool wick_contractions[6];
+    int wick_contractions = 0;
     BaryonUtils<FIMPL>::WickContractions(quarksL,quarksR,wick_contractions);
     
     PropagatorField &q1  = envGet(PropagatorField, propsL[0]);
@@ -445,12 +445,13 @@ void TBaryon<FImpl>::execute(void)
 
             for (int ie=0; ie < 6 ; ie++) 
             {
-                if (wick_contractions[ie]) 
+                if (std::bitset<6>(wick_contractions)[ie]) 
                 {
                     // Perform the current contraction only
-                    bool wc[6];
+                    int wc = 0;
                     for (int i=0; i<6; i++)
-                        wc[i] = (i == ie);
+                        wc += ((i == ie) ? 1 : 0) << i ;
+
 
                     if (par().trace) 
                     {
