@@ -64,7 +64,7 @@ public:
                                     std::string, action,
                                     std::string, source,
                                     double,      mass,
-                                    //bool,        test_axial,
+                                    bool,        test_axial,
                                     std::string, output);
 };
 
@@ -170,7 +170,7 @@ void TWardIdentity<FImpl>::setup(void)
     // These temporaries are always 4d
     envTmpLat(PropagatorField, "tmp");
     envTmpLat(ComplexField, "tmp_current");
-    //if (par().test_axial)
+    if (par().test_axial)
     {
         envTmpLat(PropagatorField, "psi");
     }
@@ -227,9 +227,7 @@ void TWardIdentity<FImpl>::execute(void)
 #endif
 
     // Save the spatial sum for each time-plane
-
-    // Not sure why axial tests should be optional
-    //if (par().test_axial)
+    if (par().test_axial)
     {
         LOG(Message) << "Getting axial conserved current" << std::endl;
         act.ContractConservedCurrent(q, q, tmp, phys_source, Current::Axial, Tdir);
