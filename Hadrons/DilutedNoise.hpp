@@ -67,6 +67,7 @@ public:
     const std::vector<Vector<Type>> & getNoise(void) const;
     unsigned int dilutionIndex(const unsigned t, const unsigned l, const unsigned s) const;
     std::array<unsigned int, 3> dilutionCoordinates(const unsigned int d) const;
+    std::vector<unsigned int> timeSlices(const unsigned it) const;
     const FermionField & makeSource(const unsigned int d, const unsigned int i);
     // access
     virtual void resize(const int nNoise);
@@ -147,6 +148,19 @@ std::array<unsigned int, 3> DistillationNoise<FImpl>::dilutionCoordinates(const 
     c[Index::t] = (buf - c[Index::l])/nl;
 
     return c;
+}
+
+template <typename FImpl>
+std::vector<unsigned int> DistillationNoise<FImpl>::timeSlices(const unsigned int it) const
+{
+    std::vector<unsigned int> ts;
+
+    for (auto t: map_[Index::t][it])
+    {
+        ts.push_back(t);
+    }
+
+    return ts;
 }
 
 template <typename FImpl>
