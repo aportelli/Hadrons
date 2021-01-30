@@ -41,13 +41,11 @@ BEGIN_HADRONS_NAMESPACE
  -----------------------------
  
  * options:
- - prop:       propagator
- - prop5d:     5d propagator (for 5d actions)
- - source:     source module for the quark, used to remove contact terms (string)
+ - prop:       propagator. Must match the action, i.e. 5D action needs 5D propagator
  - action:     action module used for propagator solution (string)
+ - source:     source module for the quark, used to remove contact terms (string)
  - mass:       mass of quark (double)
  - output:     filename for output (string)
- - test_axial: whether or not to test PCAC relation.
 */
 
 /******************************************************************************
@@ -59,12 +57,10 @@ class WardIdentityPar: Serializable
 {
 public:
     GRID_SERIALIZABLE_CLASS_MEMBERS(WardIdentityPar,
-                                    std::string, prop,      // Name of the quark we are checking Ward identity
-                                    std::string, prop5d,    // 5D version of the quark for 5D action
+                                    std::string, prop,   // Name of the propagator we are checking Ward identity
                                     std::string, action,
                                     std::string, source,
                                     double,      mass,
-                                    bool,        test_axial,
                                     std::string, output);
 };
 
@@ -79,12 +75,12 @@ public:
         GRID_SERIALIZABLE_CLASS_MEMBERS(Result,
                                         double,               mass,
                                         std::vector<Complex>, DmuJmu,  // D_mu trace(Scalar*conserved_vector_mu)
-                                        std::vector<Complex>, PDmuAmu, // D_mu trace(pseudoscalar*conserved_axial_mu)
+                                        std::vector<Complex>, DmuPAmu, // D_mu trace(pseudoscalar*conserved_axial_mu)
                                         std::vector<Complex>, PP,      // Pseudoscalar density
                                         std::vector<Complex>, PJ5q,    // Midpoint axial current density
                                         std::vector<Complex>, mres,    // residual mass = PJ5q / PP
                                         std::vector<Complex>, VDmuJmu, // D_mu trace(local_vector*conserved_vector_mu)
-                                        std::vector<Complex>, DefectPA); // PDmuAmu[t] - 2.*(result.mass*result.PP[t] + result.PJ5q[t])
+                                        std::vector<Complex>, DefectPA); // DmuPAmu[t] - 2.*(result.mass*result.PP[t] + result.PJ5q[t])
     };
 
 public:
@@ -112,7 +108,6 @@ protected:
     }
 private:
     unsigned int Ls_;
-    std::string qName, qName4d;
 };
 
 MODULE_REGISTER_TMP(WardIdentity, TWardIdentity<FIMPL>, MContraction);
@@ -131,19 +126,7 @@ TWardIdentity<FImpl>::TWardIdentity(const std::string name)
 template <typename FImpl>
 std::vector<std::string> TWardIdentity<FImpl>::getInput(void)
 {
-    std::vector<std::string> in{ par().action, par().source };
-    if (par().prop5d.empty())
-    {
-        qName=par().prop;
-    }
-    else
-    {
-        qName = par().prop5d;
-        qName4d = par().prop;
-        in.push_back( qName4d );
-    }
-    in.push_back( qName );
-    return in;
+    return { par().prop, par().action, par().source };
 }
 
 template <typename FImpl>
@@ -156,12 +139,12 @@ std::vector<std::string> TWardIdentity<FImpl>::getOutput(void)
 template <typename FImpl>
 void TWardIdentity<FImpl>::setup(void)
 {
-    // The quark can be 4d or 5d, but must match the action
+    // The propagator can be 4d or 5d, but must match the action
     const unsigned int ActionLs_{ env().getObjectLs(par().action) };
-    Ls_ = env().getObjectLs( qName );
+    Ls_ = env().getObjectLs( par().prop );
     if (Ls_ != ActionLs_)
     {
-        std::string sError{ "Ls mismatch: quark Ls="};
+        std::string sError{ "Ls mismatch: propagator Ls="};
         sError.append( std::to_string( Ls_ ) );
         sError.append( ", action Ls=" );
         sError.append( std::to_string( ActionLs_ ) );
@@ -170,9 +153,12 @@ void TWardIdentity<FImpl>::setup(void)
     // These temporaries are always 4d
     envTmpLat(PropagatorField, "tmp");
     envTmpLat(ComplexField, "tmp_current");
-    if (par().test_axial)
+    // For 5d actions, I'll also need the 4d propagator, so we can compute pseudoscalar density
+    if (Ls_ > 1)
     {
-        envTmpLat(PropagatorField, "psi");
+        envTmpLat(FermionField, "ferm5d", Ls_); // One spin and colour of the 5d propagator
+        envTmpLat(FermionField, "ferm4d"); // One spin and colour of the 4d propagator
+        envTmpLat(PropagatorField, "psi"); // This will hold the 4d version of the 5d propagator
     }
 }
 
@@ -180,8 +166,8 @@ void TWardIdentity<FImpl>::setup(void)
 template <typename FImpl>
 void TWardIdentity<FImpl>::execute(void)
 {
-    LOG(Message) << "Performing Ward Identity checks for quark " << qName << std::endl;
-    auto &q = envGet(PropagatorField, qName);
+    LOG(Message) << "Performing Ward Identity checks for propagator " << par().prop << std::endl;
+    auto &prop = envGet(PropagatorField, par().prop);
     LOG(Message) << "Action " << par().action << std::endl;
     auto &act = envGet(FMat, par().action);
     LOG(Message) << "Physical source " << par().source << std::endl;
@@ -194,7 +180,7 @@ void TWardIdentity<FImpl>::execute(void)
     result.mass = par().mass;
     const int nt { env().getDim(Tp) };
     result.DmuJmu.resize(nt, 0.);
-    result.PDmuAmu.resize(nt, 0.);
+    result.DmuPAmu.resize(nt, 0.);
     result.PP.resize(nt, 0.);
     result.PJ5q.resize(nt, 0.);
     result.mres.resize(nt, 0.);
@@ -208,7 +194,7 @@ void TWardIdentity<FImpl>::execute(void)
     SlicedComplex sumSV(nt);
     SlicedComplex sumVV(nt);
     LOG(Message) << "Getting vector conserved current" << std::endl;
-    act.ContractConservedCurrent(q, q, tmp, phys_source, Current::Vector, Tdir);
+    act.ContractConservedCurrent(prop, prop, tmp, phys_source, Current::Vector, Tdir);
     // Scalar-vector current density
     tmp_current = trace(tmp);
     SliceOut(result.DmuJmu, sumSV, tmp_current);
@@ -226,35 +212,36 @@ void TWardIdentity<FImpl>::execute(void)
     }
 #endif
 
-    // Save the spatial sum for each time-plane
-    if (par().test_axial)
+    // Test axial Ward identity for 5D actions
+    if (Ls_ > 1)
     {
         LOG(Message) << "Getting axial conserved current" << std::endl;
-        act.ContractConservedCurrent(q, q, tmp, phys_source, Current::Axial, Tdir);
+        act.ContractConservedCurrent(prop, prop, tmp, phys_source, Current::Axial, Tdir);
         // Pseudoscalar-Axial current density
         tmp_current = trace(g5 * tmp);
         SlicedComplex sumPA(nt);
-        SliceOut(result.PDmuAmu, sumPA, tmp_current);
-
-        // Get <P|J5q> for 5D (zero for 4D) and <P|P>.
+        SliceOut(result.DmuPAmu, sumPA, tmp_current);
+        // <P|J5q>
+        act.ContractJ5q(prop, tmp_current);
         SlicedComplex sumPJ5q(nt);
+        SliceOut(result.PJ5q, sumPJ5q, tmp_current, false);
+        // <P|P>
+        LOG(Message) << "Getting 4d propagator for " << par().prop << std::endl;
+        envGetTmp(FermionField, ferm5d);
+        envGetTmp(FermionField, ferm4d);
+        envGetTmp(PropagatorField, psi);
+        for (int s = 0; s < Ns; ++s)
+        {
+            for (int c = 0; c < Nc; ++c)
+            {
+                PropToFerm<FImpl>(ferm5d,prop,s,c);
+                act.ExportPhysicalFermionSolution(ferm5d,ferm4d);
+                FermToProp<FImpl>(psi,ferm4d,s,c);
+            }
+        }
+        LOG(Message) << "Getting pseudoscalar density" << std::endl;
+        tmp_current = trace(adj(psi) * psi);
         SlicedComplex sumPP(nt);
-        if (Ls_ > 1)
-        {
-            // <P|5Jq>
-            act.ContractJ5q(q, tmp_current);
-            SliceOut(result.PJ5q, sumPJ5q, tmp_current, false);
-            // <P|P>
-	    LOG(Message) << "Getting 4d propagator" << std::endl;
-	    auto &psi = envGet(PropagatorField, qName4d);
-	    LOG(Message) << "Contracting 4d current" << std::endl;
-            tmp_current = trace(adj(psi) * psi);
-        }
-        else
-        {
-            // 4d action
-            tmp_current = trace(adj(q) * q);
-        }
         SliceOut(result.PP, sumPP, tmp_current, false);
 #ifdef  COMPARE_Test_Cayley_mres
         LOG(Message) << "Axial Ward Identity by timeslice" << std::endl;
@@ -262,11 +249,11 @@ void TWardIdentity<FImpl>::execute(void)
 #endif
         for (int t = 0; t < nt; ++t)
         {
-            result.DefectPA[t] = result.PDmuAmu[t] - 2.*(result.mass*result.PP[t] + result.PJ5q[t]);
+            result.DefectPA[t] = result.DmuPAmu[t] - 2.*(result.mass*result.PP[t] + result.PJ5q[t]);
             result.mres[t]     = result.PJ5q[t] / result.PP[t];
 #ifdef  COMPARE_Test_Cayley_mres
             // This output can be compared with Grid Test_cayley_mres
-            LOG(Message) << " t=" << t << ", PDmuAmu=" << real(result.PDmuAmu[t]) << ", PP=" << real(result.PP[t]) << ", PJ5q=" << real(result.PJ5q[t]) << ", PCAC/AWI defect=" << real(result.DefectPA[t]) << std::endl;
+            LOG(Message) << " t=" << t << ", DmuPAmu=" << real(result.DmuPAmu[t]) << ", PP=" << real(result.PP[t]) << ", PJ5q=" << real(result.PJ5q[t]) << ", PCAC/AWI defect=" << real(result.DefectPA[t]) << std::endl;
 #endif
         }
     }
