@@ -57,6 +57,7 @@ public:
     FERM_TYPE_ALIASES(FImpl,);
     typedef DistillationNoise<FImpl> DNoise;
     typedef std::vector<std::set<unsigned int>> TDilutionMap;
+    typedef typename DistillationNoise<FImpl>::Index Index;
 public:
     // constructor
     TDistilMesonField(const std::string name);
@@ -102,6 +103,7 @@ public:
     typedef typename TDistilMesonField<FImpl>::DNoise DNoise;
     typedef typename TDistilMesonField<FImpl>::TDilutionMap TDilutionMap;
     typedef typename FImpl::ComplexField ComplexField;
+    typedef typename TDistilMesonField<FImpl>::Index Index;
 private:
     int nt_;
     int nd_;
@@ -111,11 +113,11 @@ private:
 public:
     
     DMesonFieldHelper(DNoise &nl, DNoise &nr, std::string in_case)
-    : timeMapl_(nl.getMap()[0]) , timeMapr_(nr.getMap()[0])
+    // : timeMapl_(nl.getMap()[0]) , timeMapr_(nr.getMap()[0])
     {
         nt_ = nr.getNt();
         nd_ = nr.getGrid()->Nd();
-        assert( timeMapl_.size() == timeMapr_.size() );  //number of partitions should be the same (?)
+        // assert( timeMapl_.size() == timeMapr_.size() );  //number of partitions should be the same (?)
 
         // check mesonfield case
         if(!(in_case=="phi phi" || in_case=="phi rho" || in_case=="rho phi" || in_case=="rho rho"))
@@ -336,8 +338,8 @@ void TDistilMesonField<FImpl>::setup(void)
     blockbuf_.resize(nExt_*nStr_*eff_nt_*blockSize_*blockSize_);
     cachebuf_.resize(nExt_*nStr_*env().getDim(g->Nd() - 1)*cacheSize_*cacheSize_);
     
-    assert( noisel.getMap()[1].size()*noisel.getMap()[2].size() == noiser.getMap()[1].size()*noiser.getMap()[2].size() );
-    dilutionSize_LS_ = noisel.getMap()[1].size()*noisel.getMap()[2].size();
+    assert( noisel.dilutionSize(Index::l)*noisel.dilutionSize(Index::s) == noiser.dilutionSize(Index::l)*noiser.dilutionSize(Index::s) );
+    dilutionSize_LS_ = noisel.dilutionSize(Index::l)*noisel.dilutionSize(Index::s);
     
     envTmp(FermionField,                    "fermion3dtmp",         1, g3d);
     envTmp(ColourVectorField,               "fermion3dtmp_nospin",  1, g3d);
@@ -467,8 +469,8 @@ void TDistilMesonField<FImpl>::execute(void)
         }
 
         // computing mesonfield blocks and saving to disk
-        for (int dtL = 0; dtL < noise.at("left").getMap()[0].size() ; dtL++)
-        for (int dtR = 0; dtR < noise.at("right").getMap()[0].size() ; dtR++)
+        for (int dtL = 0; dtL < noise.at("left").dilutionSize(Index::t) ; dtL++)
+        for (int dtR = 0; dtR < noise.at("right").dilutionSize(Index::t) ; dtR++)
         {
             if(!(par().mesonFieldCase=="rho rho" && dtL!=dtR))
             {
