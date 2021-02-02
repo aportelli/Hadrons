@@ -84,10 +84,10 @@ public:
     void generateNoise(GridSerialRNG &rng);
 protected:
     virtual void buildMap(void) = 0;
-private:
-    bool mapEmpty(void) const;
+    DilutionMap  &getMap(const bool createIfEmpty = true);
+    bool         mapEmpty(void) const;
 protected:
-    DilutionMap               map_;
+    DilutionMap                    map_;
 private:
     GridCartesian                  *grid_, *grid3d_;
     const LapPack                  &pack_;
@@ -150,11 +150,23 @@ std::array<unsigned int, 3> DistillationNoise<FImpl>::dilutionCoordinates(const 
 }
 
 template <typename FImpl>
+typename DistillationNoise<FImpl>::DilutionMap & DistillationNoise<FImpl>::getMap(const bool createIfEmpty)
+{
+    if (mapEmpty() and createIfEmpty)
+    {
+        buildMap();
+    }
+
+    return map_;
+}
+
+template <typename FImpl>
 std::vector<unsigned int> DistillationNoise<FImpl>::timeSlices(const unsigned int it) const
 {
     std::vector<unsigned int> ts;
+    DilutionMap               &map = getMap();
 
-    for (auto t: map_[Index::t][it])
+    for (auto t: map[Index::t][it])
     {
         ts.push_back(t);
     }
@@ -166,14 +178,15 @@ template <typename FImpl>
 const typename DistillationNoise<FImpl>::FermionField & 
 DistillationNoise<FImpl>::makeSource(const unsigned int d, const unsigned int i)
 {
-    const int         tDir    = grid_->Nd() - 1;
-    const int         nt      = grid_->GlobalDimensions()[tDir];
-    const int         ntLocal = grid_->LocalDimensions()[tDir];
-    const int         tFirst  = grid_->LocalStarts()[tDir];
-    NoiseType         noise(noise_[i].data(), nt, pack_.eval.size(), Ns);
-    auto              c = dilutionCoordinates(d);
-    std::string       cstr;
-    
+    const int   tDir    = grid_->Nd() - 1;
+    const int   nt      = grid_->GlobalDimensions()[tDir];
+    const int   ntLocal = grid_->LocalDimensions()[tDir];
+    const int   tFirst  = grid_->LocalStarts()[tDir];
+    NoiseType   noise(noise_[i].data(), nt, pack_.eval.size(), Ns);
+    auto        c = dilutionCoordinates(d);
+    std::string cstr;
+    DilutionMap &map = getMap();
+
     for (auto i: c)
     {
         cstr += std::to_string(i) + " ";
@@ -181,18 +194,14 @@ DistillationNoise<FImpl>::makeSource(const unsigned int d, const unsigned int i)
     cstr.pop_back();
     LOG(Message) << "Making distillation source for dilution index " << d
                  << " ~ (" << cstr << ")" << std::endl;
-    if (mapEmpty())
-    {
-        buildMap();
-    }
     src_ = Zero();
-    for (int it: map_[Index::t][c[Index::t]])
+    for (int it: map[Index::t][c[Index::t]])
     { 
         if(it >= tFirst && it < tFirst + ntLocal)
         {
-            for (int ik: map_[Index::l][c[Index::l]])
+            for (int ik: map[Index::l][c[Index::l]])
             {
-                for (int is: map_[Index::s][c[Index::s]])
+                for (int is: map[Index::s][c[Index::s]])
                 {
                     LOG(Message) << it << " " << ik << " " << is << std::endl;
                     ExtractSliceLocal(evec3d_, pack_.evec[ik], 0, it - tFirst, tDir);
@@ -256,13 +265,15 @@ unsigned int DistillationNoise<FImpl>::getNs(void) const
 template <typename FImpl>
 void DistillationNoise<FImpl>::dumpDilutionMap(void)
 {
-    auto dump = [this](const unsigned int index)
+    DilutionMap &map = getMap();
+
+    auto dump = [this,&map](const unsigned int index)
     {
-        for (unsigned int i = 0; i < map_[index].size(); ++i)
+        for (unsigned int i = 0; i < map[index].size(); ++i)
         {
             std::string s;
 
-            for (auto t: map_[index][i])
+            for (auto t: map[index][i])
             {
                 s += std::to_string(t) + " "; 
             }
@@ -271,10 +282,6 @@ void DistillationNoise<FImpl>::dumpDilutionMap(void)
         }
     };
 
-    if (mapEmpty())
-    {
-        buildMap();
-    }
     LOG(Message) << "Time index sets:" << std::endl;
     dump(Index::t);
     LOG(Message) << "Laplacian index sets:" << std::endl;
@@ -358,7 +365,7 @@ int InterlacedDistillationNoise<FImpl>::dilutionSize(const Index ind) const
 template <typename FImpl>
 void InterlacedDistillationNoise<FImpl>::buildMap(void)
 {
-    auto                   &map = this->map_;
+    auto                   &map = this->getMap(false);
     std::set<unsigned int> set;
 
     map[Index::t].clear();
