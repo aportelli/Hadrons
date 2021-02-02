@@ -96,11 +96,15 @@ public:
     void                    createCoarseGrid(const std::vector<int> &blockSize,
                                              const unsigned int Ls);
     template <typename VType = vComplex>
+    void                    createSliceGrid(const unsigned int orthDim);
+    template <typename VType = vComplex>
     GridCartesian *         getGrid(void);
     template <typename VType = vComplex>
     GridRedBlackCartesian * getRbGrid(void);
     template <typename VType = vComplex>
     GridCartesian *         getCoarseGrid(const std::vector<int> &blockSize);
+    template <typename VType = vComplex>
+    GridCartesian *         getSliceGrid(const unsigned int orthDir);
     template <typename VType = vComplex>
     GridCartesian *         getGrid(const unsigned int Ls);
     template <typename VType = vComplex>
@@ -179,6 +183,7 @@ private:
     bool                                protect_{true};
     // grids
     std::vector<int>                    dim_;
+    std::map<FineGridKey, GridPt>       grid3d_;
     std::map<FineGridKey, GridPt>       grid4d_;
     std::map<FineGridKey, GridPt>       grid5d_;
     std::map<FineGridKey, GridRbPt>     gridRb4d_;
@@ -317,6 +322,41 @@ void Environment::createCoarseGrid(const std::vector<int> &blockSize,
     }
 }
 
+template <typename VType>
+void Environment::createSliceGrid(const unsigned int orthDim)
+{
+    size_t hash = typeHash<VType>();
+
+    if (grid3d_.find({hash, orthDim}) == grid3d_.end())
+    {
+        GridCartesian *g         = getGrid<VType>();
+        int           nd         = static_cast<int>(g->_ndimension);
+        unsigned int  hd         = 0;
+        Coordinate    latt_size  = g->_gdimensions;
+        Coordinate    simd3      = GridDefaultSimd(nd - 1, VType::Nsimd());
+        Coordinate    simd;
+        Coordinate    mpi        = g->_processors;
+
+        latt_size[orthDim] = 1;
+        for (unsigned int d = 0; d < nd; d++)
+        {
+            if (d == orthDim)
+            {
+                simd.push_back(1);
+            }
+            else
+            {
+                simd.push_back(simd3[hd]);
+                hd++;
+            }
+        }
+        mpi[orthDim] = 1;
+        grid3d_[{hash, orthDim}].reset( 
+            new GridCartesian(latt_size, simd, mpi, *g));
+        HADRONS_DUMP_GRID(grid3d_[{hash, orthDim}].get());
+    }
+}
+
 #undef HADRONS_DUMP_GRID
 
 template <typename VType>
@@ -375,6 +415,25 @@ GridCartesian * Environment::getCoarseGrid(const std::vector<int> &blockSize)
         createCoarseGrid<VType>(blockSize, 1);
         
         return gridCoarse4d_.at(key).get();
+    }
+}
+
+template <typename VType>
+GridCartesian * Environment::getSliceGrid(const unsigned int orthDir)
+{
+    FineGridKey key = {typeHash<VType>(), orthDir};
+
+    auto it = grid3d_.find(key);
+
+    if (it != grid3d_.end())
+    {
+        return it->second.get();
+    }
+    else
+    {
+        createSliceGrid<VType>(orthDir);
+
+        return grid3d_.at(key).get();
     }
 }
 
