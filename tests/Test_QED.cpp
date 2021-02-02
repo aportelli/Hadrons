@@ -4,6 +4,7 @@
  * Copyright (C) 2015 - 2020
  *
  * Author: Antonin Portelli <antonin.portelli@me.com>
+ *         James Richings <james.richings@ed.ac.uk>
  *
  * Hadrons is free software: you can redistribute it and/or modify
  * it under the terms of the GNU General Public License as published by
@@ -30,6 +31,13 @@
 using namespace Grid;
 using namespace Hadrons;
 
+struct MesonEntry: public SqlEntry
+{
+    HADRONS_SQL_FIELDS(SqlNotNull<std::string>, q1, 
+                       SqlNotNull<std::string>, q2,
+                       SqlNotNull<std::string>, source);
+};
+
 int main(int argc, char *argv[])
 {
     // initialization //////////////////////////////////////////////////////////
@@ -55,6 +63,12 @@ int main(int argc, char *argv[])
     globalPar.trajCounter.end   = 1520;
     globalPar.trajCounter.step  = 20;
     globalPar.runId             = "test";
+    globalPar.database.applicationDb        = "QEDConservedApp.db";
+    globalPar.database.resultDb             = "QEDConservedResults.db";
+    globalPar.database.restoreSchedule      = false;
+    globalPar.database.restoreModules       = false;
+    globalPar.database.restoreMemoryProfile = false;
+    globalPar.database.makeStatDb           = true;
     application.setPar(globalPar);
     // gauge field
     application.createModule<MGauge::Unit>("gauge");
@@ -183,41 +197,54 @@ int main(int argc, char *argv[])
 							quarkPar_seq_VV);
 
 
-
     }
     for (unsigned int i = 0; i < flavour.size(); ++i)
     for (unsigned int j = i; j < flavour.size(); ++j)
     {
         //2pt function contraction
         MContraction::Meson::Par mesPar;
+        MesonEntry               mesEntry;
         mesPar.output  = "QED/pt_" + flavour[i] + flavour[j];
         mesPar.q1      = "Qpt_" + flavour[i];
         mesPar.q2      = "Qpt_" + flavour[j];
         mesPar.gammas  = "(Gamma5 Gamma5)";
         mesPar.sink    = "sink";
+        mesEntry.q1     = "Qpt_" + flavour[i];
+        mesEntry.q2     = "Qpt_" + flavour[j];
+        mesEntry.source = "pt";
         application.createModule<MContraction::Meson>("meson_pt_"
                                                       + flavour[i] + flavour[j],
                                                       mesPar);
-
+        application.setResultMetadata("meson_pt_" + flavour[i] + flavour[j],
+                                      "meson", mesEntry);
 
 
         //tadpole contraction
         MContraction::Meson::Par mesPar_seq_T;
+        MesonEntry               mesEntry_seq_T;
         mesPar_seq_T.output  = "QED/tadpole_pt_" + flavour[i] + "_T_" 
 					+ flavour[i] + "__" + flavour[j];
         mesPar_seq_T.q1      = "Qpt_" + flavour[i] + "_seq_T" + flavour[i];
         mesPar_seq_T.q2      = "Qpt_" + flavour[j];
         mesPar_seq_T.gammas  = "(Gamma5 Gamma5)";
         mesPar_seq_T.sink    = "sink";
+        mesEntry_seq_T.q1     = "Qpt_" + flavour[i] + "_seq_T" + flavour[i];
+        mesEntry_seq_T.q2     = "Qpt_" + flavour[j];
+        mesEntry_seq_T.source = "pt";
         application.createModule<MContraction::Meson>("meson_tadpole_pt_" +
                                                       flavour[i] + "_seq_T" 
 						      + flavour[i] + flavour[j],
                                                       mesPar_seq_T);
+        application.setResultMetadata("meson_tadpole_pt_" +
+                                                      flavour[i] + "_seq_T" 
+						      + flavour[i] + flavour[j],
+                                "meson", mesEntry_seq_T);
 
 
 
         //photon exchange contraction
         MContraction::Meson::Par mesPar_seq_E;
+        MesonEntry               mesEntry_seq_E;
         mesPar_seq_E.output  = "QED/exchange_pt_" + flavour[i] + "_V_ph_" 
 				+ flavour[i] + "__" + flavour[j] + "_V_ph_"
 				+ flavour[j];
@@ -225,15 +252,22 @@ int main(int argc, char *argv[])
         mesPar_seq_E.q2      = "Qpt_" + flavour[j] + "_seq_V_ph_" + flavour[j];
         mesPar_seq_E.gammas  = "(Gamma5 Gamma5)";
         mesPar_seq_E.sink    = "sink";
+        mesEntry_seq_E.q1     = "Qpt_" + flavour[i] + "_seq_V_ph_" + flavour[i];
+        mesEntry_seq_E.q2     = "Qpt_" + flavour[j] + "_seq_V_ph_" + flavour[j];
+        mesEntry_seq_E.source = "pt";
         application.createModule<MContraction::Meson>("meson_exchange_pt_" 
 					+ flavour[i] + "_seq_V_ph_" + flavour[i] 
 					+ flavour[j] + "_seq_V_ph_" + flavour[j],
                                                       mesPar_seq_E);
-
+        application.setResultMetadata("meson_exchange_pt_" 
+					+ flavour[i] + "_seq_V_ph_" + flavour[i] 
+					+ flavour[j] + "_seq_V_ph_" + flavour[j],
+                                "meson", mesEntry_seq_E);
 
 
         //self energy contraction
         MContraction::Meson::Par mesPar_seq_S;
+        MesonEntry               mesEntry_seq_S;
         mesPar_seq_S.output  = "QED/selfenergy_pt_" + flavour[i] + "_V_ph_" 
 				+ flavour[i] + "_V_ph_" + flavour[i] + "__" 
 				+  flavour[j];
@@ -242,19 +276,26 @@ int main(int argc, char *argv[])
         mesPar_seq_S.q2      = "Qpt_" + flavour[j];
         mesPar_seq_S.gammas  = "(Gamma5 Gamma5)";
         mesPar_seq_S.sink    = "sink";
+        mesEntry_seq_S.q1     = "Qpt_" + flavour[i] + "_seq_V_ph_" + flavour[i]
+                                + "_seq_V_ph_" + flavour[i];
+        mesEntry_seq_S.q2     = "Qpt_" + flavour[j];
+        mesEntry_seq_S.source = "pt";
         application.createModule<MContraction::Meson>("meson_selfenergy_pt_" 
 						    + flavour[i] + "_seq_V_ph_" 
 						    + flavour[i] + "_seq_V_ph_" 
 						    + flavour[i] + flavour[j],
                                                        mesPar_seq_S);
+        application.setResultMetadata("meson_selfenergy_pt_" 
+						    + flavour[i] + "_seq_V_ph_" 
+						    + flavour[i] + "_seq_V_ph_" 
+						    + flavour[i] + flavour[j],
+                                "meson", mesEntry_seq_S);
 
     }
 
 
-
-    
     // execution
-    application.saveParameterFile("QED.xml");
+    application.saveParameterFile("QED_Conserved.xml");
     application.run();
     
     // epilogue
