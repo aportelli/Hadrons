@@ -4,6 +4,9 @@
  * Copyright (C) 2015 - 2020
  *
  * Author: Antonin Portelli <antonin.portelli@me.com>
+ * Author: Lanny91 <andrew.lawson@gmail.com>
+ * Author: fionnoh <fionnoh@gmail.com>
+ * Author: Michael Marshall <Michael.Marshall@ed.ac.uk>
  *
  * Hadrons is free software: you can redistribute it and/or modify
  * it under the terms of the GNU General Public License as published by
@@ -18,7 +21,7 @@
  * You should have received a copy of the GNU General Public License
  * along with Hadrons.  If not, see <http://www.gnu.org/licenses/>.
  *
- * See the full license in the file "LICENSE" in the top level distribution 
+ * See the full license in the file "LICENSE" in the top level distribution
  * directory.
  */
 
@@ -30,4 +33,4 @@ using namespace Hadrons;
 using namespace MContraction;
 
 template class Grid::Hadrons::MContraction::TWardIdentity<FIMPL>;
-
+template class Grid::Hadrons::MContraction::TWardIdentity<ZFIMPL>;
