@@ -34,6 +34,8 @@
 #define Hadrons_MDistil_Perambulator_hpp_
 
 #include <Hadrons/Modules/MDistil/Distil.hpp>
+#include <Hadrons/DilutedNoise.hpp>
+
 
 BEGIN_HADRONS_NAMESPACE
 BEGIN_MODULE_NAMESPACE(MDistil)
@@ -54,6 +56,7 @@ public:
                                     std::string, perambFileName,
                                     std::string, unsmearedSolveFileName,
                                     std::string, unsmearedSolve,
+                                    std::string, distilNoise,
                                     pMode, perambMode,
                                     int, nVec,
                                     std::string, DistilParams);
@@ -95,7 +98,7 @@ TPerambulator<FImpl>::TPerambulator(const std::string name) : Module<Perambulato
 template <typename FImpl>
 std::vector<std::string> TPerambulator<FImpl>::getInput(void)
 {
-    std::vector<std::string> out={par().lapevec, par().solver, par().noise, par().DistilParams};
+    std::vector<std::string> out={par().lapevec, par().solver, par().noise, par().DistilParams, par().distilNoise};
     pMode perambMode{par().perambMode};
     if(perambMode == pMode::inputSolve)
     {
@@ -168,6 +171,14 @@ void TPerambulator<FImpl>::execute(void)
     std::string objName{ getName() };
     auto &perambulator = envGet(PerambTensor, objName);
     auto &epack = envGet(LapEvecs, par().lapevec);
+    
+    auto &dilNoise = envGet(DistillationNoise<FImpl>, par().distilNoise);
+    LOG(Message)<< "dilNoise "  << std::endl;
+    dilNoise.dumpDilutionMap();
+
+    //LOG(Message)<< "dilNoise " << dilNoise << std::endl;
+
+
     objName.append( "_unsmeared_solve" );
     envGetTmp(FermionField,      dist_source);
     envGetTmp(FermionField,      fermion4dtmp);
@@ -201,11 +212,14 @@ void TPerambulator<FImpl>::execute(void)
 
     for (int inoise = 0; inoise < dp.nnoise; inoise++)
     {
-        for (int dk = 0; dk < dp.LI; dk++)
+        int LI = dilNoise.getNl();	
+        int SI = dilNoise.getNs();	
+        int TI = dilNoise.getNt();	
+        for (int dk = 0; dk < LI; dk++)
         {
-            for (int dt = 0; dt < dp.inversions; dt++)
+            for (int dt = 0; dt < TI; dt++) // should only be the subset we want!
             {
-                for (int ds = 0; ds < dp.SI; ds++)
+                for (int ds = 0; ds < SI; ds++)
                 {
                     if(perambMode == pMode::inputSolve)
 		    {
@@ -216,7 +230,8 @@ void TPerambulator<FImpl>::execute(void)
                         LOG(Message) <<  "LapH source vector from noise " << inoise << " and dilution component (d_k,d_t,d_alpha) : (" << dk << ","<< dt << "," << ds << ")" << std::endl;
                         dist_source = 0;
                         evec3d = 0;
-			DIST_SOURCE
+			//DIST_SOURCE
+                        dist_source = dilNoise.makeSource(dk + dp.LI * dt + dp.LI * dp.inversions * ds,inoise);
                         fermion4dtmp=0;
                         if (Ls_ == 1)
                             solver(fermion4dtmp, dist_source);
