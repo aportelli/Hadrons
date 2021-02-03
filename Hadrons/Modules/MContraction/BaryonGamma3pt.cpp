@@ -31,5 +31,7 @@ using namespace Grid;
 using namespace Hadrons;
 using namespace MContraction;
 
+#if (!defined(GRID_CUDA)) && (!defined(GRID_HIP))
 template class Grid::Hadrons::MContraction::TBaryonGamma3pt<FIMPL>;
+#endif
 
