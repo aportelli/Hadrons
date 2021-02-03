@@ -215,23 +215,25 @@ void TPerambulator<FImpl>::execute(void)
         int LI = dilNoise.getNl();	
         int SI = dilNoise.getNs();	
         int TI = dilNoise.getNt();	
-        for (int dk = 0; dk < LI; dk++)
+        for (int dt = 0; dt < TI; dt++) // should only be the subset we want!
         {
-            for (int dt = 0; dt < TI; dt++) // should only be the subset we want!
+            for (int dk = 0; dk < LI; dk++)
             {
                 for (int ds = 0; ds < SI; ds++)
                 {
+	            std::array<unsigned int, 3> index = dilNoise.dilutionCoordinates(ds + SI * dk + SI * LI * dt);
+                    LOG(Message) <<  "index (d_t,d_k,d_alpha) : (" << index[0] << ","<< index[1] << "," << index[2] << ")" << std::endl;
                     if(perambMode == pMode::inputSolve)
 		    {
                         fermion4dtmp = solveIn[inoise+dp.nnoise*(dk+dp.LI*(dt+dp.inversions*ds))];
 		    } 
 		    else 
 		    {
-                        LOG(Message) <<  "LapH source vector from noise " << inoise << " and dilution component (d_k,d_t,d_alpha) : (" << dk << ","<< dt << "," << ds << ")" << std::endl;
+                        LOG(Message) <<  "LapH source vector from noise " << inoise << " and dilution component (d_t,d_k,d_alpha) : (" << dt << ","<< dk << "," << ds << ")" << std::endl;
                         //dist_source = 0;
                         //evec3d = 0;
 			//DIST_SOURCE
-                        dist_source = dilNoise.makeSource(dk + dp.LI * dt + dp.LI * dp.inversions * ds,inoise);
+                        dist_source = dilNoise.makeSource(ds + SI * dk + SI * LI * dt,inoise);
                         fermion4dtmp=0;
                         if (Ls_ == 1)
                             solver(fermion4dtmp, dist_source);
