@@ -180,7 +180,7 @@ int main(int argc, char *argv[])
         mesPar.output   = "mesons/pt_" + flavour[i] + flavour[j];
         mesPar.q1       = "Qpt_" + flavour[i];
         mesPar.q2       = "Qpt_" + flavour[j];
-        mesPar.gammas   = "gamma5";
+        mesPar.gammas   = "(Gamma5 Gamma5)";
         mesPar.sink     = "sink";
         mesEntry.q1     = flavour[i];
         mesEntry.q2     = flavour[j];
@@ -194,7 +194,7 @@ int main(int argc, char *argv[])
         mesPar.output   = "mesons/mom_" + flavour[i] + flavour[j];
         mesPar.q1       = "Qmom_" + flavour[i];
         mesPar.q2       = "Qmom_" + flavour[j];
-        mesPar.gammas   = "gamma5";
+        mesPar.gammas   = "(Gamma5 Gamma5)";
         mesPar.sink     = "sink";
         mesEntry.q1     = flavour[i];
         mesEntry.q2     = flavour[j];
@@ -209,7 +209,7 @@ int main(int argc, char *argv[])
         mesPar.output   = "mesons/momph_" + flavour[i] + flavour[j];
         mesPar.q1       = "Qmomph_" + flavour[i];
         mesPar.q2       = "Qmomph_" + flavour[j];
-        mesPar.gammas   = "gamma5";
+        mesPar.gammas   = "(Gamma5 Gamma5)";
         mesPar.sink     = "sink";
         mesEntry.q1     = flavour[i];
         mesEntry.q2     = flavour[j];
@@ -223,7 +223,7 @@ int main(int argc, char *argv[])
         mesPar.output   = "mesons/gauss_" + flavour[i] + flavour[j];
         mesPar.q1       = "Qgauss_" + flavour[i];
         mesPar.q2       = "Qgauss_" + flavour[j];
-        mesPar.gammas   = "gamma5";
+        mesPar.gammas   = "(Gamma5 Gamma5)";
         mesPar.sink     = "sink";
         mesEntry.q1     = flavour[i];
         mesEntry.q2     = flavour[j];
@@ -238,7 +238,7 @@ int main(int argc, char *argv[])
         mesPar.output   = "mesons/wall_" + flavour[i] + flavour[j];
         mesPar.q1       = "Qwall_" + flavour[i];
         mesPar.q2       = "Qwall_" + flavour[j];
-        mesPar.gammas   = "gamma5";
+        mesPar.gammas   = "(Gamma5 Gamma5)";
         mesPar.sink     = "sink";
         mesEntry.q1     = flavour[i];
         mesEntry.q2     = flavour[j];
@@ -252,7 +252,7 @@ int main(int argc, char *argv[])
         mesPar.output   = "mesons/rnd_" + flavour[i] + flavour[j];
         mesPar.q1       = "Qrnd_" + flavour[i];
         mesPar.q2       = "Qrnd_" + flavour[j];
-        mesPar.gammas   = "gamma5";
+        mesPar.gammas   = "(Gamma5 Gamma5)";
         mesPar.sink     = "sink";
         mesEntry.q1     = flavour[i];
         mesEntry.q2     = flavour[j];
@@ -266,7 +266,7 @@ int main(int argc, char *argv[])
         mesPar.output   = "mesons/Z2_" + flavour[i] + flavour[j];
         mesPar.q1       = "QZ2_" + flavour[i];
         mesPar.q2       = "QZ2_" + flavour[j];
-        mesPar.gammas   = "gamma5";
+        mesPar.gammas   = "(Gamma5 Gamma5)";
         mesPar.sink     = "sink";
         mesEntry.source = "Z2";
         application.createModule<MContraction::Meson>("meson_Z2_"
