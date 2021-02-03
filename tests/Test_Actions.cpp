@@ -61,7 +61,7 @@ int main(int argc, char *argv[])
     globalPar.trajCounter.end               = 1520;
     globalPar.trajCounter.step              = 20;
     globalPar.runId                         = "test";
-    globalPar.database.applicationDb        = "ActionApp.db";
+    globalPar.database.applicationDb        = "";//"ActionApp.db";
     globalPar.database.resultDb             = "ActionResults.db";
     globalPar.database.restoreSchedule      = false;
     globalPar.database.restoreModules       = false;
@@ -138,26 +138,17 @@ int main(int argc, char *argv[])
         MDactionPar.twist = twist;
         application.createModule<MAction::MobiusDWF>("MDWF_" + flavour[i], MDactionPar);
 
-        MAction::ZMobiusDWF::Par zMDactionPar;
-        zMDactionPar.gauge = "gauge";
-        zMDactionPar.Ls    = 10;
-        zMDactionPar.M5    = 1.8;
-        zMDactionPar.mass  = mass[i];
-        zMDactionPar.b = 1;
-        zMDactionPar.c = 1;
-        zMDactionPar.omega = {(1.458064389850479e+00,-0.000000000000000e+00),
-                              (1.182313183893475e+00,-0.000000000000000e+00),
-                              (8.309511666859551e-01,-0.000000000000000e+00),\
-                              (3.419850204537295e-01,-0.000000000000000e+00),\
-                              (5.423524091567911e-01,-0.000000000000000e+00),\
-                              (2.113790261902896e-01,-0.000000000000000e+00),\
-                              (1.260742995029118e-01,-0.000000000000000e+00),\
-                              (9.901366519626265e-02,-0.000000000000000e+00),\
-                              (6.863249884465925e-02,5.506585308274019e-02),\
-                              (6.863249884465925e-02,-5.506585308274019e-02)};
-        zMDactionPar.boundary = boundary;
-        zMDactionPar.twist = twist;
-        application.createModule<MAction::ZMobiusDWF>("zMDWF_" + flavour[i], zMDactionPar);
+        //MAction::ZMobiusDWF::Par zMDactionPar;
+        //zMDactionPar.gauge = "gauge";
+        //zMDactionPar.Ls    = 10;
+        //zMDactionPar.M5    = 1.8;
+        //zMDactionPar.mass  = mass[i];
+        //zMDactionPar.b = 1;
+        //zMDactionPar.c = 1;
+        //zMDactionPar.omega = {};
+        //zMDactionPar.boundary = boundary;
+        //zMDactionPar.twist = twist;
+        //application.createModule<MAction::ZMobiusDWF>("zMDWF_" + flavour[i], zMDactionPar);
 
         // solvers
 
@@ -196,12 +187,12 @@ int main(int argc, char *argv[])
         application.createModule<MSolver::RBPrecCG>("CG_MDWF_" + flavour[i],
                                                     MDsolverPar);  
 
-        MSolver::RBPrecCG::Par zMDsolverPar;
-        zMDsolverPar.action       = "zMDWF_" + flavour[i];
-        zMDsolverPar.residual     = 1.0e-8;
-        zMDsolverPar.maxIteration = 10000;
-        application.createModule<MSolver::RBPrecCG>("CG_zMDWF_" + flavour[i],
-                                                    zMDsolverPar);                                         
+        //MSolver::RBPrecCG::Par zMDsolverPar;
+        //zMDsolverPar.action       = "zMDWF_" + flavour[i];
+        //zMDsolverPar.residual     = 1.0e-8;
+        //zMDsolverPar.maxIteration = 10000;
+        //application.createModule<MSolver::RBPrecCG>("CG_zMDWF_" + flavour[i],
+        //                                            zMDsolverPar);                                         
         
         // propagators
         MFermion::GaugeProp::Par WquarkPar;
@@ -229,10 +220,10 @@ int main(int argc, char *argv[])
         MDquarkPar.source = "pt";
         application.createModule<MFermion::GaugeProp>("Qpt_MDWF_" + flavour[i], MDquarkPar);
 
-        MFermion::GaugeProp::Par zMDquarkPar;
-        zMDquarkPar.solver = "CG_zMDWF_" + flavour[i];
-        zMDquarkPar.source = "pt";
-        application.createModule<MFermion::GaugeProp>("Qpt_zMDWF_" + flavour[i], zMDquarkPar);
+        //MFermion::GaugeProp::Par zMDquarkPar;
+        //zMDquarkPar.solver = "CG_zMDWF_" + flavour[i];
+        //zMDquarkPar.source = "pt";
+        //application.createModule<MFermion::GaugeProp>("Qpt_zMDWF_" + flavour[i], zMDquarkPar);
 
     }
     for (unsigned int i = 0; i < flavour.size(); ++i)
@@ -316,20 +307,20 @@ int main(int argc, char *argv[])
         application.setResultMetadata("meson_pt_MDWF_" + flavour[i] + flavour[j],
                                       "meson", mesEntry);
 
-        mesPar.output   = "mesons/pt_zMDWF_" + flavour[i] + flavour[j];
-        mesPar.q1       = "Qpt_zMDWF_" + flavour[i];
-        mesPar.q2       = "Qpt_zMDWF_" + flavour[j];
-        mesPar.gammas   = "(Gamma5 Gamma5)";
-        mesPar.sink     = "sink";
-        mesEntry.q1     = flavour[i];
-        mesEntry.q2     = flavour[j];
-        mesEntry.source = "pt";
-        mesEntry.action = "zMDWF";
-        application.createModule<MContraction::Meson>("meson_pt_zMDWF_"
-                                                      + flavour[i] + flavour[j],
-                                                      mesPar);
-        application.setResultMetadata("meson_pt_zMDWF_" + flavour[i] + flavour[j],
-                                      "meson", mesEntry);
+    //    mesPar.output   = "mesons/pt_zMDWF_" + flavour[i] + flavour[j];
+    //    mesPar.q1       = "Qpt_zMDWF_" + flavour[i];
+    //    mesPar.q2       = "Qpt_zMDWF_" + flavour[j];
+    //    mesPar.gammas   = "(Gamma5 Gamma5)";
+    //    mesPar.sink     = "sink";
+    //    mesEntry.q1     = flavour[i];
+    //    mesEntry.q2     = flavour[j];
+    //    mesEntry.source = "pt";
+    //    mesEntry.action = "zMDWF";
+    //    application.createModule<MContraction::Meson>("meson_pt_zMDWF_"
+    //                                                  + flavour[i] + flavour[j],
+    //                                                  mesPar);
+    //    application.setResultMetadata("meson_pt_zMDWF_" + flavour[i] + flavour[j],
+    //                                  "meson", mesEntry);
 
     }
     
