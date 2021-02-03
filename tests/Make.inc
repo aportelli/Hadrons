@@ -7,7 +7,7 @@ Test_Actions_LDADD=-lHadrons -lGrid
 Test_sources_SOURCES=Test_sources.cc
 Test_sources_LDADD=-lHadrons -lGrid
 
-Test_QED_Local_SOURCES=Test_QED.cc
+Test_QED_Local_SOURCES=Test_QED_Local.cc
 Test_QED_Local_LDADD=-lHadrons -lGrid
 
 Test_QED_SOURCES=Test_QED.cc
