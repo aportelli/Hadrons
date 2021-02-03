@@ -228,8 +228,8 @@ void TPerambulator<FImpl>::execute(void)
 		    else 
 		    {
                         LOG(Message) <<  "LapH source vector from noise " << inoise << " and dilution component (d_k,d_t,d_alpha) : (" << dk << ","<< dt << "," << ds << ")" << std::endl;
-                        dist_source = 0;
-                        evec3d = 0;
+                        //dist_source = 0;
+                        //evec3d = 0;
 			//DIST_SOURCE
                         dist_source = dilNoise.makeSource(dk + dp.LI * dt + dp.LI * dp.inversions * ds,inoise);
                         fermion4dtmp=0;
