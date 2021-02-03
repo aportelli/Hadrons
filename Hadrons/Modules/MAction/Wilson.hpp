@@ -47,7 +47,6 @@ public:
                                     std::string, gauge,
                                     double     , mass,
                                     std::string, boundary,
-                                    std::string, string,
                                     std::string, twist);
 };
 
