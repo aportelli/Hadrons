@@ -191,7 +191,7 @@ class PerambMetadata : Serializable
 {
 public:
     GRID_SERIALIZABLE_CLASS_MEMBERS(PerambMetadata, int, Version,
-                                    std::vector<std::vector<int>>, sourceTimes );
+                                    std::vector<std::vector<unsigned int>>, sourceTimes );
 };
 
 class PerambTensor : public NamedTensor<SpinVector, 6, PerambMetadata>

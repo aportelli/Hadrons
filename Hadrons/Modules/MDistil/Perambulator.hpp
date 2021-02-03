@@ -57,6 +57,7 @@ public:
                                     std::string, unsmearedSolveFileName,
                                     std::string, unsmearedSolve,
                                     std::string, distilNoise,
+                                    std::string, timeSources,
                                     pMode, perambMode,
                                     int, nVec,
                                     std::string, DistilParams);
@@ -193,13 +194,54 @@ void TPerambulator<FImpl>::execute(void)
     pMode perambMode{par().perambMode};
     LOG(Message)<< "Mode " << perambMode << std::endl;
 
+
+
     std::vector<FermionField> solveIn;
     if(perambMode == pMode::inputSolve)
     {
         solveIn         = envGet(std::vector<FermionField>, par().unsmearedSolve);
     }
-
-    for (int dt = 0; dt < dp.inversions; dt++)
+    
+    std::string sourceT = par().timeSources;
+    int TI = dilNoise.getNt();
+    int inversions;
+    LOG(Message) << "st " << sourceT << sourceT.empty() << std::endl;
+    if(par().timeSources.empty())
+    {
+	// create sourceTimes all time-dilution indices
+	inversions=TI;
+        for (int dt = 0; dt < TI; dt++)
+	{
+	    std::vector<unsigned int> sT = dilNoise.timeSlices(dt);
+	    perambulator.MetaData.sourceTimes.push_back(sT);
+            LOG(Message) << "timeMap " << dt << " : " << sT << std::endl;
+	}
+        LOG(Message) << "Computing inversions on all " << TI << " time-dilution vectors" << std::endl;
+    }
+    else
+    {
+	// check whether input is legal, i.e. a number of integers between 0 and (TI-1)
+	std::regex rex("[0-9 ]+");
+	std::smatch sm;
+	std::regex_match(sourceT, sm, rex);
+	assert(sm[0].matched && "sourceTimes must be list of non-negative integers");
+	std::istringstream is(sourceT);
+	std::vector<int> invT ( ( std::istream_iterator<int>( is )  ), (std::istream_iterator<int>() ) );
+	inversions = invT.size();
+        for (int ii = 0; ii < inversions; ii++)
+	{
+	    assert(invT[ii] < TI && "elements of sourceTimes must lie between 0 and TI");
+	}
+	// create sourceTimes from the chosen subset of time-dilution indices
+        for (int dt = 0; dt < inversions; dt++)
+	{
+	    std::vector<unsigned int> sT = dilNoise.timeSlices(invT[dt]);
+	    perambulator.MetaData.sourceTimes.push_back(sT);
+            LOG(Message) << "timeMap " << invT[dt] << " : " << sT << std::endl;
+	}
+        LOG(Message) << "Computing inversions on a subset of " << inversions << " time-dilution vectors" << std::endl;
+    }
+    /*for (int dt = 0; dt < dp.inversions; dt++)
     {
 	std::vector<int> sT;
         for (int it = dt; it < Nt; it += dp.TI)
@@ -207,7 +249,7 @@ void TPerambulator<FImpl>::execute(void)
 	    sT.push_back(it);
 	}
 	perambulator.MetaData.sourceTimes.push_back(sT);
-    }
+    }*/
     LOG(Message) << "Source times" << perambulator.MetaData.sourceTimes << std::endl;
 
     for (int inoise = 0; inoise < dp.nnoise; inoise++)
