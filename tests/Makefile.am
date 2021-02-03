@@ -2,7 +2,7 @@ AM_LDFLAGS  += -L$(top_builddir)/Hadrons
 AM_CXXFLAGS += -I$(top_srcdir)
  
 EXTRA_PROGRAMS = \
-  Test_Actions		    \
+  Test_Actions		          \
   Test_sources              \
   Test_QED_Local            \
   Test_QED                  \
