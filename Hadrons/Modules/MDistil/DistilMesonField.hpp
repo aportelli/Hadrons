@@ -22,15 +22,7 @@ BEGIN_HADRONS_NAMESPACE
 
 BEGIN_MODULE_NAMESPACE(MDistil)
 
-class DistilMesonFieldMetadata: Serializable
-{
-public:
-    GRID_SERIALIZABLE_CLASS_MEMBERS(DistilMesonFieldMetadata,
-                                    std::vector<RealF>, momentum,
-                                    Gamma::Algebra,     gamma,
-                                    std::vector<int>,   noise_pair,
-                                    )
-};
+
 
 class DistilMesonFieldPar: Serializable
 {
@@ -55,9 +47,9 @@ class TDistilMesonField: public Module<DistilMesonFieldPar>
 {
 public:
     FERM_TYPE_ALIASES(FImpl,);
-    typedef DistillationNoise<FImpl> DNoise;
-    typedef std::vector<std::set<unsigned int>> TDilutionMap;
-    typedef typename DistillationNoise<FImpl>::Index Index;
+    typedef DistillationNoise<FImpl> DistillationNoise;
+    typedef std::vector<std::vector<unsigned int>> TimeSliceMap;
+    typedef typename DistillationNoise::Index Index;
 public:
     // constructor
     TDistilMesonField(const std::string name);
@@ -83,7 +75,7 @@ private:
     Vector<Complex>                     cachebuf_;
     int                                 eff_nt_;
     std::vector<std::vector<int>>       noisePairs_;           // read from extermal object (diluted noise class)
-    TDilutionMap                        st_;
+    TimeSliceMap                        st_;
     std::string                         outputMFStem_;
     bool                                hasPhase_{false};
     int                                 dilutionSize_LS_;
@@ -95,29 +87,43 @@ private:
 
 MODULE_REGISTER_TMP(DistilMesonField, TDistilMesonField<FIMPL>, MDistil);
 
+// metadata class
+class DistilMesonFieldMetadata: Serializable
+{
+public:
+    typedef typename TDistilMesonField<FImpl>::TimeSliceMap TimeSliceMap;
+public:
+    GRID_SERIALIZABLE_CLASS_MEMBERS(DistilMesonFieldMetadata,
+                                    std::vector<RealF>, momentum,
+                                    Gamma::Algebra,     gamma,
+                                    std::vector<int>,   noise_pair,
+                                    TimeSliceMap,       time_dilution,
+                                    )
+};
+
 // aux class
 template <typename FImpl>
 class DMesonFieldHelper
 {
 public:
-    typedef typename TDistilMesonField<FImpl>::DNoise DNoise;
-    typedef typename TDistilMesonField<FImpl>::TDilutionMap TDilutionMap;
+    typedef typename TDistilMesonField<FImpl>::DistillationNoise DistillationNoise;
+    typedef typename TDistilMesonField<FImpl>::TimeSliceMap TimeSliceMap;
     typedef typename FImpl::ComplexField ComplexField;
     typedef typename TDistilMesonField<FImpl>::Index Index;
 private:
     int nt_;
     int nd_;
     std::map<std::string,std::string> dmfCase_;
-    TDilutionMap timeMapl_, timeMapr_;
+    TimeSliceMap timeMapl_, timeMapr_;
     const std::vector<std::string> sides = {"left","right"};
 public:
     
-    DMesonFieldHelper(DNoise &nl, DNoise &nr, std::string in_case)
-    // : timeMapl_(nl.getMap()[0]) , timeMapr_(nr.getMap()[0])
+    DMesonFieldHelper(DistillationNoise &nl, DistillationNoise &nr, std::string in_case)
+    : timeMapl_( timeSliceMap(nl) ) , timeMapr_( timeSliceMap(nr) )
     {
         nt_ = nr.getNt();
         nd_ = nr.getGrid()->Nd();
-        // assert( timeMapl_.size() == timeMapr_.size() );  //number of partitions should be the same (?)
+        assert( timeMapl_.size() == timeMapr_.size() );  //number of partitions should be the same (?)
 
         // check mesonfield case
         if(!(in_case=="phi phi" || in_case=="phi rho" || in_case=="rho phi" || in_case=="rho rho"))
@@ -133,7 +139,7 @@ public:
         return dmfCase_;
     }
 
-    int computeTimeDimension(TDilutionMap st)
+    int computeTimeDimension(TimeSliceMap st)
     {
         // compute eff_nt (<=nt_), the number of non-zero timeslices in the final object, when there's at least one rho involved
         int eff_nt = 1;
@@ -149,19 +155,17 @@ public:
         return eff_nt;
     }
 
-    TDilutionMap getSourceTimes()
+    TimeSliceMap getSourceTimes()
     {
         // find intersection, may be useless in the future
-        std::vector<std::set<unsigned int>> st ;
-        st.clear();
+        TimeSliceMap st;
         for(int p=0 ; p<timeMapl_.size() ; p++)
         {
-            std::set<unsigned int> outset;
-            outset.clear();
+            std::vector<unsigned int> temp;
             std::set_intersection(timeMapl_[p].begin(), timeMapl_[p].end(), 
                                     timeMapr_[p].begin(), timeMapr_[p].end(),
-                                    std::inserter(outset, outset.begin()));
-            st.push_back(outset);
+                                    std::back_inserter(temp));
+            st.push_back(temp);
         }
         return st;
     }
@@ -253,6 +257,18 @@ public:
             phase[j] = exp((Real)(2*M_PI)*i*phase[j]);
         }
     }
+
+    TimeSliceMap timeSliceMap(DistillationNoise &n)
+    {
+        TimeSliceMap m;
+        for(unsigned int it=0 ; it<n.dilutionSize(Index::t) ; it++)
+        {
+            std::vector<unsigned int> temp = n.timeSlices(it);
+            m.push_back(temp);
+        }
+        return m;
+    }
+
 };
 
 /******************************************************************************
@@ -283,8 +299,8 @@ std::vector<std::string> TDistilMesonField<FImpl>::getOutput(void)
 template <typename FImpl>
 void TDistilMesonField<FImpl>::setup(void)
 {
-    DNoise &noisel = envGet( DNoise , par().leftNoise);
-    DNoise &noiser = envGet( DNoise , par().rightNoise);
+    DistillationNoise &noisel = envGet( DistillationNoise , par().leftNoise);
+    DistillationNoise &noiser = envGet( DistillationNoise , par().rightNoise);
     DMesonFieldHelper<FImpl> helper(noisel, noiser, par().mesonFieldCase);
 
     dmf_case_ = helper.getValidCase();
@@ -296,16 +312,14 @@ void TDistilMesonField<FImpl>::setup(void)
     outputMFStem_ = par().outputStem;
     GridCartesian *g     = envGetGrid(FermionField);
     GridCartesian *g3d   = envGetSliceGrid(FermionField, g->Nd() - 1);  // 3d grid (as a 4d one with collapsed time dimension)
-    
-    LOG(Message) << "Meson field case checked: " << par().mesonFieldCase << std::endl;
-    LOG(Message) << "Time dimension = " << eff_nt_ << std::endl;
-    LOG(Message) << "Selected block size: " << par().blockSize << std::endl;
-    LOG(Message) << "Selected cache size: " << par().cacheSize << std::endl;
 
     // parse source times
     // outermost dimension is the time-dilution index, innermost one are the non-zero source timeslices
     // in phi phi, save all timeslices, but in the other cases save only the non-zero  ones...
     st_ = helper.getSourceTimes();
+    for(auto i : st_)
+        std::cout << i << std::endl;
+
     eff_nt_ = helper.computeTimeDimension(st_);
     
     // parse and validate input
@@ -319,7 +333,7 @@ void TDistilMesonField<FImpl>::setup(void)
         }
         else
         {
-            auto &inNoise = envGet(DNoise , noiseInput_.at(side));
+            auto &inNoise = envGet(DistillationNoise , noiseInput_.at(side));
             noiseDimension.at(side) = inNoise.size();
         }
     }
@@ -328,7 +342,7 @@ void TDistilMesonField<FImpl>::setup(void)
     blockSize_ = {par().blockSize};
     cacheSize_ ={par().cacheSize};
 
-    // momenta and gamma parse -> turn into method
+    // momenta and gamma parse
     momenta_ = helper.parseMomenta(par().momenta);
     gamma_ = helper.parseGamma(par().gamma);
     nExt_ = momenta_.size(); //noise pairs computed independently, but can optmize embedding it into nExt??
@@ -342,13 +356,11 @@ void TDistilMesonField<FImpl>::setup(void)
     dilutionSize_LS_ = noisel.dilutionSize(Index::l)*noisel.dilutionSize(Index::s);
     
     envTmp(FermionField,                    "fermion3dtmp",         1, g3d);
-    envTmp(ColourVectorField,               "fermion3dtmp_nospin",  1, g3d);
     envTmp(ColourVectorField,               "evec3d",               1, g3d);
     envTmp(std::vector<FermionField>,       "dvl",                  1, st_.size()*dilutionSize_LS_, g);
     envTmp(std::vector<FermionField>,       "dvr",                  1, st_.size()*dilutionSize_LS_, g);
     envTmpLat(ComplexField, "coor");
     envCache(std::vector<ComplexField>,     "phasename",            1, momenta_.size(), g);
-    envTmpLat(FermionField,                 "fermion4dtmp");
 }
 
 // execution ///////////////////////////////////////////////////////////////////
@@ -357,19 +369,18 @@ void TDistilMesonField<FImpl>::execute(void)
 {
     // temps
     envGetTmp(FermionField,                 fermion3dtmp);
-    envGetTmp(ColourVectorField,            fermion3dtmp_nospin);
-    envGetTmp(FermionField,                 fermion4dtmp);
     envGetTmp(ColourVectorField,            evec3d);
     envGetTmp(std::vector<FermionField>,    dvl);
     envGetTmp(std::vector<FermionField>,    dvr);
     auto &epack = envGet(LapEvecs, par().lapEvec);
     auto &phase = envGet(std::vector<ComplexField>, "phasename");
-    DistillationNoise<FImpl> &noisel = envGet( DistillationNoise<FImpl> , par().leftNoise);
-    DistillationNoise<FImpl> &noiser = envGet( DistillationNoise<FImpl> , par().rightNoise);
+
+    DistillationNoise &noisel = envGet( DistillationNoise , par().leftNoise);
+    DistillationNoise &noiser = envGet( DistillationNoise , par().rightNoise);
     DMesonFieldHelper<FImpl> helper(noisel, noiser,  par().mesonFieldCase);
     // do not use operator []!! similar but better way to do that? maybe map of pointers?
     std::map<std::string, std::vector<FermionField>&>       distVector    = {{"left",dvl}  ,{"right",dvr}};
-    std::map<std::string, DNoise&>                          noise         = {{"left",noisel},{"right",noiser}};
+    std::map<std::string, DistillationNoise&>               noise         = {{"left",noisel},{"right",noiser}};
 
     int nVec = epack.evec.size();
     int vol = env().getGrid()->_gsites;
@@ -392,9 +403,14 @@ void TDistilMesonField<FImpl>::execute(void)
     double  global_flops = 0.0;
     double  global_bytes = 0.0;
 
+    LOG(Message) << "Meson field case: " << par().mesonFieldCase << std::endl;
+    LOG(Message) << "Time dimension = " << eff_nt_ << std::endl;
+    LOG(Message) << "Selected block size: " << par().blockSize << std::endl;
+    LOG(Message) << "Selected cache size: " << par().cacheSize << std::endl;
+
     for(auto &inoise : noisePairs_)
     {
-        // set up io object and metadata for all gamma/momenta
+        // set up io object and metadata for all gamma/momenta -> turn into method
         std::vector<A2AMatrixIo<ComplexF>> matrixIoTable;
         DistilMesonFieldMetadata md;
         for(int iExt=0; iExt<nExt_; iExt++)
@@ -404,9 +420,7 @@ void TDistilMesonField<FImpl>::execute(void)
             md.momentum = momenta_[iExt];
             md.gamma = gamma_[iStr];
             md.noise_pair = inoise;
-            // md.dilution_time = noisel.getMap()[0];
-            // md.dilution_lap = noisel.getMap()[1];
-            // md.dilution_spin = noisel.getMap()[2];
+            md.dilution_time = st_;
 
             std::stringstream ss;
             ss << md.gamma << "_";
@@ -414,15 +428,12 @@ void TDistilMesonField<FImpl>::execute(void)
                 ss << md.momentum[mu] << ((mu == md.momentum.size() - 1) ? "" : "_");
             std::string groupName = ss.str();
 
-            //init file here (do not create dataset yet)
-            //IO configuration for fixed test gamma and momentum
-            
+            // io init
             std::string outputStem = outputMFStem_ + "/noise" + std::to_string(inoise[0]) + "_" + std::to_string(inoise[1]) + "/";
             Hadrons::mkdir(outputStem);
             std::string mfName = groupName+"_"+dmf_case_.at("left")+"-"+dmf_case_.at("right")+".h5";
             A2AMatrixIo<ComplexF> matrixIo(outputStem+mfName, groupName, eff_nt_, dilutionSize_LS_, dilutionSize_LS_);  // automatise name choice according to momenta_ and gamma_
             matrixIoTable.push_back(matrixIo);
-
             //initialize file with no outputName group (containing atributes of momentum and gamma) but no dataset inside
             if(env().getGrid()->IsBoss())
             {
@@ -441,7 +452,7 @@ void TDistilMesonField<FImpl>::execute(void)
         LOG(Message) << "momenta:" << std::endl;
         LOG(Message) << momenta_ << std::endl;
 
-        for(auto &side : sides)    // computation, still ignoring gamma5 hermiticity
+        for(auto &side : sides)    // computation
         {
             for(int iD=0 ; iD<noise.at(side).dilutionSize() ; iD++)  // computation of phi or rho
             {
@@ -512,6 +523,7 @@ void TDistilMesonField<FImpl>::execute(void)
 
                         double timer = 0.0;
                         startTimer("kernel");
+                        // assuming certain indexation here! (dt must be the slowest index for this to work; otherwise will have to compute l/r block at each contraction)
                         A2Autils<FImpl>::MesonField(blockCache, &dvl[dtL*dilutionSize_LS_+iblock+icache], &dvr[dtR*dilutionSize_LS_+jblock+jcache], gamma_, phase, nd - 1, &timer);
                         stopTimer("kernel");
                         time_kernel += timer;
@@ -535,16 +547,12 @@ void TDistilMesonField<FImpl>::execute(void)
                         }
                         else
                         {
-                            std::vector<unsigned int> st_dtl;
-                            for(auto &e : st_[dtL]){
-                                st_dtl.push_back(e);
-                            }
                             thread_for_collapse( 5, iExt ,nExt_,{
                             for(int iStr=0 ;iStr<nStr_ ; iStr++)
                             for(int it=0 ; it<eff_nt_ ; it++)  //only wish to copy non-zero timeslices to block
                             for(int iicache=0 ; iicache<icacheSize ; iicache++)
                             for(int jjcache=0;  jjcache<jcacheSize ; jjcache++)
-                                block(iExt,iStr,it,icache+iicache,jcache+jjcache) = blockCache(iExt,iStr,st_dtl[it],iicache,jjcache);
+                                block(iExt,iStr,it,icache+iicache,jcache+jjcache) = blockCache(iExt,iStr,st_[dtL][it],iicache,jjcache);
                             });
                         }
                         stopTimer("cache copy");
