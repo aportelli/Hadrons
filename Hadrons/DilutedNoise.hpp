@@ -187,9 +187,9 @@ DistillationNoise<FImpl>::makeSource(const unsigned int d, const unsigned int i)
     std::string cstr;
     DilutionMap &map = getMap();
 
-    for (auto i: c)
+    for (auto j: c)
     {
-        cstr += std::to_string(i) + " ";
+        cstr += std::to_string(j) + " ";
     }
     cstr.pop_back();
     LOG(Message) << "Making distillation source for dilution index " << d
