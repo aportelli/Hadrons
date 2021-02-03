@@ -127,7 +127,7 @@ int main(int argc, char *argv[])
         seqPar_V.tA        = 0;
         seqPar_V.tB        = nt-1;
         seqPar_V.mom       = "0. 0. 0. 0.";
-	seqPar_V.emField   = "ph_field";
+	      seqPar_V.emField   = "ph_field";
         application.createModule<MSource::SeqAslash>("Qpt_" + flavour[i] 
 						    + "_seq_V_ph", seqPar_V);
         
@@ -172,7 +172,7 @@ int main(int argc, char *argv[])
         //2pt function contraction
         MContraction::Meson::Par mesPar;
         MesonEntry               mesEntry;
-        mesPar.output  = "QED/pt_" + flavour[i] + flavour[j];
+        mesPar.output  = "QEDLocal/pt_" + flavour[i] + flavour[j];
         mesPar.q1      = "Qpt_" + flavour[i];
         mesPar.q2      = "Qpt_" + flavour[j];
         mesPar.gammas  = "(Gamma5 Gamma5) (Gamma5 GammaTGamma5)";
@@ -189,7 +189,7 @@ int main(int argc, char *argv[])
         //photon exchange contraction
         MContraction::Meson::Par mesPar_seq_E;
         MesonEntry               mesEntry_seq_E;
-        mesPar_seq_E.output  = "QED/exchange_pt_" + flavour[i] + "_V_ph_" 
+        mesPar_seq_E.output  = "QEDLocal/exchange_pt_" + flavour[i] + "_V_ph_" 
 				+ flavour[i] + "__" + flavour[j] + "_V_ph_"
 				+ flavour[j];
         mesPar_seq_E.q1      = "Qpt_" + flavour[i] + "_seq_V_ph_" + flavour[i];
@@ -212,7 +212,7 @@ int main(int argc, char *argv[])
         //self energy contraction
         MContraction::Meson::Par mesPar_seq_S;
         MesonEntry               mesEntry_seq_S;
-        mesPar_seq_S.output  = "QED/selfenergy_pt_" + flavour[i] + "_V_ph_" 
+        mesPar_seq_S.output  = "QEDLocal/selfenergy_pt_" + flavour[i] + "_V_ph_" 
 				+ flavour[i] + "_V_ph_" + flavour[i] + "__" 
 				+  flavour[j];
         mesPar_seq_S.q1      = "Qpt_" + flavour[i] + "_seq_V_ph_" + flavour[i] 
