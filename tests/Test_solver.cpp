@@ -36,6 +36,7 @@ struct MesonEntry: public SqlEntry
 {
     HADRONS_SQL_FIELDS(SqlNotNull<std::string>, q1, 
                        SqlNotNull<std::string>, q2,
+                       SqlNotNull<std::string>, solver,
                        SqlNotNull<std::string>, source);
 };
 
@@ -53,9 +54,8 @@ int main(int argc, char *argv[])
     
     // run setup ///////////////////////////////////////////////////////////////
     Application              application;
-    std::vector<std::string> flavour = {"l", "s", "c1", "c2", "c3"};
-    std::vector<std::string> flavour_baryon = {"l", "s", "a", "b", "c"}; //needs to be a single character
-    std::vector<double>      mass    = {.01, .04, .2  , .25 , .3  };
+    std::vector<std::string> flavour = {"l"}; //, "s", "c1", "c2", "c3"};
+    std::vector<double>      mass    = {.01}; //, .04, .2  , .25 , .3  };
     
     // global parameters
     Application::GlobalPar globalPar;
@@ -70,17 +70,24 @@ int main(int argc, char *argv[])
     globalPar.database.restoreMemoryProfile = false;
     globalPar.database.makeStatDb           = true;
     application.setPar(globalPar);
+
     // gauge field
     application.createModule<MGauge::Unit>("gauge");
+
+    // single precision gauge field
+    MUtilities::GaugeSinglePrecisionCast::Par gfPar;
+    gfPar.field = "gauge";
+    application.createModule<MUtilities::GaugeSinglePrecisionCast>("gaugef", gfPar);
+
     // sources
     MSource::Point::Par ptPar;
     ptPar.position = "0 0 0 0";
     application.createModule<MSource::Point>("pt", ptPar);
+
     // sink
     MSink::Point::Par sinkPar;
     sinkPar.mom = "0 0 0";
     application.createModule<MSink::ScalarPoint>("sink", sinkPar);
-    application.createModule<MSink::SMatPoint>("sinkMat", sinkPar);
     
     // set fermion boundary conditions to be periodic space, antiperiodic time.
     std::string boundary = "1 1 1 -1";
@@ -97,6 +104,15 @@ int main(int argc, char *argv[])
         actionPar.boundary = boundary;
         actionPar.twist = twist;
         application.createModule<MAction::DWF>("DWF_" + flavour[i], actionPar);
+
+        MAction::DWFF::Par actionFPar;
+        actionFPar.gauge = "gaugef";
+        actionFPar.Ls    = 12;
+        actionFPar.M5    = 1.8;
+        actionFPar.mass  = mass[i];
+        actionFPar.boundary = boundary;
+        actionFPar.twist = twist;
+        application.createModule<MAction::DWFF>("DWFF_" + flavour[i], actionFPar);
         
         // solvers
         MSolver::RBPrecCG::Par solverPar;
@@ -105,14 +121,28 @@ int main(int argc, char *argv[])
         solverPar.maxIteration = 10000;
         application.createModule<MSolver::RBPrecCG>("CG_" + flavour[i],
                                                     solverPar);
+
+        MSolver::MixedPrecisionRBPrecCG::Par MPCGPar;
+        MPCGPar.innerAction       = "DWFF_" + flavour[i];
+        MPCGPar.outerAction       = "DWF_" + flavour[i];
+        MPCGPar.maxInnerIteration = 30000;
+        MPCGPar.maxOuterIteration = 100;
+        MPCGPar.residual          = 1.0e-8;
+        MPCGPar.eigenPack         = "";
+        application.createModule<MSolver::MixedPrecisionRBPrecCG>("MPCG_" + flavour[i],
+                                                    MPCGPar);
         
         // propagators
         MFermion::GaugeProp::Par quarkPar;
         quarkPar.solver = "CG_" + flavour[i];
         quarkPar.source = "pt";
-        application.createModule<MFermion::GaugeProp>("Qpt_" + flavour[i], quarkPar);
-        quarkPar.source = "z2";
-        application.createModule<MFermion::GaugeProp>("QZ2_" + flavour[i], quarkPar);
+        application.createModule<MFermion::GaugeProp>("Qpt_CG_" + flavour[i], quarkPar);
+
+        MFermion::GaugeProp::Par MPquarkPar;
+        MPquarkPar.solver = "MPCG_" + flavour[i];
+        MPquarkPar.source = "pt";
+        application.createModule<MFermion::GaugeProp>("Qpt_MPCG_" + flavour[i], MPquarkPar);
+
     }
     for (unsigned int i = 0; i < flavour.size(); ++i)
     for (unsigned int j = i; j < flavour.size(); ++j)
@@ -120,19 +150,35 @@ int main(int argc, char *argv[])
         MContraction::Meson::Par mesPar;
         MesonEntry               mesEntry;
         
-        mesPar.output   = "mesons/pt_" + flavour[i] + flavour[j];
-        mesPar.q1       = "Qpt_" + flavour[i];
-        mesPar.q2       = "Qpt_" + flavour[j];
-        mesPar.gammas   = "all";
+        mesPar.output   = "mesons/pt_CG_" + flavour[i] + flavour[j];
+        mesPar.q1       = "Qpt_CG_" + flavour[i];
+        mesPar.q2       = "Qpt_CG_" + flavour[j];
+        mesPar.gammas   = "(Gamma5 Gamma5)";
         mesPar.sink     = "sink";
         mesEntry.q1     = flavour[i];
         mesEntry.q2     = flavour[j];
+        mesEntry.solver ="RBPrecCG";
         mesEntry.source = "pt";
-        application.createModule<MContraction::Meson>("meson_pt_"
+        application.createModule<MContraction::Meson>("meson_pt_CG_"
                                                       + flavour[i] + flavour[j],
                                                       mesPar);
-        application.setResultMetadata("meson_pt_" + flavour[i] + flavour[j],
+        application.setResultMetadata("meson_pt_CG_" + flavour[i] + flavour[j],
                                       "meson", mesEntry);
+
+        mesPar.output   = "mesons/pt_MPCG_" + flavour[i] + flavour[j];
+        mesPar.q1       = "Qpt_MPCG_" + flavour[i];
+        mesPar.q2       = "Qpt_MPCG_" + flavour[j];
+        mesPar.gammas   = "(Gamma5 Gamma5)";
+        mesPar.sink     = "sink";
+        mesEntry.q1     = flavour[i];
+        mesEntry.q2     = flavour[j];
+        mesEntry.solver ="MixedPrecCG";
+        mesEntry.source = "pt";
+        application.createModule<MContraction::Meson>("meson_pt_MPCG_"
+                                                      + flavour[i] + flavour[j],
+                                                      mesPar);
+        application.setResultMetadata("meson_pt_MPCG_" + flavour[i] + flavour[j],
+                                      "meson", mesEntry);    
 
     }
     

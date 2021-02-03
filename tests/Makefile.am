@@ -2,6 +2,8 @@ AM_LDFLAGS  += -L$(top_builddir)/Hadrons
 AM_CXXFLAGS += -I$(top_srcdir)
  
 EXTRA_PROGRAMS = \
+  Test_solver               \
+  Test_sinks                \
   Test_Actions		          \
   Test_sources              \
   Test_QED_Local            \
@@ -19,6 +21,12 @@ EXTRA_PROGRAMS = \
 CLEANFILES = $(EXTRA_PROGRAMS)
 
 tests-local: $(EXTRA_PROGRAMS)
+
+Test_solver_SOURCES=Test_solver.cpp
+Test_solver_LDADD=-lHadrons -lGrid
+
+Test_sinks_SOURCES=Test_sinks.cpp
+Test_sinks_LDADD=-lHadrons -lGrid
 
 Test_Actions_SOURCES=Test_Actions.cpp
 Test_Actions_LDADD=-lHadrons -lGrid

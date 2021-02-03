@@ -68,27 +68,24 @@ int main(int argc, char *argv[])
     globalPar.database.restoreMemoryProfile = false;
     globalPar.database.makeStatDb           = true;
     application.setPar(globalPar);
+
     // gauge field
     application.createModule<MGauge::Unit>("gauge");
+
     // sources
     MSource::Point::Par ptPar;
     ptPar.position = "0 0 0 0";
     application.createModule<MSource::Point>("pt", ptPar);
 
     // sinks
-
     MSink::Point::Par sinkPar;
     sinkPar.mom = "0 0 0";
     application.createModule<MSink::ScalarPoint>("sink", sinkPar);
     
-    Msink::Smear::Par smearPar;
-    smearPar.q = "smearing field";
-    smearPar.sink = "sink";
-    application.createModule<MSink::Smear>("smear", smearPar);
-
-    MSink::SourceSink::Par SrcSinkPar;
-    SrcSinkPar.source = "sink";
-    application.createModule<MSink::SourceSink>("sourcesink", SrcSinkPar);
+    //Msink::Smear::Par smearPar;
+    //smearPar.q = "smearing field";
+    //smearPar.sink = "sink";
+    //application.createModule<MSink::Smear>("smear", smearPar);
 
     // set fermion boundary conditions to be periodic space, antiperiodic time.
     std::string boundary = "1 1 1 -1";
@@ -120,6 +117,10 @@ int main(int argc, char *argv[])
         quarkPar.source = "pt";
         application.createModule<MFermion::GaugeProp>("Qpt_" + flavour[i], quarkPar);
 
+        //MSink::SourceSink::Par SrcSinkPar;
+        //SrcSinkPar.source = "Qpt_" + flavour[i];
+        //application.createModule<MSink::SourceSink>("sourcesink", SrcSinkPar);
+
     }
     for (unsigned int i = 0; i < flavour.size(); ++i)
     for (unsigned int j = i; j < flavour.size(); ++j)
@@ -130,48 +131,48 @@ int main(int argc, char *argv[])
         mesPar.output   = "mesons/pt_" + flavour[i] + flavour[j];
         mesPar.q1       = "Qpt_" + flavour[i];
         mesPar.q2       = "Qpt_" + flavour[j];
-        mesPar.gammas   = "all";
+        mesPar.gammas   = "(Gamma5 Gamma5)";
         mesPar.sink     = "sink";
         mesEntry.q1     = flavour[i];
         mesEntry.q2     = flavour[j];
         mesEntry.source = "pt";
         mesEntry.sink = "sink";
         application.createModule<MContraction::Meson>("meson_pt_"
-                                                      + flavour[i] + flavour[j],
+                                                      + flavour[i] + "_pt_" + flavour[j],
                                                       mesPar);
-        application.setResultMetadata("meson_pt_" + flavour[i] + flavour[j],
+        application.setResultMetadata("meson_pt_" + flavour[i] + "_pt_" + flavour[j],
                                       "meson", mesEntry);
 
               
-        mesPar.output   = "mesons/pt_" + flavour[i] + flavour[j];
-        mesPar.q1       = "Qpt_" + flavour[i];
-        mesPar.q2       = "Qpt_" + flavour[j];
-        mesPar.gammas   = "all";
-        mesPar.sink     = "smear";
-        mesEntry.q1     = flavour[i];
-        mesEntry.q2     = flavour[j];
-        mesEntry.source = "pt";
-        mesEntry.sink = "smear";
-        application.createModule<MContraction::Meson>("meson_pt_"
-                                                      + flavour[i] + flavour[j],
-                                                      mesPar);
-        application.setResultMetadata("meson_pt_" + flavour[i] + flavour[j],
-                                      "meson", mesEntry);
+    //    mesPar.output   = "mesons/pt_" + flavour[i] + flavour[j];
+    //    mesPar.q1       = "Qpt_" + flavour[i];
+    //    mesPar.q2       = "Qpt_" + flavour[j];
+    //    mesPar.gammas   = "(Gamma5 Gamma5)";
+    //    mesPar.sink     = "smear";
+    //    mesEntry.q1     = flavour[i];
+    //    mesEntry.q2     = flavour[j];
+    //    mesEntry.source = "pt";
+    //    mesEntry.sink = "smear";
+    //    application.createModule<MContraction::Meson>("meson_pt_"
+    //                                                  + flavour[i] + flavour[j],
+    //                                                  mesPar);
+    //    application.setResultMetadata("meson_pt_" + flavour[i] + flavour[j],
+    //                                  "meson", mesEntry);
                 
-        mesPar.output   = "mesons/pt_" + flavour[i] + flavour[j];
-        mesPar.q1       = "Qpt_" + flavour[i];
-        mesPar.q2       = "Qpt_" + flavour[j];
-        mesPar.gammas   = "all";
-        mesPar.sink     = "sourcesink";
-        mesEntry.q1     = flavour[i];
-        mesEntry.q2     = flavour[j];
-        mesEntry.source = "pt";
-        mesEntry.sink = "sourcesink";
-        application.createModule<MContraction::Meson>("meson_pt_"
-                                                      + flavour[i] + flavour[j],
-                                                      mesPar);
-        application.setResultMetadata("meson_pt_" + flavour[i] + flavour[j],
-                                      "meson", mesEntry);
+    //    mesPar.output   = "mesons/pt_" + flavour[i] + flavour[j];
+    //    mesPar.q1       = "Qpt_" + flavour[i];
+    //    mesPar.q2       = "Qpt_" + flavour[j];
+    //    mesPar.gammas   = "(Gamma5 Gamma5)";
+    //    mesPar.sink     = "sourcesink";
+    //    mesEntry.q1     = flavour[i];
+    //    mesEntry.q2     = flavour[j];
+    //    mesEntry.source = "pt";
+    //    mesEntry.sink = "sourcesink";
+    //    application.createModule<MContraction::Meson>("meson_pt_"
+    //                                                  + flavour[i] + "_sourcesink_" + flavour[j],
+    //                                                  mesPar);
+    //    application.setResultMetadata("meson_pt_" + flavour[i] + "_sourcesink_" + flavour[j],
+    //                                  "meson", mesEntry);
     }
     
     // execution
