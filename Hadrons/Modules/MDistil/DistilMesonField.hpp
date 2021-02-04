@@ -88,6 +88,7 @@ private:
 MODULE_REGISTER_TMP(DistilMesonField, TDistilMesonField<FIMPL>, MDistil);
 
 // metadata class
+template <typename FImpl>
 class DistilMesonFieldMetadata: Serializable
 {
 public:
@@ -412,7 +413,7 @@ void TDistilMesonField<FImpl>::execute(void)
     {
         // set up io object and metadata for all gamma/momenta -> turn into method
         std::vector<A2AMatrixIo<ComplexF>> matrixIoTable;
-        DistilMesonFieldMetadata md;
+        DistilMesonFieldMetadata<FImpl> md;
         for(int iExt=0; iExt<nExt_; iExt++)
         for(int iStr=0; iStr<nStr_; iStr++)
         {
@@ -420,7 +421,7 @@ void TDistilMesonField<FImpl>::execute(void)
             md.momentum = momenta_[iExt];
             md.gamma = gamma_[iStr];
             md.noise_pair = inoise;
-            md.dilution_time = st_;
+            md.time_dilution = st_;
 
             std::stringstream ss;
             ss << md.gamma << "_";
