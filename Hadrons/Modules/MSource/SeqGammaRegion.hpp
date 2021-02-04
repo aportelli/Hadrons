@@ -47,6 +47,7 @@ BEGIN_HADRONS_NAMESPACE
  - q: input propagator (string)
  - LowerLeft: bottom left corner of region (Nd x integer, eg "0 0 0 0")
  - RegionSize: size of region (Nd x integer, eg "1 1 1 1")
+               Regions do not wrap around the edge of the lattice
  - gamma: gamma product to insert (Gamma::Algebra)
  - mom: momentum insertion, space-separated float sequence (e.g ".1 .2 1. 0.")
  
@@ -60,9 +61,10 @@ BEGIN_MODULE_NAMESPACE(MSource)
 // This doesn't need to be specialised by template type
 namespace SeqGammaRegionHelper
 {
-    inline std::vector<int> ErrorCheck(const std::string &Value, unsigned int Nd, const std::string &FieldName)
+    template <typename T>
+    inline std::vector<T> ErrorCheck(const std::string &Value, unsigned int Nd, const std::string &FieldName)
     {
-        std::vector<int> vi = strToVec<int>(Value);
+        std::vector<T> vi = strToVec<T>(Value);
         if (vi.size() != Nd)
         {
             HADRONS_ERROR(Size,FieldName+" \""+Value+"\" should have "+std::to_string(Nd)+" dimensions");
@@ -87,6 +89,7 @@ class TSeqGammaRegion: public Module<SeqGammaRegionPar>
 {
 public:
     FERM_TYPE_ALIASES(FImpl,);
+    using LatSInt = Lattice<iScalar<vInteger>>;
 public:
     // constructor
     TSeqGammaRegion(const std::string name);
@@ -109,7 +112,7 @@ protected:
     bool              bPropVec;
     bool              hasPhase_{false};
     const std::string momphName_;
-    const std::string qMaskName_;
+    const std::string coorName_;
 };
 
 MODULE_REGISTER_TMP(SeqGammaRegion,  TSeqGammaRegion<FIMPL>,  MSource);
@@ -123,7 +126,7 @@ template <typename FImpl>
 TSeqGammaRegion<FImpl>::TSeqGammaRegion(const std::string name)
 : Module<SeqGammaRegionPar>(name)
 , momphName_ (name + "_momph")
-, qMaskName_ (name + "_qMask")
+, coorName_ (name + "_coor")
 {}
 
 // dependencies/products ///////////////////////////////////////////////////////
@@ -143,6 +146,11 @@ std::vector<std::string> TSeqGammaRegion<FImpl>::getOutput(void)
 template <typename FImpl>
 void TSeqGammaRegion<FImpl>::setup(void)
 {
+    if (env().getNd() !=4 )
+    {
+        // TODO: make sure the where clause works on the correct number of dimensions
+        HADRONS_ERROR(Size,"Expected 4 dimensions, but have "+std::to_string(env().getNd()));
+    }
     if (envHasType(PropagatorField, par().q))
     {
         bPropVec = false;
@@ -162,56 +170,55 @@ void TSeqGammaRegion<FImpl>::setup(void)
                           + ")", env().getObjectAddress(par().q))
     }
     // Validate parameters - fail early
-    LowerLeft  = SeqGammaRegionHelper::ErrorCheck(par().LowerLeft,  env().getNd(), "LowerLeft");
-    RegionSize = SeqGammaRegionHelper::ErrorCheck(par().RegionSize, env().getNd(), "RegionSize");
-    Momentum   = SeqGammaRegionHelper::ErrorCheck(par().mom       , env().getNd(), "mom");
+    LowerLeft  = SeqGammaRegionHelper::ErrorCheck<int>(par().LowerLeft,  env().getNd(), "LowerLeft");
+    RegionSize = SeqGammaRegionHelper::ErrorCheck<int>(par().RegionSize, env().getNd(), "RegionSize");
+    Momentum   = SeqGammaRegionHelper::ErrorCheck<int>(par().mom       , env().getNd(), "mom");
     Gamma g(par().gamma);
     // Create temporaries
     envCacheLat(LatticeComplex, momphName_);
-    envTmpLat(PropagatorField, qMaskName_);
-    envTmpLat(LatticeComplex, "coor");
-    // The region never changes, so only need to zero outside the region once
-    auto &qMask = envGet(PropagatorField, qMaskName_);
-    qMask = Zero();
+    envCache(std::vector<LatSInt>, coorName_, 1, env().getNd(), envGetGrid(LatticeComplex)); // coords for where clause
+    envTmpLat(LatticeComplex, "pcoor"); // This temporary is used for momentum
 }
 
 // execution ///////////////////////////////////////////////////////////////////
 template <typename FImpl>
 void TSeqGammaRegion<FImpl>::makeSource(PropagatorField &src, const PropagatorField &q)
 {
-    auto &ph    = envGet(LatticeComplex, momphName_);
-    auto &qMask = envGet(PropagatorField, qMaskName_);
+    auto &ph   = envGet(LatticeComplex, momphName_);
+    auto &coor = envGet(std::vector<LatSInt>, coorName_);
     Gamma g(par().gamma);
-
-    // Get the specified region of the propagator. The rest is already zero
-    localCopyRegion(q, qMask, LowerLeft, LowerLeft, RegionSize);
 
     if (!hasPhase_)
     {
         Complex           i(0.0,1.0);
         std::vector<Real> p;
 
-        envGetTmp(LatticeComplex, coor);
+        envGetTmp(LatticeComplex, pcoor);
         p  = strToVec<Real>(par().mom);
         ph = Zero();
         for(unsigned int mu = 0; mu < env().getNd(); mu++)
         {
-            LatticeCoordinate(coor, mu);
-            ph = ph + (p[mu]/env().getDim(mu))*coor;
+            LatticeCoordinate(pcoor, mu);
+            ph = ph + (p[mu]/env().getDim(mu))*pcoor;
+            LatticeCoordinate(coor[mu], mu);
         }
         ph = exp((Real)(2*M_PI)*i*ph);
         hasPhase_ = true;
     }
-    src = ph*(g*qMask);
+    src = where(    (coor[0] >= LowerLeft[0]) and (coor[0] < LowerLeft[0] + RegionSize[0])
+                and (coor[1] >= LowerLeft[1]) and (coor[1] < LowerLeft[1] + RegionSize[1])
+                and (coor[2] >= LowerLeft[2]) and (coor[2] < LowerLeft[2] + RegionSize[2])
+                and (coor[3] >= LowerLeft[3]) and (coor[3] < LowerLeft[3] + RegionSize[3]),
+                ph*(g*q), 0.*q);
 }
 
 template <typename FImpl>
 void TSeqGammaRegion<FImpl>::execute(void)
 {
     LOG(Message) << "Generating " << par().gamma
-                 << " sequential source region. LowerLeft=" << par().LowerLeft
-                 << " . RegionSize=" << par().RegionSize
-                 << " . mom=" << par().mom
+                 << " sequential source region: LowerLeft=" << par().LowerLeft
+                 << ", RegionSize=" << par().RegionSize
+                 << ", mom=" << par().mom
                  << std::endl;
 
   if (envHasType(PropagatorField, par().q))
