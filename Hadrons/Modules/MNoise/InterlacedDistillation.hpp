@@ -45,6 +45,7 @@ public:
 };
 
 MODULE_REGISTER_TMP(InterlacedDistillation, TInterlacedDistillation<FIMPL>, MNoise);
+MODULE_REGISTER_TMP(ZInterlacedDistillation, TInterlacedDistillation<ZFIMPL>, MNoise);
 
 /******************************************************************************
  *                 TInterlacedDistillation implementation                    *
