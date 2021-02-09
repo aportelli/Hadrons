@@ -35,11 +35,12 @@ public:
                                     std::string,    rightPeramb,
                                     std::string,    leftNoise,
                                     std::string,    rightNoise,
-                                    std::vector<std::string>, noisePairs,
                                     std::string,    gamma,
-                                    std::vector<std::string>, momenta,
                                     int,            blockSize,
-                                    int,            cacheSize,)
+                                    int,            cacheSize,
+                                    std::vector<std::string>, sourceTimes,
+                                    std::vector<std::string>, momenta,
+                                    std::vector<std::string>, noisePairs,)
 };
 
 template <typename FImpl>
@@ -48,6 +49,7 @@ class TDistilMesonField: public Module<DistilMesonFieldPar>
 public:
     FERM_TYPE_ALIASES(FImpl,);
     typedef DistillationNoise<FImpl> DistillationNoise;
+    typedef std::vector<std::vector<FermionField>> DistilVector;
     typedef std::vector<std::vector<unsigned int>> TimeSliceMap;
     typedef typename DistillationNoise::Index Index;
 public:
@@ -81,7 +83,8 @@ private:
     int                                 dilutionSize_ls_;
     std::map<std::string, std::string>  noiseInput_  ;
     std::map<std::string, std::string>  perambInput_ ;
-    std::vector<std::string>            sides        ;
+    std::vector<std::string>            sides_       ;
+    // DmfHelper<FImpl>                   *helper_;
     
 };
 
@@ -104,7 +107,7 @@ public:
 
 // aux class
 template <typename FImpl>
-class DMesonFieldHelper
+class DmfHelper
 {
 public:
     typedef typename TDistilMesonField<FImpl>::DistillationNoise DistillationNoise;
@@ -115,16 +118,15 @@ private:
     int nt_;
     int nd_;
     std::map<std::string,std::string> dmfCase_;
-    TimeSliceMap timeMapl_, timeMapr_;
+    TimeSliceMap noiseTimeMapl_, noiseTimeMapr_;
     const std::vector<std::string> sides = {"left","right"};
 public:
     
-    DMesonFieldHelper(DistillationNoise &nl, DistillationNoise &nr, std::string in_case)
-    : timeMapl_( timeSliceMap(nl) ) , timeMapr_( timeSliceMap(nr) )
+    DmfHelper(DistillationNoise & nl, DistillationNoise & nr, std::string in_case)
+    : noiseTimeMapl_( timeSliceMap(nl) ) , noiseTimeMapr_( timeSliceMap(nr) )
     {
         nt_ = nr.getNt();
         nd_ = nr.getGrid()->Nd();
-        assert( timeMapl_.size() == timeMapr_.size() );  //number of partitions should be the same (?)
 
         // check mesonfield case
         if(!(in_case=="phi phi" || in_case=="phi rho" || in_case=="rho phi" || in_case=="rho rho"))
@@ -140,14 +142,14 @@ public:
         return dmfCase_;
     }
 
-    int computeTimeDimension(TimeSliceMap st)
+    int computeEffTimeDimension(TimeSliceMap st)
     {
         // compute eff_nt (<=nt_), the number of non-zero timeslices in the final object, when there's at least one rho involved
         int eff_nt = 1;
         if(dmfCase_.at("left")=="rho" || dmfCase_.at("right")=="rho")
         {
             for(auto &e : st)
-                e.size() > eff_nt ? eff_nt = e.size() : NULL;      //get the highest possible eff_nt from st
+                e.size() > eff_nt ? eff_nt = e.size() : 0;      //get the highest possible eff_nt from st
         }
         else
         {
@@ -156,19 +158,62 @@ public:
         return eff_nt;
     }
 
-    TimeSliceMap getSourceTimes()
+    TimeSliceMap getSourceTimes(std::map<std::string, TimeSliceMap> perambTimeMap , TimeSliceMap st_input)
+    {//check if noise_st_i contains peramb_st_i (case==phi), take the intersection between the l/r intersection result, check if input is subset of that
+        TimeSliceMap st,st_dependencies;
+        std::map<std::string, TimeSliceMap> inter = { {"left",{}},{"right",{}} };
+        std::map<std::string , TimeSliceMap> noiseTimeMap = { {"left",noiseTimeMapl_},{"right",noiseTimeMapr_} };
+        for(auto &s : sides)
+        {
+            if(dmfCase_.at(s)=="phi")
+            {
+                // std::cout << "noise/peramb intersection, " << s << std::endl; 
+                inter.at(s) = getIntersectionMap(noiseTimeMap.at(s) , perambTimeMap.at(s));
+                
+                if(inter.at(s).empty())
+                {
+                    HADRONS_ERROR(Argument,"Time dilution not compatible between noise and perambulator.");
+                }
+            }
+            else
+            {
+                // std::cout << "no noise/peramb intersection (rho case), " << s << std::endl; 
+                inter.at(s) = noiseTimeMap.at(s);
+            }
+        }
+
+        // std::cout << "l/r dependencies intersection" << std::endl; 
+        st_dependencies  = getIntersectionMap(inter.at("left") , inter.at("right"));
+
+        // std::cout << "dependencies/input intersection" << std::endl; 
+        st = getIntersectionMap(st_dependencies , st_input);
+
+        return st;
+    }
+    
+    TimeSliceMap getIntersectionMap(TimeSliceMap m1, TimeSliceMap m2)
     {
-        // find intersection, may be useless in the future
-        TimeSliceMap st;
-        for(int p=0 ; p<timeMapl_.size() ; p++)
+        TimeSliceMap inter;
+        // std::cout << "m1:" << std::endl;
+        // for(auto e : m1)
+        //     std::cout << e << std::endl;
+
+        // std::cout << "m2:" << std::endl;
+        // for(auto e : m1)
+        //     std::cout << e << std::endl;
+
+        // std::cout << "inter:" << std::endl;
+        for(unsigned int p=0 ; p<m1.size() ; p++)
         {
             std::vector<unsigned int> temp;
-            std::set_intersection(timeMapl_[p].begin(), timeMapl_[p].end(), 
-                                    timeMapr_[p].begin(), timeMapr_[p].end(),
-                                    std::back_inserter(temp));
-            st.push_back(temp);
+            std::set_intersection(m1[p].begin(), m1[p].end(), 
+                                m2[p].begin(), m2[p].end(),
+                                std::back_inserter(temp));
+            // std::cout << temp << std::endl;
+            inter.push_back(temp);
         }
-        return st;
+        // std::cin.get();
+        return inter;
     }
 
     std::vector<std::vector<RealF>> parseMomenta(std::vector<std::string> inputP)
@@ -221,7 +266,7 @@ public:
         return(g);
     }
 
-    std::vector<std::vector<int>> parseNoisePairs(std::vector<std::string> inputN , std::map<std::string,std::string> caseMap , std::map<std::string,int> noiseDim )
+    std::vector<std::vector<int>> parseNoisePairs(std::vector<std::string> inputN)
     {
         
         std::vector<std::vector<int>> nPairs;
@@ -230,16 +275,6 @@ public:
         {
             nPairs.push_back(strToVec<int>(npair));
             std::map<std::string, int>  noiseMapTemp = { {"left", nPairs.back()[0]} , {"right",nPairs.back()[1]} };
-            for(auto &side : sides){
-                if( noiseMapTemp.at(side) >= noiseDim.at(side) )    // verify if input noise number is valid ( < tensor nnoise dimension)
-                {
-                    HADRONS_ERROR(Size,"Noise pair element " + std::to_string(noiseMapTemp.at(side)) + "(>=" +std::to_string(noiseDim.at(side)) + ") unavailable in input tensor");
-                }
-                if( noiseMapTemp.at(side) < 0)
-                {
-                    HADRONS_ERROR(Size,"Negative noise pair element");
-                }
-            }
         }
         return(nPairs);
     }
@@ -259,7 +294,7 @@ public:
         }
     }
 
-    TimeSliceMap timeSliceMap(DistillationNoise &n)
+    TimeSliceMap timeSliceMap(DistillationNoise & n)
     {
         TimeSliceMap m;
         for(unsigned int it=0 ; it<n.dilutionSize(Index::t) ; it++)
@@ -270,6 +305,22 @@ public:
         return m;
     }
 
+    void dumpMap(TimeSliceMap m)
+    {
+        std::string o = "{";
+        int i=0;
+        for(auto & d : m)
+        {
+            std::string s = "";
+            for (auto e: d)
+            {
+                s += std::to_string(e) + " "; 
+            }
+            s.pop_back();
+            LOG(Message) << "  " << i << ": {" << s << "}" << std::endl;
+            i++;
+        }
+    }
 };
 
 /******************************************************************************
@@ -279,7 +330,9 @@ public:
 template <typename FImpl>
 TDistilMesonField<FImpl>::TDistilMesonField(const std::string name)
 : Module<DistilMesonFieldPar>(name)
-{}
+{
+    sides_           = {"left","right"};
+}
 
 // dependencies/products ///////////////////////////////////////////////////////
 template <typename FImpl>
@@ -302,87 +355,47 @@ void TDistilMesonField<FImpl>::setup(void)
 {
     DistillationNoise &noisel = envGet( DistillationNoise , par().leftNoise);
     DistillationNoise &noiser = envGet( DistillationNoise , par().rightNoise);
-    DMesonFieldHelper<FImpl> helper(noisel, noiser, par().mesonFieldCase);
-
+    DmfHelper<FImpl> helper(noisel, noiser, par().mesonFieldCase);
     dmf_case_ = helper.getValidCase();
 
-    std::map<std::string, std::string>  noiseInput_     = {{"left",par().leftNoise},{"right",par().rightNoise}};
-    std::map<std::string, std::string>  perambInput_    = {{"left",par().leftPeramb},{"right",par().rightPeramb}};
-    std::vector<std::string>            sides           = {"left","right"};
+    noiseInput_     = {{"left",par().leftNoise},{"right",par().rightNoise}}; //apparently not used
+    perambInput_    = {{"left",par().leftPeramb},{"right",par().rightPeramb}};
 
-    outputMFStem_ = par().outputStem;
-    GridCartesian *g     = envGetGrid(FermionField);
-    GridCartesian *g3d   = envGetSliceGrid(FermionField, g->Nd() - 1);  // 3d grid (as a 4d one with collapsed time dimension)
-
-    // parse source times
-    // outermost dimension is the time-dilution index, innermost one are the non-zero source timeslices
-    // in phi phi, save all timeslices, but in the other cases save only the non-zero  ones...
-    st_ = helper.getSourceTimes();
-    // for(auto i : st_)
-    //     std::cout << i << std::endl;
-
-    eff_nt_ = helper.computeTimeDimension(st_);
+    outputMFStem_       = par().outputStem;
+    GridCartesian *g    = envGetGrid(FermionField);
+    GridCartesian *g3d  = envGetSliceGrid(FermionField, g->Nd() - 1);  // 3d grid (as a 4d one with collapsed time dimension)
     
-    // parse and validate input
-    std::map<std::string, int> noiseDimension = {{"left",0},{"right",0}}; ;
-    for(auto &side : sides)
-    {
-        if(dmf_case_.at(side)=="phi")
-        {
-            auto &inPeramb = envGet(PerambTensor , perambInput_.at(side));
-            noiseDimension.at(side) = inPeramb.tensor.dimensions().at(3);
-        }
-        else
-        {
-            auto &inNoise = envGet(DistillationNoise , noiseInput_.at(side));
-            noiseDimension.at(side) = inNoise.size();
-        }
-    }
-    noisePairs_ = helper.parseNoisePairs(par().noisePairs , dmf_case_ , noiseDimension);
-    
-    blockSize_ = {par().blockSize};
-    cacheSize_ ={par().cacheSize};
+    blockSize_ = par().blockSize;
+    cacheSize_ = par().cacheSize;
 
     // momenta and gamma parse
-    momenta_ = helper.parseMomenta(par().momenta);
-    gamma_ = helper.parseGamma(par().gamma);
-    nExt_ = momenta_.size(); //noise pairs computed independently, but can optmize embedding it into nExt??
-    nStr_ = gamma_.size();
-    
-    //populate matrix sets
-    blockbuf_.resize(nExt_*nStr_*eff_nt_*blockSize_*blockSize_);
-    cachebuf_.resize(nExt_*nStr_*env().getDim(g->Nd() - 1)*cacheSize_*cacheSize_);
-    
+    momenta_    = helper.parseMomenta(par().momenta);
+    gamma_      = helper.parseGamma(par().gamma);
+    nExt_       = momenta_.size(); //noise pairs computed independently, but can optmize embedding it into nExt??
+    nStr_       = gamma_.size();
+       
+    //not taking into account different spin/lap dilution on each side, just different time dilutions
     assert( noisel.dilutionSize(Index::l)*noisel.dilutionSize(Index::s) == noiser.dilutionSize(Index::l)*noiser.dilutionSize(Index::s) );
     dilutionSize_ls_ = noisel.dilutionSize(Index::l)*noisel.dilutionSize(Index::s);
-    
-    envTmpLat(ComplexField,                             "coor");
-    envTmp(FermionField,                                "fermion3dtmp", 1, g3d);
-    envTmp(ColourVectorField,                           "evec3d",       1, g3d);
-    envCache(std::vector<ComplexField>,                 "phasename",    1, momenta_.size(), g);
-    envTmp(std::vector<std::vector<FermionField>>,      "dvl",          1, st_.size() , std::vector<FermionField>(dilutionSize_ls_, g) );
-    envTmp(std::vector<std::vector<FermionField>>,      "dvr",          1, st_.size() , std::vector<FermionField>(dilutionSize_ls_, g) );
+    envTmp(std::vector<std::vector<FermionField>>,                "dvl",          1, noisel.dilutionSize(Index::t) , std::vector<FermionField>(dilutionSize_ls_, g) ); // temp. setting this to full dilution size
+    envTmp(std::vector<std::vector<FermionField>>,                "dvr",          1, noiser.dilutionSize(Index::t) , std::vector<FermionField>(dilutionSize_ls_, g) );
+    envTmp(FermionField,                "fermion3dtmp", 1, g3d );
+    envTmp(ColourVectorField,           "evec3d",       1, g3d );
+    envTmpLat(ComplexField,             "coor");
+    envCache(std::vector<ComplexField>, "phasename",    1, momenta_.size(), g );
 }
 
 // execution ///////////////////////////////////////////////////////////////////
 template <typename FImpl>
 void TDistilMesonField<FImpl>::execute(void)
 {
-    // temps
-    envGetTmp(std::vector<std::vector<FermionField>>,    dvl);
-    envGetTmp(std::vector<std::vector<FermionField>>,    dvr);
-    envGetTmp(ColourVectorField,            evec3d);
-    envGetTmp(FermionField,                 fermion3dtmp);
+    // auto & inPeramb = envGet(PerambTensor , par().leftPeramb);
+    // for(auto e : inPeramb.MetaData.sourceTimes)
+    //     std::cout << e << std::endl;
+    // std::cin.get();
 
     auto &epack = envGet(LapEvecs, par().lapEvec);
     auto &phase = envGet(std::vector<ComplexField>, "phasename");
-
-    DistillationNoise &noisel = envGet( DistillationNoise , par().leftNoise);
-    DistillationNoise &noiser = envGet( DistillationNoise , par().rightNoise);
-    DMesonFieldHelper<FImpl> helper(noisel, noiser,  par().mesonFieldCase);
-    // do not use operator []!! similar but better way to do that?
-    std::map<std::string, std::vector<std::vector<FermionField>>&>  distVector    = {{"left",dvl}  ,{"right",dvr}};
-    std::map<std::string, DistillationNoise&>                       noise         = {{"left",noisel},{"right",noiser}};
 
     int nVec = epack.evec.size();
     int vol = env().getGrid()->_gsites;
@@ -390,6 +403,44 @@ void TDistilMesonField<FImpl>::execute(void)
     const int nt = env().getDim(nd - 1);
     const int Ntlocal = env().getGrid()->LocalDimensions()[nd - 1];
     const int Ntfirst = env().getGrid()->LocalStarts()[nd - 1];
+
+    // temps
+    envGetTmp(std::vector<std::vector<FermionField>>,         dvl);
+    envGetTmp(std::vector<std::vector<FermionField>>,         dvr);
+    envGetTmp(ColourVectorField,    evec3d);
+    envGetTmp(FermionField,         fermion3dtmp);
+    // do not use operator []!! similar but better way to do that?
+    std::map<std::string, std::vector<std::vector<FermionField>> & > distVector = {{"left",dvl}  ,{"right",dvr}};
+
+    DistillationNoise &noisel = envGet( DistillationNoise , par().leftNoise);
+    DistillationNoise &noiser = envGet( DistillationNoise , par().rightNoise);
+    std::map<std::string, DistillationNoise & >   noise = {{"left",noisel},{"right",noiser}};
+
+    DmfHelper<FImpl> helper(noisel, noiser,  par().mesonFieldCase);
+
+    // parse source times
+    std::map<std::string, TimeSliceMap> peramb_st = {{"left",{}},{"right",{}}} ;
+    for(auto & s : sides_)
+    {
+        if(dmf_case_.at(s)=="phi")
+        {
+            auto & inPeramb = envGet(PerambTensor , perambInput_.at(s));
+            peramb_st.at(s) = inPeramb.MetaData.sourceTimes;
+        }
+    }
+    TimeSliceMap st_input;
+    for(auto e : par().sourceTimes)
+    {
+        std::vector<unsigned int> temp = strToVec<unsigned int>(e);
+        st_input.push_back(temp);
+    }
+    st_         = helper.getSourceTimes(peramb_st , st_input);
+    eff_nt_     = helper.computeEffTimeDimension(st_);
+    noisePairs_ = helper.parseNoisePairs(par().noisePairs);
+
+    //populate matrix sets
+    blockbuf_.resize(nExt_*nStr_*eff_nt_*blockSize_*blockSize_);
+    cachebuf_.resize(nExt_*nStr_*env().getDim(env().getGrid()->Nd() - 1)*cacheSize_*cacheSize_);
 
     //compute momentum phase
     if (!hasPhase_)
@@ -404,9 +455,11 @@ void TDistilMesonField<FImpl>::execute(void)
     long    global_counter = 0;
     double  global_flops = 0.0;
     double  global_bytes = 0.0;
-
-    LOG(Message) << "Meson field case: " << par().mesonFieldCase << std::endl;
-    LOG(Message) << "Time dimension = " << eff_nt_ << std::endl;
+    
+    LOG(Message) << "Source times:"         << std::endl;
+    helper.dumpMap(st_);
+    LOG(Message) << "Meson field case: "    << par().mesonFieldCase << std::endl;
+    LOG(Message) << "EffTime dimension = "     << eff_nt_ << std::endl;
     LOG(Message) << "Selected block size: " << par().blockSize << std::endl;
     LOG(Message) << "Selected cache size: " << par().cacheSize << std::endl;
 
@@ -419,10 +472,10 @@ void TDistilMesonField<FImpl>::execute(void)
         for(int iStr=0; iStr<nStr_; iStr++)
         {
             // metadata;
-            md.momentum = momenta_[iExt];
-            md.gamma = gamma_[iStr];
-            md.noise_pair = inoise;
-            md.time_dilution = st_;
+            md.momentum         = momenta_[iExt];
+            md.gamma            = gamma_[iStr];
+            md.noise_pair       = inoise;
+            md.time_dilution    = st_;
 
             std::stringstream ss;
             ss << md.gamma << "_";
@@ -434,7 +487,7 @@ void TDistilMesonField<FImpl>::execute(void)
             std::string outputStem = outputMFStem_ + "/noise" + std::to_string(inoise[0]) + "_" + std::to_string(inoise[1]) + "/";
             Hadrons::mkdir(outputStem);
             std::string mfName = groupName+"_"+dmf_case_.at("left")+"-"+dmf_case_.at("right")+".h5";
-            A2AMatrixIo<ComplexF> matrixIo(outputStem+mfName, groupName, eff_nt_, dilutionSize_ls_, dilutionSize_ls_);  // automatise name choice according to momenta_ and gamma_
+            A2AMatrixIo<ComplexF> matrixIo(outputStem+mfName, groupName, eff_nt_, dilutionSize_ls_, dilutionSize_ls_);
             matrixIoTable.push_back(matrixIo);
             //initialize file with no outputName group (containing atributes of momentum and gamma) but no dataset inside
             if(env().getGrid()->IsBoss())
@@ -454,30 +507,31 @@ void TDistilMesonField<FImpl>::execute(void)
         LOG(Message) << "momenta:" << std::endl;
         LOG(Message) << momenta_ << std::endl;
 
-        for(auto &side : sides)    // computation
+        for(auto &s : sides_)    // computation
         {
-            for(int iD=0 ; iD<noise.at(side).dilutionSize() ; iD++)  // computation of phi or rho
+            for(int iD=0 ; iD<noise.at(s).dilutionSize() ; iD++)  // computation of phi or rho
             {
-                std::array<unsigned int,3> c = noise.at(side).dilutionCoordinates(iD);
+                std::array<unsigned int,3> c = noise.at(s).dilutionCoordinates(iD);
                 unsigned int dt = c[0] , dl = c[1] , ds = c[2];
-                unsigned int iD_ls = ds + noise.at(side).dilutionSize(Index::s) * dl;
-                distVector.at(side)[dt][iD_ls] = Zero();
-                if(dmf_case_.at(side)=="phi")
+                unsigned int iD_ls = ds + noise.at(s).dilutionSize(Index::s) * dl;
+                // std::cout << noise.at(s).dilutionSize(Index::s) << " " << iD << " " << iD_ls << " " << dt << std::endl;
+                distVector.at(s)[dt][iD_ls] = Zero();
+                if(dmf_case_.at(s)=="phi")
                 {
-                    auto &inTensor = envGet(PerambTensor , perambInput_.at(side));
+                    auto &inTensor = envGet(PerambTensor , perambInput_.at(s));
                     for (int t = Ntfirst; t < Ntfirst + Ntlocal; t++)   //loop over (local) timeslices
                     {
                         fermion3dtmp = Zero();
                         for (int k = 0; k < nVec; k++)
                         {
                             ExtractSliceLocal(evec3d,epack.evec[k],0,t-Ntfirst,nd - 1);
-                            fermion3dtmp += evec3d * inTensor.tensor(t, k, dl, iNoise.at(side), dt, ds);
+                            fermion3dtmp += evec3d * inTensor.tensor(t, k, dl, iNoise.at(s), dt, ds);
                         }
-                        InsertSliceLocal(fermion3dtmp,distVector.at(side)[dt][iD_ls],0,t-Ntfirst,nd - 1);
+                        InsertSliceLocal(fermion3dtmp,distVector.at(s)[dt][iD_ls],0,t-Ntfirst,nd - 1);
                     }
                 }
-                else if(dmf_case_.at(side)=="rho"){
-                    distVector.at(side)[dt][iD_ls] = noise.at(side).makeSource(iD, iNoise.at(side));
+                else if(dmf_case_.at(s)=="rho"){
+                    distVector.at(s)[dt][iD_ls] = noise.at(s).makeSource(iD, iNoise.at(s));
                 }
             }
         }
@@ -541,11 +595,14 @@ void TDistilMesonField<FImpl>::execute(void)
                         if(par().mesonFieldCase=="phi phi")
                         {
                             thread_for_collapse( 5, iExt ,nExt_,{
+                            // for(int iExt=0 ; iExt<nExt_ ; iExt++)
                             for(int iStr=0 ;iStr<nStr_ ; iStr++)
                             for(int t=0 ; t<nt ; t++)
                             for(int iicache=0 ; iicache<icacheSize ; iicache++)
                             for(int jjcache=0;  jjcache<jcacheSize ; jjcache++)
+                            {
                                 block(iExt,iStr,t,icache+iicache,jcache+jjcache) = blockCache(iExt,iStr,t,iicache,jjcache);
+                            }
                             });
                         }
                         else
