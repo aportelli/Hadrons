@@ -132,9 +132,9 @@ void TPerambulator<FImpl>::setup(void)
     const int  Nt{env().getDim(Tdir)};
     auto &dilNoise = envGet(DistillationNoise<FImpl>, par().distilNoise);
     int nNoise = dilNoise.size();	
-    int LI = dilNoise.getNl();	
-    int SI = dilNoise.getNs();	
-    int TI = dilNoise.getNt();	
+    int LI = dilNoise.dilutionSize(DistillationNoise<FImpl>::Index::l);	
+    int SI = dilNoise.dilutionSize(DistillationNoise<FImpl>::Index::s);	
+    int TI = dilNoise.dilutionSize(DistillationNoise<FImpl>::Index::t);	
     int inversions;
     std::string sourceT = par().timeSources;
     if(par().timeSources.empty())
@@ -222,7 +222,7 @@ void TPerambulator<FImpl>::execute(void)
     }
     
     std::string sourceT = par().timeSources;
-    int TI = dilNoise.getNt();
+    int TI = dilNoise.dilutionSize(DistillationNoise<FImpl>::Index::t);	
     int inversions;
     std::vector<int> invT;
     if(par().timeSources.empty())
@@ -256,9 +256,9 @@ void TPerambulator<FImpl>::execute(void)
     int nNoise = dilNoise.size();	
     for (int inoise = 0; inoise < nNoise; inoise++)
     {
-        int LI = dilNoise.getNl();	
-        int SI = dilNoise.getNs();	
-        int TI = dilNoise.getNt();	
+        int LI = dilNoise.dilutionSize(DistillationNoise<FImpl>::Index::l);	
+        int SI = dilNoise.dilutionSize(DistillationNoise<FImpl>::Index::s);	
+        int TI = dilNoise.dilutionSize(DistillationNoise<FImpl>::Index::t);	
         for (int idt = 0; idt < inversions; idt++) 
         {
             int dt=invT[idt]; 
