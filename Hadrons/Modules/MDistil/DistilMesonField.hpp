@@ -167,7 +167,6 @@ public:
         {
             if(dmfCase_.at(s)=="phi")
             {
-                // std::cout << "noise/peramb intersection, " << s << std::endl; 
                 inter.at(s) = getIntersectionMap(noiseTimeMap.at(s) , perambTimeMap.at(s));
                 
                 if(inter.at(s).empty())
@@ -177,15 +176,10 @@ public:
             }
             else
             {
-                // std::cout << "no noise/peramb intersection (rho case), " << s << std::endl; 
                 inter.at(s) = noiseTimeMap.at(s);
             }
         }
-
-        // std::cout << "l/r dependencies intersection" << std::endl; 
         st_dependencies  = getIntersectionMap(inter.at("left") , inter.at("right"));
-
-        // std::cout << "dependencies/input intersection" << std::endl; 
         st = getIntersectionMap(st_dependencies , st_input);
 
         return st;
@@ -194,25 +188,14 @@ public:
     TimeSliceMap getIntersectionMap(TimeSliceMap m1, TimeSliceMap m2)
     {
         TimeSliceMap inter;
-        // std::cout << "m1:" << std::endl;
-        // for(auto e : m1)
-        //     std::cout << e << std::endl;
-
-        // std::cout << "m2:" << std::endl;
-        // for(auto e : m1)
-        //     std::cout << e << std::endl;
-
-        // std::cout << "inter:" << std::endl;
         for(unsigned int p=0 ; p<m1.size() ; p++)
         {
             std::vector<unsigned int> temp;
             std::set_intersection(m1[p].begin(), m1[p].end(), 
                                 m2[p].begin(), m2[p].end(),
                                 std::back_inserter(temp));
-            // std::cout << temp << std::endl;
             inter.push_back(temp);
         }
-        // std::cin.get();
         return inter;
     }
 
@@ -323,6 +306,65 @@ public:
     }
 };
 
+template <typename FImpl>
+class DmfComputation
+{
+public:
+    FERM_TYPE_ALIASES(FImpl,);
+    typedef typename TDistilMesonField<FImpl>::DistillationNoise DistillationNoise;
+    typedef typename TDistilMesonField<FImpl>::DistilVector DistilVector;
+private:
+    const std::vector<std::string> sides_ = {"left","right"};
+    std::map<std::string,std::string> dmfCase_;
+    GridCartesian       * g_;
+    GridCartesian       * g3d_;
+    ColourVectorField     evec3d_;
+    FermionField          fermion3dtmp_;
+public:
+    // DmfComputation()
+    DmfComputation( std::map<std::string,std::string> c,
+                    GridCartesian * g,
+                    GridCartesian * g3d)
+    : dmfCase_(c) , g_(g) , g3d_(g3d) , evec3d_(g3d) , fermion3dtmp_(g3d) {}
+public:
+    void distVec(std::map<std::string, DistilVector&> & dv,
+                    std::map<std::string, DistillationNoise&> n,
+                    std::vector<int> inoise,
+                    std::map<std::string, PerambTensor&> & peramb,
+                    LapEvecs            & epack)
+    {
+        const int nd = g_->Nd();
+        const int nVec = epack.evec.size();
+        const int Ntfirst = g_->LocalStarts()[nd - 1];
+        const int Ntlocal = g_->LocalDimensions()[nd - 1];
+        std::map<std::string,int> iNoise = {{"left",inoise[0]},{"right",inoise[1]}};
+
+        for(std::string s : sides_)    // computation
+        for(int iD=0 ; iD<n.at(s).dilutionSize() ; iD++)  // computation of phi or rho
+        {
+            std::array<unsigned int,3> c = n.at(s).dilutionCoordinates(iD);
+            unsigned int dt = c[0] , dl = c[1] , ds = c[2];
+            dv.at(s)[iD] = Zero();
+            if(dmfCase_.at(s)=="phi")
+            {
+                for (int t = Ntfirst; t < Ntfirst + Ntlocal; t++)   //loop over (local) timeslices
+                {
+                    fermion3dtmp_ = Zero();
+                    for (int k = 0; k < nVec; k++)
+                    {
+                        ExtractSliceLocal(evec3d_,epack.evec[k],0,t-Ntfirst,nd - 1);
+                        fermion3dtmp_ += evec3d_ * peramb.at(s).tensor(t, k, dl, iNoise.at(s), dt, ds);
+                    }
+                    InsertSliceLocal(fermion3dtmp_,dv.at(s)[iD],0,t-Ntfirst,nd - 1);
+                }
+            }
+            else if(dmfCase_.at(s)=="rho"){
+                dv.at(s)[iD] = n.at(s).makeSource(iD, iNoise.at(s));
+            }
+        }
+    }
+};
+
 /******************************************************************************
  *                 TDistilMesonField implementation                             *
  ******************************************************************************/
@@ -383,16 +425,15 @@ void TDistilMesonField<FImpl>::setup(void)
     envTmp(ColourVectorField,           "evec3d",       1, g3d );
     envTmpLat(ComplexField,             "coor");
     envCache(std::vector<ComplexField>, "phasename",    1, momenta_.size(), g );
+    envTmp(DmfComputation<FImpl>, "compute", 1, dmf_case_ , g, g3d );
 }
 
 // execution ///////////////////////////////////////////////////////////////////
 template <typename FImpl>
 void TDistilMesonField<FImpl>::execute(void)
 {
-    // auto & inPeramb = envGet(PerambTensor , par().leftPeramb);
-    // for(auto e : inPeramb.MetaData.sourceTimes)
-    //     std::cout << e << std::endl;
-    // std::cin.get();
+    GridCartesian *g    = envGetGrid(FermionField);
+    GridCartesian *g3d  = envGetSliceGrid(FermionField, g->Nd() - 1);
 
     auto &epack = envGet(LapEvecs, par().lapEvec);
     auto &phase = envGet(std::vector<ComplexField>, "phasename");
@@ -401,20 +442,27 @@ void TDistilMesonField<FImpl>::execute(void)
     int vol = env().getGrid()->_gsites;
     const unsigned int nd = env().getGrid()->Nd();
     const int nt = env().getDim(nd - 1);
-    const int Ntlocal = env().getGrid()->LocalDimensions()[nd - 1];
-    const int Ntfirst = env().getGrid()->LocalStarts()[nd - 1];
+    // const int Ntlocal = env().getGrid()->LocalDimensions()[nd - 1];
+    // const int Ntfirst = env().getGrid()->LocalStarts()[nd - 1];
 
     // temps
-    envGetTmp(DistilVector,         dvl);
-    envGetTmp(DistilVector,         dvr);
-    envGetTmp(ColourVectorField,    evec3d);
-    envGetTmp(FermionField,         fermion3dtmp);
+    envGetTmp(DistilVector,             dvl);
+    envGetTmp(DistilVector,             dvr);
+    envGetTmp(ColourVectorField,        evec3d);
+    envGetTmp(FermionField,             fermion3dtmp);
+    envGetTmp(DmfComputation<FImpl>,    compute);
+
     // do not use operator []!! similar but better way to do that?
     std::map<std::string, DistilVector & > distVector = {{"left",dvl}  ,{"right",dvr}};
 
     DistillationNoise &noisel = envGet( DistillationNoise , par().leftNoise);
     DistillationNoise &noiser = envGet( DistillationNoise , par().rightNoise);
     std::map<std::string, DistillationNoise & >   noise = {{"left",noisel},{"right",noiser}};
+
+    // todo: do the following only in the necessary cases
+    PerambTensor &perambl = envGet( PerambTensor , par().leftPeramb);
+    PerambTensor &perambr = envGet( PerambTensor , par().rightPeramb);
+    std::map<std::string, PerambTensor&> peramb = {{"left",perambl},{"right",perambr}};
 
     DmfHelper<FImpl> helper(noisel, noiser,  par().mesonFieldCase);
 
@@ -500,40 +548,14 @@ void TDistilMesonField<FImpl>::execute(void)
             }
         }
 
-        std::map<std::string,int&> iNoise = {{"left",inoise[0]},{"right",inoise[1]}}; //do not use []
         LOG(Message) << "Noise pair: " << inoise << std::endl;
         LOG(Message) << "Gamma:" << std::endl;
         LOG(Message) << gamma_ << std::endl;
         LOG(Message) << "momenta:" << std::endl;
         LOG(Message) << momenta_ << std::endl;
 
-        for(auto &s : sides_)    // computation
-        {
-            for(int iD=0 ; iD<noise.at(s).dilutionSize() ; iD++)  // computation of phi or rho
-            {
-                std::array<unsigned int,3> c = noise.at(s).dilutionCoordinates(iD);
-                unsigned int dt = c[0] , dl = c[1] , ds = c[2];
-                unsigned int iD_ls = ds + noise.at(s).dilutionSize(Index::s) * dl;
-                distVector.at(s)[iD] = Zero();
-                if(dmf_case_.at(s)=="phi")
-                {
-                    auto &inTensor = envGet(PerambTensor , perambInput_.at(s));
-                    for (int t = Ntfirst; t < Ntfirst + Ntlocal; t++)   //loop over (local) timeslices
-                    {
-                        fermion3dtmp = Zero();
-                        for (int k = 0; k < nVec; k++)
-                        {
-                            ExtractSliceLocal(evec3d,epack.evec[k],0,t-Ntfirst,nd - 1);
-                            fermion3dtmp += evec3d * inTensor.tensor(t, k, dl, iNoise.at(s), dt, ds);
-                        }
-                        InsertSliceLocal(fermion3dtmp,distVector.at(s)[iD],0,t-Ntfirst,nd - 1);
-                    }
-                }
-                else if(dmf_case_.at(s)=="rho"){
-                    distVector.at(s)[iD] = noise.at(s).makeSource(iD, iNoise.at(s));
-                }
-            }
-        }
+        //computation of distvectors
+        compute.distVec(distVector, noise, inoise, peramb, epack);
 
         // computing mesonfield blocks and saving to disk
         for (int dtL = 0; dtL < noise.at("left").dilutionSize(Index::t) ; dtL++)
