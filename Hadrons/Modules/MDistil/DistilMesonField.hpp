@@ -49,7 +49,7 @@ class TDistilMesonField: public Module<DistilMesonFieldPar>
 public:
     FERM_TYPE_ALIASES(FImpl,);
     typedef DistillationNoise<FImpl> DistillationNoise;
-    typedef std::vector<std::vector<FermionField>> DistilVector;
+    typedef std::vector<FermionField> DistilVector;
     typedef std::vector<std::vector<unsigned int>> TimeSliceMap;
     typedef typename DistillationNoise::Index Index;
 public:
@@ -377,8 +377,8 @@ void TDistilMesonField<FImpl>::setup(void)
     //not taking into account different spin/lap dilution on each side, just different time dilutions
     assert( noisel.dilutionSize(Index::l)*noisel.dilutionSize(Index::s) == noiser.dilutionSize(Index::l)*noiser.dilutionSize(Index::s) );
     dilutionSize_ls_ = noisel.dilutionSize(Index::l)*noisel.dilutionSize(Index::s);
-    envTmp(std::vector<std::vector<FermionField>>,                "dvl",          1, noisel.dilutionSize(Index::t) , std::vector<FermionField>(dilutionSize_ls_, g) ); // temp. setting this to full dilution size
-    envTmp(std::vector<std::vector<FermionField>>,                "dvr",          1, noiser.dilutionSize(Index::t) , std::vector<FermionField>(dilutionSize_ls_, g) );
+    envTmp(DistilVector,                "dvl",          1, noisel.dilutionSize() , g); //st_size() * dilutionSize_ls_, g); // temporary setting this to full dilution size
+    envTmp(DistilVector,                "dvr",          1, noiser.dilutionSize() , g);
     envTmp(FermionField,                "fermion3dtmp", 1, g3d );
     envTmp(ColourVectorField,           "evec3d",       1, g3d );
     envTmpLat(ComplexField,             "coor");
@@ -405,12 +405,12 @@ void TDistilMesonField<FImpl>::execute(void)
     const int Ntfirst = env().getGrid()->LocalStarts()[nd - 1];
 
     // temps
-    envGetTmp(std::vector<std::vector<FermionField>>,         dvl);
-    envGetTmp(std::vector<std::vector<FermionField>>,         dvr);
+    envGetTmp(DistilVector,         dvl);
+    envGetTmp(DistilVector,         dvr);
     envGetTmp(ColourVectorField,    evec3d);
     envGetTmp(FermionField,         fermion3dtmp);
     // do not use operator []!! similar but better way to do that?
-    std::map<std::string, std::vector<std::vector<FermionField>> & > distVector = {{"left",dvl}  ,{"right",dvr}};
+    std::map<std::string, DistilVector & > distVector = {{"left",dvl}  ,{"right",dvr}};
 
     DistillationNoise &noisel = envGet( DistillationNoise , par().leftNoise);
     DistillationNoise &noiser = envGet( DistillationNoise , par().rightNoise);
@@ -514,8 +514,7 @@ void TDistilMesonField<FImpl>::execute(void)
                 std::array<unsigned int,3> c = noise.at(s).dilutionCoordinates(iD);
                 unsigned int dt = c[0] , dl = c[1] , ds = c[2];
                 unsigned int iD_ls = ds + noise.at(s).dilutionSize(Index::s) * dl;
-                // std::cout << noise.at(s).dilutionSize(Index::s) << " " << iD << " " << iD_ls << " " << dt << std::endl;
-                distVector.at(s)[dt][iD_ls] = Zero();
+                distVector.at(s)[iD] = Zero();
                 if(dmf_case_.at(s)=="phi")
                 {
                     auto &inTensor = envGet(PerambTensor , perambInput_.at(s));
@@ -527,11 +526,11 @@ void TDistilMesonField<FImpl>::execute(void)
                             ExtractSliceLocal(evec3d,epack.evec[k],0,t-Ntfirst,nd - 1);
                             fermion3dtmp += evec3d * inTensor.tensor(t, k, dl, iNoise.at(s), dt, ds);
                         }
-                        InsertSliceLocal(fermion3dtmp,distVector.at(s)[dt][iD_ls],0,t-Ntfirst,nd - 1);
+                        InsertSliceLocal(fermion3dtmp,distVector.at(s)[iD],0,t-Ntfirst,nd - 1);
                     }
                 }
                 else if(dmf_case_.at(s)=="rho"){
-                    distVector.at(s)[dt][iD_ls] = noise.at(s).makeSource(iD, iNoise.at(s));
+                    distVector.at(s)[iD] = noise.at(s).makeSource(iD, iNoise.at(s));
                 }
             }
         }
@@ -581,7 +580,8 @@ void TDistilMesonField<FImpl>::execute(void)
                         double timer = 0.0;
                         startTimer("kernel");
                         // assuming certain indexation here! (dt must be the slowest index for this to work; otherwise will have to compute l/r block at each contraction)
-                        A2Autils<FImpl>::MesonField(blockCache, &dvl[dtL][iblock+icache], &dvr[dtR][jblock+jcache], gamma_, phase, nd - 1, &timer);
+                        unsigned int iDl = noisel.dilutionIndex(dtL,0,0) , iDr = noiser.dilutionIndex(dtR,0,0);
+                        A2Autils<FImpl>::MesonField(blockCache, &dvl[iDl+iblock+icache], &dvr[iDr+jblock+jcache], gamma_, phase, nd - 1, &timer);
                         stopTimer("kernel");
                         time_kernel += timer;
 
