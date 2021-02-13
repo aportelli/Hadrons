@@ -7,6 +7,7 @@
 #include <Hadrons/A2AMatrix.hpp>
 #include <Hadrons/DilutedNoise.hpp>
 #include <Hadrons/Modules/MDistil/Distil.hpp>
+#include "DmfTemp.hpp"
 
 BEGIN_HADRONS_NAMESPACE
 
@@ -21,8 +22,6 @@ BEGIN_HADRONS_NAMESPACE
  ******************************************************************************/
 
 BEGIN_MODULE_NAMESPACE(MDistil)
-
-
 
 class DistilMesonFieldPar: Serializable
 {
@@ -48,10 +47,10 @@ class TDistilMesonField: public Module<DistilMesonFieldPar>
 {
 public:
     FERM_TYPE_ALIASES(FImpl,);
-    typedef DistillationNoise<FImpl> DistillationNoise;
-    typedef std::vector<FermionField> DistilVector;
-    typedef std::vector<std::vector<unsigned int>> TimeSliceMap;
-    typedef typename DistillationNoise::Index Index;
+    typedef typename DmfComputation<FImpl>::DistillationNoise DistillationNoise;
+    typedef typename DmfComputation<FImpl>::DistilVector DistilVector;
+    typedef typename DmfComputation<FImpl>::Index Index;
+    typedef typename DmfComputation<FImpl>::Field Field;
 public:
     // constructor
     TDistilMesonField(const std::string name);
@@ -89,217 +88,6 @@ private:
 };
 
 MODULE_REGISTER_TMP(DistilMesonField, TDistilMesonField<FIMPL>, MDistil);
-
-// metadata class
-template <typename FImpl>
-class DistilMesonFieldMetadata: Serializable
-{
-public:
-    typedef typename TDistilMesonField<FImpl>::TimeSliceMap TimeSliceMap;
-public:
-    GRID_SERIALIZABLE_CLASS_MEMBERS(DistilMesonFieldMetadata,
-                                    std::vector<RealF>, momentum,
-                                    Gamma::Algebra,     gamma,
-                                    std::vector<int>,   noise_pair,
-                                    TimeSliceMap,       time_dilution,
-                                    )
-};
-
-// aux class
-template <typename FImpl>
-class DmfHelper
-{
-public:
-    typedef typename TDistilMesonField<FImpl>::DistillationNoise DistillationNoise;
-    typedef typename TDistilMesonField<FImpl>::TimeSliceMap TimeSliceMap;
-    typedef typename FImpl::ComplexField ComplexField;
-    typedef typename TDistilMesonField<FImpl>::Index Index;
-private:
-    int nt_;
-    int nd_;
-    std::map<std::string,std::string> dmfCase_;
-    TimeSliceMap noiseTimeMapl_, noiseTimeMapr_;
-    const std::vector<std::string> sides = {"left","right"};
-public:
-    DmfHelper(DistillationNoise & nl, DistillationNoise & nr, std::map<std::string,std::string> c)
-    : noiseTimeMapl_( timeSliceMap(nl) ) , noiseTimeMapr_( timeSliceMap(nr) ) , dmfCase_(c)
-    {
-        nt_ = nr.getNt();
-        nd_ = nr.getGrid()->Nd();
-    }
-
-    int computeEffTimeDimension(TimeSliceMap st)
-    {
-        // compute eff_nt (<=nt_), the number of non-zero timeslices in the final object, when there's at least one rho involved
-        int eff_nt = 1;
-        if(dmfCase_.at("left")=="rho" || dmfCase_.at("right")=="rho")
-        {
-            for(auto &e : st)
-                e.size() > eff_nt ? eff_nt = e.size() : 0;      //get the highest possible eff_nt from st
-        }
-        else
-        {
-            eff_nt = nt_;
-        }
-        return eff_nt;
-    }
-
-    TimeSliceMap getSourceTimes(std::map<std::string, TimeSliceMap> perambTimeMap , TimeSliceMap st_input)
-    {//check if noise_st_i contains peramb_st_i (case==phi), take the intersection between the l/r intersection result, check if input is subset of that
-        TimeSliceMap st,st_dependencies;
-        std::map<std::string, TimeSliceMap> inter = { {"left",{}},{"right",{}} };
-        std::map<std::string , TimeSliceMap> noiseTimeMap = { {"left",noiseTimeMapl_},{"right",noiseTimeMapr_} };
-        for(auto &s : sides)
-        {
-            if(dmfCase_.at(s)=="phi")
-            {
-                inter.at(s) = getIntersectionMap(noiseTimeMap.at(s) , perambTimeMap.at(s));
-                
-                if(inter.at(s).empty())
-                {
-                    HADRONS_ERROR(Argument,"Time dilution not compatible between noise and perambulator.");
-                }
-            }
-            else
-            {
-                inter.at(s) = noiseTimeMap.at(s);
-            }
-        }
-        st_dependencies  = getIntersectionMap(inter.at("left") , inter.at("right"));
-        st = getIntersectionMap(st_dependencies , st_input);
-
-        return st;
-    }
-    
-    TimeSliceMap getIntersectionMap(TimeSliceMap m1, TimeSliceMap m2)
-    {
-        TimeSliceMap inter;
-        for(unsigned int p=0 ; p<m1.size() ; p++)
-        {
-            std::vector<unsigned int> temp;
-            std::set_intersection(m1[p].begin(), m1[p].end(), 
-                                m2[p].begin(), m2[p].end(),
-                                std::back_inserter(temp));
-            inter.push_back(temp);
-        }
-        return inter;
-    }
-
-    std::vector<std::vector<int>> parseNoisePairs(std::vector<std::string> inputN)
-    {
-        
-        std::vector<std::vector<int>> nPairs;
-        nPairs.clear();
-        for(auto &npair : inputN)
-        {
-            nPairs.push_back(strToVec<int>(npair));
-            std::map<std::string, int>  noiseMapTemp = { {"left", nPairs.back()[0]} , {"right",nPairs.back()[1]} };
-        }
-        return(nPairs);
-    }
-
-    void computePhase(std::vector<std::vector<RealF>> momenta, ComplexField &coor, std::vector<int> dim, std::vector<ComplexField> &phase)
-    {
-        Complex           i(0.0,1.0);
-        for (unsigned int j = 0; j < momenta.size(); ++j)
-        {
-            phase[j] = Zero();
-            for(unsigned int mu = 0; mu < momenta[j].size(); mu++)
-            {
-                LatticeCoordinate(coor, mu);
-                phase[j] = phase[j] + (momenta[j][mu]/dim[mu])*coor;
-            }
-            phase[j] = exp((Real)(2*M_PI)*i*phase[j]);
-        }
-    }
-
-    TimeSliceMap timeSliceMap(DistillationNoise & n)
-    {
-        TimeSliceMap m;
-        for(unsigned int it=0 ; it<n.dilutionSize(Index::t) ; it++)
-        {
-            std::vector<unsigned int> temp = n.timeSlices(it);
-            m.push_back(temp);
-        }
-        return m;
-    }
-
-    void dumpMap(TimeSliceMap m)
-    {
-        std::string o = "{";
-        int i=0;
-        for(auto & d : m)
-        {
-            std::string s = "";
-            for (auto e: d)
-            {
-                s += std::to_string(e) + " "; 
-            }
-            s.pop_back();
-            LOG(Message) << "  " << i << ": {" << s << "}" << std::endl;
-            i++;
-        }
-    }
-};
-
-template <typename FImpl>
-class DmfComputation
-{
-public:
-    FERM_TYPE_ALIASES(FImpl,);
-    typedef typename TDistilMesonField<FImpl>::DistillationNoise DistillationNoise;
-    typedef typename TDistilMesonField<FImpl>::DistilVector DistilVector;
-private:
-    const std::vector<std::string> sides_ = {"left","right"};
-    std::map<std::string,std::string> dmfCase_;
-    GridCartesian       * g_;
-    GridCartesian       * g3d_;
-    ColourVectorField     evec3d_;
-    FermionField          fermion3dtmp_;
-public:
-    // DmfComputation()
-    DmfComputation( std::map<std::string,std::string> c,
-                    GridCartesian * g,
-                    GridCartesian * g3d)
-    : dmfCase_(c) , g_(g) , g3d_(g3d) , evec3d_(g3d) , fermion3dtmp_(g3d) {}
-public:
-    void distVec(std::map<std::string, DistilVector&> & dv,
-                    std::map<std::string, DistillationNoise&> n,
-                    const std::vector<int> inoise,
-                    std::map<std::string, PerambTensor&> & peramb,
-                    const LapEvecs            & epack)
-    {
-        const int nd = g_->Nd();
-        const int nVec = epack.evec.size();
-        const int Ntfirst = g_->LocalStarts()[nd - 1];
-        const int Ntlocal = g_->LocalDimensions()[nd - 1];
-        std::map<std::string,int> iNoise = {{"left",inoise[0]},{"right",inoise[1]}};
-
-        for(std::string s : sides_)    // computation
-        for(int iD=0 ; iD<n.at(s).dilutionSize() ; iD++)  // computation of phi or rho
-        {
-            std::array<unsigned int,3> c = n.at(s).dilutionCoordinates(iD);
-            unsigned int dt = c[0] , dl = c[1] , ds = c[2];
-            dv.at(s)[iD] = Zero();
-            if(dmfCase_.at(s)=="phi")
-            {
-                for (int t = Ntfirst; t < Ntfirst + Ntlocal; t++)   //loop over (local) timeslices
-                {
-                    fermion3dtmp_ = Zero();
-                    for (int k = 0; k < nVec; k++)
-                    {
-                        ExtractSliceLocal(evec3d_,epack.evec[k],0,t-Ntfirst,nd - 1);
-                        fermion3dtmp_ += evec3d_ * peramb.at(s).tensor(t, k, dl, iNoise.at(s), dt, ds);
-                    }
-                    InsertSliceLocal(fermion3dtmp_,dv.at(s)[iD],0,t-Ntfirst,nd - 1);
-                }
-            }
-            else if(dmfCase_.at(s)=="rho"){
-                dv.at(s)[iD] = n.at(s).makeSource(iD, iNoise.at(s));
-            }
-        }
-    }
-};
 
 /******************************************************************************
  *                 TDistilMesonField implementation                             *
@@ -408,10 +196,10 @@ void TDistilMesonField<FImpl>::setup(void)
     envTmp(DistilVector,                "dvr",          1, noiser.dilutionSize() , g);
     envTmp(FermionField,                "fermion3dtmp", 1, g3d);
     envTmp(ColourVectorField,           "evec3d",       1, g3d);
-    envTmpLat(ComplexField,             "coor");
-    envCache(std::vector<ComplexField>, "phasename",    1, momenta_.size(), g );
-    envTmp(DmfComputation<FImpl>, "compute", 1, dmf_case_ , g, g3d );
-    envTmp(DmfHelper<FImpl>,      "help"   , 1, noisel, noiser , dmf_case_);
+    envTmpLat(Field,             "coor");
+    envCache(std::vector<Field>, "phasename",    1, momenta_.size(), g );
+    envTmp(DmfComputation<FImpl>,       "computation",      1, dmf_case_ , g, g3d, blockSize_ , cacheSize_, env().getDim(g->Nd() - 1));
+    envTmp(DmfHelper<FImpl>,            "help"   ,      1, noisel, noiser , dmf_case_);
 }
 
 // execution ///////////////////////////////////////////////////////////////////
@@ -422,7 +210,6 @@ void TDistilMesonField<FImpl>::execute(void)
 
     auto &epack             = envGet(LapEvecs, par().lapEvec);
     int nVec                = epack.evec.size();
-    int vol                 = g->_gsites;
     const unsigned int nd   = g->Nd();
     const int nt            = env().getDim(nd - 1);
 
@@ -431,9 +218,9 @@ void TDistilMesonField<FImpl>::execute(void)
     envGetTmp(DistilVector,             dvr);
     envGetTmp(ColourVectorField,        evec3d);
     envGetTmp(FermionField,             fermion3dtmp);
-    envGetTmp(DmfComputation<FImpl>,    compute);
+    envGetTmp(DmfComputation<FImpl>,    computation);
     envGetTmp(DmfHelper<FImpl>,         help);
-    auto &phase = envGet(std::vector<ComplexField>, "phasename");
+    auto &phase = envGet(std::vector<Field>, "phasename");
 
     // do not use operator []!! similar but better way to do that?
     std::map<std::string, DistilVector & > distVector = {{"left",dvl}  ,{"right",dvr}};
@@ -470,19 +257,19 @@ void TDistilMesonField<FImpl>::execute(void)
     blockbuf_.resize(nExt_*nStr_*eff_nt_*blockSize_*blockSize_);
     cachebuf_.resize(nExt_*nStr_*nt*cacheSize_*cacheSize_);
 
+    // ObjArray_LR<DistillationNoise*> n;
+    // n = {&noisel, &noiser};
+    // std::cout << "dilution size= " << n[0]->dilutionSize() << std::endl;
+
     //compute momentum phase
     if (!hasPhase_)
     {
         startTimer("momentum phases");
-        envGetTmp(ComplexField, coor);
+        envGetTmp(Field, coor);
         help.computePhase(momenta_, coor, env().getDim(), phase);
         hasPhase_ = true;
         stopTimer("momentum phases");
     }
-
-    long    global_counter = 0;
-    double  global_flops = 0.0;
-    double  global_bytes = 0.0;
     
     LOG(Message) << "Source times:"         << std::endl;
     help.dumpMap(st_);
@@ -529,157 +316,20 @@ void TDistilMesonField<FImpl>::execute(void)
         }
 
         LOG(Message) << "Noise pair: " << inoise << std::endl;
-        LOG(Message) << "Gamma:" << std::endl;
-        LOG(Message) << gamma_ << std::endl;
-        LOG(Message) << "momenta:" << std::endl;
-        LOG(Message) << momenta_ << std::endl;
+        LOG(Message) << "Gamma:" << std::endl << gamma_ << std::endl;
+        LOG(Message) << "momenta:" << std::endl << momenta_ << std::endl;
 
         //computation of distvectors
-        compute.distVec(distVector, noise, inoise, peramb, epack);
+        computation.distVec(distVector, noise, inoise, peramb, epack);
 
         // computing mesonfield blocks and saving to disk
-        for (int dtL = 0; dtL < noise.at("left").dilutionSize(Index::t) ; dtL++)
-        for (int dtR = 0; dtR < noise.at("right").dilutionSize(Index::t) ; dtR++)
-        {
-            if(!(par().mesonFieldCase=="rho rho" && dtL!=dtR))
-            {
-                std::string datasetName = "dtL"+std::to_string(dtL)+"_dtR"+std::to_string(dtR);
-                LOG(Message) << "- Computing dilution dataset " << datasetName << "..." << std::endl;
+        computation.execute(matrixIoTable, st_, distVector, noise, gamma_, phase, blockbuf_ , cachebuf_ , nExt_, nStr_, dilutionSize_ls_, eff_nt_, this);
 
-                int nblocki = dilutionSize_ls_/blockSize_ + (((dilutionSize_ls_ % blockSize_) != 0) ? 1 : 0);
-                int nblockj = dilutionSize_ls_/blockSize_ + (((dilutionSize_ls_ % blockSize_) != 0) ? 1 : 0);
-
-                // loop over blocls in the current time-dilution block
-                for(int iblock=0 ; iblock<dilutionSize_ls_ ; iblock+=blockSize_) //set according to memory size
-                for(int jblock=0 ; jblock<dilutionSize_ls_ ; jblock+=blockSize_)
-                {
-                    int iblockSize = MIN(dilutionSize_ls_-iblock,blockSize_);    // iblockSize is the size of the current block (indexed by i); N_i-i is the size of the eventual remainder block
-                    int jblockSize = MIN(dilutionSize_ls_-jblock,blockSize_);
-                    A2AMatrixSet<ComplexF> block(blockbuf_.data(), nExt_ , nStr_ , eff_nt_, iblockSize, jblockSize);
-
-                    LOG(Message) << "Distil matrix block " 
-                    << jblock/blockSize_ + nblocki*iblock/blockSize_ + 1 
-                    << "/" << nblocki*nblockj << " [" << iblock << " .. " 
-                    << iblock+iblockSize-1 << ", " << jblock << " .. " << jblock+jblockSize-1 << "]" 
-                    << std::endl;
-
-                    LOG(Message) << "Block size = "         << eff_nt_*iblockSize*jblockSize*sizeof(ComplexF) << "MB/momentum/gamma" << std::endl;
-                    LOG(Message) << "Cache block size = "   << nt*cacheSize_*cacheSize_*sizeof(ComplexD) << "MB/momentum/gamma" << std::endl;  //remember to change this in case I change chunk size from nt to something else
-
-                    double flops       = 0.0;
-                    double bytes       = 0.0;
-                    double time_kernel = 0.0;
-                    double nodes    = g->NodeCount();
-
-                    // loop over cache_ blocks in the current block
-                    for(int icache=0 ; icache<iblockSize ; icache+=cacheSize_)   //set according to cache_ size
-                    for(int jcache=0 ; jcache<jblockSize ; jcache+=cacheSize_)
-                    {
-                        int icacheSize = MIN(iblockSize-icache,cacheSize_);      // icacheSize is the size of the current cache_ block (indexed by ii); N_ii-ii is the size of the remainder cache_ block
-                        int jcacheSize = MIN(jblockSize-jcache,cacheSize_);
-                        A2AMatrixSet<Complex> blockCache(cachebuf_.data(), nExt_, nStr_, nt, icacheSize, jcacheSize);
-
-                        double timer = 0.0;
-                        startTimer("kernel");
-                        // assuming certain indexation here! (dt must be the slowest index for this to work; otherwise will have to compute l/r block at each contraction)
-                        unsigned int iDl = noisel.dilutionIndex(dtL,0,0) , iDr = noiser.dilutionIndex(dtR,0,0);
-                        A2Autils<FImpl>::MesonField(blockCache, &dvl[iDl+iblock+icache], &dvr[iDr+jblock+jcache], gamma_, phase, nd - 1, &timer);
-                        stopTimer("kernel");
-                        time_kernel += timer;
-
-                        // nExt is currently # of momenta , nStr is # of gamma matrices
-                        flops += vol*(2*8.0+6.0+8.0*nExt_)*icacheSize*jcacheSize*nStr_;
-                        bytes += vol*(12.0*sizeof(ComplexD))*icacheSize*jcacheSize
-                              +  vol*(2.0*sizeof(ComplexD)*nExt_)*icacheSize*jcacheSize*nStr_;
-
-                        // loop through the cacheblock (inside them) and point blockCache to block
-                        startTimer("cache copy");
-                        if(par().mesonFieldCase=="phi phi")
-                        {
-                            thread_for_collapse( 5, iExt ,nExt_,{
-                            // for(int iExt=0 ; iExt<nExt_ ; iExt++)
-                            for(int iStr=0 ;iStr<nStr_ ; iStr++)
-                            for(int t=0 ; t<nt ; t++)
-                            for(int iicache=0 ; iicache<icacheSize ; iicache++)
-                            for(int jjcache=0;  jjcache<jcacheSize ; jjcache++)
-                            {
-                                block(iExt,iStr,t,icache+iicache,jcache+jjcache) = blockCache(iExt,iStr,t,iicache,jjcache);
-                            }
-                            });
-                        }
-                        else
-                        {
-                            thread_for_collapse( 5, iExt ,nExt_,{
-                            for(int iStr=0 ;iStr<nStr_ ; iStr++)
-                            for(int it=0 ; it<eff_nt_ ; it++)  //only wish to copy non-zero timeslices to block
-                            for(int iicache=0 ; iicache<icacheSize ; iicache++)
-                            for(int jjcache=0;  jjcache<jcacheSize ; jjcache++)
-                                block(iExt,iStr,it,icache+iicache,jcache+jjcache) = blockCache(iExt,iStr,st_[dtL][it],iicache,jjcache);
-                            });
-                        }
-                        stopTimer("cache copy");
-                    }
-
-                    LOG(Message) << "Kernel perf (flops) " << flops/time_kernel/1.0e3/nodes 
-                                << " Gflop/s/node " << std::endl;
-                    LOG(Message) << "Kernel perf (read) " << bytes/time_kernel*0.000931322574615478515625/nodes //  1.0e6/1024/1024/1024/nodes
-                                << " GB/s/node "  << std::endl;
-                    global_counter++;
-                    global_flops += flops/time_kernel/1.0e3/nodes ;
-                    global_bytes += bytes/time_kernel*0.000931322574615478515625/nodes ; // 1.0e6/1024/1024/1024/nodes
-
-                    // saving current block to disk
-                    LOG(Message) << "Writing block to disk" << std::endl;
-                    startTimer("IO: total");
-                    startTimer("IO: write block");
-                    double ioTime = -getDTimer("IO: write block");
-#ifdef HADRONS_A2AM_PARALLEL_IO
-                    //parallel io
-                    int inode = g->ThisRank();
-                    int nnode = g->RankCount(); 
-                    LOG(Message) << "Starting parallel IO. Rank count=" << nnode  << std::endl;
-                    g->Barrier();
-                    for(int ies=inode ; ies<nExt_*nStr_ ; ies+=nnode){
-                        int iExt = ies/nStr_;
-                        int iStr = ies%nStr_;
-                        if(iblock==0 && jblock==0){              // creates dataset only if it's the first block of the dataset
-                            matrixIoTable[iStr + nStr_*iExt].saveBlock(block, iExt , iStr , iblock, jblock, datasetName, cacheSize_);   //set surface chunk size as cacheSize_ (the chunk itself is 3D)
-                        }
-                        else{
-                            matrixIoTable[iStr + nStr_*iExt].saveBlock(block, iExt , iStr , iblock, jblock, datasetName);
-                        }
-                    }
-                    g->Barrier();
-#else
-                    // serial io, can remove later
-                    LOG(Message) << "Starting serial IO" << std::endl;
-                    for(int iExt=0; iExt<nExt_; iExt++)
-                    for(int iStr=0; iStr<nStr_; iStr++)
-                    {
-                        if(iblock==0 && jblock==0){              // creates dataset only if it's the first block of the dataset
-                            matrixIoTable[iStr + nStr_*iExt].saveBlock(block, iExt, iStr, iblock, jblock, datasetName, cacheSize_);   //set surface chunk size as cacheSize_ (the chunk itself is 3D)
-                        }
-                        else{
-                            matrixIoTable[iStr + nStr_*iExt].saveBlock(block, iExt, iStr, iblock, jblock, datasetName);
-                        }
-                    }
-#endif
-                    stopTimer("IO: total");
-                    stopTimer("IO: write block");
-                    ioTime    += getDTimer("IO: write block");
-                    int bytesBlockSize  = static_cast<double>(nExt_*nStr_*eff_nt_*iblockSize*jblockSize*sizeof(ComplexF));
-                    LOG(Message)    << "HDF5 IO done " << sizeString(bytesBlockSize) << " in "
-                                    << ioTime  << " us (" 
-                                    << bytesBlockSize/ioTime*0.95367431640625 // 1.0e6/1024/1024
-                                    << " MB/s)" << std::endl;
-                }
-            }
-        }
         LOG(Message) << "Meson fields saved at " << outputMFStem_ << std::endl;
     }
-    LOG(Message) << "MesonField kernel executed " << global_counter << " times on " << cacheSize_ << "^2 cache blocks" << std::endl;
-    LOG(Message) << "Average kernel perf (flops) " << global_flops/global_counter << " Gflop/s/node " << std::endl;
-    LOG(Message) << "Average kernel perf (read) " << global_bytes/global_counter  << " GB/s/node "  << std::endl;
+    LOG(Message) << "A2AUtils::MesonField kernel executed " << computation.global_counter << " times over " << cacheSize_ << "^2 cache blocks" << std::endl;
+    LOG(Message) << "Average kernel perf (flops) "          << computation.global_flops/computation.global_counter        << " Gflop/s/node " << std::endl;
+    LOG(Message) << "Average kernel perf (read) "           << computation.global_bytes/computation.global_counter        << " GB/s/node "    << std::endl;
 }
 
 
