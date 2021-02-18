@@ -27,19 +27,19 @@ class DistilMesonFieldPar: Serializable
 {
 public:
     GRID_SERIALIZABLE_CLASS_MEMBERS(DistilMesonFieldPar,
-                                    std::string,    outputStem,
-                                    std::string,    mesonFieldCase,
-                                    std::string,    lapEvec,
-                                    std::string,    leftPeramb,
-                                    std::string,    rightPeramb,
-                                    std::string,    leftNoise,
-                                    std::string,    rightNoise,
-                                    std::string,    gamma,
-                                    int,            blockSize,
-                                    int,            cacheSize,
-                                    std::vector<std::string>, sourceTimes,
-                                    std::vector<std::string>, momenta,
-                                    std::vector<std::string>, noisePairs,)
+                                    std::string,                outputStem,
+                                    std::string,                mesonFieldCase,
+                                    std::string,                lapEvec,
+                                    std::string,                leftPeramb,
+                                    std::string,                rightPeramb,
+                                    std::string,                leftNoise,
+                                    std::string,                rightNoise,
+                                    std::string,                gamma,
+                                    int,                        blockSize,
+                                    int,                        cacheSize,
+                                    std::vector<std::string>,   sourceTimes,
+                                    std::vector<std::string>,   momenta,
+                                    std::vector<std::string>,   noisePairs,)
 };
 
 template <typename FImpl>
@@ -47,10 +47,12 @@ class TDistilMesonField: public Module<DistilMesonFieldPar>
 {
 public:
     FERM_TYPE_ALIASES(FImpl,);
-    typedef typename DmfComputation<FImpl>::DistillationNoise DistillationNoise;
-    typedef typename DmfComputation<FImpl>::DistilVector DistilVector;
-    typedef typename DmfComputation<FImpl>::Index Index;
-    typedef typename DmfComputation<FImpl>::Field Field;
+    typedef DmfComputation<FImpl, FermionField, Complex, ComplexF>    Computation;
+    typedef DmfHelper<FImpl, FermionField>         Helper;
+public:
+    typedef typename Computation::Index Index;
+    typedef typename Computation::DistilVector DistilVector;
+    typedef typename Computation::DistillationNoise DistillationNoise;
 public:
     // constructor
     TDistilMesonField(const std::string name);
@@ -192,21 +194,19 @@ void TDistilMesonField<FImpl>::setup(void)
     }
     dilutionSize_ls_ = noisel.dilutionSize(Index::l)*noisel.dilutionSize(Index::s);
 
+    envTmpLat(ComplexField,             "coor");
+    envCache(std::vector<ComplexField>, "phasename",    1, momenta_.size(), g );
     envTmp(DistilVector,                "dvl",          1, noisel.dilutionSize() , g); //st_size() * dilutionSize_ls_, g); // temporary setting this to full dilution size
     envTmp(DistilVector,                "dvr",          1, noiser.dilutionSize() , g);
-    envTmp(FermionField,                "fermion3dtmp", 1, g3d);
-    envTmp(ColourVectorField,           "evec3d",       1, g3d);
-    envTmpLat(Field,             "coor");
-    envCache(std::vector<Field>, "phasename",    1, momenta_.size(), g );
-    envTmp(DmfComputation<FImpl>,       "computation",      1, dmf_case_ , g, g3d, blockSize_ , cacheSize_, env().getDim(g->Nd() - 1));
-    envTmp(DmfHelper<FImpl>,            "help"   ,      1, noisel, noiser , dmf_case_);
+    envTmp(Computation,                 "computation",  1, dmf_case_ , g, g3d, blockSize_ , cacheSize_, env().getDim(g->Nd() - 1));
+    envTmp(Helper,                      "helper"   ,    1, noisel, noiser , dmf_case_);
 }
 
 // execution ///////////////////////////////////////////////////////////////////
 template <typename FImpl>
 void TDistilMesonField<FImpl>::execute(void)
 {
-    GridCartesian *g    = envGetGrid(FermionField);
+    GridCartesian *g        = envGetGrid(FermionField);
 
     auto &epack             = envGet(LapEvecs, par().lapEvec);
     int nVec                = epack.evec.size();
@@ -214,13 +214,11 @@ void TDistilMesonField<FImpl>::execute(void)
     const int nt            = env().getDim(nd - 1);
 
     // temps
-    envGetTmp(DistilVector,             dvl);
-    envGetTmp(DistilVector,             dvr);
-    envGetTmp(ColourVectorField,        evec3d);
-    envGetTmp(FermionField,             fermion3dtmp);
-    envGetTmp(DmfComputation<FImpl>,    computation);
-    envGetTmp(DmfHelper<FImpl>,         help);
-    auto &phase = envGet(std::vector<Field>, "phasename");
+    envGetTmp(DistilVector,     dvl);
+    envGetTmp(DistilVector,     dvr);
+    envGetTmp(Computation,      computation);
+    envGetTmp(Helper,           helper);
+    auto &phase = envGet(std::vector<ComplexField>, "phasename");
 
     // do not use operator []!! similar but better way to do that?
     std::map<std::string, DistilVector & > distVector = {{"left",dvl}  ,{"right",dvr}};
@@ -249,9 +247,9 @@ void TDistilMesonField<FImpl>::execute(void)
         std::vector<unsigned int> temp = strToVec<unsigned int>(e);
         st_input.push_back(temp);
     }
-    st_         = help.getSourceTimes(peramb_st , st_input);
-    eff_nt_     = help.computeEffTimeDimension(st_);
-    noisePairs_ = help.parseNoisePairs(par().noisePairs);
+    st_         = helper.getSourceTimes(peramb_st , st_input);
+    eff_nt_     = helper.computeEffTimeDimension(st_);
+    noisePairs_ = helper.parseNoisePairs(par().noisePairs);
 
     //populate matrix sets
     blockbuf_.resize(nExt_*nStr_*eff_nt_*blockSize_*blockSize_);
@@ -265,14 +263,14 @@ void TDistilMesonField<FImpl>::execute(void)
     if (!hasPhase_)
     {
         startTimer("momentum phases");
-        envGetTmp(Field, coor);
-        help.computePhase(momenta_, coor, env().getDim(), phase);
+        envGetTmp(ComplexField, coor);
+        helper.computePhase(momenta_, coor, env().getDim(), phase);
         hasPhase_ = true;
         stopTimer("momentum phases");
     }
     
     LOG(Message) << "Source times:"         << std::endl;
-    help.dumpMap(st_);
+    helper.dumpMap(st_);
     LOG(Message) << "Meson field case: "    << par().mesonFieldCase << std::endl;
     LOG(Message) << "EffTime dimension = "     << eff_nt_ << std::endl;
     LOG(Message) << "Selected block size: " << par().blockSize << std::endl;

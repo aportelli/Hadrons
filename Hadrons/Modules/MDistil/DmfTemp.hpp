@@ -12,18 +12,17 @@ BEGIN_MODULE_NAMESPACE(MDistil)
 // template <typename T>
 // using ObjArray_LR = std::array<T, 2>;
 
-using TimeSliceMap = std::vector<std::vector<unsigned int>>; // this is here because TimeSliceMap is a return type in DmfHelper methods below
+using TimeSliceMap = std::vector<std::vector<unsigned int>>; // this is here because TimeSliceMap is a return type in methods below
 
 //computation class declaration
-template <typename FImpl>
+template <typename FImpl, typename Field, typename T, typename Tio>
 class DmfComputation
 {
 public:
     FERM_TYPE_ALIASES(FImpl,);
     typedef DistillationNoise<FImpl> DistillationNoise;
-    typedef std::vector<FermionField> DistilVector;
+    typedef typename std::vector<Field> DistilVector;
     typedef typename DistillationNoise::Index Index;
-    typedef typename FImpl::ComplexField Field;
 public:
     //todo: maybe reposition later
     long    global_counter = 0;
@@ -35,9 +34,9 @@ private:
     GridCartesian *     g_;
     GridCartesian *     g3d_;
     ColourVectorField   evec3d_;
-    FermionField        fermion3dtmp_;
-    // Vector<ComplexF>    bBuf;  //todo: define it here instead of outside
-    // Vector<Complex>     cBuf;
+    Field               tmp3d_;
+    // Vector<Tio>    bBuf;  //todo: define it here instead of outside
+    // Vector<T>     cBuf;
     unsigned int        bSize_;
     unsigned int        cSize_;
     unsigned int        nt_;
@@ -49,35 +48,35 @@ public:
                     unsigned int cacheSize,
                     unsigned int nt);
 public:
-    void execute(std::vector<A2AMatrixIo<ComplexF>> io_table,
-                TimeSliceMap st,
-                std::map<std::string, DistilVector&> dv,
-                std::map<std::string, DistillationNoise&> n,
-                std::vector<Gamma::Algebra> gamma,
-                std::vector<Field> ph,
-                Vector<ComplexF> & bBuf,
-                Vector<Complex>  & cBuf,
-                const unsigned int n_ext,
-                const unsigned int n_str,
-                const unsigned int dil_size_ls,
-                const unsigned int eff_nt,
-                TimerArray * tarray);
-    void distVec(std::map<std::string, DistilVector&> & dv,
-                    std::map<std::string, DistillationNoise&> n,
-                    const std::vector<int> inoise,
-                    std::map<std::string, PerambTensor&> & peramb,
-                    const LapEvecs            & epack);
+void execute(std::vector<A2AMatrixIo<Tio>> io_table,
+             TimeSliceMap st,
+             std::map<std::string, DistilVector&> dv,
+             std::map<std::string, DistillationNoise&> n,
+             std::vector<Gamma::Algebra> gamma,
+             std::vector<ComplexField> ph,
+             Vector<Tio> & bBuf,
+             Vector<T>  & cBuf,
+             const unsigned int n_ext,
+             const unsigned int n_str,
+             const unsigned int dil_size_ls,
+             const unsigned int eff_nt,
+             TimerArray * tarray);
+void distVec(std::map<std::string, DistilVector&> & dv,
+             std::map<std::string, DistillationNoise&> n,
+             const std::vector<int> inoise,
+             std::map<std::string, PerambTensor&> & peramb,
+             const LapEvecs            & epack);
 };
 
-// aux class
-template <typename FImpl>
+// aux class declaration
+template <typename FImpl, typename Field>
 class DmfHelper
 {
 public:
-    typedef typename DmfComputation<FImpl>::DistillationNoise DistillationNoise;
-    typedef typename DmfComputation<FImpl>::DistilVector DistilVector;
-    typedef typename DmfComputation<FImpl>::Index Index;
-    typedef typename DmfComputation<FImpl>::Field Field;
+    FERM_TYPE_ALIASES(FImpl,);
+    typedef DistillationNoise<FImpl> DistillationNoise;
+    typedef typename std::vector<Field> DistilVector;
+    typedef typename DistillationNoise::Index Index;
 private:
     int nt_;
     int nd_;
@@ -90,7 +89,7 @@ public:
     TimeSliceMap getSourceTimes(std::map<std::string, TimeSliceMap> perambTimeMap , TimeSliceMap st_input);
     TimeSliceMap getIntersectionMap(TimeSliceMap m1, TimeSliceMap m2);
     std::vector<std::vector<int>> parseNoisePairs(std::vector<std::string> inputN);
-    void computePhase(std::vector<std::vector<RealF>> momenta, Field &coor, std::vector<int> dim, std::vector<Field> &phase);
+    void computePhase(std::vector<std::vector<RealF>> momenta, ComplexField &coor, std::vector<int> dim, std::vector<ComplexField> &phase);
     TimeSliceMap timeSliceMap(DistillationNoise & n);
     void dumpMap(TimeSliceMap m);
 };
@@ -111,31 +110,33 @@ public:
 //####################################
 //# computation class implementation #
 //####################################
-template <typename FImpl>
-DmfComputation<FImpl>::DmfComputation( std::map<std::string,std::string> c,
-                    GridCartesian * g, GridCartesian * g3d,
-                    unsigned int blockSize,
-                    unsigned int cacheSize,
-                    unsigned int nt)
-    : dmfCase_(c), g_(g), g3d_(g3d), evec3d_(g3d), fermion3dtmp_(g3d), nt_(nt), nd_(g->Nd()),
-      bSize_(blockSize) , cSize_(cacheSize)
+template <typename FImpl, typename Field, typename T, typename Tio>
+DmfComputation<FImpl,Field,T,Tio>
+::DmfComputation(std::map<std::string,std::string> c,
+                 GridCartesian * g, GridCartesian * g3d,
+                 unsigned int blockSize,
+                 unsigned int cacheSize,
+                 unsigned int nt)
+: dmfCase_(c), g_(g), g3d_(g3d), evec3d_(g3d), tmp3d_(g3d)
+, nt_(nt), nd_(g->Nd()), bSize_(blockSize) , cSize_(cacheSize)
 {   
 }
 
-template <typename FImpl>
-void DmfComputation<FImpl>::execute(std::vector<A2AMatrixIo<ComplexF>> io_table,
-                 TimeSliceMap st,
-                 std::map<std::string, DistilVector&> dv,
-                 std::map<std::string, DistillationNoise&> n,
-                 std::vector<Gamma::Algebra> gamma,
-                 std::vector<Field> ph,
-                 Vector<ComplexF> & bBuf,
-                 Vector<Complex>  & cBuf,
-                 const unsigned int n_ext,
-                 const unsigned int n_str,
-                 const unsigned int dil_size_ls,
-                 const unsigned int eff_nt,
-                 TimerArray * tarray)
+template <typename FImpl, typename Field, typename T, typename Tio>
+void DmfComputation<FImpl,Field,T,Tio>
+::execute(std::vector<A2AMatrixIo<Tio>> io_table,
+          TimeSliceMap st,
+          std::map<std::string, DistilVector&> dv,
+          std::map<std::string, DistillationNoise&> n,
+          std::vector<Gamma::Algebra> gamma,
+          std::vector<ComplexField> ph,
+          Vector<Tio> & bBuf,
+          Vector<T>  & cBuf,
+          const unsigned int n_ext,
+          const unsigned int n_str,
+          const unsigned int dil_size_ls,
+          const unsigned int eff_nt,
+          TimerArray * tarray)
 {
     const unsigned int vol = g_->_gsites;
     std::string dmfcase = dmfCase_.at("left") + " " + dmfCase_.at("right");
@@ -156,7 +157,7 @@ void DmfComputation<FImpl>::execute(std::vector<A2AMatrixIo<ComplexF>> io_table,
         {
             int iblockSize = MIN(dil_size_ls-iblock,bSize_);    // iblockSize is the size of the current block (indexed by i); N_i-i is the size of the eventual remainder block
             int jblockSize = MIN(dil_size_ls-jblock,bSize_);
-            A2AMatrixSet<ComplexF> block(bBuf.data(), n_ext , n_str , eff_nt, iblockSize, jblockSize);
+            A2AMatrixSet<Tio> block(bBuf.data(), n_ext , n_str , eff_nt, iblockSize, jblockSize);
 
             LOG(Message) << "Distil matrix block " 
             << jblock/bSize_ + nblocki*iblock/bSize_ + 1 
@@ -164,8 +165,8 @@ void DmfComputation<FImpl>::execute(std::vector<A2AMatrixIo<ComplexF>> io_table,
             << iblock+iblockSize-1 << ", " << jblock << " .. " << jblock+jblockSize-1 << "]" 
             << std::endl;
 
-            LOG(Message) << "Block size = "         << eff_nt*iblockSize*jblockSize*sizeof(ComplexF) << "MB/momentum/gamma" << std::endl;
-            LOG(Message) << "Cache block size = "   << nt_*cSize_*cSize_*sizeof(ComplexD) << "MB/momentum/gamma" << std::endl;  //remember to change this in case I change chunk size from nt_ to something else
+            LOG(Message) << "Block size = "         << eff_nt*iblockSize*jblockSize*sizeof(Tio) << "MB/momentum/gamma" << std::endl;
+            LOG(Message) << "Cache block size = "   << nt_*cSize_*cSize_*sizeof(T) << "MB/momentum/gamma" << std::endl;  //remember to change this in case I change chunk size from nt_ to something else
 
             double flops       = 0.0;
             double bytes       = 0.0;
@@ -178,7 +179,7 @@ void DmfComputation<FImpl>::execute(std::vector<A2AMatrixIo<ComplexF>> io_table,
             {
                 int icacheSize = MIN(iblockSize-icache,cSize_);      // icacheSize is the size of the current cache_ block (indexed by ii); N_ii-ii is the size of the remainder cache_ block
                 int jcacheSize = MIN(jblockSize-jcache,cSize_);
-                A2AMatrixSet<Complex> blockCache(cBuf.data(), n_ext, n_str, nt_, icacheSize, jcacheSize);
+                A2AMatrixSet<T> blockCache(cBuf.data(), n_ext, n_str, nt_, icacheSize, jcacheSize);
 
                 double timer = 0.0;
                 tarray->startTimer("kernel");
@@ -190,8 +191,8 @@ void DmfComputation<FImpl>::execute(std::vector<A2AMatrixIo<ComplexF>> io_table,
 
                 // nExt is currently # of momenta , nStr is # of gamma matrices
                 flops += vol*(2*8.0+6.0+8.0*n_ext)*icacheSize*jcacheSize*n_str;
-                bytes += vol*(12.0*sizeof(ComplexD))*icacheSize*jcacheSize
-                        +  vol*(2.0*sizeof(ComplexD)*n_ext)*icacheSize*jcacheSize*n_str;
+                bytes += vol*(12.0*sizeof(T))*icacheSize*jcacheSize
+                        +  vol*(2.0*sizeof(T)*n_ext)*icacheSize*jcacheSize*n_str;
 
                 // loop through the cacheblock (inside them) and point blockCache to block
                 tarray->startTimer("cache copy");
@@ -268,7 +269,7 @@ void DmfComputation<FImpl>::execute(std::vector<A2AMatrixIo<ComplexF>> io_table,
             tarray->stopTimer("IO: total");
             tarray->stopTimer("IO: write block");
             ioTime    += tarray->getDTimer("IO: write block");
-            int bytesBlockSize  = static_cast<double>(n_ext*n_str*eff_nt*iblockSize*jblockSize*sizeof(ComplexF));
+            int bytesBlockSize  = static_cast<double>(n_ext*n_str*eff_nt*iblockSize*jblockSize*sizeof(Tio));
             LOG(Message)    << "HDF5 IO done " << sizeString(bytesBlockSize) << " in "
                             << ioTime  << " us (" 
                             << bytesBlockSize/ioTime*0.95367431640625 // 1.0e6/1024/1024
@@ -277,12 +278,13 @@ void DmfComputation<FImpl>::execute(std::vector<A2AMatrixIo<ComplexF>> io_table,
     }
 }
 
-template <typename FImpl>
-void DmfComputation<FImpl>::distVec(std::map<std::string, DistilVector&> & dv,
-                    std::map<std::string, DistillationNoise&> n,
-                    const std::vector<int> inoise,
-                    std::map<std::string, PerambTensor&> & peramb,
-                    const LapEvecs            & epack)
+template <typename FImpl, typename Field, typename T, typename Tio>
+void DmfComputation<FImpl,Field,T,Tio>
+::distVec(std::map<std::string, DistilVector&> & dv,
+          std::map<std::string, DistillationNoise&> n,
+          const std::vector<int> inoise,
+          std::map<std::string, PerambTensor&> & peramb,
+          const LapEvecs            & epack)
 {
     const int nd = g_->Nd();
     const int nVec = epack.evec.size();
@@ -300,13 +302,13 @@ void DmfComputation<FImpl>::distVec(std::map<std::string, DistilVector&> & dv,
         {
             for (int t = Ntfirst; t < Ntfirst + Ntlocal; t++)   //loop over (local) timeslices
             {
-                fermion3dtmp_ = Zero();
+                tmp3d_ = Zero();
                 for (int k = 0; k < nVec; k++)
                 {
                     ExtractSliceLocal(evec3d_,epack.evec[k],0,t-Ntfirst,nd - 1);
-                    fermion3dtmp_ += evec3d_ * peramb.at(s).tensor(t, k, dl, iNoise.at(s), dt, ds);
+                    tmp3d_ += evec3d_ * peramb.at(s).tensor(t, k, dl, iNoise.at(s), dt, ds);
                 }
-                InsertSliceLocal(fermion3dtmp_,dv.at(s)[iD],0,t-Ntfirst,nd - 1);
+                InsertSliceLocal(tmp3d_,dv.at(s)[iD],0,t-Ntfirst,nd - 1);
             }
         }
         else if(dmfCase_.at(s)=="rho"){
@@ -318,16 +320,16 @@ void DmfComputation<FImpl>::distVec(std::map<std::string, DistilVector&> & dv,
 //############################
 //# aux class implementation #
 //############################
-template <typename FImpl>
-DmfHelper<FImpl>::DmfHelper(DistillationNoise & nl, DistillationNoise & nr, std::map<std::string,std::string> c)
+template <typename FImpl, typename Field>
+DmfHelper<FImpl,Field>::DmfHelper(DistillationNoise & nl, DistillationNoise & nr, std::map<std::string,std::string> c)
 : noiseTimeMapl_( timeSliceMap(nl) ) , noiseTimeMapr_( timeSliceMap(nr) ) , dmfCase_(c)
 {
     nt_ = nr.getNt();
     nd_ = nr.getGrid()->Nd();
 }
 
-template <typename FImpl>
-int DmfHelper<FImpl>::computeEffTimeDimension(TimeSliceMap st)
+template <typename FImpl, typename Field>
+int DmfHelper<FImpl,Field>::computeEffTimeDimension(TimeSliceMap st)
 {
     // compute eff_nt (<=nt_), the number of non-zero timeslices in the final object, when there's at least one rho involved
     int eff_nt = 1;
@@ -343,8 +345,8 @@ int DmfHelper<FImpl>::computeEffTimeDimension(TimeSliceMap st)
     return eff_nt;
 }
 
-template <typename FImpl>
-TimeSliceMap DmfHelper<FImpl>::getSourceTimes(std::map<std::string, TimeSliceMap> perambTimeMap , TimeSliceMap st_input)
+template <typename FImpl, typename Field>
+TimeSliceMap DmfHelper<FImpl,Field>::getSourceTimes(std::map<std::string, TimeSliceMap> perambTimeMap , TimeSliceMap st_input)
 {
     //check if noise_st_i contains peramb_st_i (case==phi), take the intersection between the l/r intersection result, check if input is subset of that
     TimeSliceMap st,st_dependencies;
@@ -372,8 +374,8 @@ TimeSliceMap DmfHelper<FImpl>::getSourceTimes(std::map<std::string, TimeSliceMap
     return st;
 }
 
-template <typename FImpl>
-TimeSliceMap DmfHelper<FImpl>::getIntersectionMap(TimeSliceMap m1, TimeSliceMap m2)
+template <typename FImpl, typename Field>
+TimeSliceMap DmfHelper<FImpl,Field>::getIntersectionMap(TimeSliceMap m1, TimeSliceMap m2)
 {
     TimeSliceMap inter;
     for(unsigned int p=0 ; p<m1.size() ; p++)
@@ -387,8 +389,8 @@ TimeSliceMap DmfHelper<FImpl>::getIntersectionMap(TimeSliceMap m1, TimeSliceMap 
     return inter;
 }
 
-template <typename FImpl>
-std::vector<std::vector<int>> DmfHelper<FImpl>::parseNoisePairs(std::vector<std::string> inputN)
+template <typename FImpl, typename Field>
+std::vector<std::vector<int>> DmfHelper<FImpl,Field>::parseNoisePairs(std::vector<std::string> inputN)
 {
     std::vector<std::vector<int>> nPairs;
     nPairs.clear();
@@ -400,8 +402,8 @@ std::vector<std::vector<int>> DmfHelper<FImpl>::parseNoisePairs(std::vector<std:
     return(nPairs);
 }
 
-template <typename FImpl>
-void DmfHelper<FImpl>::computePhase(std::vector<std::vector<RealF>> momenta, Field &coor, std::vector<int> dim, std::vector<Field> &phase)
+template <typename FImpl, typename Field>
+void DmfHelper<FImpl,Field>::computePhase(std::vector<std::vector<RealF>> momenta, ComplexField &coor, std::vector<int> dim, std::vector<ComplexField> &phase)
 {
     Complex           i(0.0,1.0);
     for (unsigned int j = 0; j < momenta.size(); ++j)
@@ -416,8 +418,8 @@ void DmfHelper<FImpl>::computePhase(std::vector<std::vector<RealF>> momenta, Fie
     }
 }
 
-template <typename FImpl>
-TimeSliceMap DmfHelper<FImpl>::timeSliceMap(DistillationNoise & n)
+template <typename FImpl, typename Field>
+TimeSliceMap DmfHelper<FImpl,Field>::timeSliceMap(DistillationNoise & n)
 {
     TimeSliceMap m;
     for(unsigned int it=0 ; it<n.dilutionSize(Index::t) ; it++)
@@ -428,8 +430,8 @@ TimeSliceMap DmfHelper<FImpl>::timeSliceMap(DistillationNoise & n)
     return m;
 }
 
-template <typename FImpl>
-void DmfHelper<FImpl>::dumpMap(TimeSliceMap m)
+template <typename FImpl, typename Field>
+void DmfHelper<FImpl,Field>::dumpMap(TimeSliceMap m)
 {
     std::string o = "{";
     int i=0;
