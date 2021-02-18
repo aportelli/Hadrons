@@ -268,11 +268,12 @@ void TPerambulator<FImpl>::execute(void)
                 {
 		    int d = ds + SI * dk + SI * LI * dt;
 		    int dIndex = ds + SI * dk + SI * LI * idt;
+		    int dIndexSolve = ds + SI * idt + SI * inversions * dk;
 	            std::array<unsigned int, 3> index = dilNoise.dilutionCoordinates(d);
                     LOG(Message) <<  "index (d_t,d_k,d_alpha) : (" << index[0] << ","<< index[1] << "," << index[2] << ")" << std::endl;
                     if(perambMode == pMode::inputSolve)
 		    {
-                        fermion4dtmp = solveIn[inoise+nNoise*dIndex];
+                        fermion4dtmp = solveIn[inoise+nNoise*dIndexSolve];
 		    } 
 		    else 
 		    {
@@ -290,7 +291,7 @@ void TPerambulator<FImpl>::execute(void)
                         if(perambMode == pMode::outputSolve)
                         {
                             auto &solveOut = envGet(std::vector<FermionField>, objName);
-                            solveOut[inoise+nNoise*dIndex] = fermion4dtmp;
+                            solveOut[inoise+nNoise*dIndexSolve] = fermion4dtmp;
                         }
 		    }
                     for (int is = 0; is < Ns; is++)
