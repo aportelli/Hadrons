@@ -3,9 +3,16 @@
  *
  * Copyright (C) 2015 - 2020
  *
- * Author: Felix Erben <felix.erben@ed.ac.uk>
- * Author: Michael Marshall <michael.marshall@ed.ac.uk>
  * Author: Antonin Portelli <antonin.portelli@me.com>
+ * Author: Author Name <43034299+mmphys@users.noreply.github.com>
+ * Author: Felix Erben <dc-erbe1@tesseract-login1.ib0.sgi.cluster.dirac.ed.ac.uk>
+ * Author: Felix Erben <felix.erben@ed.ac.uk>
+ * Author: Michael Marshall <43034299+mmphys@users.noreply.github.com>
+ * Author: Michael Marshall <michael.marshall@ed.ac.uk>
+ * Author: ferben <ferben@c180030.wlan.net.ed.ac.uk>
+ * Author: ferben <ferben@c183011.wlan.net.ed.ac.uk>
+ * Author: ferben <ferben@debian.felix.com>
+ * Author: ferben <ferben@localhost.localdomain>
  *
  * Hadrons is free software: you can redistribute it and/or modify
  * it under the terms of the GNU General Public License as published by

@@ -1,10 +1,12 @@
 /*
- * Z2Diluted.cpp, part of Hadrons (https://github.com/aportelli/Hadrons)
+ * WardIdentity.cpp, part of Hadrons (https://github.com/aportelli/Hadrons)
  *
  * Copyright (C) 2015 - 2020
  *
  * Author: Antonin Portelli <antonin.portelli@me.com>
- * Author: Fionn O hOgain <fionn.o.hogain@ed.ac.uk>
+ * Author: Lanny91 <andrew.lawson@gmail.com>
+ * Author: fionnoh <fionnoh@gmail.com>
+ * Author: Michael Marshall <Michael.Marshall@ed.ac.uk>
  *
  * Hadrons is free software: you can redistribute it and/or modify
  * it under the terms of the GNU General Public License as published by
@@ -19,15 +21,16 @@
  * You should have received a copy of the GNU General Public License
  * along with Hadrons.  If not, see <http://www.gnu.org/licenses/>.
  *
- * See the full license in the file "LICENSE" in the top level distribution 
+ * See the full license in the file "LICENSE" in the top level distribution
  * directory.
  */
 
 /*  END LEGAL */
-#include <Hadrons/Modules/MSource/Z2Diluted.hpp>
+#include <Hadrons/Modules/MContraction/WardIdentity.hpp>
 
 using namespace Grid;
 using namespace Hadrons;
-using namespace MSource;
+using namespace MContraction;
 
-template class Grid::Hadrons::MSource::TZ2Diluted<FIMPL>;
+template class Grid::Hadrons::MContraction::TWardIdentity<FIMPL>;
+template class Grid::Hadrons::MContraction::TWardIdentity<ZFIMPL>;

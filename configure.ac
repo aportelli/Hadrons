@@ -1,5 +1,5 @@
 AC_PREREQ([2.63])
-AC_INIT(Hadrons,[v1.0],[antonin.portelli@ed.ac.uk],[hadrons])
+AC_INIT(Hadrons,[v1.2-dev],[antonin.portelli@ed.ac.uk],[hadrons])
 AC_CANONICAL_BUILD
 AC_CANONICAL_HOST
 AC_CANONICAL_TARGET
@@ -32,14 +32,16 @@ elif test "$CXXLD" != "`grid-config --cxxld`" ; then
     AC_MSG_WARN([CXXLD differs from that reported by grid-config])
 fi
 CXXFLAGS="$CXXFLAGS `grid-config --cxxflags`"
-LDFLAGS="$LDFLAGS `grid-config --ldflags`"
 CXXFLAGS="$AM_CXXFLAGS $CXXFLAGS"
-LDFLAGS="$AM_LDFLAGS $LDFLAGS"
-LIBS=" -ldl -lGrid $LIBS `grid-config --libs`"
 
 AC_PROG_CC
 AM_PROG_CC_C_O
 AC_PROG_CXX
+
+LDFLAGS="$LDFLAGS `grid-config --ldflags`"
+LDFLAGS="$AM_LDFLAGS $LDFLAGS"
+LIBS=" -ldl -lGrid $LIBS `grid-config --libs`"
+
 AC_PROG_RANLIB
 AM_PROG_AR
 AC_LANG([C++])
