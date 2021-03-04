@@ -348,7 +348,8 @@ void TBaryonGamma3pt<FImpl>::execute(void)
     wick_groups[1] = (qL[1] == qLJ)? true : false ;
     wick_groups[2] = (qL[2] == qLJ)? true : false ;
 
-    for (int i=0; i<6; i++) {
+    for (int i=0; i<6; i++) 
+    {
         wick_contractions[0][i] = ( wick_groups[0]
                                     && qRJ   == qR[epsilon[i][0]] 
                                     && qL[1] == qR[epsilon[i][1]] 
@@ -364,9 +365,12 @@ void TBaryonGamma3pt<FImpl>::execute(void)
     }
 
     int n_contractions = 0;
-    for (int i=0; i<3; i++) {
-        if (wick_groups[i]) {
-            for (int j=0; j<6; j++) {
+    for (int i=0; i<3; i++) 
+    {
+        if (wick_groups[i]) 
+        {
+            for (int j=0; j<6; j++) 
+            {
                 LOG(Message) << "Wick group " << i+1 << " : contraction " << j+1 << " : " << ( (wick_contractions[i][j]) ? "true" : "false" )  << std::endl;
                 n_contractions += (wick_contractions[i][j])? 1 : 0 ;
             }
@@ -394,7 +398,8 @@ void TBaryonGamma3pt<FImpl>::execute(void)
     SlicedPropagator propQL2_slice[6];
     SlicedPropagator propQL3_slice[6];
 
-    for (int ie=0; ie<6; ie++) {
+    for (int ie=0; ie<6; ie++) 
+    {
         propQL1_slice[ie] = (*sink[epsilon[ie][0]])(propQL1);
         propQL2_slice[ie] = (*sink[epsilon[ie][1]])(propQL2);
         propQL3_slice[ie] = (*sink[epsilon[ie][2]])(propQL3);
@@ -414,81 +419,93 @@ void TBaryonGamma3pt<FImpl>::execute(void)
 
     r.info.mom = par().mom;
 
-    for (auto &GJ:  gammaJList)  {
-    for (auto &GLR: gammaLRList) {
-        LOG(Message) << "Contracting for gammaJ  = " << GJ << std::endl;
-        LOG(Message) << "                gammaLR = " << GLR << std::endl;
+    for (auto &GJ:  gammaJList)  
+    {
+        for (auto &GLR: gammaLRList) 
+        {
+            LOG(Message) << "Contracting for gammaJ  = " << GJ << std::endl;
+            LOG(Message) << "                gammaLR = " << GLR << std::endl;
 
-        r.info.gammaJ  = GJ;
-        r.info.gammaAi = GLR.first.first;
-        r.info.gammaBi = GLR.first.second;
-        r.info.gammaAf = GLR.second.first;
-        r.info.gammaBf = GLR.second.second;
+            r.info.gammaJ  = GJ;
+            r.info.gammaAi = GLR.first.first;
+            r.info.gammaBi = GLR.first.second;
+            r.info.gammaAf = GLR.second.first;
+            r.info.gammaBf = GLR.second.second;
 
-        const Gamma GAL(GLR.first.first);
-        const Gamma GBL(GLR.first.second);
-        const Gamma GAR(GLR.second.first);
-        const Gamma GBR(GLR.second.second);
+            const Gamma GAL(GLR.first.first);
+            const Gamma GBL(GLR.first.second);
+            const Gamma GAR(GLR.second.first);
+            const Gamma GBR(GLR.second.second);
 
-        c=Zero();
+            c=Zero();
 
-        for (int ie=0; ie<6; ie++) {
-            if (wick_groups[0]) {
-                if (wick_contractions[0][ie]) {
-                    auto propQ2_spec = propQL2_slice[ie][par().tf];
-                    auto propQ3_spec = propQL3_slice[ie][par().tf];
-
-                    BaryonUtils<FIMPL>::BaryonGamma3pt(propQL1, propQ2_spec, propQ3_spec, *propQR[epsilon[ie][0]],
-                                                         1, ie+1, GJ, GLR.first.second, GLR.second.second, c);
-                }
-            }
-            if (wick_groups[1]) {
-                if (wick_contractions[1][ie]) {
-                    auto propQ1_spec = propQL1_slice[ie][par().tf];
-                    auto propQ3_spec = propQL3_slice[ie][par().tf];
-
-                    BaryonUtils<FIMPL>::BaryonGamma3pt(propQL2, propQ1_spec, propQ3_spec, *propQR[epsilon[ie][1]],
-                                                         2, ie+1, GJ, GLR.first.second, GLR.second.second, c);
-                }
-            }
-            if (wick_groups[2]) {
-                if (wick_contractions[2][ie]) {
-                    auto propQ1_spec = propQL1_slice[ie][par().tf];
-                    auto propQ2_spec = propQL2_slice[ie][par().tf];
-
-                    BaryonUtils<FIMPL>::BaryonGamma3pt(propQL3, propQ1_spec, propQ2_spec, *propQR[epsilon[ie][2]],
-                                                         3, ie+1, GJ, GLR.first.second, GLR.second.second, c);
-                }
-            }
-        }
-        
-        auto &ph = envGet(LatticeComplex, momphName_);
-        
-        if (mom_[0] != 0 || mom_[1] != 0 || mom_[2] != 0) {
-            LOG(Message) << "Adding momentum phase " << mom_ << std::endl;
-
-            Complex           i(0.0,1.0);
-
-            envGetTmp(LatticeComplex, coor);
-            ph = Zero();
-            for(unsigned int mu = 0; mu < 3; mu++)
+            for (int ie=0; ie<6; ie++) 
             {
-                LatticeCoordinate(coor, mu);
-                ph = ph + (mom_[mu]/env().getDim(mu))*coor;
+                if (wick_groups[0]) 
+                {
+                    if (wick_contractions[0][ie]) 
+                    {
+                        auto propQ2_spec = propQL2_slice[ie][par().tf];
+                        auto propQ3_spec = propQL3_slice[ie][par().tf];
+
+                        BaryonUtils<FIMPL>::BaryonGamma3pt(propQL1, propQ2_spec, propQ3_spec, *propQR[epsilon[ie][0]],
+                                                         1, ie+1, GJ, GLR.first.second, GLR.second.second, c);
+                    }
+                }
+                if (wick_groups[1]) 
+                {
+                    if (wick_contractions[1][ie]) 
+                    {
+                        auto propQ1_spec = propQL1_slice[ie][par().tf];
+                        auto propQ3_spec = propQL3_slice[ie][par().tf];
+
+                        BaryonUtils<FIMPL>::BaryonGamma3pt(propQL2, propQ1_spec, propQ3_spec, *propQR[epsilon[ie][1]],
+                                                         2, ie+1, GJ, GLR.first.second, GLR.second.second, c);
+                    }
+                }
+                if (wick_groups[2]) 
+                {
+                    if (wick_contractions[2][ie]) 
+                    {
+                        auto propQ1_spec = propQL1_slice[ie][par().tf];
+                        auto propQ2_spec = propQL2_slice[ie][par().tf];
+
+                        BaryonUtils<FIMPL>::BaryonGamma3pt(propQL3, propQ1_spec, propQ2_spec, *propQR[epsilon[ie][2]],
+                                                         3, ie+1, GJ, GLR.first.second, GLR.second.second, c);
+                    }
+                }
             }
-            ph = exp((Real)(2*M_PI)*i*ph);
-            c = ph*c;
-        }
+        
+            auto &ph = envGet(LatticeComplex, momphName_);
+        
+            if (mom_[0] != 0 || mom_[1] != 0 || mom_[2] != 0) 
+            {
+                LOG(Message) << "Adding momentum phase " << mom_ << std::endl;
+
+                Complex           i(0.0,1.0);
+
+                envGetTmp(LatticeComplex, coor);
+                ph = Zero();
+                for(unsigned int mu = 0; mu < 3; mu++)
+                {
+                    LatticeCoordinate(coor, mu);
+                    ph = ph + (mom_[mu]/env().getDim(mu))*coor;
+                }
+                ph = exp((Real)(2*M_PI)*i*ph);
+                c = ph*c;
+            }
 
 
-        sliceSum(c,buf,Tp);
-        r.corr.clear();
-        for (unsigned int t = 0; t < buf.size(); ++t) {
-            buf[t]() = GAR * buf[t]() * GAL;
-            r.corr.push_back( buf[t] );
+            sliceSum(c,buf,Tp);
+            r.corr.clear();
+            for (unsigned int t = 0; t < buf.size(); ++t) 
+            {
+                buf[t]() = GAR * buf[t]() * GAL;
+                r.corr.push_back( buf[t] );
+            }
+            result.push_back(r);
         }
-        result.push_back(r);
-    }}
+    }
 
     saveResult(par().output, "baryongamma3pt", result);
 }
