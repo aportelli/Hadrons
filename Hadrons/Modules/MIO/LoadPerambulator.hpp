@@ -34,6 +34,7 @@
 #define Hadrons_MIO_LoadPerambulator_hpp_
 
 #include <Hadrons/Modules/MDistil/Distil.hpp>
+#include <Hadrons/DilutedNoise.hpp>
 
 BEGIN_HADRONS_NAMESPACE
 BEGIN_MODULE_NAMESPACE(MIO)
@@ -47,7 +48,9 @@ class LoadPerambulatorPar: Serializable
 public:
     GRID_SERIALIZABLE_CLASS_MEMBERS(LoadPerambulatorPar,
                                         std::string, PerambFileName,
-                                        std::string, DistilParams);
+                                        std::string, distilNoise,
+					int, nVec,
+					int, inversions);
 };
 
 template <typename FImpl>
@@ -80,7 +83,7 @@ TLoadPerambulator<FImpl>::TLoadPerambulator(const std::string name) : Module<Loa
 template <typename FImpl>
 std::vector<std::string> TLoadPerambulator<FImpl>::getInput(void)
 {
-    return {par().DistilParams};
+    return {par().distilNoise};
 }
 
 template <typename FImpl>
@@ -93,11 +96,18 @@ std::vector<std::string> TLoadPerambulator<FImpl>::getOutput(void)
 template <typename FImpl>
 void TLoadPerambulator<FImpl>::setup(void)
 {
-    const MDistil::DistilParameters &dp{envGet(MDistil::DistilParameters,  par().DistilParams)};
+    auto &dilNoise = envGet(DistillationNoise<FImpl>, par().distilNoise);
+    int nNoise = dilNoise.size();	
+    int LI = dilNoise.dilutionSize(DistillationNoise<FImpl>::Index::l);	
+    int SI = dilNoise.dilutionSize(DistillationNoise<FImpl>::Index::s);	
+    int TI = dilNoise.dilutionSize(DistillationNoise<FImpl>::Index::t);	
+    const int  Nt{env().getDim(Tdir)};
+  
+   /* const MDistil::DistilParameters &dp{envGet(MDistil::DistilParameters,  par().DistilParams)};
     const int Nt{env().getDim(Tdir)}; 
     const bool full_tdil{ dp.TI == Nt };
-    const int Nt_inv{ full_tdil ? 1 : dp.TI };
-    envCreate(MDistil::PerambTensor, getName(), 1, Nt,dp.nvec,dp.LI,dp.nnoise,Nt_inv,dp.SI);
+    const int Nt_inv{ full_tdil ? 1 : dp.TI };*/
+    envCreate(MDistil::PerambTensor, getName(), 1, Nt,par().nVec,LI,nNoise,par().inversions,SI);
 }
 
 // execution ///////////////////////////////////////////////////////////////////
