@@ -43,6 +43,7 @@ BEGIN_HADRONS_NAMESPACE
  ******************************************************************************/
 BEGIN_MODULE_NAMESPACE(MContraction)
 
+#if (!defined(GRID_HIP))
 typedef std::pair<Gamma::Algebra, Gamma::Algebra> GammaAB;
 typedef std::pair<GammaAB, GammaAB> GammaABPair;
 
