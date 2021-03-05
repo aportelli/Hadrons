@@ -497,6 +497,7 @@ void TBaryon<FImpl>::execute(void)
         saveResult(par().output + "_Matrix", "baryonMat", resultMat);
 
 }
+#endif
 
 END_MODULE_NAMESPACE
 
