@@ -49,7 +49,6 @@ public:
     GRID_SERIALIZABLE_CLASS_MEMBERS(LoadPerambulatorPar,
                                         std::string, PerambFileName,
                                         std::string, distilNoise,
-					int, nVec,
 					int, inversions);
 };
 
@@ -98,16 +97,12 @@ void TLoadPerambulator<FImpl>::setup(void)
 {
     auto &dilNoise = envGet(DistillationNoise<FImpl>, par().distilNoise);
     int nNoise = dilNoise.size();	
+    int nVec = dilNoise.getNl();	
     int LI = dilNoise.dilutionSize(DistillationNoise<FImpl>::Index::l);	
     int SI = dilNoise.dilutionSize(DistillationNoise<FImpl>::Index::s);	
-    int TI = dilNoise.dilutionSize(DistillationNoise<FImpl>::Index::t);	
     const int  Nt{env().getDim(Tdir)};
   
-   /* const MDistil::DistilParameters &dp{envGet(MDistil::DistilParameters,  par().DistilParams)};
-    const int Nt{env().getDim(Tdir)}; 
-    const bool full_tdil{ dp.TI == Nt };
-    const int Nt_inv{ full_tdil ? 1 : dp.TI };*/
-    envCreate(MDistil::PerambTensor, getName(), 1, Nt,par().nVec,LI,nNoise,par().inversions,SI);
+    envCreate(MDistil::PerambTensor, getName(), 1, Nt, nVec, LI, nNoise, par().inversions, SI);
 }
 
 // execution ///////////////////////////////////////////////////////////////////
