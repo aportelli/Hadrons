@@ -45,23 +45,15 @@ BEGIN_MODULE_NAMESPACE(MDistil)
  
  Laplacian eigenvectors - parameters
 
- Computes the eigenvectors of the 3D-Laplacian, built from stout-smeared 
- gauge links with the specified number of steps and smearing parameter rho. 
- The smearing is only applied to the spatial components of the gauge field,
+ Computes the eigenvectors of the 3D-Laplacian. The gauge field provided to 
+ this module should be built from stout-smeared gauge links, where the smearing
+ is only applied to the spatial components of the gauge field,
  i.e. rho_{4i} = rho_{i4} = rho_{44} = 0. 
 
  Chebyshev-preconditioning is needed for convergence of the nvec lowest 
  eigenvectors.
  
  ******************************************************************************/
-
-struct StoutParameters: Serializable {
-    GRID_SERIALIZABLE_CLASS_MEMBERS(StoutParameters,
-                                    int, steps,
-                                    double, rho)
-    StoutParameters() = default;
-    template <class ReaderClass> StoutParameters(Reader<ReaderClass>& Reader){read(Reader,"StoutSmearing",*this);}
-};
 
 struct ChebyshevParameters: Serializable {
     GRID_SERIALIZABLE_CLASS_MEMBERS(ChebyshevParameters,
@@ -89,7 +81,6 @@ struct LanczosParameters: Serializable {
 struct LapEvecPar: Serializable {
     GRID_SERIALIZABLE_CLASS_MEMBERS(LapEvecPar
                                     ,std::string,         gauge
-                                    ,StoutParameters,     Stout
                                     ,ChebyshevParameters, Cheby
                                     ,LanczosParameters,   Lanczos
                                     ,std::string,         FileName)
@@ -152,7 +143,6 @@ void TLapEvec<GImpl>::setup(void)
     MakeLowerDimGrid(gridLD,gridHD);
     const int Ntlocal{gridHD->LocalDimensions()[Tdir]};
     // Temporaries
-    envTmpLat(GaugeField, "Umu_stout");
     envTmpLat(GaugeField, "Umu_smear");
     envTmp(LatticeGaugeField, "UmuNoTime", 1, gridLD.get());
     envTmp(LatticeColourVector,     "src", 1, gridLD.get());
@@ -242,21 +232,9 @@ void TLapEvec<GImpl>::execute(void)
     const int PreviousIRLLogState{GridLogIRL.isActive()};
     GridLogIRL.Active( LPar.IRLLog == 0 ? 0 : 1 );
     
-    // Stout smearing
+    // Stout smeared gauge field
     envGetTmp(GaugeField, Umu_smear);
-    Umu_smear = envGet(GaugeField, par().gauge); // The smeared field starts off as the Gauge field
-    LOG(Message) << "Initial plaquette: " << WilsonLoops<PeriodicGimplR>::avgPlaquette(Umu_smear) << std::endl;
-    const StoutParameters &Stout{par().Stout};
-    if( Stout.steps )
-    {
-        envGetTmp(GaugeField, Umu_stout);
-        Smear_Stout<PeriodicGimplR> LS(Stout.rho, Tdir); // spatial smearing only
-        for (int i = 0; i < Stout.steps; i++) {
-            LS.smear(Umu_stout, Umu_smear);
-            Umu_smear = Umu_stout;
-        }
-        LOG(Message) << "Smeared plaquette: " << WilsonLoops<PeriodicGimplR>::avgPlaquette(Umu_smear) << std::endl;
-    }
+    Umu_smear = envGet(GaugeField, par().gauge); 
     
     ////////////////////////////////////////////////////////////////////////
     // Invert nabla operator separately on each time-slice

@@ -34,6 +34,7 @@
 #define Hadrons_MIO_LoadPerambulator_hpp_
 
 #include <Hadrons/Modules/MDistil/Distil.hpp>
+#include <Hadrons/DilutedNoise.hpp>
 
 BEGIN_HADRONS_NAMESPACE
 BEGIN_MODULE_NAMESPACE(MIO)
@@ -47,7 +48,8 @@ class LoadPerambulatorPar: Serializable
 public:
     GRID_SERIALIZABLE_CLASS_MEMBERS(LoadPerambulatorPar,
                                         std::string, PerambFileName,
-                                        std::string, DistilParams);
+                                        std::string, distilNoise,
+					int, inversions);
 };
 
 template <typename FImpl>
@@ -80,7 +82,7 @@ TLoadPerambulator<FImpl>::TLoadPerambulator(const std::string name) : Module<Loa
 template <typename FImpl>
 std::vector<std::string> TLoadPerambulator<FImpl>::getInput(void)
 {
-    return {par().DistilParams};
+    return {par().distilNoise};
 }
 
 template <typename FImpl>
@@ -93,11 +95,14 @@ std::vector<std::string> TLoadPerambulator<FImpl>::getOutput(void)
 template <typename FImpl>
 void TLoadPerambulator<FImpl>::setup(void)
 {
-    const MDistil::DistilParameters &dp{envGet(MDistil::DistilParameters,  par().DistilParams)};
-    const int Nt{env().getDim(Tdir)}; 
-    const bool full_tdil{ dp.TI == Nt };
-    const int Nt_inv{ dp.inversions };
-    envCreate(MDistil::PerambTensor, getName(), 1, Nt,dp.nvec,dp.LI,dp.nnoise,Nt_inv,dp.SI);
+    auto &dilNoise = envGet(DistillationNoise<FImpl>, par().distilNoise);
+    int nNoise = dilNoise.size();	
+    int nVec = dilNoise.getNl();	
+    int LI = dilNoise.dilutionSize(DistillationNoise<FImpl>::Index::l);	
+    int SI = dilNoise.dilutionSize(DistillationNoise<FImpl>::Index::s);	
+    const int  Nt{env().getDim(Tdir)};
+  
+    envCreate(MDistil::PerambTensor, getName(), 1, Nt, nVec, LI, nNoise, par().inversions, SI);
 }
 
 // execution ///////////////////////////////////////////////////////////////////
