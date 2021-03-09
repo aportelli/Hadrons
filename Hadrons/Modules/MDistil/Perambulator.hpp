@@ -303,7 +303,7 @@ void TPerambulator<FImpl>::execute(void)
 			    for (int ivec = 0; ivec < par().nVec; ivec++)
                             {
                                 ExtractSliceLocal(evec3d,epack.evec[ivec],0,t-Ntfirst,Tdir);
-                                pokeSpin(perambulator.tensor(t, ivec, dk, inoise,dt,ds),static_cast<Complex>(innerProduct(evec3d, cv3dtmp)),is);
+                                pokeSpin(perambulator.tensor(t, ivec, dk, inoise,idt,ds),static_cast<Complex>(innerProduct(evec3d, cv3dtmp)),is);
                             }
                         }
                     }
