@@ -101,7 +101,6 @@ std::vector<std::string> TPerambulator<FImpl>::getInput(void)
     pMode perambMode{par().perambMode};
     if(perambMode == pMode::inputSolve)
     {
-        LOG(Message) << "unsmeared solves are an input" << std::endl;
         out.push_back(par().unsmearedSolve);
     }
     return out;
@@ -218,6 +217,7 @@ void TPerambulator<FImpl>::execute(void)
     std::vector<FermionField> solveIn;
     if(perambMode == pMode::inputSolve)
     {
+        LOG(Message) << "unsmeared solves are an input" << std::endl;
         solveIn         = envGet(std::vector<FermionField>, par().unsmearedSolve);
     }
     
