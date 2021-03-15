@@ -92,11 +92,11 @@ struct LapEvecPar: Serializable {
  
  ******************************************************************************/
 
-template <typename GImpl>
+template <typename FImpl>
 class TLapEvec: public Module<LapEvecPar>
 {
 public:
-    GAUGE_TYPE_ALIASES(GImpl,);
+    FERM_TYPE_ALIASES(FImpl,);
     // constructor
     TLapEvec(const std::string name);
     // destructor
@@ -112,32 +112,32 @@ protected:
     std::unique_ptr<GridCartesian> gridLD; // Owned by me, so I must delete it
 };
 
-MODULE_REGISTER_TMP(LapEvec, TLapEvec<GIMPL>, MDistil);
+MODULE_REGISTER_TMP(LapEvec, TLapEvec<FIMPL>, MDistil);
 
 /******************************************************************************
  TLapEvec implementation
  ******************************************************************************/
 
 // constructor /////////////////////////////////////////////////////////////////
-template <typename GImpl>
-TLapEvec<GImpl>::TLapEvec(const std::string name) : Module<LapEvecPar>(name) {}
+template <typename FImpl>
+TLapEvec<FImpl>::TLapEvec(const std::string name) : Module<LapEvecPar>(name) {}
 
 // dependencies/products ///////////////////////////////////////////////////////
-template <typename GImpl>
-std::vector<std::string> TLapEvec<GImpl>::getInput(void)
+template <typename FImpl>
+std::vector<std::string> TLapEvec<FImpl>::getInput(void)
 {
     return std::vector<std::string>{par().gauge};
 }
 
-template <typename GImpl>
-std::vector<std::string> TLapEvec<GImpl>::getOutput(void)
+template <typename FImpl>
+std::vector<std::string> TLapEvec<FImpl>::getOutput(void)
 {
     return {getName()}; // This is the higher dimensional eigenpack
 }
 
 // setup ///////////////////////////////////////////////////////////////////////
-template <typename GImpl>
-void TLapEvec<GImpl>::setup(void)
+template <typename FImpl>
+void TLapEvec<FImpl>::setup(void)
 {
     GridCartesian * gridHD = env().getGrid();
     MakeLowerDimGrid(gridLD,gridHD);
@@ -145,7 +145,7 @@ void TLapEvec<GImpl>::setup(void)
     // Temporaries
     envTmpLat(GaugeField, "Umu_smear");
     envTmp(LatticeGaugeField, "UmuNoTime", 1, gridLD.get());
-    envTmp(LatticeColourVector,     "src", 1, gridLD.get());
+    envTmp(ColourVectorField,     "src", 1, gridLD.get());
     envTmp(std::vector<LapEvecs>,  "eig", 1, Ntlocal);
     // Output objects
     envCreate(LapEvecs, getName(), 1, par().Lanczos.Nvec, gridHD);
@@ -221,8 +221,8 @@ public:
  ******************************************************************************/
 
 // execution ///////////////////////////////////////////////////////////////////
-template <typename GImpl>
-void TLapEvec<GImpl>::execute(void)
+template <typename FImpl>
+void TLapEvec<FImpl>::execute(void)
 {
     const ChebyshevParameters &ChebPar{par().Cheby};
     const LanczosParameters   &LPar{par().Lanczos};
@@ -243,7 +243,7 @@ void TLapEvec<GImpl>::execute(void)
     auto & eig4d = envGet(LapEvecs, getName() );
     envGetTmp(std::vector<LapEvecs>, eig);   // Eigenpack for each timeslice
     envGetTmp(LatticeGaugeField, UmuNoTime); // Gauge field without time dimension
-    envGetTmp(LatticeColourVector, src);
+    envGetTmp(ColourVectorField, src);
     GridCartesian * gridHD = env().getGrid();
     const int Ntlocal{gridHD->LocalDimensions()[Tdir]};
     const int Ntfirst{gridHD->LocalStarts()[Tdir]};
@@ -262,10 +262,10 @@ void TLapEvec<GImpl>::execute(void)
         
         // Construct smearing operator
         ExtractSliceLocal(UmuNoTime,Umu_smear,0,t,Tdir); // switch to 3d/4d objects
-        Laplacian3D<LatticeColourVector> Nabla(UmuNoTime);
+        Laplacian3D<ColourVectorField> Nabla(UmuNoTime);
         LOG(Message) << "Chebyshev preconditioning to order " << ChebPar.PolyOrder
                      << " with parameters (alpha,beta) = (" << ChebPar.alpha << "," << ChebPar.beta << ")" << std::endl;
-        Chebyshev<LatticeColourVector> Cheb(ChebPar.alpha,ChebPar.beta,ChebPar.PolyOrder);
+        Chebyshev<ColourVectorField> Cheb(ChebPar.alpha,ChebPar.beta,ChebPar.PolyOrder);
         
         // Construct source vector according to Test_dwf_compressed_lanczos.cc
         src = 11.0; // NB: This is a dummy parameter and just needs to be non-zero
@@ -273,8 +273,8 @@ void TLapEvec<GImpl>::execute(void)
         nn = Grid::sqrt(nn);
         src = src * (1.0/nn);
         
-        Laplacian3DHerm<LatticeColourVector> NablaCheby(Cheb,Nabla);
-        ImplicitlyRestartedLanczos<LatticeColourVector>
+        Laplacian3DHerm<ColourVectorField> NablaCheby(Cheb,Nabla);
+        ImplicitlyRestartedLanczos<ColourVectorField>
         IRL(NablaCheby,Nabla,LPar.Nvec,LPar.Nk,LPar.Nk+LPar.Np,LPar.resid,LPar.MaxIt);
         int Nconv = 0;
         IRL.calc(eig[t].eval,eig[t].evec,src,Nconv);

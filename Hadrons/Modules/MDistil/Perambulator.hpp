@@ -67,6 +67,12 @@ class TPerambulator: public Module<PerambulatorPar>
 public:
     FERM_TYPE_ALIASES(FImpl,);
     SOLVER_TYPE_ALIASES(FImpl,);
+    class Result: Serializable
+    {
+    public:
+        GRID_SERIALIZABLE_CLASS_MEMBERS(Result,
+                                        std::vector<FermionField>, uSolve);
+    };
     // constructor
     TPerambulator(const std::string name);
     // destructor
@@ -101,7 +107,6 @@ std::vector<std::string> TPerambulator<FImpl>::getInput(void)
     pMode perambMode{par().perambMode};
     if(perambMode == pMode::inputSolve)
     {
-        LOG(Message) << "unsmeared solves are an input" << std::endl;
         out.push_back(par().unsmearedSolve);
     }
     return out;
@@ -147,13 +152,19 @@ void TPerambulator<FImpl>::setup(void)
 	std::regex rex("[0-9 ]+");
 	std::smatch sm;
 	std::regex_match(sourceT, sm, rex);
-	assert(sm[0].matched && "sourceTimes must be list of non-negative integers");
+	if (!sm[0].matched)
+	{
+	    HADRONS_ERROR(Range, "sourceTimes must be list of non-negative integers");
+	}
 	std::istringstream is(sourceT);
 	std::vector<int> iT ( ( std::istream_iterator<int>( is )  ), (std::istream_iterator<int>() ) );
 	inversions = iT.size();
         for (int ii = 0; ii < inversions; ii++)
 	{
-	    assert(iT[ii] < TI && "elements of sourceTimes must lie between 0 and TI");
+	    if (iT[ii] >= TI)
+	    {
+		HADRONS_ERROR(Range, "elements of sourceTimes must lie between 0 and TI");
+	    }
 	}
     }
 	    
@@ -218,6 +229,7 @@ void TPerambulator<FImpl>::execute(void)
     std::vector<FermionField> solveIn;
     if(perambMode == pMode::inputSolve)
     {
+        LOG(Message) << "unsmeared solves are an input" << std::endl;
         solveIn         = envGet(std::vector<FermionField>, par().unsmearedSolve);
     }
     
@@ -267,7 +279,7 @@ void TPerambulator<FImpl>::execute(void)
                 for (int ds = 0; ds < SI; ds++)
                 {
 		    int d = ds + SI * dk + SI * LI * dt;
-		    int dIndex = ds + SI * dk + SI * LI * idt;
+		    // Slightly awkward to change the order of indices here, but if dk is the fastest moving index then this works also for reduced nvec in perambMode::inputSolve
 		    int dIndexSolve = ds + SI * idt + SI * inversions * dk;
 	            std::array<unsigned int, 3> index = dilNoise.dilutionCoordinates(d);
                     LOG(Message) <<  "index (d_t,d_k,d_alpha) : (" << index[0] << ","<< index[1] << "," << index[2] << ")" << std::endl;
@@ -318,7 +330,9 @@ void TPerambulator<FImpl>::execute(void)
         LOG(Debug) <<  "Sharing perambulator data with other nodes" << std::endl;
         const int MySlice {grid4d->_processor_coor[Tdir]};
         const int TensorSize {static_cast<int>(perambulator.tensor.size() * PerambTensor::Traits::count)};
-        assert (TensorSize == perambulator.tensor.size() * PerambTensor::Traits::count && "peramb size overflow");
+        if (TensorSize != perambulator.tensor.size() * PerambTensor::Traits::count){
+	    HADRONS_ERROR(Range, "peramb size overflow");
+	}
         const int SliceCount {TensorSize/NumSlices};
         using InnerScalar = typename PerambTensor::Traits::scalar_type;
         InnerScalar * const PerambData {EigenIO::getFirstScalar( perambulator.tensor )};
@@ -344,6 +358,15 @@ void TPerambulator<FImpl>::execute(void)
         sPerambName.append(".");
         sPerambName.append(std::to_string(vm().getTrajectory()));
         perambulator.write(sPerambName.c_str());
+    }
+
+    // Also save the unsmeared sink if specified
+    if(perambMode == pMode::outputSolve && !par().unsmearedSolveFileName.empty() && grid4d->IsBoss())
+    {
+	Result result;
+        auto &solveOut = envGet(std::vector<FermionField>, objName);
+	result.uSolve = solveOut;
+        saveResult(par().unsmearedSolveFileName, "unsmearedSolve", result);
     }
 }
 
