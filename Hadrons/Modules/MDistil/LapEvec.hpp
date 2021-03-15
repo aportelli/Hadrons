@@ -108,8 +108,8 @@ public:
     virtual void setup(void);
     // execution
     virtual void execute(void);
-protected:
-    std::unique_ptr<GridCartesian> gridLD; // Owned by me, so I must delete it
+//protected:
+  //  std::unique_ptr<GridCartesian> gridLD; // Owned by me, so I must delete it
 };
 
 MODULE_REGISTER_TMP(LapEvec, TLapEvec<FIMPL>, MDistil);
@@ -139,13 +139,13 @@ std::vector<std::string> TLapEvec<FImpl>::getOutput(void)
 template <typename FImpl>
 void TLapEvec<FImpl>::setup(void)
 {
-    GridCartesian * gridHD = env().getGrid();
-    MakeLowerDimGrid(gridLD,gridHD);
+    GridCartesian * gridHD = envGetGrid(FermionField);
+    GridCartesian * gridLD = envGetSliceGrid(FermionField,gridHD->Nd() -1);
     const int Ntlocal{gridHD->LocalDimensions()[Tdir]};
     // Temporaries
     envTmpLat(GaugeField, "Umu_smear");
-    envTmp(LatticeGaugeField, "UmuNoTime", 1, gridLD.get());
-    envTmp(ColourVectorField,     "src", 1, gridLD.get());
+    envTmp(LatticeGaugeField, "UmuNoTime", 1, gridLD);
+    envTmp(ColourVectorField,  "src",1,gridLD);
     envTmp(std::vector<LapEvecs>,  "eig", 1, Ntlocal);
     // Output objects
     envCreate(LapEvecs, getName(), 1, par().Lanczos.Nvec, gridHD);
@@ -242,23 +242,29 @@ void TLapEvec<FImpl>::execute(void)
     
     auto & eig4d = envGet(LapEvecs, getName() );
     envGetTmp(std::vector<LapEvecs>, eig);   // Eigenpack for each timeslice
-    envGetTmp(LatticeGaugeField, UmuNoTime); // Gauge field without time dimension
+    //envGetTmp(LatticeGaugeField, UmuNoTime); // Gauge field without time dimension
+    envGetTmp(GaugeField, UmuNoTime); // Gauge field without time dimension
     envGetTmp(ColourVectorField, src);
-    GridCartesian * gridHD = env().getGrid();
+    GridCartesian * gridHD = envGetGrid(FermionField);
+    GridCartesian * gridLD = envGetSliceGrid(FermionField,gridHD->Nd() -1);
     const int Ntlocal{gridHD->LocalDimensions()[Tdir]};
     const int Ntfirst{gridHD->LocalStarts()[Tdir]};
     uint32_t ConvergenceErrors{0};
     const int NtFull{env().getDim(Tdir)};
     TimesliceEvals Evals{ NtFull, LPar.Nvec };
     for (int t = 0; t < NtFull; t++)
+    {
         for (int v = 0; v < LPar.Nvec; v++)
+	{
             Evals.tensor( t, v ) = 0;
+	}
+    }
     for (int t = 0; t < Ntlocal; t++ )
     {
         LOG(Message) << "------------------------------------------------------------" << std::endl;
         LOG(Message) << " Compute eigenpack, local timeslice = " << t << " / " << Ntlocal << std::endl;
         LOG(Message) << "------------------------------------------------------------" << std::endl;
-        eig[t].resize(LPar.Nk+LPar.Np,gridLD.get());
+        eig[t].resize(LPar.Nk+LPar.Np,gridLD);
         
         // Construct smearing operator
         ExtractSliceLocal(UmuNoTime,Umu_smear,0,t,Tdir); // switch to 3d/4d objects
@@ -285,15 +291,22 @@ void TLapEvec<FImpl>::execute(void)
             LOG(Error) << "MDistil::LapEvec : Not enough eigenvectors converged. If this occurs in practice, we should modify the eigensolver to iterate once more to ensure the second convergence test does not take us below the requested number of eigenvectors" << std::endl;
         }
         if( Nconv != LPar.Nvec )
-            eig[t].resize(LPar.Nvec, gridLD.get());
-        RotateEigen( eig[t].evec ); // Rotate the eigenvectors into our phase convention
+	{
+            eig[t].resize(LPar.Nvec, gridLD);
+	}
+	RotateEigen( eig[t].evec ); // Rotate the eigenvectors into our phase convention
         
-        for (int i=0;i<LPar.Nvec;i++){
+        for (int i=0;i<LPar.Nvec;i++)
+	{
             InsertSliceLocal(eig[t].evec[i],eig4d.evec[i],0,t,Tdir);
             if(t==0 && Ntfirst==0)
+	    {
                 eig4d.eval[i] = eig[t].eval[i]; // TODO: Discuss: is this needed? Is there a better way?
+	    }
             if(gridLD->IsBoss()) // Only do this on one node per timeslice, so a global sum will work
+	    {
                 Evals.tensor(t + Ntfirst,i) = eig[t].eval[i];
+	    }
         }
     }
     GridLogIRL.Active( PreviousIRLLogState );
