@@ -108,8 +108,6 @@ public:
     virtual void setup(void);
     // execution
     virtual void execute(void);
-//protected:
-  //  std::unique_ptr<GridCartesian> gridLD; // Owned by me, so I must delete it
 };
 
 MODULE_REGISTER_TMP(LapEvec, TLapEvec<FIMPL>, MDistil);

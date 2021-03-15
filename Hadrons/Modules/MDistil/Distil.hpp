@@ -67,22 +67,6 @@ BEGIN_MODULE_NAMESPACE(MDistil)
 
 GRID_SERIALIZABLE_ENUM(pMode, undef, perambOnly, 0, inputSolve, 1, outputSolve, 2);
 
-/******************************************************************************
- Make a lower dimensional grid in preparation for local slice operations
- ******************************************************************************/
-
-inline void MakeLowerDimGrid( std::unique_ptr<GridCartesian> &up, GridCartesian * gridHD )
-{
-    int nd{static_cast<int>(gridHD->_ndimension)};
-    Coordinate latt_size   = gridHD->_gdimensions;
-    latt_size[nd-1] = 1;
-    Coordinate simd_layout = GridDefaultSimd(nd-1, vComplex::Nsimd());
-    simd_layout.push_back( 1 );
-    Coordinate mpi_layout  = gridHD->_processors;
-    mpi_layout[nd-1] = 1;
-    up.reset( new GridCartesian(latt_size,simd_layout,mpi_layout,*gridHD) );
-}
-
 /*************************************************************************************
  Rotate eigenvectors into our phase convention
  First component of first eigenvector is real and positive

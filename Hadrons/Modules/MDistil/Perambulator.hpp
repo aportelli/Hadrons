@@ -85,7 +85,6 @@ public:
     // execution
     virtual void execute(void);
 protected:
-    std::unique_ptr<GridCartesian> grid3d; // Owned by me, so I must delete it
     unsigned int Ls_;
 };
 
@@ -133,7 +132,8 @@ std::vector<std::string> TPerambulator<FImpl>::getOutput(void)
 template <typename FImpl>
 void TPerambulator<FImpl>::setup(void)
 {
-    MakeLowerDimGrid(grid3d, env().getGrid());
+    GridCartesian * grid4d = envGetGrid(FermionField);
+    GridCartesian * grid3d = envGetSliceGrid(FermionField,grid4d->Nd() -1);
     const int  Nt{env().getDim(Tdir)};
     auto &dilNoise = envGet(DistillationNoise<FImpl>, par().distilNoise);
     int nNoise = dilNoise.size();	
@@ -181,10 +181,10 @@ void TPerambulator<FImpl>::setup(void)
     
     envTmpLat(FermionField,      "dist_source");
     envTmpLat(FermionField,      "fermion4dtmp");
-    envTmp(FermionField,         "fermion3dtmp", 1, grid3d.get());
+    envTmp(FermionField,         "fermion3dtmp", 1, grid3d);
     envTmpLat(ColourVectorField, "cv4dtmp");
-    envTmp(ColourVectorField,    "cv3dtmp", 1, grid3d.get());
-    envTmp(ColourVectorField,    "evec3d",  1, grid3d.get());
+    envTmp(ColourVectorField,    "cv3dtmp", 1, grid3d);
+    envTmp(ColourVectorField,    "evec3d",  1, grid3d);
     
     Ls_ = env().getObjectLs(par().solver);
     envTmpLat(FermionField, "v5dtmp", Ls_);
@@ -217,7 +217,8 @@ void TPerambulator<FImpl>::execute(void)
     envGetTmp(ColourVectorField, cv4dtmp);
     envGetTmp(ColourVectorField, cv3dtmp);
     envGetTmp(ColourVectorField, evec3d);
-    GridCartesian * const grid4d{ env().getGrid() }; // Owned by environment (so I won't delete it)
+    GridCartesian * grid4d = envGetGrid(FermionField);
+    GridCartesian * grid3d = envGetSliceGrid(FermionField,grid4d->Nd() -1);
     const int Ntlocal{grid4d->LocalDimensions()[3]};
     const int Ntfirst{grid4d->LocalStarts()[3]};
 
