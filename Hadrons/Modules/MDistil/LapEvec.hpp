@@ -156,7 +156,8 @@ class Laplacian3D : public LinearOperatorBase<Field>, public LinearFunction<Fiel
     typedef typename GaugeField::vector_type vCoeff_t;
 public:
     int          nd; // number of spatial dimensions
-    std::vector<Lattice<iColourMatrix<vCoeff_t> > > U;
+    //std::vector<Lattice<iColourMatrix<vCoeff_t> > > U;
+    std::vector< LapEvec::ColourMatrixField > U;
     // Construct this operator given a gauge field and the number of dimensions it should act on
     Laplacian3D( GaugeField& gf, int dimSpatial = Tdir ) : nd{dimSpatial}
     {
