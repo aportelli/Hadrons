@@ -4,15 +4,8 @@
  * Copyright (C) 2015 - 2020
  *
  * Author: Antonin Portelli <antonin.portelli@me.com>
- * Author: Author Name <43034299+mmphys@users.noreply.github.com>
- * Author: Felix Erben <dc-erbe1@tesseract-login1.ib0.sgi.cluster.dirac.ed.ac.uk>
  * Author: Felix Erben <felix.erben@ed.ac.uk>
- * Author: Michael Marshall <43034299+mmphys@users.noreply.github.com>
  * Author: Michael Marshall <michael.marshall@ed.ac.uk>
- * Author: ferben <ferben@c180030.wlan.net.ed.ac.uk>
- * Author: ferben <ferben@c183011.wlan.net.ed.ac.uk>
- * Author: ferben <ferben@debian.felix.com>
- * Author: ferben <ferben@localhost.localdomain>
  *
  * Hadrons is free software: you can redistribute it and/or modify
  * it under the terms of the GNU General Public License as published by
@@ -157,7 +150,8 @@ void TLapEvec<FImpl>::setup(void)
  
  *************************************************************************************/
 
-template<typename Field, typename GaugeField=LatticeGaugeField>
+//template<typename FImpl>
+template<typename Field, typename GaugeField>
 class Laplacian3D : public LinearOperatorBase<Field>, public LinearFunction<Field> {
     typedef typename GaugeField::vector_type vCoeff_t;
 public:
@@ -183,7 +177,7 @@ public:
         conformable( in, out );
         out = ( ( Real ) ( 2 * nd ) ) * in;
         Field tmp_(in.Grid());
-        typedef typename GaugeField::vector_type vCoeff_t;
+        //typedef typename GaugeField::vector_type vCoeff_t;
         for (int mu = 0 ; mu < nd ; mu++)
         {
             out -= U[mu] * Cshift( in, mu, 1);
@@ -240,7 +234,6 @@ void TLapEvec<FImpl>::execute(void)
     
     auto & eig4d = envGet(LapEvecs, getName() );
     envGetTmp(std::vector<LapEvecs>, eig);   // Eigenpack for each timeslice
-    //envGetTmp(LatticeGaugeField, UmuNoTime); // Gauge field without time dimension
     envGetTmp(GaugeField, UmuNoTime); // Gauge field without time dimension
     envGetTmp(ColourVectorField, src);
     GridCartesian * gridHD = envGetGrid(FermionField);
@@ -266,7 +259,7 @@ void TLapEvec<FImpl>::execute(void)
         
         // Construct smearing operator
         ExtractSliceLocal(UmuNoTime,Umu_smear,0,t,Tdir); // switch to 3d/4d objects
-        Laplacian3D<ColourVectorField> Nabla(UmuNoTime);
+        Laplacian3D<ColourVectorField,GaugeField> Nabla(UmuNoTime);
         LOG(Message) << "Chebyshev preconditioning to order " << ChebPar.PolyOrder
                      << " with parameters (alpha,beta) = (" << ChebPar.alpha << "," << ChebPar.beta << ")" << std::endl;
         Chebyshev<ColourVectorField> Cheb(ChebPar.alpha,ChebPar.beta,ChebPar.PolyOrder);
