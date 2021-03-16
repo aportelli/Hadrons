@@ -221,8 +221,6 @@ void TPerambulator<FImpl>::execute(void)
     pMode perambMode{par().perambMode};
     LOG(Message)<< "Mode " << perambMode << std::endl;
 
-
-
     std::vector<FermionField> solveIn;
     if(perambMode == pMode::inputSolve)
     {
@@ -358,12 +356,21 @@ void TPerambulator<FImpl>::execute(void)
     }
 
     // Also save the unsmeared sink if specified
-    if(perambMode == pMode::outputSolve && !par().unsmearedSolveFileName.empty() && grid4d->IsBoss())
+    // Alternative: Make this an A2AVector and use A2AVectorIO::read
+    std::string sFileName(par().unsmearedSolveFileName);
+    if(perambMode == pMode::outputSolve && !sFileName.empty())
     {
-	Result result;
+        sFileName.append(1, '.');
+        const std::string sTrajNum{std::to_string(vm().getTrajectory())};
+        sFileName.append(sTrajNum);
         auto &solveOut = envGet(std::vector<FermionField>, objName);
-	result.uSolve = solveOut;
-        saveResult(par().unsmearedSolveFileName, "unsmearedSolve", result);
+	#ifdef HAVE_HDF5
+            using Default_Writer = Grid::Hdf5Writer;
+        #else
+            using Default_Writer = Grid::BinaryWriter;
+        #endif
+	Default_Writer w( sFileName );
+        write( w, "unsmearedSolve", solveOut );
     }
 }
 
