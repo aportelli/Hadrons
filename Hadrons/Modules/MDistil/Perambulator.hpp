@@ -133,18 +133,18 @@ void TPerambulator<FImpl>::setup(void)
     const int  Nt{env().getDim(Tdir)};
     auto &dilNoise = envGet(DistillationNoise<FImpl>, par().distilNoise);
     int nNoise = dilNoise.size();	
-    int LI = dilNoise.dilutionSize(DistillationNoise<FImpl>::Index::l);	
-    int SI = dilNoise.dilutionSize(DistillationNoise<FImpl>::Index::s);	
-    int TI = dilNoise.dilutionSize(DistillationNoise<FImpl>::Index::t);	
-    int inversions;
+    int nDL = dilNoise.dilutionSize(DistillationNoise<FImpl>::Index::l);	
+    int nDS = dilNoise.dilutionSize(DistillationNoise<FImpl>::Index::s);	
+    int nDT = dilNoise.dilutionSize(DistillationNoise<FImpl>::Index::t);	
+    int nSourceT;
     std::string sourceT = par().timeSources;
     if(par().timeSources.empty())
     {
-	inversions=TI;
+	nSourceT=nDT;
     }
     else
     {
-	// check whether input is legal, i.e. a number of integers between 0 and (TI-1)
+	// check whether input is legal, i.e. a number of integers between 0 and (nDT-1)
 	std::regex rex("[0-9 ]+");
 	std::smatch sm;
 	std::regex_match(sourceT, sm, rex);
@@ -154,24 +154,24 @@ void TPerambulator<FImpl>::setup(void)
 	}
 	std::istringstream is(sourceT);
 	std::vector<int> iT ( ( std::istream_iterator<int>( is )  ), (std::istream_iterator<int>() ) );
-	inversions = iT.size();
-        for (int ii = 0; ii < inversions; ii++)
+	nSourceT = iT.size();
+        for (int ii = 0; ii < nSourceT; ii++)
 	{
-	    if (iT[ii] >= TI)
+	    if (iT[ii] >= nDT)
 	    {
-		HADRONS_ERROR(Range, "elements of sourceTimes must lie between 0 and TI");
+		HADRONS_ERROR(Range, "elements of sourceTimes must lie between 0 and nDT");
 	    }
 	}
     }
 	    
     std::string objName{ getName() };
-    envCreate(PerambTensor, objName, 1, Nt, par().nVec, LI, nNoise, inversions, SI);
+    envCreate(PerambTensor, objName, 1, Nt, par().nVec, nDL, nNoise, nSourceT, nDS);
     pMode perambMode{par().perambMode};
     if(perambMode == pMode::outputSolve)
     {
         LOG(Message)<< "setting up output field for unsmeared solves" << std::endl;
         objName.append( "_unsmeared_solve" );
-        envCreate(std::vector<FermionField>, objName, 1, nNoise*LI*SI*inversions,
+        envCreate(std::vector<FermionField>, objName, 1, nNoise*nDL*nDS*nSourceT,
                   envGetGrid(FermionField));
     }
     
@@ -229,53 +229,53 @@ void TPerambulator<FImpl>::execute(void)
     }
     
     std::string sourceT = par().timeSources;
-    int TI = dilNoise.dilutionSize(DistillationNoise<FImpl>::Index::t);	
-    int inversions;
+    int nDT = dilNoise.dilutionSize(DistillationNoise<FImpl>::Index::t);	
+    int nSourceT;
     std::vector<int> invT;
     if(par().timeSources.empty())
     {
 	// create sourceTimes all time-dilution indices
-	inversions=TI;
-        for (int dt = 0; dt < TI; dt++)
+	nSourceT=nDT;
+        for (int dt = 0; dt < nDT; dt++)
 	{
 	    std::vector<unsigned int> sT = dilNoise.timeSlices(dt);
 	    perambulator.MetaData.sourceTimes.push_back(sT);
 	    invT.push_back(dt);
 	}
-        LOG(Message) << "Computing inversions on all " << TI << " time-dilution vectors" << std::endl;
+        LOG(Message) << "Computing inversions on all " << nDT << " time-dilution vectors" << std::endl;
     }
     else
     {
 	std::istringstream is(sourceT);
 	std::vector<int> iT ( ( std::istream_iterator<int>( is )  ), (std::istream_iterator<int>() ) );
-	inversions = iT.size();
+	nSourceT = iT.size();
 	// create sourceTimes from the chosen subset of time-dilution indices
-        for (int dt = 0; dt < inversions; dt++)
+        for (int dt = 0; dt < nSourceT; dt++)
 	{
 	    std::vector<unsigned int> sT = dilNoise.timeSlices(iT[dt]);
 	    perambulator.MetaData.sourceTimes.push_back(sT);
 	    invT.push_back(iT[dt]);
 	}
-        LOG(Message) << "Computing inversions on a subset of " << inversions << " time-dilution vectors" << std::endl;
+        LOG(Message) << "Computing inversions on a subset of " << nSourceT << " time-dilution vectors" << std::endl;
     }
     LOG(Message) << "Source times" << perambulator.MetaData.sourceTimes << std::endl;
 
     int nNoise = dilNoise.size();	
     for (int inoise = 0; inoise < nNoise; inoise++)
     {
-        int LI = dilNoise.dilutionSize(DistillationNoise<FImpl>::Index::l);	
-        int SI = dilNoise.dilutionSize(DistillationNoise<FImpl>::Index::s);	
-        int TI = dilNoise.dilutionSize(DistillationNoise<FImpl>::Index::t);	
-        for (int idt = 0; idt < inversions; idt++) 
+        int nDL = dilNoise.dilutionSize(DistillationNoise<FImpl>::Index::l);	
+        int nDS = dilNoise.dilutionSize(DistillationNoise<FImpl>::Index::s);	
+        int nDT = dilNoise.dilutionSize(DistillationNoise<FImpl>::Index::t);	
+        for (int idt = 0; idt < nSourceT; idt++) 
         {
             int dt=invT[idt]; 
-            for (int dk = 0; dk < LI; dk++)
+            for (int dk = 0; dk < nDL; dk++)
             {
-                for (int ds = 0; ds < SI; ds++)
+                for (int ds = 0; ds < nDS; ds++)
                 {
-		    int d = ds + SI * dk + SI * LI * dt;
+		    int d = ds + nDS * dk + nDS * nDL * dt;
 		    // Slightly awkward to change the order of indices here, but if dk is the fastest moving index then this works also for reduced nvec in perambMode::inputSolve
-		    int dIndexSolve = ds + SI * idt + SI * inversions * dk;
+		    int dIndexSolve = ds + nDS * idt + nDS * nSourceT * dk;
 	            std::array<unsigned int, 3> index = dilNoise.dilutionCoordinates(d);
                     LOG(Message) <<  "index (d_t,d_k,d_alpha) : (" << index[0] << ","<< index[1] << "," << index[2] << ")" << std::endl;
                     if(perambMode == pMode::inputSolve)
@@ -364,12 +364,14 @@ void TPerambulator<FImpl>::execute(void)
         const std::string sTrajNum{std::to_string(vm().getTrajectory())};
         sFileName.append(sTrajNum);
         auto &solveOut = envGet(std::vector<FermionField>, objName);
-	#ifdef HAVE_HDF5
+	// TODO: Which writer do we want here??
+	/*#ifdef HAVE_HDF5
             using Default_Writer = Grid::Hdf5Writer;
         #else
             using Default_Writer = Grid::BinaryWriter;
         #endif
-	Default_Writer w( sFileName );
+	Default_Writer w( sFileName );*/
+	ResultWriter w( sFileName );
         write( w, "unsmearedSolve", solveOut );
     }
 }
