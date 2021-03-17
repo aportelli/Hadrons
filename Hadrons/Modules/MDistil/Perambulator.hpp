@@ -46,7 +46,7 @@ class PerambulatorPar: Serializable
 {
 public:
     GRID_SERIALIZABLE_CLASS_MEMBERS(PerambulatorPar,
-                                    std::string, lapevec,
+                                    std::string, lapEigenPack,
                                     std::string, solver,
                                     std::string, perambFileName,
                                     std::string, unsmearedSolveFileName,
@@ -98,7 +98,7 @@ TPerambulator<FImpl>::TPerambulator(const std::string name) : Module<Perambulato
 template <typename FImpl>
 std::vector<std::string> TPerambulator<FImpl>::getInput(void)
 {
-    std::vector<std::string> out={par().lapevec, par().solver, par().distilNoise};
+    std::vector<std::string> out={par().lapEigenPack, par().solver, par().distilNoise};
     pMode perambMode{par().perambMode};
     if(perambMode == pMode::inputSolve)
     {
@@ -192,6 +192,11 @@ template <typename FImpl>
 void TPerambulator<FImpl>::execute(void)
 {
     const int Nt{env().getDim(Tdir)};
+    auto &dilNoise = envGet(DistillationNoise<FImpl>, par().distilNoise);
+    int nNoise = dilNoise.size();	
+    int nDL = dilNoise.dilutionSize(DistillationNoise<FImpl>::Index::l);	
+    int nDS = dilNoise.dilutionSize(DistillationNoise<FImpl>::Index::s);	
+    int nDT = dilNoise.dilutionSize(DistillationNoise<FImpl>::Index::t);	
 
     auto &solver=envGet(Solver, par().solver);
     auto &mat = solver.getFMat();
@@ -199,13 +204,8 @@ void TPerambulator<FImpl>::execute(void)
     envGetTmp(FermionField, v5dtmp_sol);
     std::string objName{ getName() };
     auto &perambulator = envGet(PerambTensor, objName);
-    auto &epack = envGet(LapEvecs, par().lapevec);
+    auto &epack = envGet(LapEvecs, par().lapEigenPack);
     
-    auto &dilNoise = envGet(DistillationNoise<FImpl>, par().distilNoise);
-    LOG(Message)<< "dilNoise "  << std::endl;
-    dilNoise.dumpDilutionMap();
-
-
     objName.append( "_unsmeared_solve" );
     envGetTmp(FermionField,      dist_source);
     envGetTmp(FermionField,      fermion4dtmp);
@@ -229,7 +229,6 @@ void TPerambulator<FImpl>::execute(void)
     }
     
     std::string sourceT = par().timeSources;
-    int nDT = dilNoise.dilutionSize(DistillationNoise<FImpl>::Index::t);	
     int nSourceT;
     std::vector<int> invT;
     if(par().timeSources.empty())
@@ -260,19 +259,15 @@ void TPerambulator<FImpl>::execute(void)
     }
     LOG(Message) << "Source times" << perambulator.MetaData.sourceTimes << std::endl;
 
-    int nNoise = dilNoise.size();	
     for (int inoise = 0; inoise < nNoise; inoise++)
     {
-        int nDL = dilNoise.dilutionSize(DistillationNoise<FImpl>::Index::l);	
-        int nDS = dilNoise.dilutionSize(DistillationNoise<FImpl>::Index::s);	
-        int nDT = dilNoise.dilutionSize(DistillationNoise<FImpl>::Index::t);	
-        for (int idt = 0; idt < nSourceT; idt++) 
-        {
-            int dt=invT[idt]; 
+        for (int ds = 0; ds < nDS; ds++)
+        {	
             for (int dk = 0; dk < nDL; dk++)
             {
-                for (int ds = 0; ds < nDS; ds++)
-                {
+                for (int idt = 0; idt < nSourceT; idt++) 
+                {                     
+                    int dt=invT[idt]; 
 		    int d = ds + nDS * dk + nDS * nDL * dt;
 		    // Slightly awkward to change the order of indices here, but if dk is the fastest moving index then this works also for reduced nvec in perambMode::inputSolve
 		    int dIndexSolve = ds + nDS * idt + nDS * nSourceT * dk;
