@@ -63,12 +63,6 @@ class TPerambulator: public Module<PerambulatorPar>
 public:
     FERM_TYPE_ALIASES(FImpl,);
     SOLVER_TYPE_ALIASES(FImpl,);
-    class Result: Serializable
-    {
-    public:
-        GRID_SERIALIZABLE_CLASS_MEMBERS(Result,
-                                        std::vector<FermionField>, uSolve);
-    };
     // constructor
     TPerambulator(const std::string name);
     // destructor
@@ -366,7 +360,7 @@ void TPerambulator<FImpl>::execute(void)
             using Default_Writer = Grid::BinaryWriter;
         #endif
 	Default_Writer w( sFileName );*/
-	ResultWriter w( sFileName );
+	Grid::BinaryWriter w( sFileName );
         write( w, "unsmearedSolve", solveOut );
     }
 }
