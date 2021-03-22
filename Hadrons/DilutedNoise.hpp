@@ -82,6 +82,8 @@ public:
     void dumpDilutionMap(void);
     // generate noise
     void generateNoise(GridSerialRNG &rng);
+    // generate dummy noise - vector of 1s, used for exact distillation only
+    void exactNoisePolicy(void);
 protected:
     virtual void buildMap(void) = 0;
     DilutionMap  &getMap(const bool createIfEmpty = true);
@@ -306,6 +308,18 @@ void DistillationNoise<FImpl>::generateNoise(GridSerialRNG &rng)
 }
 
 template <typename FImpl>
+void DistillationNoise<FImpl>::exactNoisePolicy(void)
+{
+    constexpr Type shift(1., 0.);
+
+    for (auto &n: noise_)
+    for (unsigned int i = 0; i < n.size(); ++i)
+    {
+        n[i] = shift;
+    }
+}
+
+template <typename FImpl>
 bool DistillationNoise<FImpl>::mapEmpty(void) const
 {
     bool empty = false;
@@ -427,6 +441,8 @@ public:
     GridCartesian                       *getGrid(void) const;
     // generate noise
     void generateNoise(GridParallelRNG &rng);
+    // generate dummy noise - vector of 1s, used for exact distillation only
+    void exactNoisePolicy(void);
 private:
     void         setFerm(const int i);
     virtual void setProp(const int i) = 0;
@@ -642,6 +658,16 @@ void SpinColorDiagonalNoise<FImpl>::generateNoise(GridParallelRNG &rng)
         bernoulli(rng, eta_);
         eta_ = (2.*eta_ - shift)*(1./::sqrt(2.));
         noise_[n] = eta_;
+    }
+}
+
+template <typename FImpl>
+void SpinColorDiagonalNoise<FImpl>::exactNoisePolicy(void)
+{
+    Complex        shift(1., 0.);
+    for (int n = 0; n < noise_.size(); ++n)
+    {
+        noise_[n] = shift;
     }
 }
 
