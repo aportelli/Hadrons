@@ -29,6 +29,7 @@
 #define Hadrons_Module_hpp_
 
 #include <Hadrons/Global.hpp>
+#include <Hadrons/Database.hpp>
 #include <Hadrons/TimerArray.hpp>
 #include <Hadrons/VirtualMachine.hpp>
 
@@ -107,10 +108,10 @@ type &var = *env().template getObject<type>(getName() + "_tmp_" + #var)
 env().template isObjectOfType<type>(name)
 
 #define envCreate(type, name, Ls, ...)\
-env().template createObject<type>(name, Environment::Storage::object, Ls, __VA_ARGS__)
+env().template createObject<type>(name, Environment::Storage::standard, Ls, __VA_ARGS__)
 
 #define envCreateDerived(base, type, name, Ls, ...)\
-env().template createDerivedObject<base, type>(name, Environment::Storage::object, Ls, __VA_ARGS__)
+env().template createDerivedObject<base, type>(name, Environment::Storage::standard, Ls, __VA_ARGS__)
 
 #define envCreateLat4(type, name)\
 envCreate(type, name, 1, envGetGrid(type))
@@ -146,22 +147,18 @@ envTmp(type, name, Ls, envGetGrid(type, Ls))
 #define envTmpLat(...)\
 HADRONS_MACRO_REDIRECT_23(__VA_ARGS__, envTmpLat5, envTmpLat4)(__VA_ARGS__)
 
-#define saveResult(ioStem, name, result)\
-if (env().getGrid()->IsBoss() and !ioStem.empty())\
-{\
-    makeFileDir(ioStem, env().getGrid());\
-    {\
-        ResultWriter _writer(RESULT_FILE_NAME(ioStem, vm().getTrajectory()));\
-        write(_writer, name, result);\
-    }\
-}
-
 /******************************************************************************
  *                            Module class                                    *
  ******************************************************************************/
 // base class
 class ModuleBase: public TimerArray
 {
+public:
+    struct ResultEntryHeader: SqlEntry
+    {
+        HADRONS_SQL_FIELDS(SqlNotNull<unsigned int>          , traj,
+                           SqlUnique<SqlNotNull<std::string>>, filename);
+    };
 public:
     // constructor
     ModuleBase(const std::string name);
@@ -178,29 +175,49 @@ public:
         return std::vector<std::string>(0);
     };
     virtual std::vector<std::string> getOutput(void) = 0;
+    virtual std::vector<std::string> getOutputFiles(void)
+    {
+        return std::vector<std::string>(0);
+    };
     // parse parameters
     virtual void parseParameters(XmlReader &reader, const std::string name) = 0;
     virtual void saveParameters(XmlWriter &writer, const std::string name) = 0;
     // parameter string
     virtual std::string parString(void) const = 0;
+    virtual std::string parClassName(void) const = 0;
+    // result filename generation
+    static std::string resultFilename(const std::string stem, const unsigned int traj, 
+                                      const std::string ext = resultFileExt);
+    // result database
+    template <typename EntryType>
+    void setResultDbEntry(Database &db, const std::string tableName, EntryType &entry);
+    void generateResultDb(void);
     // setup
     virtual void setup(void) {};
-    virtual void execute(void) = 0;
     // execution
+    virtual void execute(void) = 0;
     void operator()(void);
 protected:
     // environment shortcut
     DEFINE_ENV_ALIAS;
     // virtual machine shortcut
     DEFINE_VM_ALIAS;
-    // RNG seeded from module string
+    // get RNGs seeded from module string
     GridParallelRNG &rng4d(void);
     GridSerialRNG &rngSerial(void);
+    // result file utilities
+    std::string resultFilename(const std::string stem, const std::string ext = resultFileExt) const;
+    template <typename T>
+    void saveResult(const std::string stem, const std::string name, const T &result) const;
 private:
+    // make module unique string
     std::string makeSeedString(void);
 private:
-    std::string                          name_, currentTimer_, seed_;
-    std::map<std::string, GridStopWatch> timer_; 
+    std::string                             name_, currentTimer_, seed_, dbTable_;
+    std::map<std::string, GridStopWatch>    timer_;
+    Database                                *db_{nullptr};
+    std::unique_ptr<SqlEntry>               entry_{nullptr};
+    ResultEntryHeader                       *entryHeader_{nullptr};
 };
 
 // derived class, templating the parameter class
@@ -217,8 +234,9 @@ public:
     // parse parameters
     virtual void parseParameters(XmlReader &reader, const std::string name);
     virtual void saveParameters(XmlWriter &writer, const std::string name);
-    // parameter string
+    // parameter strings
     virtual std::string parString(void) const;
+    virtual std::string parClassName(void) const;
     // parameter access
     const P &   par(void) const;
     void        setPar(const P &par);
@@ -244,13 +262,49 @@ public:
         push(writer, "options");
         pop(writer);
     };
-    // parameter string (empty)
+    // parameter strings (empty)
     virtual std::string parString(void) const {return "";};
+    virtual std::string parClassName(void) const {return "";};
 };
 
 /******************************************************************************
  *                           Template implementation                          *
  ******************************************************************************/
+template <typename EntryType>
+void ModuleBase::setResultDbEntry(Database &db, const std::string tableName, EntryType &entry)
+{
+    typedef MergedSqlEntry<ResultEntryHeader, EntryType> ResultEntry;
+
+    ResultEntryHeader entryHead;
+
+    if (!db.isConnected())
+    {
+        HADRONS_ERROR(Database, "result database not connected");
+    }
+    db_      = &db;
+    dbTable_ = tableName;
+    entry_.reset(new ResultEntry(mergeSqlEntries(entryHead, entry)));
+    if (!db_->tableExists(dbTable_))
+    {
+        db_->createTable<ResultEntry>(dbTable_);
+    }
+    ResultEntry *e = dynamic_cast<ResultEntry *>(entry_.get());
+    entryHeader_ = &(e->template getEntry<0>());
+}
+
+template <typename T>
+void ModuleBase::saveResult(const std::string stem, const std::string name, const T &result) const
+{
+    if (env().getGrid()->IsBoss() and !stem.empty())
+    {
+        makeFileDir(stem, env().getGrid());
+        {
+            ResultWriter writer(resultFilename(stem));
+            write(writer, name, result);
+        }
+    }
+}
+
 template <typename P>
 Module<P>::Module(const std::string name)
 : ModuleBase(name)
@@ -276,6 +330,12 @@ std::string Module<P>::parString(void) const
     write(writer, par_.SerialisableClassName(), par_);
 
     return writer.string();
+}
+
+template <typename P>
+std::string Module<P>::parClassName(void) const
+{
+    return par_.SerialisableClassName();
 }
 
 template <typename P>

@@ -5,6 +5,7 @@
  *
  * Author: Antonin Portelli <antonin.portelli@me.com>
  * Author: Fionn O hOgain <fionn.o.hogain@ed.ac.uk>
+ * Author: Fionn Ó hÓgáin <fionnoh@gmail.com>
  * Author: Peter Boyle <paboyle@ph.ed.ac.uk>
  * Author: Vera Guelpers <Vera.Guelpers@ed.ac.uk>
  * Author: Vera Guelpers <vmg1n14@soton.ac.uk>
@@ -176,10 +177,8 @@ template <typename FImpl>
 void SpinColorDiagonalNoise<FImpl>::setFerm(const int i)
 {
     int nc  = FImpl::Dimension;
-    auto nsc = getNsc();
     std::div_t divs;
-    divs = std::div(i, nsc);
-    divs = std::div(divs.rem, nc);
+    divs = std::div(i, nc);
 
     PropToFerm<FImpl>(ferm_, prop_, divs.quot, divs.rem);
 }
@@ -195,8 +194,11 @@ template <typename FImpl>
 typename SpinColorDiagonalNoise<FImpl>::FermionField & 
 SpinColorDiagonalNoise<FImpl>::getFerm(const int i)
 {
-    setProp(i);
-    setFerm(i);
+    auto nsc   = this->getNsc();
+    std::div_t divs;
+    divs = std::div(i, nsc);
+    setProp(divs.quot);
+    setFerm(divs.rem);
     return getFerm();
 }
 
@@ -297,14 +299,13 @@ void TimeDilutedNoise<FImpl>::setProp(const int i)
 {
     auto eta   = this->getEta();
     auto noise = this->getNoise();
-    auto nsc   = this->getNsc();
     auto nd    = this->getNd();
     auto nt    = this->getGrid()->GlobalDimensions()[Tp];
 
     LatticeCoordinate(tLat_, nd - 1);
 
-    std::div_t divs = std::div(i, nt*nsc);
-    int t = divs.rem/nsc;
+    std::div_t divs = std::div(i, nt);
+    int t = divs.rem;
 
     eta = where((tLat_ == t), noise[divs.quot], 0.*noise[divs.quot]);
     this->setPropagator(eta);
@@ -329,10 +330,7 @@ template <typename FImpl>
 void FullVolumeNoise<FImpl>::setProp(const int i)
 {
     auto noise = this->getNoise();
-    auto nsc   = this->getNsc();
-    int n;
-    n   = i/nsc;
-    this->setPropagator(noise[n]);
+    this->setPropagator(noise[i]);
 }
 
 /******************************************************************************
@@ -367,10 +365,9 @@ void CheckerboardNoise<FImpl>::setProp(const int i)
     auto nd    = this->getNd();
     auto noise = this->getNoise();
     auto nsc   = this->getNsc();
-    unsigned int n, j;
-    n   = i/nsc;
-    eta = noise[n];
-    j   = n/nSrc_ec_;
+    unsigned int j;
+    eta = noise[i];
+    j   = i/nSrc_ec_;
 
     coorTot_ = 0.;
     for(int d = 0; d < nd; ++d) 
@@ -407,9 +404,8 @@ void SparseNoise<FImpl>::setProp(const int i)
     auto eta   = this->getEta();
     auto nd    = this->getNd();
     auto noise = this->getNoise();
-    auto nsc   = this->getNsc();
 
-    std::div_t divs = std::div(i, nsc*pow(nSparse_, nd));
+    std::div_t divs = std::div(i, pow(nSparse_, nd));
     eta = noise[divs.quot];
     for(int d = 0; d < nd; ++d) 
     {
@@ -419,7 +415,7 @@ void SparseNoise<FImpl>::setProp(const int i)
 
     for (int d = 0; d < nd; ++d)
     {
-        divs = std::div(divs.rem, nsc*pow(nSparse_, nd-(d+1)));
+        divs = std::div(divs.rem, pow(nSparse_, nd-(d+1)));
         eta = Cshift(eta, d, divs.quot);
     }
     this->setPropagator(eta);

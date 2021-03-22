@@ -1,9 +1,10 @@
 /*
- * WardIdentity.cpp, part of Hadrons (https://github.com/aportelli/Hadrons)
+ * A2ASmearedMesonField.cpp, part of Hadrons (https://github.com/aportelli/Hadrons)
  *
  * Copyright (C) 2015 - 2020
  *
  * Author: Antonin Portelli <antonin.portelli@me.com>
+ * Author: Nils Asmussen <n.asmussen@soton.ac.uk>
  *
  * Hadrons is free software: you can redistribute it and/or modify
  * it under the terms of the GNU General Public License as published by
@@ -23,11 +24,10 @@
  */
 
 /*  END LEGAL */
-#include <Hadrons/Modules/MContraction/WardIdentity.hpp>
+#include <Hadrons/Modules/MContraction/A2ASmearedMesonField.hpp>
 
 using namespace Grid;
 using namespace Hadrons;
 using namespace MContraction;
 
-template class Grid::Hadrons::MContraction::TWardIdentity<FIMPL>;
-
+template class Grid::Hadrons::MContraction::TA2ASmearedMesonField<FIMPL>;

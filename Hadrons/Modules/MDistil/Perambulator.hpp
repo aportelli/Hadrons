@@ -7,6 +7,7 @@
  *  Author: Michael Marshall <Michael.Marshall@ed.ac.uk>
  * Author: Antonin Portelli <antonin.portelli@me.com>
  * Author: Felix Erben <dc-erbe1@tesseract-login1.ib0.sgi.cluster.dirac.ed.ac.uk>
+ * Author: Felix Erben <felix.erben@ed.ac.uk>
  * Author: Michael Marshall <43034299+mmphys@users.noreply.github.com>
  * Author: ferben <ferben@debian.felix.com>
  *
@@ -41,6 +42,8 @@ BEGIN_MODULE_NAMESPACE(MDistil)
  *                             Perambulator                                    *
  ******************************************************************************/
 
+
+
 class PerambulatorPar: Serializable
 {
 public:
@@ -48,8 +51,11 @@ public:
                                     std::string, lapevec,
                                     std::string, solver,
                                     std::string, noise,
-                                    std::string, PerambFileName,
-                                    std::string, UnsmearedSinkFileName,
+                                    std::string, perambFileName,
+                                    std::string, unsmearedSolveFileName,
+                                    std::string, unsmearedSolve,
+                                    pMode, perambMode,
+                                    int, nVec,
                                     std::string, DistilParams);
 };
 
@@ -89,10 +95,16 @@ TPerambulator<FImpl>::TPerambulator(const std::string name) : Module<Perambulato
 template <typename FImpl>
 std::vector<std::string> TPerambulator<FImpl>::getInput(void)
 {
-    return {par().lapevec, par().solver, par().noise, par().DistilParams};
+    std::vector<std::string> out={par().lapevec, par().solver, par().noise, par().DistilParams};
+    pMode perambMode{par().perambMode};
+    if(perambMode == pMode::inputSolve)
+    {
+        LOG(Message) << "unsmeared solves are an input" << std::endl;
+        out.push_back(par().unsmearedSolve);
+    }
+    return out;
 }
 
-static const std::string UnsmearedSink{ "_unsmeared_sink" };
 
 template <typename FImpl>
 std::vector<std::string> TPerambulator<FImpl>::getOutput(void)
@@ -100,11 +112,11 @@ std::vector<std::string> TPerambulator<FImpl>::getOutput(void)
     // Always return perambulator with name of module
     std::string objName{ getName() };
     std::vector<std::string> output{ objName };
-    // If unsmeared sink is specified, then output that as well
-    const std::string UnsmearedSinkFileName{ par().UnsmearedSinkFileName };
-    if( !UnsmearedSinkFileName.empty() )
+    pMode perambMode{par().perambMode};
+    if(perambMode == pMode::outputSolve)
     {
-        objName.append( UnsmearedSink );
+        LOG(Message)<< "unsmeared solves are an output" << std::endl;
+        objName.append( "_unsmeared_solve" );
         output.push_back( objName );
     }
     return output;
@@ -117,30 +129,26 @@ void TPerambulator<FImpl>::setup(void)
     MakeLowerDimGrid(grid3d, env().getGrid());
     const DistilParameters &dp = envGet(DistilParameters, par().DistilParams);
     const int  Nt{env().getDim(Tdir)};
-    const bool full_tdil{ dp.TI == Nt };
-    const int  Nt_inv{ full_tdil ? 1 : dp.TI };
 
     std::string objName{ getName() };
-    envCreate(PerambTensor, objName, 1, Nt, dp.nvec, dp.LI, dp.nnoise, Nt_inv, dp.SI);
-    const std::string UnsmearedSinkFileName{ par().UnsmearedSinkFileName };
-    if( !UnsmearedSinkFileName.empty() )
+    envCreate(PerambTensor, objName, 1, Nt, dp.nvec, dp.LI, dp.nnoise, dp.inversions, dp.SI);
+    pMode perambMode{par().perambMode};
+    if(perambMode == pMode::outputSolve)
     {
-        objName.append( UnsmearedSink );
-        envCreate(std::vector<FermionField>, objName, 1, dp.nnoise*dp.LI*Ns*Nt_inv,
+        LOG(Message)<< "setting up output field for unsmeared solves" << std::endl;
+        objName.append( "_unsmeared_solve" );
+        envCreate(std::vector<FermionField>, objName, 1, dp.nnoise*dp.LI*Ns*dp.inversions,
                   envGetGrid(FermionField));
     }
     
-    envTmpLat(LatticeSpinColourVector,   "dist_source");
-    envTmpLat(LatticeSpinColourVector,   "source4d");
-    envTmp(LatticeSpinColourVector,      "source3d",        1, grid3d.get());
-    envTmp(LatticeColourVector,          "source3d_nospin", 1, grid3d.get());
-    envTmpLat(LatticeSpinColourVector,   "result4d");
-    envTmpLat(LatticeColourVector,       "result4d_nospin");
-    envTmp(LatticeColourVector,          "result3d_nospin", 1, grid3d.get());
-    envTmp(LatticeColourVector,          "evec3d",          1, grid3d.get());
+    envTmpLat(FermionField,      "dist_source");
+    envTmpLat(FermionField,      "fermion4dtmp");
+    envTmp(FermionField,         "fermion3dtmp", 1, grid3d.get());
+    envTmpLat(ColourVectorField, "cv4dtmp");
+    envTmp(ColourVectorField,    "cv3dtmp", 1, grid3d.get());
+    envTmp(ColourVectorField,    "evec3d",  1, grid3d.get());
     
     Ls_ = env().getObjectLs(par().solver);
-    envTmpLat(FermionField, "v4dtmp");
     envTmpLat(FermionField, "v5dtmp", Ls_);
     envTmpLat(FermionField, "v5dtmp_sol", Ls_);
 }
@@ -151,90 +159,89 @@ void TPerambulator<FImpl>::execute(void)
 {
     const DistilParameters &dp{ envGet(DistilParameters, par().DistilParams) };
     const int Nt{env().getDim(Tdir)};
-    const bool full_tdil{ dp.TI == Nt }; 
-    const int Nt_inv{ full_tdil ? 1 : dp.TI };
 
     auto &solver=envGet(Solver, par().solver);
     auto &mat = solver.getFMat();
-    envGetTmp(FermionField, v4dtmp);
     envGetTmp(FermionField, v5dtmp);
     envGetTmp(FermionField, v5dtmp_sol);
     auto &noise = envGet(NoiseTensor, par().noise);
     std::string objName{ getName() };
     auto &perambulator = envGet(PerambTensor, objName);
     auto &epack = envGet(LapEvecs, par().lapevec);
-    objName.append( UnsmearedSink );
-    const std::string UnsmearedSinkFileName{ par().UnsmearedSinkFileName };
-    const bool bSaveUnsmearedSink( !UnsmearedSinkFileName.empty() );
-    envGetTmp(LatticeSpinColourVector, dist_source);
-    envGetTmp(LatticeSpinColourVector, source4d);
-    envGetTmp(LatticeSpinColourVector, source3d);
-    envGetTmp(LatticeColourVector, source3d_nospin);
-    envGetTmp(LatticeSpinColourVector, result4d);
-    envGetTmp(LatticeColourVector, result4d_nospin);
-    envGetTmp(LatticeColourVector, result3d_nospin);
-    envGetTmp(LatticeColourVector, evec3d);
+    objName.append( "_unsmeared_solve" );
+    envGetTmp(FermionField,      dist_source);
+    envGetTmp(FermionField,      fermion4dtmp);
+    envGetTmp(FermionField,      fermion3dtmp);
+    envGetTmp(ColourVectorField, cv4dtmp);
+    envGetTmp(ColourVectorField, cv3dtmp);
+    envGetTmp(ColourVectorField, evec3d);
     GridCartesian * const grid4d{ env().getGrid() }; // Owned by environment (so I won't delete it)
     const int Ntlocal{grid4d->LocalDimensions()[3]};
     const int Ntfirst{grid4d->LocalStarts()[3]};
+
+    pMode perambMode{par().perambMode};
+    LOG(Message)<< "Mode " << perambMode << std::endl;
+
+    std::vector<FermionField> solveIn;
+    if(perambMode == pMode::inputSolve)
+    {
+        solveIn         = envGet(std::vector<FermionField>, par().unsmearedSolve);
+    }
+
+    for (int dt = 0; dt < dp.inversions; dt++)
+    {
+	std::vector<int> sT;
+        for (int it = dt; it < Nt; it += dp.TI)
+        {
+	    sT.push_back(it);
+	}
+	perambulator.MetaData.sourceTimes.push_back(sT);
+    }
+    LOG(Message) << "Source times" << perambulator.MetaData.sourceTimes << std::endl;
 
     for (int inoise = 0; inoise < dp.nnoise; inoise++)
     {
         for (int dk = 0; dk < dp.LI; dk++)
         {
-            for (int dt = 0; dt < Nt_inv; dt++)
+            for (int dt = 0; dt < dp.inversions; dt++)
             {
                 for (int ds = 0; ds < dp.SI; ds++)
                 {
-                    LOG(Message) <<  "LapH source vector from noise " << inoise << " and dilution component (d_k,d_t,d_alpha) : (" << dk << ","<< dt << "," << ds << ")" << std::endl;
-                    dist_source = 0;
-                    evec3d = 0;
-                    for (int it = dt; it < Nt; it += dp.TI)
-                    {
-                        const int t_inv{full_tdil ? dp.tsrc : it};
-                        if( t_inv >= Ntfirst && t_inv < Ntfirst + Ntlocal )
+                    if(perambMode == pMode::inputSolve)
+		    {
+                        fermion4dtmp = solveIn[inoise+dp.nnoise*(dk+dp.LI*(dt+dp.inversions*ds))];
+		    } 
+		    else 
+		    {
+                        LOG(Message) <<  "LapH source vector from noise " << inoise << " and dilution component (d_k,d_t,d_alpha) : (" << dk << ","<< dt << "," << ds << ")" << std::endl;
+                        dist_source = 0;
+                        evec3d = 0;
+			DIST_SOURCE
+                        fermion4dtmp=0;
+                        if (Ls_ == 1)
+                            solver(fermion4dtmp, dist_source);
+                        else
                         {
-                            for (int ik = dk; ik < dp.nvec; ik += dp.LI)
-                            {
-                                for (int is = ds; is < Ns; is += dp.SI)
-                                {
-                                    ExtractSliceLocal(evec3d,epack.evec[ik],0,t_inv-Ntfirst,Tdir);
-                                    source3d_nospin = evec3d * noise.tensor(inoise, t_inv, ik, is);
-                                    source3d=0;
-                                    pokeSpin(source3d,source3d_nospin,is);
-                                    source4d=0;
-                                    InsertSliceLocal(source3d,source4d,0,t_inv-Ntfirst,Tdir);
-                                    dist_source += source4d;
-                                }
-                            }
+                            mat.ImportPhysicalFermionSource(dist_source, v5dtmp);
+                            solver(v5dtmp_sol, v5dtmp);
+                            mat.ExportPhysicalFermionSolution(v5dtmp_sol, fermion4dtmp);
                         }
-                    }
-                    result4d=0;
-                    v4dtmp = dist_source;
-                    if (Ls_ == 1)
-                        solver(result4d, v4dtmp);
-                    else
-                    {
-                        mat.ImportPhysicalFermionSource(v4dtmp, v5dtmp);
-                        solver(v5dtmp_sol, v5dtmp);
-                        mat.ExportPhysicalFermionSolution(v5dtmp_sol, v4dtmp);
-                        result4d = v4dtmp;
-                    }
-                    if( bSaveUnsmearedSink )
-                    {
-                        auto &unsmeared_sink = envGet(std::vector<FermionField>, objName);
-                        unsmeared_sink[inoise+dp.nnoise*(dk+dp.LI*(dt+Nt_inv*ds))] = result4d;
-                    }
+                        if(perambMode == pMode::outputSolve)
+                        {
+                            auto &solveOut = envGet(std::vector<FermionField>, objName);
+                            solveOut[inoise+dp.nnoise*(dk+dp.LI*(dt+dp.inversions*ds))] = fermion4dtmp;
+                        }
+		    }
                     for (int is = 0; is < Ns; is++)
                     {
-                        result4d_nospin = peekSpin(result4d,is);
+                        cv4dtmp = peekSpin(fermion4dtmp,is);
                         for (int t = Ntfirst; t < Ntfirst + Ntlocal; t++)
                         {
-                            ExtractSliceLocal(result3d_nospin,result4d_nospin,0,t-Ntfirst,Tdir); 
+                            ExtractSliceLocal(cv3dtmp,cv4dtmp,0,t-Ntfirst,Tdir); 
 			    for (int ivec = 0; ivec < dp.nvec; ivec++)
                             {
                                 ExtractSliceLocal(evec3d,epack.evec[ivec],0,t-Ntfirst,Tdir);
-                                pokeSpin(perambulator.tensor(t, ivec, dk, inoise,dt,ds),static_cast<Complex>(innerProduct(evec3d, result3d_nospin)),is);
+                                pokeSpin(perambulator.tensor(t, ivec, dk, inoise,dt,ds),static_cast<Complex>(innerProduct(evec3d, cv3dtmp)),is);
                             }
                         }
                     }
@@ -248,39 +255,33 @@ void TPerambulator<FImpl>::execute(void)
     {
         LOG(Debug) <<  "Sharing perambulator data with other nodes" << std::endl;
         const int MySlice {grid4d->_processor_coor[Tdir]};
-        const int SliceCount {static_cast<int>(perambulator.tensor.size()/NumSlices)};
-        PerambTensor::Scalar * const MyData {perambulator.tensor.data()+MySlice*SliceCount};
-        Coordinate coor(Nd);
-        for (int i = 0 ; i < Tdir ; i++) coor[i] = grid4d->_processor_coor[i];
-        std::vector<CommsRequest_t> reqs(0);
-        for (int i = 1; i < NumSlices ; i++)
+        const int TensorSize {static_cast<int>(perambulator.tensor.size() * PerambTensor::Traits::count)};
+        assert (TensorSize == perambulator.tensor.size() * PerambTensor::Traits::count && "peramb size overflow");
+        const int SliceCount {TensorSize/NumSlices};
+        using InnerScalar = typename PerambTensor::Traits::scalar_type;
+        InnerScalar * const PerambData {EigenIO::getFirstScalar( perambulator.tensor )};
+        // Zero data for all timeslices other than the slice computed by 3d boss nodes
+        for (int Slice = 0 ; Slice < NumSlices ; ++Slice)
         {
-            coor[Tdir] = (MySlice+i)%NumSlices;
-            const int SendRank { grid4d->RankFromProcessorCoor(coor) };
-            const int RecvSlice { ( MySlice - i + NumSlices ) % NumSlices };
-            coor[Tdir] = RecvSlice;
-            const auto RecvRank = grid4d->RankFromProcessorCoor(coor);
-            grid4d->SendToRecvFromBegin(reqs,MyData,SendRank, perambulator.tensor.data()
-                                        + RecvSlice*SliceCount,RecvRank,SliceCount*sizeof(PerambTensor::Scalar));
+            if (!grid3d->IsBoss() || Slice != MySlice)
+            {
+                InnerScalar * const SliceData {PerambData + Slice * SliceCount};
+                for (int j = 0 ; j < SliceCount ; ++j)
+                {
+                    SliceData[j] = 0.;
+                }
+            }
         }
-        grid4d->SendToRecvFromComplete(reqs);
+        grid4d->GlobalSumVector(PerambData, TensorSize);
     }
     
     // Save the perambulator to disk from the boss node
     if (grid4d->IsBoss())
     {
-        std::string sPerambName {par().PerambFileName};
+        std::string sPerambName {par().perambFileName};
         sPerambName.append(".");
         sPerambName.append(std::to_string(vm().getTrajectory()));
         perambulator.write(sPerambName.c_str());
-    }
-    
-    //Save the unsmeared sinks if filename specified
-    if (bSaveUnsmearedSink)
-    {
-        LOG(Message) << "Writing unsmeared sink to " << UnsmearedSinkFileName << std::endl;
-        auto &unsmeared_sink = envGet(std::vector<FermionField>, objName);
-        A2AVectorsIo::write(UnsmearedSinkFileName, unsmeared_sink, false, vm().getTrajectory());
     }
 }
 

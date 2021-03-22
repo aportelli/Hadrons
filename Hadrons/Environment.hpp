@@ -74,12 +74,12 @@ public:
     typedef std::unique_ptr<GridRedBlackCartesian> GridRbPt;
     typedef std::unique_ptr<GridParallelRNG>       RngPt;
     typedef std::unique_ptr<GridSerialRNG>         SerialRngPt;
-    enum class Storage {object, cache, temporary};
+    GRID_SERIALIZABLE_ENUM(Storage, undef, standard, 0, cache, 1, temporary, 2);
 private:
     struct ObjInfo
     {
         Size                    size{0};
-        Storage                 storage{Storage::object};
+        Storage                 storage{Storage::standard};
         unsigned int            Ls{0};
         const std::type_info    *type{nullptr}, *derivedType{nullptr};
         std::string             name;
@@ -128,6 +128,8 @@ public:
                                          const Environment::Storage storage,
                                          const unsigned int Ls,
                                          Ts && ... args);
+    void                    setObjectStorage(const unsigned int objAddress,
+                                             const Environment::Storage storage);
     void                    setObjectModule(const unsigned int objAddress,
                                             const int modAddress);
     template <typename B, typename T>
@@ -143,6 +145,8 @@ public:
     std::string             getObjectName(const unsigned int address) const;
     std::string             getObjectType(const unsigned int address) const;
     std::string             getObjectType(const std::string name) const;
+    std::string             getObjectDerivedType(const unsigned int address) const;
+    std::string             getObjectDerivedType(const std::string name) const;
     Size                    getObjectSize(const unsigned int address) const;
     Size                    getObjectSize(const std::string name) const;
     Storage                 getObjectStorage(const unsigned int address) const;
@@ -460,7 +464,7 @@ void Environment::createDerivedObject(const std::string name,
         object_[address].storage     = storage;
         object_[address].Ls          = Ls;
         object_[address].data.reset(new Holder<B>(new T(std::forward<Ts>(args)...)));
-        object_[address].size        = MemoryProfiler::stats->maxAllocated - initMem;
+        object_[address].size        = MemoryProfiler::stats->currentlyAllocated - initMem;
         object_[address].type        = typeIdPt<B>();
         object_[address].derivedType = typeIdPt<T>();
         if (MemoryProfiler::stats == &memStats)

@@ -5,10 +5,13 @@ lib_LIBRARIES = libHadrons.a
 include modules.inc
 
 libHadrons_a_SOURCES = \
+	sqlite/sqlite3.c    \
   Application.cpp     \
+	Database.cpp        \
   Environment.cpp     \
 	Exceptions.cpp      \
   Global.cpp          \
+	StatLogger.cpp      \
   Module.cpp		      \
 	TimerArray.cpp      \
 	VirtualMachine.cpp  \
@@ -19,20 +22,26 @@ nobase_libHadrons_a_HEADERS = \
 	A2AVectors.hpp            \
 	A2AMatrix.hpp             \
 	Application.hpp           \
+	Database.hpp              \
 	DilutedNoise.hpp          \
 	DiskVector.hpp            \
 	EigenPack.hpp             \
 	Environment.hpp           \
 	Exceptions.hpp            \
 	Factory.hpp               \
+	FieldIo.hpp               \
 	GeneticScheduler.hpp      \
 	Global.hpp                \
 	Graph.hpp                 \
+	StatLogger.hpp            \
 	Module.hpp                \
 	Modules.hpp               \
 	ModuleFactory.hpp         \
   NamedTensor.hpp           \
 	Solver.hpp                \
+	SqlEntry.hpp              \
 	TimerArray.hpp            \
 	VirtualMachine.hpp        \
+	sqlite/sqlite3.h          \
+	sqlite/sqlite3ext.h       \
 	$(modules_hpp)

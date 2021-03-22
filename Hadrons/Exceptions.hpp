@@ -94,6 +94,7 @@ namespace Exceptions
     // runtime errors
     DECL_EXC(Runtime, std::runtime_error);
     DECL_EXC(Argument, Runtime);
+    DECL_EXC(Database, Runtime);
     DECL_EXC(Io, Runtime);
     DECL_EXC(Memory, Runtime);
     DECL_EXC(Parsing, Runtime);

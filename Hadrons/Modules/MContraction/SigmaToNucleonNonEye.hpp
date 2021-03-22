@@ -5,6 +5,7 @@
  *
  * Author: Antonin Portelli <antonin.portelli@me.com>
  * Author: Felix Erben <felix.erben@ed.ac.uk>
+ * Author: Raoul Hodgson <raoul.hodgson@ed.ac.uk>
  * Author: ferben <ferben@debian.felix.com>
  *
  * Hadrons is free software: you can redistribute it and/or modify
@@ -114,6 +115,7 @@ public:
     // dependency relation
     virtual std::vector<std::string> getInput(void);
     virtual std::vector<std::string> getOutput(void);
+    virtual std::vector<std::string> getOutputFiles(void);
 protected:
     // setup
     virtual void setup(void);
@@ -149,6 +151,13 @@ std::vector<std::string> TSigmaToNucleonNonEye<FImpl>::getOutput(void)
     std::vector<std::string> out = {};
     
     return out;
+}
+template <typename FImpl>
+std::vector<std::string> TSigmaToNucleonNonEye<FImpl>::getOutputFiles(void)
+{
+    std::vector<std::string> output = {resultFilename(par().output)};
+    
+    return output;
 }
 
 // setup ///////////////////////////////////////////////////////////////////////
@@ -190,7 +199,7 @@ void TSigmaToNucleonNonEye<FImpl>::execute(void)
       r.info.gammaH = G.g;
       //Operator Q1, equivalent to the two-trace case in the rare-kaons module
       c=Zero();
-      BaryonUtils<FIMPL>::Sigma_to_Nucleon_NonEye(quTi,quTf,qut,qdTf,qsTi,G,GammaB,GammaB,"Q1",c);
+      BaryonUtils<FIMPL>::SigmaToNucleonNonEye(quTi,quTf,qut,qdTf,qsTi,G,GammaB,GammaB,"Q1",c);
       sliceSum(c,buf,Tp);
       r.corr.clear();
       for (unsigned int t = 0; t < buf.size(); ++t)
@@ -201,7 +210,7 @@ void TSigmaToNucleonNonEye<FImpl>::execute(void)
       result.push_back(r);
       //Operator Q2, equivalent to the one-trace case in the rare-kaons module
       c=Zero();
-      BaryonUtils<FIMPL>::Sigma_to_Nucleon_NonEye(quTi,quTf,qut,qdTf,qsTi,G,GammaB,GammaB,"Q2",c);
+      BaryonUtils<FIMPL>::SigmaToNucleonNonEye(quTi,quTf,qut,qdTf,qsTi,G,GammaB,GammaB,"Q2",c);
       sliceSum(c,buf,Tp);
       r.corr.clear();
       for (unsigned int t = 0; t < buf.size(); ++t)

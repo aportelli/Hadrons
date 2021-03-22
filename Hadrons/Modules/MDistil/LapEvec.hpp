@@ -3,8 +3,6 @@
  *
  * Copyright (C) 2015 - 2020
  *
- *  Author: Felix Erben <ferben@ed.ac.uk>
- *  Author: Michael Marshall <Michael.Marshall@ed.ac.uk>
  * Author: Antonin Portelli <antonin.portelli@me.com>
  * Author: Author Name <43034299+mmphys@users.noreply.github.com>
  * Author: Felix Erben <dc-erbe1@tesseract-login1.ib0.sgi.cluster.dirac.ed.ac.uk>
