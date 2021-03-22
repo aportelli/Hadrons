@@ -509,8 +509,8 @@ void TBaryonGamma3pt<FImpl>::execute(void)
 
     saveResult(par().output, "baryongamma3pt", result);
 }
-#endif
 
+#endif
 END_MODULE_NAMESPACE
 
 END_HADRONS_NAMESPACE
