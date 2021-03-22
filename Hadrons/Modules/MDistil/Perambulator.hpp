@@ -191,6 +191,7 @@ void TPerambulator<FImpl>::execute(void)
     int nDL = dilNoise.dilutionSize(DistillationNoise<FImpl>::Index::l);	
     int nDS = dilNoise.dilutionSize(DistillationNoise<FImpl>::Index::s);	
     int nDT = dilNoise.dilutionSize(DistillationNoise<FImpl>::Index::t);	
+    int nD = nDL * nDS * nDT;
 
     auto &solver=envGet(Solver, par().solver);
     auto &mat = solver.getFMat();
@@ -253,55 +254,66 @@ void TPerambulator<FImpl>::execute(void)
     }
     LOG(Message) << "Source times" << perambulator.MetaData.sourceTimes << std::endl;
 
+    int nVecFullSolve = 0;
+    if(perambMode == pMode::inputSolve)
+    {
+        nVecFullSolve   = solveIn.size()/nNoise/nDS/nSourceT;
+        LOG(Message) << "Using solve originally computed with Nvec=" << nVecFullSolve << std::endl;
+    }
+
     for (int inoise = 0; inoise < nNoise; inoise++)
     {
-        for (int ds = 0; ds < nDS; ds++)
-        {	
-            for (int dk = 0; dk < nDL; dk++)
+        for (int d = 0; d < nD; d++)
+        {
+            std::array<unsigned int, 3> index = dilNoise.dilutionCoordinates(d);
+   	    int dt = index[0];
+   	    int dk = index[1];
+   	    int ds = index[2];
+   	    int idt = 0; 
+            bool dtExists = std::find(std::begin(invT), std::end(invT), dt) != std::end(invT);
+   	    if(!dtExists)
+   	    {
+   	        //skip dilution indices which are not in invT
+   	        continue;
+   	    }
+   	    idt+=1;
+   	    // index of the solve just has the reduced time dimension 
+   	    int dIndexSolve = ds + nDS * dk + nVecFullSolve * nDL * idt;
+            if(perambMode == pMode::inputSolve)
+   	    {
+                fermion4dtmp = solveIn[inoise+nNoise*dIndexSolve];
+   	    } 
+   	    else 
+   	    {
+                LOG(Message) <<  "LapH source vector from noise " << inoise << " and dilution component (d_t,d_k,d_alpha) : (" << dt << ","<< dk << "," << ds << ")" << std::endl;
+                dist_source = dilNoise.makeSource(d,inoise);
+                fermion4dtmp=0;
+                if (Ls_ == 1)
+		{
+                    solver(fermion4dtmp, dist_source);
+		}
+		else
+                {
+                    mat.ImportPhysicalFermionSource(dist_source, v5dtmp);
+                    solver(v5dtmp_sol, v5dtmp);
+                    mat.ExportPhysicalFermionSolution(v5dtmp_sol, fermion4dtmp);
+                }
+                if(perambMode == pMode::outputSolve)
+                {
+                    auto &solveOut = envGet(std::vector<FermionField>, objName);
+                    solveOut[inoise+nNoise*dIndexSolve] = fermion4dtmp;
+                }
+   	    }
+            for (int is = 0; is < Ns; is++)
             {
-                for (int idt = 0; idt < nSourceT; idt++) 
-                {                     
-                    int dt=invT[idt]; 
-		    int d = ds + nDS * dk + nDS * nDL * dt;
-		    // Slightly awkward to change the order of indices here, but if dk is the fastest moving index then this works also for reduced nvec in perambMode::inputSolve
-		    int dIndexSolve = ds + nDS * idt + nDS * nSourceT * dk;
-	            std::array<unsigned int, 3> index = dilNoise.dilutionCoordinates(d);
-                    LOG(Message) <<  "index (d_t,d_k,d_alpha) : (" << index[0] << ","<< index[1] << "," << index[2] << ")" << std::endl;
-                    if(perambMode == pMode::inputSolve)
-		    {
-                        fermion4dtmp = solveIn[inoise+nNoise*dIndexSolve];
-		    } 
-		    else 
-		    {
-                        LOG(Message) <<  "LapH source vector from noise " << inoise << " and dilution component (d_t,d_k,d_alpha) : (" << dt << ","<< dk << "," << ds << ")" << std::endl;
-                        dist_source = dilNoise.makeSource(d,inoise);
-                        fermion4dtmp=0;
-                        if (Ls_ == 1)
-                            solver(fermion4dtmp, dist_source);
-                        else
-                        {
-                            mat.ImportPhysicalFermionSource(dist_source, v5dtmp);
-                            solver(v5dtmp_sol, v5dtmp);
-                            mat.ExportPhysicalFermionSolution(v5dtmp_sol, fermion4dtmp);
-                        }
-                        if(perambMode == pMode::outputSolve)
-                        {
-                            auto &solveOut = envGet(std::vector<FermionField>, objName);
-                            solveOut[inoise+nNoise*dIndexSolve] = fermion4dtmp;
-                        }
-		    }
-                    for (int is = 0; is < Ns; is++)
+                cv4dtmp = peekSpin(fermion4dtmp,is);
+                for (int t = Ntfirst; t < Ntfirst + Ntlocal; t++)
+                {
+                    ExtractSliceLocal(cv3dtmp,cv4dtmp,0,t-Ntfirst,Tdir); 
+   	            for (int ivec = 0; ivec < par().nVec; ivec++)
                     {
-                        cv4dtmp = peekSpin(fermion4dtmp,is);
-                        for (int t = Ntfirst; t < Ntfirst + Ntlocal; t++)
-                        {
-                            ExtractSliceLocal(cv3dtmp,cv4dtmp,0,t-Ntfirst,Tdir); 
-			    for (int ivec = 0; ivec < par().nVec; ivec++)
-                            {
-                                ExtractSliceLocal(evec3d,epack.evec[ivec],0,t-Ntfirst,Tdir);
-                                pokeSpin(perambulator.tensor(t, ivec, dk, inoise,idt,ds),static_cast<Complex>(innerProduct(evec3d, cv3dtmp)),is);
-                            }
-                        }
+                        ExtractSliceLocal(evec3d,epack.evec[ivec],0,t-Ntfirst,Tdir);
+                        pokeSpin(perambulator.tensor(t, ivec, dk, inoise,idt,ds),static_cast<Complex>(innerProduct(evec3d, cv3dtmp)),is);
                     }
                 }
             }
