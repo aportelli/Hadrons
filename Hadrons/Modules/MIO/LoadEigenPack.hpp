@@ -152,15 +152,6 @@ void TLoadEigenPack<Pack, GImpl>::execute(void)
     epack.read(par().filestem, par().multiFile, vm().getTrajectory());
     epack.eval.resize(par().size);
 
-    /* Change precision here - quick & dirty!!! */
-    autoView(e1, epack.evec[0], CpuRead);
-
-    thread_for(ss, epack.evec[0].Grid()->oSites(),{
-        LOG(Message) << "site " << ss
-                     << " evec " << e1[ss] << std::endl;
-    });
-    /* End of modification */
-
     if (!par().gaugeXform.empty())
     {
 
