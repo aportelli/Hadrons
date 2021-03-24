@@ -235,7 +235,7 @@ We have up to 256 of these including the offdiag (G1 != G2).
             for ( int nu=0; nu<Gamma::nGamma; nu++){
                 LatticeSpinColourMatrix     bilinear_nu(env().getGrid());
                 bilinear_nu = g5*adj(Sout)*g5*gammavector[nu]*Sin;
-                LOG(Message) << "bilinear_nu for nu = " << nu << " is - " << bilinear_mu << std::endl;
+                //LOG(Message) << "bilinear_nu for nu = " << nu << " is - " << bilinear_mu << std::endl;
                 result.fourquark[mu*Gamma::nGamma/2 + nu] = Zero();
                 tensorprod(lret,bilinear_mu,bilinear_nu);
                 result.fourquark[mu*Gamma::nGamma/2 + nu] = sum(lret);
