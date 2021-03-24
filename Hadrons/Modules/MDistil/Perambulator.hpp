@@ -93,11 +93,16 @@ template <typename FImpl>
 std::vector<std::string> TPerambulator<FImpl>::getInput(void)
 {
     std::vector<std::string> out={par().lapEigenPack, par().solver, par().distilNoise};
+    //std::vector<std::string> out={par().lapEigenPack, par().distilNoise};
     pMode perambMode{par().perambMode};
     if(perambMode == pMode::inputSolve)
     {
         out.push_back(par().unsmearedSolve);
     }
+    /*else
+    {
+        out.push_back(par().solver);
+    }*/
     return out;
 }
 
@@ -105,15 +110,11 @@ std::vector<std::string> TPerambulator<FImpl>::getInput(void)
 template <typename FImpl>
 std::vector<std::string> TPerambulator<FImpl>::getOutput(void)
 {
-    // Always return perambulator with name of module
-    std::string objName{ getName() };
-    std::vector<std::string> output{ objName };
+    std::vector<std::string> output{ getName() };
     pMode perambMode{par().perambMode};
     if(perambMode == pMode::outputSolve)
     {
-        LOG(Message)<< "unsmeared solves are an output" << std::endl;
-        objName.append( "_unsmeared_solve" );
-        output.push_back( objName );
+        output.push_back( getName()+"_unsmeared_solve" );
     }
     return output;
 }
@@ -158,14 +159,12 @@ void TPerambulator<FImpl>::setup(void)
 	}
     }
 	    
-    std::string objName{ getName() };
-    envCreate(PerambTensor, objName, 1, Nt, par().nVec, nDL, nNoise, nSourceT, nDS);
+    envCreate(PerambTensor, getName(), 1, Nt, par().nVec, nDL, nNoise, nSourceT, nDS);
     pMode perambMode{par().perambMode};
     if(perambMode == pMode::outputSolve)
     {
         LOG(Message)<< "setting up output field for unsmeared solves" << std::endl;
-        objName.append( "_unsmeared_solve" );
-        envCreate(std::vector<FermionField>, objName, 1, nNoise*nDL*nDS*nSourceT,
+        envCreate(std::vector<FermionField>, getName()+"_unsmeared_solve", 1, nNoise*nDL*nDS*nSourceT,
                   envGetGrid(FermionField));
     }
     
@@ -192,16 +191,33 @@ void TPerambulator<FImpl>::execute(void)
     int nDS = dilNoise.dilutionSize(DistillationNoise<FImpl>::Index::s);	
     int nDT = dilNoise.dilutionSize(DistillationNoise<FImpl>::Index::t);	
     int nD = nDL * nDS * nDT;
+    auto &perambulator = envGet(PerambTensor, getName());
+    auto &epack = envGet(LapEvecs, par().lapEigenPack);
+    
+    pMode perambMode{par().perambMode};
+    LOG(Message)<< "Mode " << perambMode << std::endl;
+
 
     auto &solver=envGet(Solver, par().solver);
     auto &mat = solver.getFMat();
-    envGetTmp(FermionField, v5dtmp);
-    envGetTmp(FermionField, v5dtmp_sol);
-    std::string objName{ getName() };
-    auto &perambulator = envGet(PerambTensor, objName);
-    auto &epack = envGet(LapEvecs, par().lapEigenPack);
-    
-    objName.append( "_unsmeared_solve" );
+    // Failed attempts at leaving the solver empty for inputSolve
+    //SolverFn fnTmp;
+    //FMat mat;
+    //Solver solver(fnTmp,mat);
+    /*std::vector<Solver> solveTmp;
+    std::vector<FMat> matTmp;
+    if(perambMode != pMode::inputSolve)
+    {
+        auto &solver=envGet(Solver, par().solver);
+        auto &mat = solver.getFMat();
+	solveTmp.push_back(solver);
+	matTmp.push_back(mat);
+    }
+    auto &solver = solveTmp[0];
+    auto &mat = matTmp[0];
+*/
+    envGetTmp(FermionField,      v5dtmp);
+    envGetTmp(FermionField,      v5dtmp_sol);
     envGetTmp(FermionField,      dist_source);
     envGetTmp(FermionField,      fermion4dtmp);
     envGetTmp(FermionField,      fermion3dtmp);
@@ -212,16 +228,6 @@ void TPerambulator<FImpl>::execute(void)
     GridCartesian * grid3d = envGetSliceGrid(FermionField,grid4d->Nd() -1);
     const int Ntlocal{grid4d->LocalDimensions()[3]};
     const int Ntfirst{grid4d->LocalStarts()[3]};
-
-    pMode perambMode{par().perambMode};
-    LOG(Message)<< "Mode " << perambMode << std::endl;
-
-    std::vector<FermionField> solveIn;
-    if(perambMode == pMode::inputSolve)
-    {
-        LOG(Message) << "unsmeared solves are an input" << std::endl;
-        solveIn         = envGet(std::vector<FermionField>, par().unsmearedSolve);
-    }
     
     std::string sourceT = par().timeSources;
     int nSourceT;
@@ -255,8 +261,10 @@ void TPerambulator<FImpl>::execute(void)
     LOG(Message) << "Source times" << perambulator.MetaData.sourceTimes << std::endl;
 
     int nVecFullSolve = 0;
+    std::vector<FermionField> solveIn;
     if(perambMode == pMode::inputSolve)
     {
+        solveIn         = envGet(std::vector<FermionField>, par().unsmearedSolve);
         nVecFullSolve   = solveIn.size()/nNoise/nDS/nSourceT;
         LOG(Message) << "Using solve originally computed with Nvec=" << nVecFullSolve << std::endl;
     }
@@ -300,7 +308,7 @@ void TPerambulator<FImpl>::execute(void)
                 }
                 if(perambMode == pMode::outputSolve)
                 {
-                    auto &solveOut = envGet(std::vector<FermionField>, objName);
+                    auto &solveOut = envGet(std::vector<FermionField>, getName()+"_unsmeared_solve");
                     solveOut[inoise+nNoise*dIndexSolve] = fermion4dtmp;
                 }
    	    }
@@ -364,7 +372,7 @@ void TPerambulator<FImpl>::execute(void)
         sFileName.append(1, '.');
         const std::string sTrajNum{std::to_string(vm().getTrajectory())};
         sFileName.append(sTrajNum);
-        auto &solveOut = envGet(std::vector<FermionField>, objName);
+        auto &solveOut = envGet(std::vector<FermionField>, getName()+"_unsmeared_solve");
 	// TODO: Which writer do we want here??
 	/*#ifdef HAVE_HDF5
             using Default_Writer = Grid::Hdf5Writer;
