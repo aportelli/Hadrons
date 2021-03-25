@@ -54,7 +54,7 @@ public:
                                     std::string, distilNoise,
                                     std::string, timeSources,
                                     pMode, perambMode,
-                                    int, nVec);
+                                    std::string, nVec);
 };
 
 template <typename FImpl>
@@ -128,6 +128,15 @@ void TPerambulator<FImpl>::setup(void)
     const int  Nt{env().getDim(Tdir)};
     auto &dilNoise = envGet(DistillationNoise<FImpl>, par().distilNoise);
     int nNoise = dilNoise.size();	
+    int nVec=0;
+    if(par().nVec.empty())
+    {
+	nVec = dilNoise.getNl();
+    }
+    else
+    {
+        nVec = std::stoi(par().nVec);
+    }
     int nDL = dilNoise.dilutionSize(DistillationNoise<FImpl>::Index::l);	
     int nDS = dilNoise.dilutionSize(DistillationNoise<FImpl>::Index::s);	
     int nDT = dilNoise.dilutionSize(DistillationNoise<FImpl>::Index::t);	
@@ -159,7 +168,7 @@ void TPerambulator<FImpl>::setup(void)
 	}
     }
 	    
-    envCreate(PerambTensor, getName(), 1, Nt, par().nVec, nDL, nNoise, nSourceT, nDS);
+    envCreate(PerambTensor, getName(), 1, Nt, nVec, nDL, nNoise, nSourceT, nDS);
     pMode perambMode{par().perambMode};
     if(perambMode == pMode::outputSolve)
     {
@@ -187,6 +196,15 @@ void TPerambulator<FImpl>::execute(void)
     const int Nt{env().getDim(Tdir)};
     auto &dilNoise = envGet(DistillationNoise<FImpl>, par().distilNoise);
     int nNoise = dilNoise.size();	
+    int nVec=0;
+    if(par().nVec.empty())
+    {
+	nVec = dilNoise.getNl();
+    }
+    else
+    {
+        nVec = std::stoi(par().nVec);
+    }
     int nDL = dilNoise.dilutionSize(DistillationNoise<FImpl>::Index::l);	
     int nDS = dilNoise.dilutionSize(DistillationNoise<FImpl>::Index::s);	
     int nDT = dilNoise.dilutionSize(DistillationNoise<FImpl>::Index::t);	
@@ -318,7 +336,7 @@ void TPerambulator<FImpl>::execute(void)
                 for (int t = Ntfirst; t < Ntfirst + Ntlocal; t++)
                 {
                     ExtractSliceLocal(cv3dtmp,cv4dtmp,0,t-Ntfirst,Tdir); 
-   	            for (int ivec = 0; ivec < par().nVec; ivec++)
+   	            for (int ivec = 0; ivec < nVec; ivec++)
                     {
                         ExtractSliceLocal(evec3d,epack.evec[ivec],0,t-Ntfirst,Tdir);
                         pokeSpin(perambulator.tensor(t, ivec, dk, inoise,idt,ds),static_cast<Complex>(innerProduct(evec3d, cv3dtmp)),is);
