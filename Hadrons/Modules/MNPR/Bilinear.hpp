@@ -38,7 +38,7 @@ BEGIN_HADRONS_NAMESPACE
 /******************************************************************************
  *                                TBilinear                                       *
         Performs bilinear contractions of the type tr[g5*adj(qOut)*g5*G*qIn]
-        Suitable for non exceptional momenta in Rome-qOuthampton NPR
+        Suitable for non exceptional momenta in Rome-Southampton NPR
 
 Compute the bilinear vertex needed for the NPR.
 V(G) = sum_x  [ g5 * adj(S'(x,p2)) * g5 * G * S'(x,p1) ]_{si,sj,ci,cj}
@@ -150,15 +150,16 @@ void TBilinear<FImpl>::execute(void)
     envGetTmp(ComplexField, coor);
 
     // momentum on legs
-    //TODO: Do we want to check the momentum input format? Not done in MqInk::Point, so probably ok like this.
+    //TODO: Do we want to check the momentum input format? Not done in MSink::Point, so probably ok like this.
     std::vector<Real>           pIn  = strToVec<Real>(par().pIn), 
 	                        pOut = strToVec<Real>(par().pOut);
-    std::vector<Real>           latt_size(pIn.begin(), pIn.end()); 
+    Coordinate                  latt_size = GridDefaultLatt(); 
     Gamma                       g5(Gamma::Algebra::Gamma5);
     Complex                     Ci(0.0,1.0);
     std::vector<Result>         result;
     Result                      r;
 
+    LOG(Message) << "debug " << latt_size << std:: endl;
     pDotXIn=Zero();
     pDotXOut=Zero();
     for (unsigned int mu = 0; mu < 4; ++mu)
