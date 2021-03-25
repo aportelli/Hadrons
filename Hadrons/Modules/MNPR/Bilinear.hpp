@@ -159,7 +159,6 @@ void TBilinear<FImpl>::execute(void)
     std::vector<Result>         result;
     Result                      r;
 
-    LOG(Message) << "debug " << latt_size << std:: endl;
     pDotXIn=Zero();
     pDotXOut=Zero();
     for (unsigned int mu = 0; mu < 4; ++mu)
