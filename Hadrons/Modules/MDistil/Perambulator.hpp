@@ -54,7 +54,8 @@ public:
                                     std::string, distilNoise,
                                     std::string, timeSources,
                                     pMode, perambMode,
-                                    std::string, nVec);
+                                    std::string, nVec,
+                                    bool,        multiFile);
 };
 
 template <typename FImpl>
@@ -287,31 +288,31 @@ void TPerambulator<FImpl>::execute(void)
         LOG(Message) << "Using solve originally computed with Nvec=" << nVecFullSolve << std::endl;
     }
 
+    int idt,dt,dk,ds,dIndexSolve = 0; 
+    std::array<unsigned int, 3> index;
     for (int inoise = 0; inoise < nNoise; inoise++)
     {
         for (int d = 0; d < nD; d++)
         {
-            std::array<unsigned int, 3> index = dilNoise.dilutionCoordinates(d);
-   	    int dt = index[0];
-   	    int dk = index[1];
-   	    int ds = index[2];
-   	    int idt = 0; 
-            bool dtExists = std::find(std::begin(invT), std::end(invT), dt) != std::end(invT);
-   	    if(!dtExists)
+            index = dilNoise.dilutionCoordinates(d);
+   	    dt = index[0];
+   	    dk = index[1];
+   	    ds = index[2];
+	    std::vector<int>::iterator it = std::find(std::begin(invT), std::end(invT), dt);
+   	    if(it == std::end(invT))
    	    {
    	        //skip dilution indices which are not in invT
    	        continue;
    	    }
-   	    idt+=1;
+	    idt=it - std::begin(invT);
    	    // index of the solve just has the reduced time dimension 
-   	    int dIndexSolve = ds + nDS * dk + nVecFullSolve * nDL * idt;
+   	    dIndexSolve = ds + nDS * dk + nVecFullSolve * nDL * idt;
             if(perambMode == pMode::inputSolve)
    	    {
                 fermion4dtmp = solveIn[inoise+nNoise*dIndexSolve];
    	    } 
    	    else 
    	    {
-                LOG(Message) <<  "LapH source vector from noise " << inoise << " and dilution component (d_t,d_k,d_alpha) : (" << dt << ","<< dk << "," << ds << ")" << std::endl;
                 dist_source = dilNoise.makeSource(d,inoise);
                 fermion4dtmp=0;
                 if (Ls_ == 1)
@@ -343,6 +344,7 @@ void TPerambulator<FImpl>::execute(void)
                     }
                 }
             }
+   	    idt+=1;
         }
     }
     // Now share my timeslice data with other members of the grid
@@ -383,23 +385,11 @@ void TPerambulator<FImpl>::execute(void)
     }
 
     // Also save the unsmeared sink if specified
-    // Alternative: Make this an A2AVector and use A2AVectorIO::read
     std::string sFileName(par().unsmearedSolveFileName);
     if(perambMode == pMode::outputSolve && !sFileName.empty())
     {
-        sFileName.append(1, '.');
-        const std::string sTrajNum{std::to_string(vm().getTrajectory())};
-        sFileName.append(sTrajNum);
         auto &solveOut = envGet(std::vector<FermionField>, getName()+"_unsmeared_solve");
-	// TODO: Which writer do we want here??
-	/*#ifdef HAVE_HDF5
-            using Default_Writer = Grid::Hdf5Writer;
-        #else
-            using Default_Writer = Grid::BinaryWriter;
-        #endif
-	Default_Writer w( sFileName );*/
-	Grid::BinaryWriter w( sFileName );
-        write( w, "unsmearedSolve", solveOut );
+        A2AVectorsIo::write(sFileName, solveOut, par().multiFile, vm().getTrajectory());
     }
 }
 
