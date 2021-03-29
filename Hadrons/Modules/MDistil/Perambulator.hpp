@@ -344,7 +344,6 @@ void TPerambulator<FImpl>::execute(void)
                     }
                 }
             }
-   	    idt+=1;
         }
     }
     // Now share my timeslice data with other members of the grid
