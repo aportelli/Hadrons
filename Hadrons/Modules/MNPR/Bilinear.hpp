@@ -114,7 +114,7 @@ void TBilinear<FImpl>::setup(void)
 {
     envTmpLat(ComplexField, "pDotXIn");
     envTmpLat(ComplexField, "pDotXOut");
-    envTmpLat(ComplexField, "coor");
+    envTmpLat(ComplexField, "xMu");
 }
 
 // dependencies/products ///////////////////////////////////////////////////////
@@ -129,7 +129,7 @@ std::vector<std::string> TBilinear<FImpl>::getInput(void)
 template <typename FImpl>
 std::vector<std::string> TBilinear<FImpl>::getOutput(void)
 {
-    std::vector<std::string> out = {getName()};
+    std::vector<std::string> out = {};
     
     return out;
 }
@@ -147,7 +147,7 @@ void TBilinear<FImpl>::execute(void)
     auto  &qOut   = envGet(PropagatorField, par().qOut);
     envGetTmp(ComplexField, pDotXIn);
     envGetTmp(ComplexField, pDotXOut);
-    envGetTmp(ComplexField, coor);
+    envGetTmp(ComplexField, xMu);
 
     // momentum on legs
     //TODO: Do we want to check the momentum input format? Not done in MSink::Point, so probably ok like this.
@@ -164,20 +164,22 @@ void TBilinear<FImpl>::execute(void)
     for (unsigned int mu = 0; mu < 4; ++mu)
     {
         Real TwoPiL =  M_PI * 2.0/ latt_size[mu];
-        LatticeCoordinate(coor,mu);
-        pDotXIn  = pDotXIn  + (TwoPiL * pIn[mu])  * coor;
-        pDotXOut = pDotXOut + (TwoPiL * pOut[mu]) * coor;
+        LatticeCoordinate(xMu,mu);
+        pDotXIn  = pDotXIn  + (TwoPiL * pIn[mu])  * xMu;
+        pDotXOut = pDotXOut + (TwoPiL * pOut[mu]) * xMu;
     }
     qIn  = qIn  * exp(-Ci*pDotXIn); //phase corrections
     qOut = qOut * exp(-Ci*pDotXOut);
     
-    r.info.pIn = par().pIn;
-    r.info.pIn = par().pOut;
+    r.info.pIn  = par().pIn;
+    r.info.pOut = par().pOut;
     for (auto &G: Gamma::gall)
     {
 	r.info.gamma = G.g;
-        r.corr.push_back( sum(g5*adj(qOut)*g5*G*qIn) );
+	r.corr.push_back( sum(g5*adj(qOut)*g5*G*qIn) );
         result.push_back(r);
+	//This is all still quite hacky - we probably want to think about the output format a little more!
+	r.corr.erase(r.corr.begin());
     }
     //////////////////////////////////////////////////
     saveResult(par().output, "bilinear", result);
