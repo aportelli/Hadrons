@@ -94,16 +94,11 @@ template <typename FImpl>
 std::vector<std::string> TPerambulator<FImpl>::getInput(void)
 {
     std::vector<std::string> out={par().lapEigenPack, par().solver, par().distilNoise};
-    //std::vector<std::string> out={par().lapEigenPack, par().distilNoise};
     pMode perambMode{par().perambMode};
     if(perambMode == pMode::inputSolve)
     {
         out.push_back(par().unsmearedSolve);
     }
-    /*else
-    {
-        out.push_back(par().solver);
-    }*/
     return out;
 }
 
@@ -216,25 +211,9 @@ void TPerambulator<FImpl>::execute(void)
     pMode perambMode{par().perambMode};
     LOG(Message)<< "Mode " << perambMode << std::endl;
 
-
     auto &solver=envGet(Solver, par().solver);
     auto &mat = solver.getFMat();
-    // Failed attempts at leaving the solver empty for inputSolve
-    //SolverFn fnTmp;
-    //FMat mat;
-    //Solver solver(fnTmp,mat);
-    /*std::vector<Solver> solveTmp;
-    std::vector<FMat> matTmp;
-    if(perambMode != pMode::inputSolve)
-    {
-        auto &solver=envGet(Solver, par().solver);
-        auto &mat = solver.getFMat();
-	solveTmp.push_back(solver);
-	matTmp.push_back(mat);
-    }
-    auto &solver = solveTmp[0];
-    auto &mat = matTmp[0];
-*/
+
     envGetTmp(FermionField,      v5dtmp);
     envGetTmp(FermionField,      v5dtmp_sol);
     envGetTmp(FermionField,      dist_source);
@@ -295,9 +274,9 @@ void TPerambulator<FImpl>::execute(void)
         for (int d = 0; d < nD; d++)
         {
             index = dilNoise.dilutionCoordinates(d);
-   	    dt = index[0];
-   	    dk = index[1];
-   	    ds = index[2];
+   	    dt = index[DistillationNoise<FImpl>::Index::t];
+   	    dk = index[DistillationNoise<FImpl>::Index::l];
+   	    ds = index[DistillationNoise<FImpl>::Index::s];
 	    std::vector<int>::iterator it = std::find(std::begin(invT), std::end(invT), dt);
    	    if(it == std::end(invT))
    	    {
@@ -310,6 +289,7 @@ void TPerambulator<FImpl>::execute(void)
             if(perambMode == pMode::inputSolve)
    	    {
                 fermion4dtmp = solveIn[inoise+nNoise*dIndexSolve];
+		LOG(Message) <<  "re-using source vector: noise " << inoise << " dilution (d_t,d_k,d_alpha) : (" << dt << ","<< dk << "," << ds << ")" << std::endl;
    	    } 
    	    else 
    	    {
@@ -387,6 +367,7 @@ void TPerambulator<FImpl>::execute(void)
     std::string sFileName(par().unsmearedSolveFileName);
     if(perambMode == pMode::outputSolve && !sFileName.empty())
     {
+	//TODO: Add (at least) sourceTimes as metadata.
         auto &solveOut = envGet(std::vector<FermionField>, getName()+"_unsmeared_solve");
         A2AVectorsIo::write(sFileName, solveOut, par().multiFile, vm().getTrajectory());
     }
