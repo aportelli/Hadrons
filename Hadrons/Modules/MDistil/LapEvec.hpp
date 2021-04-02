@@ -4,15 +4,8 @@
  * Copyright (C) 2015 - 2020
  *
  * Author: Antonin Portelli <antonin.portelli@me.com>
- * Author: Author Name <43034299+mmphys@users.noreply.github.com>
- * Author: Felix Erben <dc-erbe1@tesseract-login1.ib0.sgi.cluster.dirac.ed.ac.uk>
  * Author: Felix Erben <felix.erben@ed.ac.uk>
- * Author: Michael Marshall <43034299+mmphys@users.noreply.github.com>
  * Author: Michael Marshall <michael.marshall@ed.ac.uk>
- * Author: ferben <ferben@c180030.wlan.net.ed.ac.uk>
- * Author: ferben <ferben@c183011.wlan.net.ed.ac.uk>
- * Author: ferben <ferben@debian.felix.com>
- * Author: ferben <ferben@localhost.localdomain>
  *
  * Hadrons is free software: you can redistribute it and/or modify
  * it under the terms of the GNU General Public License as published by
@@ -92,11 +85,11 @@ struct LapEvecPar: Serializable {
  
  ******************************************************************************/
 
-template <typename GImpl>
+template <typename FImpl>
 class TLapEvec: public Module<LapEvecPar>
 {
 public:
-    GAUGE_TYPE_ALIASES(GImpl,);
+    FERM_TYPE_ALIASES(FImpl,);
     // constructor
     TLapEvec(const std::string name);
     // destructor
@@ -108,44 +101,42 @@ public:
     virtual void setup(void);
     // execution
     virtual void execute(void);
-protected:
-    std::unique_ptr<GridCartesian> gridLD; // Owned by me, so I must delete it
 };
 
-MODULE_REGISTER_TMP(LapEvec, TLapEvec<GIMPL>, MDistil);
+MODULE_REGISTER_TMP(LapEvec, TLapEvec<FIMPL>, MDistil);
 
 /******************************************************************************
  TLapEvec implementation
  ******************************************************************************/
 
 // constructor /////////////////////////////////////////////////////////////////
-template <typename GImpl>
-TLapEvec<GImpl>::TLapEvec(const std::string name) : Module<LapEvecPar>(name) {}
+template <typename FImpl>
+TLapEvec<FImpl>::TLapEvec(const std::string name) : Module<LapEvecPar>(name) {}
 
 // dependencies/products ///////////////////////////////////////////////////////
-template <typename GImpl>
-std::vector<std::string> TLapEvec<GImpl>::getInput(void)
+template <typename FImpl>
+std::vector<std::string> TLapEvec<FImpl>::getInput(void)
 {
     return std::vector<std::string>{par().gauge};
 }
 
-template <typename GImpl>
-std::vector<std::string> TLapEvec<GImpl>::getOutput(void)
+template <typename FImpl>
+std::vector<std::string> TLapEvec<FImpl>::getOutput(void)
 {
     return {getName()}; // This is the higher dimensional eigenpack
 }
 
 // setup ///////////////////////////////////////////////////////////////////////
-template <typename GImpl>
-void TLapEvec<GImpl>::setup(void)
+template <typename FImpl>
+void TLapEvec<FImpl>::setup(void)
 {
-    GridCartesian * gridHD = env().getGrid();
-    MakeLowerDimGrid(gridLD,gridHD);
+    GridCartesian * gridHD = envGetGrid(FermionField);
+    GridCartesian * gridLD = envGetSliceGrid(FermionField,gridHD->Nd() -1);
     const int Ntlocal{gridHD->LocalDimensions()[Tdir]};
     // Temporaries
     envTmpLat(GaugeField, "Umu_smear");
-    envTmp(LatticeGaugeField, "UmuNoTime", 1, gridLD.get());
-    envTmp(LatticeColourVector,     "src", 1, gridLD.get());
+    envTmp(LatticeGaugeField, "UmuNoTime", 1, gridLD);
+    envTmp(ColourVectorField,  "src",1,gridLD);
     envTmp(std::vector<LapEvecs>,  "eig", 1, Ntlocal);
     // Output objects
     envCreate(LapEvecs, getName(), 1, par().Lanczos.Nvec, gridHD);
@@ -159,12 +150,13 @@ void TLapEvec<GImpl>::setup(void)
  
  *************************************************************************************/
 
-template<typename Field, typename GaugeField=LatticeGaugeField>
+//template<typename FImpl> //would this be desired? 
+template<typename Field, typename GaugeField>
 class Laplacian3D : public LinearOperatorBase<Field>, public LinearFunction<Field> {
     typedef typename GaugeField::vector_type vCoeff_t;
 public:
     int          nd; // number of spatial dimensions
-    std::vector<Lattice<iColourMatrix<vCoeff_t> > > U;
+    std::vector< LapEvec::ColourMatrixField > U;
     // Construct this operator given a gauge field and the number of dimensions it should act on
     Laplacian3D( GaugeField& gf, int dimSpatial = Tdir ) : nd{dimSpatial}
     {
@@ -185,7 +177,7 @@ public:
         conformable( in, out );
         out = ( ( Real ) ( 2 * nd ) ) * in;
         Field tmp_(in.Grid());
-        typedef typename GaugeField::vector_type vCoeff_t;
+        //typedef typename GaugeField::vector_type vCoeff_t;
         for (int mu = 0 ; mu < nd ; mu++)
         {
             out -= U[mu] * Cshift( in, mu, 1);
@@ -221,8 +213,8 @@ public:
  ******************************************************************************/
 
 // execution ///////////////////////////////////////////////////////////////////
-template <typename GImpl>
-void TLapEvec<GImpl>::execute(void)
+template <typename FImpl>
+void TLapEvec<FImpl>::execute(void)
 {
     const ChebyshevParameters &ChebPar{par().Cheby};
     const LanczosParameters   &LPar{par().Lanczos};
@@ -242,17 +234,22 @@ void TLapEvec<GImpl>::execute(void)
     
     auto & eig4d = envGet(LapEvecs, getName() );
     envGetTmp(std::vector<LapEvecs>, eig);   // Eigenpack for each timeslice
-    envGetTmp(LatticeGaugeField, UmuNoTime); // Gauge field without time dimension
-    envGetTmp(LatticeColourVector, src);
-    GridCartesian * gridHD = env().getGrid();
+    envGetTmp(GaugeField, UmuNoTime); // Gauge field without time dimension
+    envGetTmp(ColourVectorField, src);
+    GridCartesian * gridHD = envGetGrid(FermionField);
+    GridCartesian * gridLD = envGetSliceGrid(FermionField,gridHD->Nd() -1);
     const int Ntlocal{gridHD->LocalDimensions()[Tdir]};
     const int Ntfirst{gridHD->LocalStarts()[Tdir]};
     uint32_t ConvergenceErrors{0};
     const int NtFull{env().getDim(Tdir)};
     TimesliceEvals Evals{ NtFull, LPar.Nvec };
     for (int t = 0; t < NtFull; t++)
+    {
         for (int v = 0; v < LPar.Nvec; v++)
+	{
             Evals.tensor( t, v ) = 0;
+	}
+    }
     for (int t = 0; t < Ntlocal; t++ )
     {
         LOG(Message) << "------------------------------------------------------------" << std::endl;
@@ -260,14 +257,14 @@ void TLapEvec<GImpl>::execute(void)
         LOG(Message) << " Lanczos residual = " << LPar.resid << std::endl;
         LOG(Message) << " Number of Lap eigenvectors (nvec) = " << LPar.Nvec << std::endl;
         LOG(Message) << "------------------------------------------------------------" << std::endl;
-        eig[t].resize(LPar.Nk+LPar.Np,gridLD.get());
+        eig[t].resize(LPar.Nk+LPar.Np,gridLD);
         
         // Construct smearing operator
         ExtractSliceLocal(UmuNoTime,Umu_smear,0,t,Tdir); // switch to 3d/4d objects
-        Laplacian3D<LatticeColourVector> Nabla(UmuNoTime);
+        Laplacian3D<ColourVectorField,GaugeField> Nabla(UmuNoTime);
         LOG(Message) << "Chebyshev preconditioning to order " << ChebPar.PolyOrder
                      << " with parameters (alpha,beta) = (" << ChebPar.alpha << "," << ChebPar.beta << ")" << std::endl;
-        Chebyshev<LatticeColourVector> Cheb(ChebPar.alpha,ChebPar.beta,ChebPar.PolyOrder);
+        Chebyshev<ColourVectorField> Cheb(ChebPar.alpha,ChebPar.beta,ChebPar.PolyOrder);
         
         // Construct source vector according to Test_dwf_compressed_lanczos.cc
         src = 11.0; // NB: This is a dummy parameter and just needs to be non-zero
@@ -275,8 +272,8 @@ void TLapEvec<GImpl>::execute(void)
         nn = Grid::sqrt(nn);
         src = src * (1.0/nn);
         
-        Laplacian3DHerm<LatticeColourVector> NablaCheby(Cheb,Nabla);
-        ImplicitlyRestartedLanczos<LatticeColourVector>
+        Laplacian3DHerm<ColourVectorField> NablaCheby(Cheb,Nabla);
+        ImplicitlyRestartedLanczos<ColourVectorField>
         IRL(NablaCheby,Nabla,LPar.Nvec,LPar.Nk,LPar.Nk+LPar.Np,LPar.resid,LPar.MaxIt);
         int Nconv = 0;
         IRL.calc(eig[t].eval,eig[t].evec,src,Nconv);
@@ -287,15 +284,22 @@ void TLapEvec<GImpl>::execute(void)
             LOG(Error) << "MDistil::LapEvec : Not enough eigenvectors converged. If this occurs in practice, we should modify the eigensolver to iterate once more to ensure the second convergence test does not take us below the requested number of eigenvectors" << std::endl;
         }
         if( Nconv != LPar.Nvec )
-            eig[t].resize(LPar.Nvec, gridLD.get());
-        RotateEigen( eig[t].evec ); // Rotate the eigenvectors into our phase convention
+	{
+            eig[t].resize(LPar.Nvec, gridLD);
+	}
+	RotateEigen( eig[t].evec ); // Rotate the eigenvectors into our phase convention
         
-        for (int i=0;i<LPar.Nvec;i++){
+        for (int i=0;i<LPar.Nvec;i++)
+	{
             InsertSliceLocal(eig[t].evec[i],eig4d.evec[i],0,t,Tdir);
             if(t==0 && Ntfirst==0)
+	    {
                 eig4d.eval[i] = eig[t].eval[i]; // TODO: Discuss: is this needed? Is there a better way?
+	    }
             if(gridLD->IsBoss()) // Only do this on one node per timeslice, so a global sum will work
+	    {
                 Evals.tensor(t + Ntfirst,i) = eig[t].eval[i];
+	    }
         }
     }
     GridLogIRL.Active( PreviousIRLLogState );
