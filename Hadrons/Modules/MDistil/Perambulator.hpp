@@ -262,6 +262,7 @@ void TPerambulator<FImpl>::execute(void)
     std::vector<FermionField> solveIn;
     if(perambMode == pMode::inputSolve)
     {
+	// If we save metadata with solves we could do more checks here! (was the solve computed with specified nNoise, nDs, nSourceT, and even exactly the specified source times?
         solveIn         = envGet(std::vector<FermionField>, par().unsmearedSolve);
         nVecFullSolve   = solveIn.size()/nNoise/nDS/nSourceT;
         LOG(Message) << "Using solve originally computed with Nvec=" << nVecFullSolve << std::endl;
@@ -360,6 +361,7 @@ void TPerambulator<FImpl>::execute(void)
         std::string sPerambName {par().perambFileName};
         sPerambName.append(".");
         sPerambName.append(std::to_string(vm().getTrajectory()));
+	makeFileDir(sPerambName, grid4d);
         perambulator.write(sPerambName.c_str());
     }
 
