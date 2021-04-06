@@ -441,8 +441,6 @@ public:
     GridCartesian                       *getGrid(void) const;
     // generate noise
     void generateNoise(GridParallelRNG &rng);
-    // generate dummy noise - vector of 1s, used for exact distillation only
-    void exactNoisePolicy(void);
 private:
     void         setFerm(const int i);
     virtual void setProp(const int i) = 0;
@@ -658,16 +656,6 @@ void SpinColorDiagonalNoise<FImpl>::generateNoise(GridParallelRNG &rng)
         bernoulli(rng, eta_);
         eta_ = (2.*eta_ - shift)*(1./::sqrt(2.));
         noise_[n] = eta_;
-    }
-}
-
-template <typename FImpl>
-void SpinColorDiagonalNoise<FImpl>::exactNoisePolicy(void)
-{
-    Complex        shift(1., 0.);
-    for (int n = 0; n < noise_.size(); ++n)
-    {
-        noise_[n] = shift;
     }
 }
 
