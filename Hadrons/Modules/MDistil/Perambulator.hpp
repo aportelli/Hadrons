@@ -35,7 +35,7 @@
 #include <Hadrons/DilutedNoise.hpp>
 #include <Hadrons/NamedTensor.hpp>
 #include <Hadrons/Solver.hpp>
-#include <Hadrons/A2AVectors.hpp>
+#include <Hadrons/DistillationVectors.hpp>
 
 BEGIN_HADRONS_NAMESPACE
 BEGIN_MODULE_NAMESPACE(MDistil)
@@ -376,7 +376,7 @@ void TPerambulator<FImpl>::execute(void)
     {
 	//TODO: Add (at least) sourceTimes as metadata.
         auto &solveOut = envGet(std::vector<FermionField>, getName()+"_unsmeared_solve");
-        A2AVectorsIo::write(sFileName, solveOut, par().multiFile, vm().getTrajectory());
+        DistillationVectorsIo::write(sFileName, solveOut, "phi", nNoise, nDL, nDS, nDT, perambulator.MetaData.sourceTimes, par().multiFile, vm().getTrajectory());
     }
 }
 
