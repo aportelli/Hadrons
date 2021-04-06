@@ -31,8 +31,7 @@
 #include <Hadrons/Global.hpp>
 #include <Hadrons/Module.hpp>
 #include <Hadrons/ModuleFactory.hpp>
-
-#include <Hadrons/Modules/MDistil/Distil.hpp>
+#include <Hadrons/NamedTensor.hpp>
 
 BEGIN_HADRONS_NAMESPACE
 

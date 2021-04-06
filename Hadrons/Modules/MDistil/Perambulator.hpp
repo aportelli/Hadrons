@@ -29,9 +29,13 @@
 #ifndef Hadrons_MDistil_Perambulator_hpp_
 #define Hadrons_MDistil_Perambulator_hpp_
 
-#include <Hadrons/Modules/MDistil/Distil.hpp>
+#include <Hadrons/Global.hpp>
+#include <Hadrons/Module.hpp>
+#include <Hadrons/ModuleFactory.hpp>
 #include <Hadrons/DilutedNoise.hpp>
-
+#include <Hadrons/NamedTensor.hpp>
+#include <Hadrons/Solver.hpp>
+#include <Hadrons/A2AVectors.hpp>
 
 BEGIN_HADRONS_NAMESPACE
 BEGIN_MODULE_NAMESPACE(MDistil)
@@ -40,6 +44,7 @@ BEGIN_MODULE_NAMESPACE(MDistil)
  *                             Perambulator                                    *
  ******************************************************************************/
 
+GRID_SERIALIZABLE_ENUM(pMode, undef, perambOnly, 0, inputSolve, 1, outputSolve, 2);
 
 
 class PerambulatorPar: Serializable
