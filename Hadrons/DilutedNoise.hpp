@@ -295,8 +295,8 @@ void DistillationNoise<FImpl>::dumpDilutionMap(void)
 template <typename FImpl>
 void DistillationNoise<FImpl>::generateNoise(GridSerialRNG &rng)
 {
-    constexpr Type shift(1., 1.);
-    constexpr double invSqrt2 = 0.7071067812;
+    const Type shift(1., 1.);
+    const double invSqrt2 = 0.7071067812;
     Type      eta;
 
     for (auto &n: noise_)
@@ -310,7 +310,7 @@ void DistillationNoise<FImpl>::generateNoise(GridSerialRNG &rng)
 template <typename FImpl>
 void DistillationNoise<FImpl>::exactNoisePolicy(void)
 {
-    constexpr Type shift(1., 0.);
+    const Type shift(1., 0.);
 
     for (auto &n: noise_)
     for (unsigned int i = 0; i < n.size(); ++i)
