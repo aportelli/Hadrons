@@ -174,24 +174,11 @@ BEGIN_MODULE_NAMESPACE(MDistil)
 //Eigenvectors of the Laplacian
 using LapEvecs = Grid::Hadrons::EigenPack<LatticeColourVector>;
 
-// Noise vector (index order: nnoise, nt, nvec, ns)
-
-class NoiseTensor : public NamedTensor<Complex, 4>
-{
-    public:
-    static const std::string                Name__;
-    static const std::array<std::string, 4> DefaultIndexNames__;
-    // Construct a named tensor explicitly specifying size of each dimension
-    template<typename... IndexTypes>
-    NoiseTensor(Eigen::Index nNoise, Eigen::Index nT, Eigen::Index nVec, Eigen::Index nS)
-    : NamedTensor{Name__, DefaultIndexNames__, nNoise, nT, nVec, nS} {}
-};
-
 class PerambMetadata : Serializable
 {
 public:
     GRID_SERIALIZABLE_CLASS_MEMBERS(PerambMetadata, int, Version,
-                                    std::vector<std::vector<unsigned int>>, sourceTimes );
+                                    std::vector<int>, timeSources );
 };
 
 class PerambTensor : public NamedTensor<SpinVector, 6, PerambMetadata>

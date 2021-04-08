@@ -33,8 +33,11 @@
 #ifndef Hadrons_MIO_LoadPerambulator_hpp_
 #define Hadrons_MIO_LoadPerambulator_hpp_
 
-#include <Hadrons/Modules/MDistil/Distil.hpp>
+#include <Hadrons/Global.hpp>
+#include <Hadrons/Module.hpp>
+#include <Hadrons/ModuleFactory.hpp>
 #include <Hadrons/DilutedNoise.hpp>
+#include <Hadrons/NamedTensor.hpp>
 
 BEGIN_HADRONS_NAMESPACE
 BEGIN_MODULE_NAMESPACE(MIO)

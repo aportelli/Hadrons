@@ -29,9 +29,13 @@
 #ifndef Hadrons_MDistil_Perambulator_hpp_
 #define Hadrons_MDistil_Perambulator_hpp_
 
-#include <Hadrons/Modules/MDistil/Distil.hpp>
+#include <Hadrons/Global.hpp>
+#include <Hadrons/Module.hpp>
+#include <Hadrons/ModuleFactory.hpp>
 #include <Hadrons/DilutedNoise.hpp>
-
+#include <Hadrons/NamedTensor.hpp>
+#include <Hadrons/Solver.hpp>
+#include <Hadrons/DistillationVectors.hpp>
 
 BEGIN_HADRONS_NAMESPACE
 BEGIN_MODULE_NAMESPACE(MDistil)
@@ -40,6 +44,7 @@ BEGIN_MODULE_NAMESPACE(MDistil)
  *                             Perambulator                                    *
  ******************************************************************************/
 
+GRID_SERIALIZABLE_ENUM(pMode, undef, perambOnly, 0, inputSolve, 1, outputSolve, 2);
 
 
 class PerambulatorPar: Serializable
@@ -49,13 +54,13 @@ public:
                                     std::string, lapEigenPack,
                                     std::string, solver,
                                     std::string, perambFileName,
-                                    std::string, unsmearedSolveFileName,
-                                    std::string, unsmearedSolve,
+                                    std::string, fullSolveFileName,
+                                    std::string, fullSolve,
                                     std::string, distilNoise,
                                     std::string, timeSources,
                                     pMode, perambMode,
                                     std::string, nVec,
-                                    bool,        multiFile);
+                                    std::string, multiFile);
 };
 
 template <typename FImpl>
@@ -93,26 +98,30 @@ TPerambulator<FImpl>::TPerambulator(const std::string name) : Module<Perambulato
 template <typename FImpl>
 std::vector<std::string> TPerambulator<FImpl>::getInput(void)
 {
-    std::vector<std::string> out={par().lapEigenPack, par().solver, par().distilNoise};
+    std::vector<std::string> in={par().lapEigenPack, par().distilNoise};
     pMode perambMode{par().perambMode};
     if(perambMode == pMode::inputSolve)
     {
-        out.push_back(par().unsmearedSolve);
+        in.push_back(par().fullSolve);
     }
-    return out;
+    else
+    {
+        in.push_back(par().solver);
+    }
+    return in;
 }
 
 
 template <typename FImpl>
 std::vector<std::string> TPerambulator<FImpl>::getOutput(void)
 {
-    std::vector<std::string> output{ getName() };
+    std::vector<std::string> out{ getName() };
     pMode perambMode{par().perambMode};
     if(perambMode == pMode::outputSolve)
     {
-        output.push_back( getName()+"_unsmeared_solve" );
+        out.push_back( getName()+"_full_solve" );
     }
-    return output;
+    return out;
 }
 
 // setup ///////////////////////////////////////////////////////////////////////
@@ -168,8 +177,8 @@ void TPerambulator<FImpl>::setup(void)
     pMode perambMode{par().perambMode};
     if(perambMode == pMode::outputSolve)
     {
-        LOG(Message)<< "setting up output field for unsmeared solves" << std::endl;
-        envCreate(std::vector<FermionField>, getName()+"_unsmeared_solve", 1, nNoise*nDL*nDS*nSourceT,
+        LOG(Message)<< "setting up output field for full solves" << std::endl;
+        envCreate(std::vector<FermionField>, getName()+"_full_solve", 1, nNoise*nDL*nDS*nSourceT,
                   envGetGrid(FermionField));
     }
     
@@ -180,9 +189,12 @@ void TPerambulator<FImpl>::setup(void)
     envTmp(ColourVectorField,    "cv3dtmp", 1, grid3d);
     envTmp(ColourVectorField,    "evec3d",  1, grid3d);
     
-    Ls_ = env().getObjectLs(par().solver);
-    envTmpLat(FermionField, "v5dtmp", Ls_);
-    envTmpLat(FermionField, "v5dtmp_sol", Ls_);
+    if(perambMode != pMode::inputSolve)
+    {
+        Ls_ = env().getObjectLs(par().solver);
+        envTmpLat(FermionField, "v5dtmp", Ls_);
+        envTmpLat(FermionField, "v5dtmp_sol", Ls_);
+    }
 }
 
 // execution ///////////////////////////////////////////////////////////////////
@@ -211,11 +223,6 @@ void TPerambulator<FImpl>::execute(void)
     pMode perambMode{par().perambMode};
     LOG(Message)<< "Mode " << perambMode << std::endl;
 
-    auto &solver=envGet(Solver, par().solver);
-    auto &mat = solver.getFMat();
-
-    envGetTmp(FermionField,      v5dtmp);
-    envGetTmp(FermionField,      v5dtmp_sol);
     envGetTmp(FermionField,      dist_source);
     envGetTmp(FermionField,      fermion4dtmp);
     envGetTmp(FermionField,      fermion3dtmp);
@@ -230,6 +237,7 @@ void TPerambulator<FImpl>::execute(void)
     std::string sourceT = par().timeSources;
     int nSourceT;
     std::vector<int> invT;
+    std::vector<std::vector<unsigned int>> sourceTimes;
     if(par().timeSources.empty())
     {
 	// create sourceTimes all time-dilution indices
@@ -237,7 +245,7 @@ void TPerambulator<FImpl>::execute(void)
         for (int dt = 0; dt < nDT; dt++)
 	{
 	    std::vector<unsigned int> sT = dilNoise.timeSlices(dt);
-	    perambulator.MetaData.sourceTimes.push_back(sT);
+	    sourceTimes.push_back(sT);
 	    invT.push_back(dt);
 	}
         LOG(Message) << "Computing inversions on all " << nDT << " time-dilution vectors" << std::endl;
@@ -251,24 +259,15 @@ void TPerambulator<FImpl>::execute(void)
         for (int dt = 0; dt < nSourceT; dt++)
 	{
 	    std::vector<unsigned int> sT = dilNoise.timeSlices(iT[dt]);
-	    perambulator.MetaData.sourceTimes.push_back(sT);
+	    sourceTimes.push_back(sT);
 	    invT.push_back(iT[dt]);
 	}
         LOG(Message) << "Computing inversions on a subset of " << nSourceT << " time-dilution vectors" << std::endl;
     }
-    LOG(Message) << "Source times" << perambulator.MetaData.sourceTimes << std::endl;
+    LOG(Message) << "Source times" << sourceTimes << std::endl;
+    perambulator.MetaData.timeSources = invT;
 
-    int nVecFullSolve = 0;
-    std::vector<FermionField> solveIn;
-    if(perambMode == pMode::inputSolve)
-    {
-	// If we save metadata with solves we could do more checks here! (was the solve computed with specified nNoise, nDs, nSourceT, and even exactly the specified source times?
-        solveIn         = envGet(std::vector<FermionField>, par().unsmearedSolve);
-        nVecFullSolve   = solveIn.size()/nNoise/nDS/nSourceT;
-        LOG(Message) << "Using solve originally computed with Nvec=" << nVecFullSolve << std::endl;
-    }
-
-    int idt,dt,dk,ds,dIndexSolve = 0; 
+    int idt,dt,dk,ds,dIndexSolve,nVecFullSolve = 0; 
     std::array<unsigned int, 3> index;
     for (int inoise = 0; inoise < nNoise; inoise++)
     {
@@ -285,10 +284,12 @@ void TPerambulator<FImpl>::execute(void)
    	        continue;
    	    }
 	    idt=it - std::begin(invT);
-   	    // index of the solve just has the reduced time dimension 
-   	    dIndexSolve = ds + nDS * dk + nVecFullSolve * nDL * idt;
             if(perambMode == pMode::inputSolve)
    	    {
+                auto &solveIn         = envGet(std::vector<FermionField>, par().fullSolve);
+   	        // index of the solve just has the reduced time dimension & uses nVec from solveIn
+                nVecFullSolve   = solveIn.size()/nNoise/nDS/nSourceT;
+   	        dIndexSolve = ds + nDS * dk + nVecFullSolve * nDL * idt;
                 fermion4dtmp = solveIn[inoise+nNoise*dIndexSolve];
 		LOG(Message) <<  "re-using source vector: noise " << inoise << " dilution (d_t,d_k,d_alpha) : (" << dt << ","<< dk << "," << ds << ")" << std::endl;
    	    } 
@@ -296,19 +297,25 @@ void TPerambulator<FImpl>::execute(void)
    	    {
                 dist_source = dilNoise.makeSource(d,inoise);
                 fermion4dtmp=0;
+                auto &solver=envGet(Solver, par().solver);
+                auto &mat = solver.getFMat();
                 if (Ls_ == 1)
 		{
                     solver(fermion4dtmp, dist_source);
 		}
 		else
                 {
+                    envGetTmp(FermionField,      v5dtmp);
+                    envGetTmp(FermionField,      v5dtmp_sol);
                     mat.ImportPhysicalFermionSource(dist_source, v5dtmp);
                     solver(v5dtmp_sol, v5dtmp);
                     mat.ExportPhysicalFermionSolution(v5dtmp_sol, fermion4dtmp);
                 }
                 if(perambMode == pMode::outputSolve)
                 {
-                    auto &solveOut = envGet(std::vector<FermionField>, getName()+"_unsmeared_solve");
+   	            // index of the solve just has the reduced time dimension 
+   	            dIndexSolve = ds + nDS * dk + nVec * nDL * idt;
+                    auto &solveOut = envGet(std::vector<FermionField>, getName()+"_full_solve");
                     solveOut[inoise+nNoise*dIndexSolve] = fermion4dtmp;
                 }
    	    }
@@ -365,13 +372,14 @@ void TPerambulator<FImpl>::execute(void)
         perambulator.write(sPerambName.c_str());
     }
 
-    // Also save the unsmeared sink if specified
-    std::string sFileName(par().unsmearedSolveFileName);
+    // Also save the full sink if specified
+    std::string sFileName(par().fullSolveFileName);
     if(perambMode == pMode::outputSolve && !sFileName.empty())
     {
 	//TODO: Add (at least) sourceTimes as metadata.
-        auto &solveOut = envGet(std::vector<FermionField>, getName()+"_unsmeared_solve");
-        A2AVectorsIo::write(sFileName, solveOut, par().multiFile, vm().getTrajectory());
+        auto &solveOut = envGet(std::vector<FermionField>, getName()+"_full_solve");
+	bool multiFile = (par().multiFile == "true" || par().multiFile == "True" || par().multiFile == "1");
+        DistillationVectorsIo::write(sFileName, solveOut, "fullSolve", nNoise, nDL, nDS, nDT, invT, multiFile, vm().getTrajectory());
     }
 }
 
