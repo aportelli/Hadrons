@@ -6,7 +6,7 @@
 #include <Hadrons/ModuleFactory.hpp>
 #include <Hadrons/A2AMatrix.hpp>
 #include <Hadrons/DilutedNoise.hpp>
-#include <Hadrons/Modules/MDistil/Distil.hpp>
+#include <Hadrons/NamedTensor.hpp>
 #include "DmfTemp.hpp"
 
 BEGIN_HADRONS_NAMESPACE
@@ -27,7 +27,7 @@ class DistilMesonFieldPar: Serializable
 {
 public:
     GRID_SERIALIZABLE_CLASS_MEMBERS(DistilMesonFieldPar,
-                                    std::string,                outputStem,
+                                    std::string,                outPath,
                                     std::string,                mesonFieldCase,
                                     std::string,                lapEvec,
                                     std::string,                leftPeramb,
@@ -37,9 +37,10 @@ public:
                                     std::string,                gamma,
                                     int,                        blockSize,
                                     int,                        cacheSize,
-                                    std::vector<std::string>,   sourceTimes,
+                                    std::string,                leftTimeDilSources,
+                                    std::string,                rightTimeDilSources,
                                     std::vector<std::string>,   momenta,
-                                    std::vector<std::string>,   noisePairs,)
+                                    std::vector<std::string>,   noisePairs)
 };
 
 template <typename FImpl>
@@ -131,7 +132,7 @@ void TDistilMesonField<FImpl>::setup(void)
     dmf_case_.emplace("left"  , c.substr(0,3));
     dmf_case_.emplace("right" , c.substr(4,7));
 
-    outputMFStem_       = par().outputStem;
+    outputMFStem_       = par().outPath;
     GridCartesian *g    = envGetGrid(FermionField);
     GridCartesian *g3d  = envGetSliceGrid(FermionField, g->Nd() - 1);  // 3d grid (as a 4d one with collapsed time dimension)
 
@@ -225,30 +226,39 @@ void TDistilMesonField<FImpl>::execute(void)
     DistillationNoise &noisel = envGet( DistillationNoise , par().leftNoise);
     DistillationNoise &noiser = envGet( DistillationNoise , par().rightNoise);
     std::map<std::string, DistillationNoise & >   noise = {{"left",noisel},{"right",noiser}};
+    
+    //encapsulate this in helper or computation class
+    std::vector<int> lSources = strToVec<int>(par().leftTimeDilSources);
+    std::vector<int> rSources = strToVec<int>(par().rightTimeDilSources);
+    if(lSources.empty())
+    {
+        lSources.resize(noisel.dilutionSize(Index::t));
+        std::iota(std::begin(lSources), std::end(lSources), 0);
+    }
+    if(rSources.empty())
+    {
+        rSources.resize(noiser.dilutionSize(Index::t));
+        std::iota(std::begin(rSources), std::end(rSources), 0);
+    }
+    std::map<std::string, std::vector<int>> timeDilSource = {{"left",lSources},{"right",rSources}};
 
     // todo: do the following only in the necessary cases
     PerambTensor &perambl = envGet( PerambTensor , par().leftPeramb);
     PerambTensor &perambr = envGet( PerambTensor , par().rightPeramb);
     std::map<std::string, PerambTensor&> peramb = {{"left",perambl},{"right",perambr}};
-
     // parse source times
-    std::map<std::string, TimeSliceMap> peramb_st = {{"left",{}},{"right",{}}} ;
+    std::map<std::string, std::vector<int>> peramb_st = {{"left",{}},{"right",{}}}; //source times from the peramb objs
     for(auto & s : sides_)
     {
         if(dmf_case_.at(s)=="phi")
         {
             auto & inPeramb = envGet(PerambTensor , perambInput_.at(s));
-            peramb_st.at(s) = inPeramb.MetaData.sourceTimes;
+            peramb_st.at(s) = inPeramb.MetaData.timeSources;
+            //TODO: check timeDilSource are subsets of this
         }
     }
-    TimeSliceMap st_input;
-    for(auto e : par().sourceTimes)
-    {
-        std::vector<unsigned int> temp = strToVec<unsigned int>(e);
-        st_input.push_back(temp);
-    }
-    st_         = helper.getSourceTimes(peramb_st , st_input);
-    eff_nt_     = helper.computeEffTimeDimension(st_);
+
+    eff_nt_     = nt ; //helper.computeEffTimeDimension(st_);
     noisePairs_ = helper.parseNoisePairs(par().noisePairs);
 
     //populate matrix sets
@@ -269,8 +279,9 @@ void TDistilMesonField<FImpl>::execute(void)
         stopTimer("momentum phases");
     }
     
-    LOG(Message) << "Source times:"         << std::endl;
-    helper.dumpMap(st_);
+    LOG(Message) << "Selected time-dilution partitions:"         << std::endl;
+    LOG(Message) << " Left:" << timeDilSource.at("left") << std::endl;
+    LOG(Message) << " Right:" << timeDilSource.at("right") << std::endl;
     LOG(Message) << "Meson field case: "    << par().mesonFieldCase << std::endl;
     LOG(Message) << "EffTime dimension = "     << eff_nt_ << std::endl;
     LOG(Message) << "Selected block size: " << par().blockSize << std::endl;
@@ -285,10 +296,11 @@ void TDistilMesonField<FImpl>::execute(void)
         for(int iStr=0; iStr<nStr_; iStr++)
         {
             // metadata;
-            md.momentum         = momenta_[iExt];
-            md.gamma            = gamma_[iStr];
-            md.noise_pair       = inoise;
-            md.time_dilution    = st_;
+            md.momentum             = momenta_[iExt];
+            md.gamma                = gamma_[iStr];
+            md.noise_pair           = inoise;
+            md.leftTimeDilSources   = timeDilSource.at("left");
+            md.rightTimeDilSources  = timeDilSource.at("right");
 
             std::stringstream ss;
             ss << md.gamma << "_";
@@ -297,10 +309,10 @@ void TDistilMesonField<FImpl>::execute(void)
             std::string groupName = ss.str();
 
             // io init
-            std::string outputStem = outputMFStem_ + "/noise" + std::to_string(inoise[0]) + "_" + std::to_string(inoise[1]) + "/";
-            Hadrons::mkdir(outputStem);
+            std::string outStem = outputMFStem_ + "/noise" + std::to_string(inoise[0]) + "_" + std::to_string(inoise[1]) + "/";
+            Hadrons::mkdir(outStem);
             std::string mfName = groupName+"_"+dmf_case_.at("left")+"-"+dmf_case_.at("right")+".h5";
-            A2AMatrixIo<ComplexF> matrixIo(outputStem+mfName, groupName, eff_nt_, dilutionSize_ls_, dilutionSize_ls_);
+            A2AMatrixIo<ComplexF> matrixIo(outStem+mfName, groupName, eff_nt_, dilutionSize_ls_, dilutionSize_ls_);
             matrixIoTable.push_back(matrixIo);
             //initialize file with no outputName group (containing atributes of momentum and gamma) but no dataset inside
             if(g->IsBoss())
@@ -318,10 +330,10 @@ void TDistilMesonField<FImpl>::execute(void)
         LOG(Message) << "momenta:" << std::endl << momenta_ << std::endl;
 
         //computation of distvectors
-        computation.distVec(distVector, noise, inoise, peramb, epack);
+        computation.distVec(distVector, noise, inoise, peramb, epack, timeDilSource);
 
         // computing mesonfield blocks and saving to disk
-        computation.execute(matrixIoTable, st_, distVector, noise, gamma_, phase, blockbuf_ , cachebuf_ , nExt_, nStr_, dilutionSize_ls_, eff_nt_, this);
+        computation.execute(matrixIoTable, st_, distVector, noise, gamma_, phase, blockbuf_ , cachebuf_ , nExt_, nStr_, dilutionSize_ls_, eff_nt_, timeDilSource, this);
 
         LOG(Message) << "Meson fields saved at " << outputMFStem_ << std::endl;
     }

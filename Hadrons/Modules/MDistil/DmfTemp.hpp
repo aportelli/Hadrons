@@ -4,7 +4,7 @@
 #include <Hadrons/Global.hpp>
 #include <Hadrons/A2AMatrix.hpp>
 #include <Hadrons/DilutedNoise.hpp>
-#include <Hadrons/Modules/MDistil/Distil.hpp>
+#include <Hadrons/NamedTensor.hpp>
 
 BEGIN_HADRONS_NAMESPACE
 BEGIN_MODULE_NAMESPACE(MDistil)
@@ -13,6 +13,19 @@ BEGIN_MODULE_NAMESPACE(MDistil)
 // using ObjArray_LR = std::array<T, 2>;
 
 using TimeSliceMap = std::vector<std::vector<unsigned int>>; // this is here because TimeSliceMap is a return type in methods below
+
+static void printMap(TimeSliceMap &m)
+{
+    for(auto& d : m)
+    {
+        for(auto& t : d)
+        {
+            std::cout << t << " ";
+        }
+        std::cout << std::endl;
+    }
+    std::cout << std::endl;
+}
 
 //computation class declaration
 template <typename FImpl, typename Field, typename T, typename Tio>
@@ -60,12 +73,14 @@ void execute(std::vector<A2AMatrixIo<Tio>> io_table,
              const unsigned int n_str,
              const unsigned int dil_size_ls,
              const unsigned int eff_nt,
+             std::map<std::string, std::vector<int>>   timeDilSource,
              TimerArray * tarray);
 void distVec(std::map<std::string, DistilVector&> & dv,
              std::map<std::string, DistillationNoise&> n,
              const std::vector<int> inoise,
              std::map<std::string, PerambTensor&> & peramb,
-             const LapEvecs            & epack);
+             const LapEvecs            & epack,
+             std::map<std::string, std::vector<int>>   timeDilSource);
 };
 
 // aux class declaration
@@ -103,7 +118,8 @@ public:
                                     std::vector<RealF>, momentum,
                                     Gamma::Algebra,     gamma,
                                     std::vector<int>,   noise_pair,
-                                    TimeSliceMap,       time_dilution,
+                                    std::vector<int>,   leftTimeDilSources,
+                                    std::vector<int>,   rightTimeDilSources,
                                     )
 };
 
@@ -136,155 +152,174 @@ void DmfComputation<FImpl,Field,T,Tio>
           const unsigned int n_str,
           const unsigned int dil_size_ls,
           const unsigned int eff_nt,
+          std::map<std::string, std::vector<int>>   timeDilSource,
           TimerArray * tarray)
 {
     const unsigned int vol = g_->_gsites;
     std::string dmfcase = dmfCase_.at("left") + " " + dmfCase_.at("right");
     // computing mesonfield blocks and saving to disk
-    for (int dtL = 0; dtL < n.at("left").dilutionSize(Index::t) ; dtL++)
-    for (int dtR = 0; dtR < n.at("right").dilutionSize(Index::t) ; dtR++)
-    if( !(dmfcase=="rho rho" && dtL!=dtR) )
+    for (auto& dtL : timeDilSource.at("left"))
+    for (auto& dtR : timeDilSource.at("right"))
     {
-        std::string datasetName = "dtL"+std::to_string(dtL)+"_dtR"+std::to_string(dtR);
-        LOG(Message) << "- Computing dilution dataset " << datasetName << "..." << std::endl;
-
-        int nblocki = dil_size_ls/bSize_ + (((dil_size_ls % bSize_) != 0) ? 1 : 0);
-        int nblockj = dil_size_ls/bSize_ + (((dil_size_ls % bSize_) != 0) ? 1 : 0);
-
-        // loop over blocls in the current time-dilution block
-        for(int iblock=0 ; iblock<dil_size_ls ; iblock+=bSize_) //set according to memory size
-        for(int jblock=0 ; jblock<dil_size_ls ; jblock+=bSize_)
+        std::vector<unsigned int> pL;
+        std::vector<unsigned int> pR;
+        std::vector<unsigned int> stInter;
+        if( dmfCase_.at("left")=="rho" || dmfCase_.at("right")=="rho" )   //if there's at least one rho, need to compute valid time slices
         {
-            int iblockSize = MIN(dil_size_ls-iblock,bSize_);    // iblockSize is the size of the current block (indexed by i); N_i-i is the size of the eventual remainder block
-            int jblockSize = MIN(dil_size_ls-jblock,bSize_);
-            A2AMatrixSet<Tio> block(bBuf.data(), n_ext , n_str , eff_nt, iblockSize, jblockSize);
+            pL = n.at("left").timeSlices(dtL);
+            pR = n.at("right").timeSlices(dtR);
+            std::set_intersection(pL.begin(), pL.end(), 
+                            pR.begin(), pR.end(),
+                            std::back_inserter(stInter));
+            if(!stInter.empty())
+                LOG(Message) << "At least one rho found. Time slices to be saved=" << stInter << "..." << std::endl;
+        }
 
-            LOG(Message) << "Distil matrix block " 
-            << jblock/bSize_ + nblocki*iblock/bSize_ + 1 
-            << "/" << nblocki*nblockj << " [" << iblock << " .. " 
-            << iblock+iblockSize-1 << ", " << jblock << " .. " << jblock+jblockSize-1 << "]" 
-            << std::endl;
+        if( ( (dmfcase!="rho rho") || (!stInter.empty()) ) ) // only execute rho rho case when partitions have at least one time slice in common
+        {
 
-            LOG(Message) << "Block size = "         << eff_nt*iblockSize*jblockSize*sizeof(Tio) << "MB/momentum/gamma" << std::endl;
-            LOG(Message) << "Cache block size = "   << nt_*cSize_*cSize_*sizeof(T) << "MB/momentum/gamma" << std::endl;  //remember to change this in case I change chunk size from nt_ to something else
+            std::string datasetName = "dtL"+std::to_string(dtL)+"_dtR"+std::to_string(dtR);
+            LOG(Message) << "Computing dilution dataset " << datasetName << "..." << std::endl;
 
-            double flops       = 0.0;
-            double bytes       = 0.0;
-            double time_kernel = 0.0;
-            double nodes    = g_->NodeCount();
+            int nblocki = dil_size_ls/bSize_ + (((dil_size_ls % bSize_) != 0) ? 1 : 0);
+            int nblockj = dil_size_ls/bSize_ + (((dil_size_ls % bSize_) != 0) ? 1 : 0);
 
-            // loop over cache_ blocks in the current block
-            for(int icache=0 ; icache<iblockSize ; icache+=cSize_)   //set according to cache_ size
-            for(int jcache=0 ; jcache<jblockSize ; jcache+=cSize_)
+            // loop over blocls in the current time-dilution block
+            for(int iblock=0 ; iblock<dil_size_ls ; iblock+=bSize_) //set according to memory size
+            for(int jblock=0 ; jblock<dil_size_ls ; jblock+=bSize_)
             {
-                int icacheSize = MIN(iblockSize-icache,cSize_);      // icacheSize is the size of the current cache_ block (indexed by ii); N_ii-ii is the size of the remainder cache_ block
-                int jcacheSize = MIN(jblockSize-jcache,cSize_);
-                A2AMatrixSet<T> blockCache(cBuf.data(), n_ext, n_str, nt_, icacheSize, jcacheSize);
+                int iblockSize = MIN(dil_size_ls-iblock,bSize_);    // iblockSize is the size of the current block (indexed by i); N_i-i is the size of the eventual remainder block
+                int jblockSize = MIN(dil_size_ls-jblock,bSize_);
+                A2AMatrixSet<Tio> block(bBuf.data(), n_ext , n_str , eff_nt, iblockSize, jblockSize);
 
-                double timer = 0.0;
-                tarray->startTimer("kernel");
-                // assuming certain indexation here! (dt must be the slowest index for this to work; otherwise will have to compute l/r block at each contraction)
-                unsigned int iDl = n.at("left").dilutionIndex(dtL,0,0) , iDr = n.at("right").dilutionIndex(dtR,0,0);
-                A2Autils<FImpl>::MesonField(blockCache, &dv.at("left")[iDl+iblock+icache], &dv.at("right")[iDr+jblock+jcache], gamma, ph, nd_ - 1, &timer);
-                tarray->stopTimer("kernel");
-                time_kernel += timer;
+                LOG(Message) << "Distil matrix block " 
+                << jblock/bSize_ + nblocki*iblock/bSize_ + 1 
+                << "/" << nblocki*nblockj << " [" << iblock << " .. " 
+                << iblock+iblockSize-1 << ", " << jblock << " .. " << jblock+jblockSize-1 << "]" 
+                << std::endl;
 
-                // nExt is currently # of momenta , nStr is # of gamma matrices
-                flops += vol*(2*8.0+6.0+8.0*n_ext)*icacheSize*jcacheSize*n_str;
-                bytes += vol*(12.0*sizeof(T))*icacheSize*jcacheSize
-                        +  vol*(2.0*sizeof(T)*n_ext)*icacheSize*jcacheSize*n_str;
+                LOG(Message) << "Block size = "         << eff_nt*iblockSize*jblockSize*sizeof(Tio) << "MB/momentum/gamma" << std::endl;
+                LOG(Message) << "Cache block size = "   << nt_*cSize_*cSize_*sizeof(T) << "MB/momentum/gamma" << std::endl;  //remember to change this in case I change chunk size from nt_ to something else
 
-                // loop through the cacheblock (inside them) and point blockCache to block
-                tarray->startTimer("cache copy");
-                if(dmfcase=="phi phi")
+                double flops       = 0.0;
+                double bytes       = 0.0;
+                double time_kernel = 0.0;
+                double nodes    = g_->NodeCount();
+
+                // loop over cache_ blocks in the current block
+                for(int icache=0 ; icache<iblockSize ; icache+=cSize_)   //set according to cache_ size
+                for(int jcache=0 ; jcache<jblockSize ; jcache+=cSize_)
                 {
-                    thread_for_collapse( 5, iExt ,n_ext,{
-                    // for(int iExt=0 ; iExt<n_ext ; iExt++)
-                    for(int iStr=0 ;iStr<n_str ; iStr++)
-                    for(int t=0 ; t<nt_ ; t++)
-                    for(int iicache=0 ; iicache<icacheSize ; iicache++)
-                    for(int jjcache=0;  jjcache<jcacheSize ; jjcache++)
+                    int icacheSize = MIN(iblockSize-icache,cSize_);      // icacheSize is the size of the current cache_ block (indexed by ii); N_ii-ii is the size of the remainder cache_ block
+                    int jcacheSize = MIN(jblockSize-jcache,cSize_);
+                    A2AMatrixSet<T> blockCache(cBuf.data(), n_ext, n_str, nt_, icacheSize, jcacheSize);
+
+                    double timer = 0.0;
+                    tarray->startTimer("kernel");
+                    // assuming certain indexation here! (dt must be the slowest index for this to work; otherwise will have to compute l/r block at each contraction)
+                    unsigned int iDl = n.at("left").dilutionIndex(dtL,0,0) , iDr = n.at("right").dilutionIndex(dtR,0,0);
+                    A2Autils<FImpl>::MesonField(blockCache, &dv.at("left")[iDl+iblock+icache], &dv.at("right")[iDr+jblock+jcache], gamma, ph, nd_ - 1, &timer);
+                    tarray->stopTimer("kernel");
+                    time_kernel += timer;
+
+                    // nExt is currently # of momenta , nStr is # of gamma matrices
+                    flops += vol*(2*8.0+6.0+8.0*n_ext)*icacheSize*jcacheSize*n_str;
+                    bytes += vol*(12.0*sizeof(T))*icacheSize*jcacheSize
+                            +  vol*(2.0*sizeof(T)*n_ext)*icacheSize*jcacheSize*n_str;
+
+                    // loop through the cacheblock (inside them) and point blockCache to block
+                    tarray->startTimer("cache copy");
+                    if(dmfcase=="phi phi")
                     {
-                        block(iExt,iStr,t,icache+iicache,jcache+jjcache) = blockCache(iExt,iStr,t,iicache,jjcache);
+                        thread_for_collapse( 5, iExt ,n_ext,{
+                        // for(int iExt=0 ; iExt<n_ext ; iExt++)
+                        for(int iStr=0 ;iStr<n_str ; iStr++)
+                        for(int t=0 ; t<nt_ ; t++)
+                        for(int iicache=0 ; iicache<icacheSize ; iicache++)
+                        for(int jjcache=0;  jjcache<jcacheSize ; jjcache++)
+                        {
+                            block(iExt,iStr,t,icache+iicache,jcache+jjcache) = blockCache(iExt,iStr,t,iicache,jjcache);
+                        }
+                        });
                     }
-                    });
+                    else
+                    {
+                        thread_for_collapse( 5, iExt ,n_ext,{
+                        for(int iStr=0 ;iStr<n_str ; iStr++)
+                        for(int it=0 ; it<stInter.size() ; it++)  //only wish to copy non-zero timeslices to block; guaranteed to fit because of neff = sup (partition sizes)
+                        for(int iicache=0 ; iicache<icacheSize ; iicache++)
+                        for(int jjcache=0;  jjcache<jcacheSize ; jjcache++)
+                            block(iExt,iStr,it,icache+iicache,jcache+jjcache) = blockCache(iExt,iStr,stInter[it],iicache,jjcache);
+                        });
+                    }
+                    tarray->stopTimer("cache copy");
                 }
-                else
+
+                LOG(Message) << "Kernel perf (flops) " << flops/time_kernel/1.0e3/nodes 
+                            << " Gflop/s/node " << std::endl;
+                LOG(Message) << "Kernel perf (read) " << bytes/time_kernel*0.000931322574615478515625/nodes //  1.0e6/1024/1024/1024/nodes
+                            << " GB/s/node "  << std::endl;
+                global_counter++;
+                global_flops += flops/time_kernel/1.0e3/nodes ;
+                global_bytes += bytes/time_kernel*0.000931322574615478515625/nodes ; // 1.0e6/1024/1024/1024/nodes
+
+                // saving current block to disk
+                LOG(Message) << "Writing block to disk" << std::endl;
+                tarray->startTimer("IO: total");
+                tarray->startTimer("IO: write block");
+                double ioTime = -tarray->getDTimer("IO: write block");
+    #ifdef HADRONS_A2AM_PARALLEL_IO
+                //parallel io
+                int inode = g_->ThisRank();
+                int nnode = g_->RankCount(); 
+                LOG(Message) << "Starting parallel IO. Rank count=" << nnode  << std::endl;
+                g_->Barrier();
+                for(int ies=inode ; ies<n_ext*n_str ; ies+=nnode){
+                    int iExt = ies/n_str;
+                    int iStr = ies%n_str;
+                    if(iblock==0 && jblock==0){              // creates dataset only if it's the first block of the dataset
+                        io_table[iStr + n_str*iExt].saveBlock(block, iExt , iStr , iblock, jblock, datasetName, cSize_);   //set surface chunk size as cSize_ (the chunk itself is 3D)
+                    }
+                    else{
+                        io_table[iStr + n_str*iExt].saveBlock(block, iExt , iStr , iblock, jblock, datasetName);
+                    }
+                }
+                g_->Barrier();
+    #else
+                // serial io, can remove later
+                LOG(Message) << "Starting serial IO" << std::endl;
+                for(int iExt=0; iExt<n_ext; iExt++)
+                for(int iStr=0; iStr<n_str; iStr++)
                 {
-                    thread_for_collapse( 5, iExt ,n_ext,{
-                    for(int iStr=0 ;iStr<n_str ; iStr++)
-                    for(int it=0 ; it<eff_nt ; it++)  //only wish to copy non-zero timeslices to block
-                    for(int iicache=0 ; iicache<icacheSize ; iicache++)
-                    for(int jjcache=0;  jjcache<jcacheSize ; jjcache++)
-                        block(iExt,iStr,it,icache+iicache,jcache+jjcache) = blockCache(iExt,iStr,st[dtL][it],iicache,jjcache);
-                    });
+                    if(iblock==0 && jblock==0){              // creates dataset only if it's the first block of the dataset
+                        matrixIoTable[iStr + n_str*iExt].saveBlock(block, iExt, iStr, iblock, jblock, datasetName, cSize_);   //set surface chunk size as cSize_ (the chunk itself is 3D)
+                    }
+                    else{
+                        matrixIoTable[iStr + n_str*iExt].saveBlock(block, iExt, iStr, iblock, jblock, datasetName);
+                    }
                 }
-                tarray->stopTimer("cache copy");
+    #endif
+                tarray->stopTimer("IO: total");
+                tarray->stopTimer("IO: write block");
+                ioTime    += tarray->getDTimer("IO: write block");
+                int bytesBlockSize  = static_cast<double>(n_ext*n_str*eff_nt*iblockSize*jblockSize*sizeof(Tio));
+                LOG(Message)    << "HDF5 IO done " << sizeString(bytesBlockSize) << " in "
+                                << ioTime  << " us (" 
+                                << bytesBlockSize/ioTime*0.95367431640625 // 1.0e6/1024/1024
+                                << " MB/s)" << std::endl;
             }
-
-            LOG(Message) << "Kernel perf (flops) " << flops/time_kernel/1.0e3/nodes 
-                        << " Gflop/s/node " << std::endl;
-            LOG(Message) << "Kernel perf (read) " << bytes/time_kernel*0.000931322574615478515625/nodes //  1.0e6/1024/1024/1024/nodes
-                        << " GB/s/node "  << std::endl;
-            global_counter++;
-            global_flops += flops/time_kernel/1.0e3/nodes ;
-            global_bytes += bytes/time_kernel*0.000931322574615478515625/nodes ; // 1.0e6/1024/1024/1024/nodes
-
-            // saving current block to disk
-            LOG(Message) << "Writing block to disk" << std::endl;
-            tarray->startTimer("IO: total");
-            tarray->startTimer("IO: write block");
-            double ioTime = -tarray->getDTimer("IO: write block");
-#ifdef HADRONS_A2AM_PARALLEL_IO
-            //parallel io
-            int inode = g_->ThisRank();
-            int nnode = g_->RankCount(); 
-            LOG(Message) << "Starting parallel IO. Rank count=" << nnode  << std::endl;
-            g_->Barrier();
-            for(int ies=inode ; ies<n_ext*n_str ; ies+=nnode){
-                int iExt = ies/n_str;
-                int iStr = ies%n_str;
-                if(iblock==0 && jblock==0){              // creates dataset only if it's the first block of the dataset
-                    io_table[iStr + n_str*iExt].saveBlock(block, iExt , iStr , iblock, jblock, datasetName, cSize_);   //set surface chunk size as cSize_ (the chunk itself is 3D)
-                }
-                else{
-                    io_table[iStr + n_str*iExt].saveBlock(block, iExt , iStr , iblock, jblock, datasetName);
-                }
-            }
-            g_->Barrier();
-#else
-            // serial io, can remove later
-            LOG(Message) << "Starting serial IO" << std::endl;
-            for(int iExt=0; iExt<n_ext; iExt++)
-            for(int iStr=0; iStr<n_str; iStr++)
-            {
-                if(iblock==0 && jblock==0){              // creates dataset only if it's the first block of the dataset
-                    matrixIoTable[iStr + n_str*iExt].saveBlock(block, iExt, iStr, iblock, jblock, datasetName, cSize_);   //set surface chunk size as cSize_ (the chunk itself is 3D)
-                }
-                else{
-                    matrixIoTable[iStr + n_str*iExt].saveBlock(block, iExt, iStr, iblock, jblock, datasetName);
-                }
-            }
-#endif
-            tarray->stopTimer("IO: total");
-            tarray->stopTimer("IO: write block");
-            ioTime    += tarray->getDTimer("IO: write block");
-            int bytesBlockSize  = static_cast<double>(n_ext*n_str*eff_nt*iblockSize*jblockSize*sizeof(Tio));
-            LOG(Message)    << "HDF5 IO done " << sizeString(bytesBlockSize) << " in "
-                            << ioTime  << " us (" 
-                            << bytesBlockSize/ioTime*0.95367431640625 // 1.0e6/1024/1024
-                            << " MB/s)" << std::endl;
         }
     }
 }
 
 template <typename FImpl, typename Field, typename T, typename Tio>
 void DmfComputation<FImpl,Field,T,Tio>
-::distVec(std::map<std::string, DistilVector&> & dv,
+::distVec(std::map<std::string, DistilVector&>&     dv,
           std::map<std::string, DistillationNoise&> n,
-          const std::vector<int> inoise,
-          std::map<std::string, PerambTensor&> & peramb,
-          const LapEvecs            & epack)
+          const std::vector<int>                    inoise,
+          std::map<std::string, PerambTensor&>&     peramb,
+          const LapEvecs&                           epack,
+          std::map<std::string, std::vector<int>>   timeDilSource)
 {
     const int nd = g_->Nd();
     const int nVec = epack.evec.size();
@@ -298,21 +333,26 @@ void DmfComputation<FImpl,Field,T,Tio>
         std::array<unsigned int,3> c = n.at(s).dilutionCoordinates(iD);
         unsigned int dt = c[0] , dl = c[1] , ds = c[2];
         dv.at(s)[iD] = Zero();
-        if(dmfCase_.at(s)=="phi")
+        std::vector<int> tDilS = timeDilSource.at(s);
+        if(std::find(tDilS.begin(), tDilS.end(), dt) != tDilS.end()) // if dt is available, compute
         {
-            for (int t = Ntfirst; t < Ntfirst + Ntlocal; t++)   //loop over (local) timeslices
+            if(dmfCase_.at(s)=="phi")
             {
-                tmp3d_ = Zero();
-                for (int k = 0; k < nVec; k++)
+                for (int t = Ntfirst; t < Ntfirst + Ntlocal; t++)   //loop over (local) timeslices
                 {
-                    ExtractSliceLocal(evec3d_,epack.evec[k],0,t-Ntfirst,nd - 1);
-                    tmp3d_ += evec3d_ * peramb.at(s).tensor(t, k, dl, iNoise.at(s), dt, ds);
+                    tmp3d_ = Zero();
+                    for (int k = 0; k < nVec; k++)
+                    {
+                        ExtractSliceLocal(evec3d_,epack.evec[k],0,t-Ntfirst,nd - 1);
+                        // std::cout << t<< " " <<  k<< " " <<  dl<< " " <<  iNoise.at(s)<< " " <<  dt<< " " <<  ds << std::endl;
+                        tmp3d_ += evec3d_ * peramb.at(s).tensor(t, k, dl, iNoise.at(s), dt, ds);
+                    }
+                    InsertSliceLocal(tmp3d_,dv.at(s)[iD],0,t-Ntfirst,nd - 1);
                 }
-                InsertSliceLocal(tmp3d_,dv.at(s)[iD],0,t-Ntfirst,nd - 1);
             }
-        }
-        else if(dmfCase_.at(s)=="rho"){
-            dv.at(s)[iD] = n.at(s).makeSource(iD, iNoise.at(s));
+            else if(dmfCase_.at(s)=="rho"){
+                dv.at(s)[iD] = n.at(s).makeSource(iD, iNoise.at(s));
+            }
         }
     }
 }
@@ -351,13 +391,22 @@ TimeSliceMap DmfHelper<FImpl,Field>::getSourceTimes(std::map<std::string, TimeSl
     //check if noise_st_i contains peramb_st_i (case==phi), take the intersection between the l/r intersection result, check if input is subset of that
     TimeSliceMap st,st_dependencies;
     std::map<std::string, TimeSliceMap> inter = { {"left",{}},{"right",{}} };
-    std::map<std::string , TimeSliceMap> noiseTimeMap = { {"left",noiseTimeMapl_},{"right",noiseTimeMapr_} };
+    std::map<std::string, TimeSliceMap> noiseTimeMap = { {"left",noiseTimeMapl_},{"right",noiseTimeMapr_} };
     for(auto &s : sides)
     {
         if(dmfCase_.at(s)=="phi")
         {
+            printMap(noiseTimeMap.at(s));
+            std::cin.get();
+            
+            printMap(perambTimeMap.at(s));
+            std::cin.get();
+
             inter.at(s) = getIntersectionMap(noiseTimeMap.at(s) , perambTimeMap.at(s));
             
+            printMap(inter.at(s));
+            std::cin.get();
+
             if(inter.at(s).empty())
             {
                 HADRONS_ERROR(Argument,"Time dilution not compatible between noise and perambulator.");
@@ -369,7 +418,12 @@ TimeSliceMap DmfHelper<FImpl,Field>::getSourceTimes(std::map<std::string, TimeSl
         }
     }
     st_dependencies  = getIntersectionMap(inter.at("left") , inter.at("right"));
+    printMap(st_dependencies);
+    std::cin.get();
+
     st = getIntersectionMap(st_dependencies , st_input);
+    printMap(st);
+    std::cin.get();
 
     return st;
 }
@@ -378,12 +432,15 @@ template <typename FImpl, typename Field>
 TimeSliceMap DmfHelper<FImpl,Field>::getIntersectionMap(TimeSliceMap m1, TimeSliceMap m2)
 {
     TimeSliceMap inter;
-    for(unsigned int p=0 ; p<m1.size() ; p++)
+    // std::cout << "inside getInersectionMap" << std::endl;
+    int minsize = MIN(m1.size(),m2.size());
+    for(unsigned int p=0 ; p<minsize ; p++)
     {
         std::vector<unsigned int> temp;
         std::set_intersection(m1[p].begin(), m1[p].end(), 
                             m2[p].begin(), m2[p].end(),
                             std::back_inserter(temp));
+        // std::cout << temp << std::endl;
         inter.push_back(temp);
     }
     return inter;
