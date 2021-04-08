@@ -54,13 +54,13 @@ public:
                                     std::string, lapEigenPack,
                                     std::string, solver,
                                     std::string, perambFileName,
-                                    std::string, unsmearedSolveFileName,
-                                    std::string, unsmearedSolve,
+                                    std::string, fullSolveFileName,
+                                    std::string, fullSolve,
                                     std::string, distilNoise,
                                     std::string, timeSources,
                                     pMode, perambMode,
                                     std::string, nVec,
-                                    bool,        multiFile);
+                                    std::string, multiFile);
 };
 
 template <typename FImpl>
@@ -102,7 +102,7 @@ std::vector<std::string> TPerambulator<FImpl>::getInput(void)
     pMode perambMode{par().perambMode};
     if(perambMode == pMode::inputSolve)
     {
-        in.push_back(par().unsmearedSolve);
+        in.push_back(par().fullSolve);
     }
     else
     {
@@ -119,7 +119,7 @@ std::vector<std::string> TPerambulator<FImpl>::getOutput(void)
     pMode perambMode{par().perambMode};
     if(perambMode == pMode::outputSolve)
     {
-        out.push_back( getName()+"_unsmeared_solve" );
+        out.push_back( getName()+"_full_solve" );
     }
     return out;
 }
@@ -177,8 +177,8 @@ void TPerambulator<FImpl>::setup(void)
     pMode perambMode{par().perambMode};
     if(perambMode == pMode::outputSolve)
     {
-        LOG(Message)<< "setting up output field for unsmeared solves" << std::endl;
-        envCreate(std::vector<FermionField>, getName()+"_unsmeared_solve", 1, nNoise*nDL*nDS*nSourceT,
+        LOG(Message)<< "setting up output field for full solves" << std::endl;
+        envCreate(std::vector<FermionField>, getName()+"_full_solve", 1, nNoise*nDL*nDS*nSourceT,
                   envGetGrid(FermionField));
     }
     
@@ -286,7 +286,7 @@ void TPerambulator<FImpl>::execute(void)
 	    idt=it - std::begin(invT);
             if(perambMode == pMode::inputSolve)
    	    {
-                auto &solveIn         = envGet(std::vector<FermionField>, par().unsmearedSolve);
+                auto &solveIn         = envGet(std::vector<FermionField>, par().fullSolve);
    	        // index of the solve just has the reduced time dimension & uses nVec from solveIn
                 nVecFullSolve   = solveIn.size()/nNoise/nDS/nSourceT;
    	        dIndexSolve = ds + nDS * dk + nVecFullSolve * nDL * idt;
@@ -315,7 +315,7 @@ void TPerambulator<FImpl>::execute(void)
                 {
    	            // index of the solve just has the reduced time dimension 
    	            dIndexSolve = ds + nDS * dk + nVec * nDL * idt;
-                    auto &solveOut = envGet(std::vector<FermionField>, getName()+"_unsmeared_solve");
+                    auto &solveOut = envGet(std::vector<FermionField>, getName()+"_full_solve");
                     solveOut[inoise+nNoise*dIndexSolve] = fermion4dtmp;
                 }
    	    }
@@ -372,13 +372,14 @@ void TPerambulator<FImpl>::execute(void)
         perambulator.write(sPerambName.c_str());
     }
 
-    // Also save the unsmeared sink if specified
-    std::string sFileName(par().unsmearedSolveFileName);
+    // Also save the full sink if specified
+    std::string sFileName(par().fullSolveFileName);
     if(perambMode == pMode::outputSolve && !sFileName.empty())
     {
 	//TODO: Add (at least) sourceTimes as metadata.
-        auto &solveOut = envGet(std::vector<FermionField>, getName()+"_unsmeared_solve");
-        DistillationVectorsIo::write(sFileName, solveOut, "phi", nNoise, nDL, nDS, nDT, invT, par().multiFile, vm().getTrajectory());
+        auto &solveOut = envGet(std::vector<FermionField>, getName()+"_full_solve");
+	bool multiFile = (par().multiFile == "true" || par().multiFile == "True" || par().multiFile == "1");
+        DistillationVectorsIo::write(sFileName, solveOut, "fullSolve", nNoise, nDL, nDS, nDT, invT, multiFile, vm().getTrajectory());
     }
 }
 
