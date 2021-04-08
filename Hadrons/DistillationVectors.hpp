@@ -53,20 +53,29 @@ public:
     };
 public:
     template <typename Field>
-    static void write(const std::string fileStem, std::vector<Field> &vec, 
+    static void write(const std::string fileStem, 
+		         std::vector<Field> &vec, 
 		         const std::string vecType, 
-		         const int nNoise, const int nDL,
-			 const int nDS, const int nDT, 
+		         const int nNoise, 
+			 const int nDL,
+			 const int nDS, 
+			 const int nDT, 
 			 std::vector<int> timeSources,
-                      const bool multiFile, const int trajectory = -1);
+                         const bool multiFile, 
+			 const int trajectory = -1);
     template <typename Field>
-    static void read(std::vector<Field> &vec, const std::string fileStem,
-		         const int nNoise, const int nDL,
-			 const int nDS, const int nDT, 
+    static void read(std::vector<Field> &vec, 
+		         const std::string fileStem,
+		         const int nNoise, 
+			 const int nDL,
+			 const int nDS, 
+			 const int nDT, 
 			 std::vector<int> timeSources,
-                     const bool multiFile, const int trajectory = -1);
+                         const bool multiFile, 
+			 const int trajectory = -1);
 private:
-    static inline std::string vecFilename(const std::string stem, const int traj, 
+    static inline std::string vecFilename(const std::string stem, 
+		                          const int traj, 
                                           const bool multiFile)
     {
         std::string t = (traj < 0) ? "" : ("." + std::to_string(traj));
@@ -87,11 +96,16 @@ private:
  *               distillation vectors I/O template implementation               *
  ******************************************************************************/
 template <typename Field>
-void DistillationVectorsIo::write(const std::string fileStem, std::vector<Field> &vec, 
-		         const std::string vecType, const int nNoise, const int nDL,
-			 const int nDS, const int nDT, 
-			 std::vector<int> timeSources,
-                         const bool multiFile, const int trajectory)
+void DistillationVectorsIo::write(const std::string fileStem, 
+		                    std::vector<Field> &vec, 
+		                    const std::string vecType, 
+				    const int nNoise, 
+				    const int nDL,
+			            const int nDS, 
+				    const int nDT, 
+			            std::vector<int> timeSources,
+                                    const bool multiFile, 
+				    const int trajectory)
 {
     Record       record;
     GridBase     *grid = vec[0].Grid();
@@ -135,11 +149,15 @@ void DistillationVectorsIo::write(const std::string fileStem, std::vector<Field>
 }
 
 template <typename Field>
-void DistillationVectorsIo::read(std::vector<Field> &vec, const std::string fileStem, 
-		         const int nNoise, const int nDL,
-			 const int nDS, const int nDT, 
-			 std::vector<int> timeSources,
-                        const bool multiFile, const int trajectory)
+void DistillationVectorsIo::read(std::vector<Field> &vec, 
+		                    const std::string fileStem, 
+		                    const int nNoise, 
+				    const int nDL,
+			            const int nDS, 
+				    const int nDT, 
+			            std::vector<int> timeSources,
+                                    const bool multiFile, 
+				    const int trajectory)
 {
     Record       record;
     ScidacReader binReader;
