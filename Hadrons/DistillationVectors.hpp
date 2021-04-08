@@ -46,7 +46,7 @@ public:
 				       	int, nDL,
 			                int, nDS, 
 					int, nDT, 
-                                        std::vector<std::vector<unsigned int>>, sourceTimes,
+			                std::vector<int>, timeSources,
                                         std::string, vecType,
                                         unsigned int, index);
         Record(void): index(0) {}
@@ -57,13 +57,13 @@ public:
 		         const std::string vecType, 
 		         const int nNoise, const int nDL,
 			 const int nDS, const int nDT, 
-			 const std::vector<std::vector<unsigned int>> sourceTimes,
+			 std::vector<int> timeSources,
                       const bool multiFile, const int trajectory = -1);
     template <typename Field>
     static void read(std::vector<Field> &vec, const std::string fileStem,
 		         const int nNoise, const int nDL,
 			 const int nDS, const int nDT, 
-			 const std::vector<std::vector<unsigned int>> sourceTimes,
+			 std::vector<int> timeSources,
                      const bool multiFile, const int trajectory = -1);
 private:
     static inline std::string vecFilename(const std::string stem, const int traj, 
@@ -90,7 +90,7 @@ template <typename Field>
 void DistillationVectorsIo::write(const std::string fileStem, std::vector<Field> &vec, 
 		         const std::string vecType, const int nNoise, const int nDL,
 			 const int nDS, const int nDT, 
-			 const std::vector<std::vector<unsigned int>> sourceTimes,
+			 std::vector<int> timeSources,
                          const bool multiFile, const int trajectory)
 {
     Record       record;
@@ -103,7 +103,7 @@ void DistillationVectorsIo::write(const std::string fileStem, std::vector<Field>
     record.nDL = nDL;
     record.nDS = nDS;
     record.nDT = nDT;
-    record.sourceTimes = sourceTimes;
+    record.timeSources = timeSources;
     if (multiFile)
     {
         std::string fullFilename;
@@ -138,7 +138,7 @@ template <typename Field>
 void DistillationVectorsIo::read(std::vector<Field> &vec, const std::string fileStem, 
 		         const int nNoise, const int nDL,
 			 const int nDS, const int nDT, 
-			 const std::vector<std::vector<unsigned int>> sourceTimes,
+			 std::vector<int> timeSources,
                         const bool multiFile, const int trajectory)
 {
     Record       record;
@@ -161,7 +161,7 @@ void DistillationVectorsIo::read(std::vector<Field> &vec, const std::string file
             {
                 HADRONS_ERROR(Io, "vector index mismatch");
             }
-            if (record.sourceTimes != sourceTimes)
+            if (record.timeSources != timeSources)
             {
                 HADRONS_ERROR(Io, "source times mismatch");
             }
@@ -182,7 +182,7 @@ void DistillationVectorsIo::read(std::vector<Field> &vec, const std::string file
             {
                 HADRONS_ERROR(Io, "vector index mismatch");
             }
-            if (record.sourceTimes != sourceTimes)
+            if (record.timeSources != timeSources)
             {
                 HADRONS_ERROR(Io, "source times mismatch");
             }

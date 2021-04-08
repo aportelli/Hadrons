@@ -237,6 +237,7 @@ void TPerambulator<FImpl>::execute(void)
     std::string sourceT = par().timeSources;
     int nSourceT;
     std::vector<int> invT;
+    std::vector<std::vector<unsigned int>> sourceTimes;
     if(par().timeSources.empty())
     {
 	// create sourceTimes all time-dilution indices
@@ -244,7 +245,7 @@ void TPerambulator<FImpl>::execute(void)
         for (int dt = 0; dt < nDT; dt++)
 	{
 	    std::vector<unsigned int> sT = dilNoise.timeSlices(dt);
-	    perambulator.MetaData.sourceTimes.push_back(sT);
+	    sourceTimes.push_back(sT);
 	    invT.push_back(dt);
 	}
         LOG(Message) << "Computing inversions on all " << nDT << " time-dilution vectors" << std::endl;
@@ -258,12 +259,13 @@ void TPerambulator<FImpl>::execute(void)
         for (int dt = 0; dt < nSourceT; dt++)
 	{
 	    std::vector<unsigned int> sT = dilNoise.timeSlices(iT[dt]);
-	    perambulator.MetaData.sourceTimes.push_back(sT);
+	    sourceTimes.push_back(sT);
 	    invT.push_back(iT[dt]);
 	}
         LOG(Message) << "Computing inversions on a subset of " << nSourceT << " time-dilution vectors" << std::endl;
     }
-    LOG(Message) << "Source times" << perambulator.MetaData.sourceTimes << std::endl;
+    LOG(Message) << "Source times" << sourceTimes << std::endl;
+    perambulator.MetaData.timeSources = invT;
 
     int idt,dt,dk,ds,dIndexSolve,nVecFullSolve = 0; 
     std::array<unsigned int, 3> index;
@@ -376,7 +378,7 @@ void TPerambulator<FImpl>::execute(void)
     {
 	//TODO: Add (at least) sourceTimes as metadata.
         auto &solveOut = envGet(std::vector<FermionField>, getName()+"_unsmeared_solve");
-        DistillationVectorsIo::write(sFileName, solveOut, "phi", nNoise, nDL, nDS, nDT, perambulator.MetaData.sourceTimes, par().multiFile, vm().getTrajectory());
+        DistillationVectorsIo::write(sFileName, solveOut, "phi", nNoise, nDL, nDS, nDT, invT, par().multiFile, vm().getTrajectory());
     }
 }
 

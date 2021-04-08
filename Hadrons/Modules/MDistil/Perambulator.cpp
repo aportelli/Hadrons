@@ -45,9 +45,6 @@ extern const std::string NamedTensorFileExtension{".dat"};
 
 BEGIN_MODULE_NAMESPACE(MDistil)
 
-const std::string                NoiseTensor::Name__{"Noises"};
-const std::array<std::string, 4> NoiseTensor::DefaultIndexNames__{"nNoise", "nT", "nVec", "nS"};
-
 const std::string                PerambTensor::Name__{"Perambulator"};
 const std::array<std::string, 6> PerambTensor::DefaultIndexNames__{"nT", "nVec", "LI", "nNoise", "nT_inv", "SI"};
 

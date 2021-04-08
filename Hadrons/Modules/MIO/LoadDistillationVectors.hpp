@@ -149,18 +149,14 @@ void TLoadDistillationVectors<FImpl>::execute(void)
     int nDL = dilNoise.dilutionSize(DistillationNoise<FImpl>::Index::l);	
     int nDS = dilNoise.dilutionSize(DistillationNoise<FImpl>::Index::s);	
     int nDT = dilNoise.dilutionSize(DistillationNoise<FImpl>::Index::t);	
-    std::vector<std::vector<unsigned int>> sourceTimes;
     std::string sourceT = par().timeSources;
     int nSourceT;
     std::vector<int> invT;
     if(par().timeSources.empty())
     {
 	// create sourceTimes all time-dilution indices
-	nSourceT=nDT;
         for (int dt = 0; dt < nDT; dt++)
 	{
-	    std::vector<unsigned int> sT = dilNoise.timeSlices(dt);
-	    sourceTimes.push_back(sT);
 	    invT.push_back(dt);
 	}
     }
@@ -172,13 +168,11 @@ void TLoadDistillationVectors<FImpl>::execute(void)
 	// create sourceTimes from the chosen subset of time-dilution indices
         for (int dt = 0; dt < nSourceT; dt++)
 	{
-	    std::vector<unsigned int> sT = dilNoise.timeSlices(iT[dt]);
-	    sourceTimes.push_back(sT);
 	    invT.push_back(iT[dt]);
 	}
     }
 
-    DistillationVectorsIo::read(vec, par().filestem, nNoise, nDL, nDS, nDT, sourceTimes, par().multiFile, vm().getTrajectory());
+    DistillationVectorsIo::read(vec, par().filestem, nNoise, nDL, nDS, nDT, invT, par().multiFile, vm().getTrajectory());
 }
 
 END_MODULE_NAMESPACE
