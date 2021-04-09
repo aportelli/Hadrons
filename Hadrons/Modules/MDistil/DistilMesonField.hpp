@@ -258,7 +258,7 @@ void TDistilMesonField<FImpl>::execute(void)
         }
     }
 
-    eff_nt_     = nt ; //helper.computeEffTimeDimension(st_);
+    eff_nt_     = helper.computeEffTimeDimension();
     noisePairs_ = helper.parseNoisePairs(par().noisePairs);
 
     //populate matrix sets
@@ -333,6 +333,7 @@ void TDistilMesonField<FImpl>::execute(void)
         computation.distVec(distVector, noise, inoise, peramb, epack, timeDilSource);
 
         // computing mesonfield blocks and saving to disk
+        LOG(Message) << "Time-dilution blocks computation starting..." << std::endl;
         computation.execute(matrixIoTable, st_, distVector, noise, gamma_, phase, blockbuf_ , cachebuf_ , nExt_, nStr_, dilutionSize_ls_, eff_nt_, timeDilSource, this);
 
         LOG(Message) << "Meson fields saved at " << outputMFStem_ << std::endl;

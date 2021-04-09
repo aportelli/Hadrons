@@ -98,11 +98,10 @@ private:
     std::map<std::string,std::string> dmfCase_;
     TimeSliceMap noiseTimeMapl_, noiseTimeMapr_;
     const std::vector<std::string> sides = {"left","right"};
+    unsigned int effTime(TimeSliceMap tmap);
 public:
     DmfHelper(DistillationNoise & nl, DistillationNoise & nr, std::map<std::string,std::string> c);
-    int computeEffTimeDimension(TimeSliceMap st);
-    TimeSliceMap getSourceTimes(std::map<std::string, TimeSliceMap> perambTimeMap , TimeSliceMap st_input);
-    TimeSliceMap getIntersectionMap(TimeSliceMap m1, TimeSliceMap m2);
+    int computeEffTimeDimension();
     std::vector<std::vector<int>> parseNoisePairs(std::vector<std::string> inputN);
     void computePhase(std::vector<std::vector<RealF>> momenta, ComplexField &coor, std::vector<int> dim, std::vector<ComplexField> &phase);
     TimeSliceMap timeSliceMap(DistillationNoise & n);
@@ -155,6 +154,7 @@ void DmfComputation<FImpl,Field,T,Tio>
           std::map<std::string, std::vector<int>>   timeDilSource,
           TimerArray * tarray)
 {
+    
     const unsigned int vol = g_->_gsites;
     std::string dmfcase = dmfCase_.at("left") + " " + dmfCase_.at("right");
     // computing mesonfield blocks and saving to disk
@@ -164,22 +164,37 @@ void DmfComputation<FImpl,Field,T,Tio>
         std::vector<unsigned int> pL;
         std::vector<unsigned int> pR;
         std::vector<unsigned int> stInter;
-        if( dmfCase_.at("left")=="rho" || dmfCase_.at("right")=="rho" )   //if there's at least one rho, need to compute valid time slices
+        if(dmfCase_.at("left")=="phi")
         {
-            pL = n.at("left").timeSlices(dtL);
-            pR = n.at("right").timeSlices(dtR);
-            std::set_intersection(pL.begin(), pL.end(), 
-                            pR.begin(), pR.end(),
-                            std::back_inserter(stInter));
-            if(!stInter.empty())
-                LOG(Message) << "At least one rho found. Time slices to be saved=" << stInter << "..." << std::endl;
+            pL.resize(nt_);
+            std::iota(std::begin(pL), std::end(pL), 0);
         }
+        else
+        {
+            pL =  n.at("left").timeSlices(dtL);
+        }
+        if(dmfCase_.at("right")=="phi")
+        {
+            pR.resize(nt_);
+            std::iota(std::begin(pR), std::end(pR), 0);
+        }
+        else
+        {
+            pR = n.at("right").timeSlices(dtR);
+        }
+
+        std::set_intersection(pL.begin(), pL.end(), 
+                        pR.begin(), pR.end(),
+                        std::back_inserter(stInter));
+        // std::cout << "pR=" << pR << " pL" << pL << " stInter=" << stInter << std::endl;
+        // if(!stInter.empty())
 
         if( ( (dmfcase!="rho rho") || (!stInter.empty()) ) ) // only execute rho rho case when partitions have at least one time slice in common
         {
-
+            LOG(Message) << "################### dtL_" << dtL << " dtR_" << dtR << " ################### " << std::endl; 
+            LOG(Message) << "At least one rho found. Time slices to be saved=" << stInter << "..." << std::endl;
             std::string datasetName = "dtL"+std::to_string(dtL)+"_dtR"+std::to_string(dtR);
-            LOG(Message) << "Computing dilution dataset " << datasetName << "..." << std::endl;
+            // LOG(Message) << "Computing dilution dataset " << datasetName << "..." << std::endl;
 
             int nblocki = dil_size_ls/bSize_ + (((dil_size_ls % bSize_) != 0) ? 1 : 0);
             int nblockj = dil_size_ls/bSize_ + (((dil_size_ls % bSize_) != 0) ? 1 : 0);
@@ -327,6 +342,10 @@ void DmfComputation<FImpl,Field,T,Tio>
     const int Ntlocal = g_->LocalDimensions()[nd - 1];
     std::map<std::string,int> iNoise = {{"left",inoise[0]},{"right",inoise[1]}};
 
+    // std::cout << "tDilSLeft=" << timeDilSource.at("left") << std::endl;
+    // std::cout << "tDilSRight=" << timeDilSource.at("right") << std::endl;
+    // std::cin.get();
+
     for(std::string s : sides_)    // computation
     for(int iD=0 ; iD<n.at(s).dilutionSize() ; iD++)  // computation of phi or rho
     {
@@ -336,6 +355,8 @@ void DmfComputation<FImpl,Field,T,Tio>
         std::vector<int> tDilS = timeDilSource.at(s);
         if(std::find(tDilS.begin(), tDilS.end(), dt) != tDilS.end()) // if dt is available, compute
         {
+            // std::cout << "dt=" << dt << std::endl;
+            // std::cin.get();
             if(dmfCase_.at(s)=="phi")
             {
                 for (int t = Ntfirst; t < Ntfirst + Ntlocal; t++)   //loop over (local) timeslices
@@ -369,81 +390,30 @@ DmfHelper<FImpl,Field>::DmfHelper(DistillationNoise & nl, DistillationNoise & nr
 }
 
 template <typename FImpl, typename Field>
-int DmfHelper<FImpl,Field>::computeEffTimeDimension(TimeSliceMap st)
+unsigned int DmfHelper<FImpl,Field>::effTime(TimeSliceMap tmap)
 {
-    // compute eff_nt (<=nt_), the number of non-zero timeslices in the final object, when there's at least one rho involved
+    // assuming it's a rho
+    // compute eff_nt (1<=eff_nt<=nt_), the time extensin in the final object when there's at least one rho involved
     int eff_nt = 1;
-    if(dmfCase_.at("left")=="rho" || dmfCase_.at("right")=="rho")
-    {
-        for(auto &e : st)
-            e.size() > eff_nt ? eff_nt = e.size() : 0;      //get the highest possible eff_nt from st
-    }
-    else
-    {
-        eff_nt = nt_;
-    }
+    for(auto &e : tmap)
+        e.size() > eff_nt ? eff_nt = e.size() : 0;      //get the highest possible eff_nt from st
     return eff_nt;
 }
 
 template <typename FImpl, typename Field>
-TimeSliceMap DmfHelper<FImpl,Field>::getSourceTimes(std::map<std::string, TimeSliceMap> perambTimeMap , TimeSliceMap st_input)
+int DmfHelper<FImpl,Field>::computeEffTimeDimension()
 {
-    //check if noise_st_i contains peramb_st_i (case==phi), take the intersection between the l/r intersection result, check if input is subset of that
-    TimeSliceMap st,st_dependencies;
-    std::map<std::string, TimeSliceMap> inter = { {"left",{}},{"right",{}} };
-    std::map<std::string, TimeSliceMap> noiseTimeMap = { {"left",noiseTimeMapl_},{"right",noiseTimeMapr_} };
-    for(auto &s : sides)
+    if(dmfCase_.at("left")=="rho" || dmfCase_.at("right")=="rho")
     {
-        if(dmfCase_.at(s)=="phi")
-        {
-            printMap(noiseTimeMap.at(s));
-            std::cin.get();
-            
-            printMap(perambTimeMap.at(s));
-            std::cin.get();
-
-            inter.at(s) = getIntersectionMap(noiseTimeMap.at(s) , perambTimeMap.at(s));
-            
-            printMap(inter.at(s));
-            std::cin.get();
-
-            if(inter.at(s).empty())
-            {
-                HADRONS_ERROR(Argument,"Time dilution not compatible between noise and perambulator.");
-            }
-        }
-        else
-        {
-            inter.at(s) = noiseTimeMap.at(s);
-        }
+        unsigned int left_neff = (dmfCase_.at("left")=="phi") ? 0  : effTime(noiseTimeMapl_);
+        unsigned int right_neff = (dmfCase_.at("right")=="phi") ? 0 : effTime(noiseTimeMapr_);
+        std::cout << left_neff << " " << right_neff << std::endl;
+        return MAX(left_neff,right_neff);    // if it's from phi (=0) it will be ignored by MAX
     }
-    st_dependencies  = getIntersectionMap(inter.at("left") , inter.at("right"));
-    printMap(st_dependencies);
-    std::cin.get();
-
-    st = getIntersectionMap(st_dependencies , st_input);
-    printMap(st);
-    std::cin.get();
-
-    return st;
-}
-
-template <typename FImpl, typename Field>
-TimeSliceMap DmfHelper<FImpl,Field>::getIntersectionMap(TimeSliceMap m1, TimeSliceMap m2)
-{
-    TimeSliceMap inter;
-    // std::cout << "inside getInersectionMap" << std::endl;
-    int minsize = MIN(m1.size(),m2.size());
-    for(unsigned int p=0 ; p<minsize ; p++)
+    else
     {
-        std::vector<unsigned int> temp;
-        std::set_intersection(m1[p].begin(), m1[p].end(), 
-                            m2[p].begin(), m2[p].end(),
-                            std::back_inserter(temp));
-        // std::cout << temp << std::endl;
-        inter.push_back(temp);
+        return nt_;
     }
-    return inter;
 }
 
 template <typename FImpl, typename Field>
