@@ -290,6 +290,8 @@ void TLapEvec<FImpl>::execute(void)
     {
         LOG(Message) << "------------------------------------------------------------" << std::endl;
         LOG(Message) << " Compute eigenpack, local timeslice = " << t << " / " << Ntlocal << std::endl;
+        LOG(Message) << " Lanczos residual = " << LPar.resid << std::endl;
+        LOG(Message) << " Number of Lap eigenvectors (nvec) = " << LPar.Nvec << std::endl;
         LOG(Message) << "------------------------------------------------------------" << std::endl;
         eig[t].resize(LPar.Nk+LPar.Np,gridLD);
         
