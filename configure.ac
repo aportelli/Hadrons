@@ -21,11 +21,6 @@ AC_CHECK_PROG([GRIDCONF],[grid-config],[yes])
 if test x"$GRIDCONF" != x"yes" ; then
     AC_MSG_ERROR([grid-config not found])
 fi
-if test x"$CC" == x ; then
-    CC="`grid-config --cxx`"
-elif test "$CC" != "`grid-config --cxx`" ; then
-    AC_MSG_WARN([CC differs from that reported by grid-config])
-fi
 if test x"$CXX" == x ; then
     CXX="`grid-config --cxx`"
 elif test "$CXX" != "`grid-config --cxx`" ; then

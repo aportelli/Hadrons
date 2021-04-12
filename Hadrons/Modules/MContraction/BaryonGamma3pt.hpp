@@ -101,7 +101,6 @@ BEGIN_HADRONS_NAMESPACE
  ******************************************************************************/
 BEGIN_MODULE_NAMESPACE(MContraction)
 
-
 typedef std::pair<Gamma::Algebra, Gamma::Algebra> GammaAB;
 typedef std::pair<GammaAB, GammaAB> GammaABPair;
 
