@@ -48,8 +48,8 @@ private:
     GridCartesian *     g3d_;
     ColourVectorField   evec3d_;
     Field               tmp3d_;
-    // Vector<Tio>    bBuf;  //todo: define it here instead of outside
-    // Vector<T>     cBuf;
+    Vector<Tio>         bBuf_;
+    Vector<T>           cBuf_;
     unsigned int        bSize_;
     unsigned int        cSize_;
     unsigned int        nt_;
@@ -61,26 +61,26 @@ public:
                     unsigned int cacheSize,
                     unsigned int nt);
 public:
-void execute(std::vector<A2AMatrixIo<Tio>> io_table,
-             TimeSliceMap st,
-             std::map<std::string, DistilVector&> dv,
-             std::map<std::string, DistillationNoise&> n,
-             std::vector<Gamma::Algebra> gamma,
-             std::vector<ComplexField> ph,
-             Vector<Tio> & bBuf,
-             Vector<T>  & cBuf,
-             const unsigned int n_ext,
-             const unsigned int n_str,
-             const unsigned int dil_size_ls,
-             const unsigned int eff_nt,
-             std::map<std::string, std::vector<int>>   timeDilSource,
-             TimerArray * tarray);
-void distVec(std::map<std::string, DistilVector&> & dv,
-             std::map<std::string, DistillationNoise&> n,
-             const std::vector<int> inoise,
-             std::map<std::string, PerambTensor&> & peramb,
-             const LapEvecs            & epack,
-             std::map<std::string, std::vector<int>>   timeDilSource);
+    void execute(std::vector<A2AMatrixIo<Tio>> io_table,
+                TimeSliceMap st,
+                std::map<std::string, DistilVector&> dv,
+                std::map<std::string, DistillationNoise&> n,
+                std::vector<Gamma::Algebra> gamma,
+                std::vector<ComplexField> ph,
+                const unsigned int n_ext,
+                const unsigned int n_str,
+                const unsigned int dil_size_ls,
+                const unsigned int eff_nt,
+                std::map<std::string, std::vector<int>>   timeDilSource,
+                TimerArray * tarray
+                );
+    void distVec(std::map<std::string, DistilVector&> & dv,
+                std::map<std::string, DistillationNoise&> n,
+                const std::vector<int> inoise,
+                std::map<std::string, PerambTensor&> & peramb,
+                const LapEvecs            & epack,
+                std::map<std::string, std::vector<int>>   timeDilSource
+                );
 };
 
 // aux class declaration
@@ -134,7 +134,7 @@ DmfComputation<FImpl,Field,T,Tio>
                  unsigned int nt)
 : dmfCase_(c), g_(g), g3d_(g3d), evec3d_(g3d), tmp3d_(g3d)
 , nt_(nt), nd_(g->Nd()), bSize_(blockSize) , cSize_(cacheSize)
-{   
+{
 }
 
 template <typename FImpl, typename Field, typename T, typename Tio>
@@ -145,8 +145,6 @@ void DmfComputation<FImpl,Field,T,Tio>
           std::map<std::string, DistillationNoise&> n,
           std::vector<Gamma::Algebra> gamma,
           std::vector<ComplexField> ph,
-          Vector<Tio> & bBuf,
-          Vector<T>  & cBuf,
           const unsigned int n_ext,
           const unsigned int n_str,
           const unsigned int dil_size_ls,
@@ -154,6 +152,8 @@ void DmfComputation<FImpl,Field,T,Tio>
           std::map<std::string, std::vector<int>>   timeDilSource,
           TimerArray * tarray)
 {
+    bBuf_.resize(n_ext*n_str*eff_nt*bSize_*bSize_);
+    cBuf_.resize(n_ext*n_str*nt_*cSize_*cSize_);
     
     const unsigned int vol = g_->_gsites;
     std::string dmfcase = dmfCase_.at("left") + " " + dmfCase_.at("right");
@@ -167,7 +167,7 @@ void DmfComputation<FImpl,Field,T,Tio>
         if(dmfCase_.at("left")=="phi")
         {
             pL.resize(nt_);
-            std::iota(std::begin(pL), std::end(pL), 0);
+            std::iota(std::begin(pL), std::end(pL), 0); //phi: filling with all time slices <-> intersects with non-empty
         }
         else
         {
@@ -176,7 +176,7 @@ void DmfComputation<FImpl,Field,T,Tio>
         if(dmfCase_.at("right")=="phi")
         {
             pR.resize(nt_);
-            std::iota(std::begin(pR), std::end(pR), 0);
+            std::iota(std::begin(pR), std::end(pR), 0); //phi: filling with all time slices <-> intersects with non-empty
         }
         else
         {
@@ -189,7 +189,7 @@ void DmfComputation<FImpl,Field,T,Tio>
         // std::cout << "pR=" << pR << " pL" << pL << " stInter=" << stInter << std::endl;
         // if(!stInter.empty())
 
-        if( ( (dmfcase!="rho rho") || (!stInter.empty()) ) ) // only execute rho rho case when partitions have at least one time slice in common
+        if( !stInter.empty() ) // only execute rho rho case when partitions have at least one time slice in common
         {
             LOG(Message) << "################### dtL_" << dtL << " dtR_" << dtR << " ################### " << std::endl; 
             LOG(Message) << "At least one rho found. Time slices to be saved=" << stInter << "..." << std::endl;
@@ -205,7 +205,7 @@ void DmfComputation<FImpl,Field,T,Tio>
             {
                 int iblockSize = MIN(dil_size_ls-iblock,bSize_);    // iblockSize is the size of the current block (indexed by i); N_i-i is the size of the eventual remainder block
                 int jblockSize = MIN(dil_size_ls-jblock,bSize_);
-                A2AMatrixSet<Tio> block(bBuf.data(), n_ext , n_str , eff_nt, iblockSize, jblockSize);
+                A2AMatrixSet<Tio> block(bBuf_.data(), n_ext , n_str , eff_nt, iblockSize, jblockSize);
 
                 LOG(Message) << "Distil matrix block " 
                 << jblock/bSize_ + nblocki*iblock/bSize_ + 1 
@@ -227,7 +227,7 @@ void DmfComputation<FImpl,Field,T,Tio>
                 {
                     int icacheSize = MIN(iblockSize-icache,cSize_);      // icacheSize is the size of the current cache_ block (indexed by ii); N_ii-ii is the size of the remainder cache_ block
                     int jcacheSize = MIN(jblockSize-jcache,cSize_);
-                    A2AMatrixSet<T> blockCache(cBuf.data(), n_ext, n_str, nt_, icacheSize, jcacheSize);
+                    A2AMatrixSet<T> blockCache(cBuf_.data(), n_ext, n_str, nt_, icacheSize, jcacheSize);
 
                     double timer = 0.0;
                     tarray->startTimer("kernel");

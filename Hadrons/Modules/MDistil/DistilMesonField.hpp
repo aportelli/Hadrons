@@ -75,8 +75,8 @@ private:
     std::vector<std::vector<RealF>>     momenta_;
     int                                 nExt_;
     int                                 nStr_;
-    Vector<ComplexF>                    blockbuf_;
-    Vector<Complex>                     cachebuf_;
+    // Vector<ComplexF>                    blockbuf_;
+    // Vector<Complex>                     cachebuf_;
     int                                 eff_nt_;
     std::vector<std::vector<int>>       noisePairs_;           // read from extermal object (diluted noise class)
     TimeSliceMap                        st_;
@@ -262,8 +262,8 @@ void TDistilMesonField<FImpl>::execute(void)
     noisePairs_ = helper.parseNoisePairs(par().noisePairs);
 
     //populate matrix sets
-    blockbuf_.resize(nExt_*nStr_*eff_nt_*blockSize_*blockSize_);
-    cachebuf_.resize(nExt_*nStr_*nt*cacheSize_*cacheSize_);
+    // blockbuf_.resize(nExt_*nStr_*eff_nt_*blockSize_*blockSize_);
+    // cachebuf_.resize(nExt_*nStr_*nt*cacheSize_*cacheSize_);
 
     // ObjArray_LR<DistillationNoise*> n;
     // n = {&noisel, &noiser};
@@ -334,7 +334,7 @@ void TDistilMesonField<FImpl>::execute(void)
 
         // computing mesonfield blocks and saving to disk
         LOG(Message) << "Time-dilution blocks computation starting..." << std::endl;
-        computation.execute(matrixIoTable, st_, distVector, noise, gamma_, phase, blockbuf_ , cachebuf_ , nExt_, nStr_, dilutionSize_ls_, eff_nt_, timeDilSource, this);
+        computation.execute(matrixIoTable, st_, distVector, noise, gamma_, phase, nExt_, nStr_, dilutionSize_ls_, eff_nt_, timeDilSource, this);
 
         LOG(Message) << "Meson fields saved at " << outputMFStem_ << std::endl;
     }
