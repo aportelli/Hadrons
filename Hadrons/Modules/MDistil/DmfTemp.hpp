@@ -69,7 +69,7 @@ public:
                 std::vector<ComplexField> ph,
                 const unsigned int n_ext,
                 const unsigned int n_str,
-                const unsigned int dil_size_ls,
+                std::map<std::string, int>  dil_size_ls,
                 const unsigned int eff_nt,
                 std::map<std::string, std::vector<int>>   timeDilSource,
                 TimerArray * tarray
@@ -125,6 +125,58 @@ public:
 //####################################
 //# computation class implementation #
 //####################################
+
+template <typename FImpl, typename Field, typename T, typename Tio>
+void DmfComputation<FImpl,Field,T,Tio>
+::distVec(std::map<std::string, DistilVector&>&     dv,
+          std::map<std::string, DistillationNoise&> n,
+          const std::vector<int>                    inoise,
+          std::map<std::string, PerambTensor&>&     peramb,
+          const LapEvecs&                           epack,
+          std::map<std::string, std::vector<int>>   timeDilSource)
+{
+    const int nd = g_->Nd();
+    const int nVec = epack.evec.size();
+    const int Ntfirst = g_->LocalStarts()[nd - 1];
+    const int Ntlocal = g_->LocalDimensions()[nd - 1];
+    std::map<std::string,int> iNoise = {{"left",inoise[0]},{"right",inoise[1]}};
+
+    // std::cout << "tDilSLeft=" << timeDilSource.at("left") << std::endl;
+    // std::cout << "tDilSRight=" << timeDilSource.at("right") << std::endl;
+    // std::cin.get();
+
+    for(std::string s : sides_)    // computation
+    for(int iD=0 ; iD<n.at(s).dilutionSize() ; iD++)  // computation of phi or rho
+    {
+        std::array<unsigned int,3> c = n.at(s).dilutionCoordinates(iD);
+        unsigned int dt = c[0] , dl = c[1] , ds = c[2];
+        dv.at(s)[iD] = Zero();
+        std::vector<int> tDilS = timeDilSource.at(s);
+        if(std::find(tDilS.begin(), tDilS.end(), dt) != tDilS.end()) // if time source is available, compute that block
+        {
+            // std::cout << "dt=" << dt << std::endl;
+            // std::cin.get();
+            if(dmfCase_.at(s)=="phi")
+            {
+                for (int t = Ntfirst; t < Ntfirst + Ntlocal; t++)   //loop over (local) timeslices
+                {
+                    tmp3d_ = Zero();
+                    for (int k = 0; k < nVec; k++)
+                    {
+                        ExtractSliceLocal(evec3d_,epack.evec[k],0,t-Ntfirst,nd - 1);
+                        // std::cout << t<< " " <<  k<< " " <<  dl<< " " <<  iNoise.at(s)<< " " <<  dt<< " " <<  ds << std::endl;
+                        tmp3d_ += evec3d_ * peramb.at(s).tensor(t, k, dl, iNoise.at(s), dt, ds);
+                    }
+                    InsertSliceLocal(tmp3d_,dv.at(s)[iD],0,t-Ntfirst,nd - 1);
+                }
+            }
+            else if(dmfCase_.at(s)=="rho"){
+                dv.at(s)[iD] = n.at(s).makeSource(iD, iNoise.at(s));
+            }
+        }
+    }
+}
+
 template <typename FImpl, typename Field, typename T, typename Tio>
 DmfComputation<FImpl,Field,T,Tio>
 ::DmfComputation(std::map<std::string,std::string> c,
@@ -147,7 +199,7 @@ void DmfComputation<FImpl,Field,T,Tio>
           std::vector<ComplexField> ph,
           const unsigned int n_ext,
           const unsigned int n_str,
-          const unsigned int dil_size_ls,
+          std::map<std::string, int>  dil_size_ls,
           const unsigned int eff_nt,
           std::map<std::string, std::vector<int>>   timeDilSource,
           TimerArray * tarray)
@@ -196,15 +248,15 @@ void DmfComputation<FImpl,Field,T,Tio>
             std::string datasetName = "dtL"+std::to_string(dtL)+"_dtR"+std::to_string(dtR);
             // LOG(Message) << "Computing dilution dataset " << datasetName << "..." << std::endl;
 
-            int nblocki = dil_size_ls/bSize_ + (((dil_size_ls % bSize_) != 0) ? 1 : 0);
-            int nblockj = dil_size_ls/bSize_ + (((dil_size_ls % bSize_) != 0) ? 1 : 0);
+            int nblocki = dil_size_ls.at("left")/bSize_ + (((dil_size_ls.at("left") % bSize_) != 0) ? 1 : 0);
+            int nblockj = dil_size_ls.at("right")/bSize_ + (((dil_size_ls.at("right") % bSize_) != 0) ? 1 : 0);
 
             // loop over blocls in the current time-dilution block
-            for(int iblock=0 ; iblock<dil_size_ls ; iblock+=bSize_) //set according to memory size
-            for(int jblock=0 ; jblock<dil_size_ls ; jblock+=bSize_)
+            for(int iblock=0 ; iblock<dil_size_ls.at("left") ; iblock+=bSize_) //set according to memory size
+            for(int jblock=0 ; jblock<dil_size_ls.at("right") ; jblock+=bSize_)
             {
-                int iblockSize = MIN(dil_size_ls-iblock,bSize_);    // iblockSize is the size of the current block (indexed by i); N_i-i is the size of the eventual remainder block
-                int jblockSize = MIN(dil_size_ls-jblock,bSize_);
+                int iblockSize = MIN(dil_size_ls.at("left")-iblock,bSize_);    // iblockSize is the size of the current block (indexed by i); N_i-i is the size of the eventual remainder block
+                int jblockSize = MIN(dil_size_ls.at("right")-jblock,bSize_);
                 A2AMatrixSet<Tio> block(bBuf_.data(), n_ext , n_str , eff_nt, iblockSize, jblockSize);
 
                 LOG(Message) << "Distil matrix block " 
@@ -216,10 +268,10 @@ void DmfComputation<FImpl,Field,T,Tio>
                 LOG(Message) << "Block size = "         << eff_nt*iblockSize*jblockSize*sizeof(Tio) << "MB/momentum/gamma" << std::endl;
                 LOG(Message) << "Cache block size = "   << nt_*cSize_*cSize_*sizeof(T) << "MB/momentum/gamma" << std::endl;  //remember to change this in case I change chunk size from nt_ to something else
 
-                double flops       = 0.0;
-                double bytes       = 0.0;
-                double time_kernel = 0.0;
-                double nodes    = g_->NodeCount();
+                double flops        = 0.0;
+                double bytes        = 0.0;
+                double time_kernel  = 0.0;
+                double nodes        = g_->NodeCount();
 
                 // loop over cache_ blocks in the current block
                 for(int icache=0 ; icache<iblockSize ; icache+=cSize_)   //set according to cache_ size
@@ -327,59 +379,8 @@ void DmfComputation<FImpl,Field,T,Tio>
     }
 }
 
-template <typename FImpl, typename Field, typename T, typename Tio>
-void DmfComputation<FImpl,Field,T,Tio>
-::distVec(std::map<std::string, DistilVector&>&     dv,
-          std::map<std::string, DistillationNoise&> n,
-          const std::vector<int>                    inoise,
-          std::map<std::string, PerambTensor&>&     peramb,
-          const LapEvecs&                           epack,
-          std::map<std::string, std::vector<int>>   timeDilSource)
-{
-    const int nd = g_->Nd();
-    const int nVec = epack.evec.size();
-    const int Ntfirst = g_->LocalStarts()[nd - 1];
-    const int Ntlocal = g_->LocalDimensions()[nd - 1];
-    std::map<std::string,int> iNoise = {{"left",inoise[0]},{"right",inoise[1]}};
-
-    // std::cout << "tDilSLeft=" << timeDilSource.at("left") << std::endl;
-    // std::cout << "tDilSRight=" << timeDilSource.at("right") << std::endl;
-    // std::cin.get();
-
-    for(std::string s : sides_)    // computation
-    for(int iD=0 ; iD<n.at(s).dilutionSize() ; iD++)  // computation of phi or rho
-    {
-        std::array<unsigned int,3> c = n.at(s).dilutionCoordinates(iD);
-        unsigned int dt = c[0] , dl = c[1] , ds = c[2];
-        dv.at(s)[iD] = Zero();
-        std::vector<int> tDilS = timeDilSource.at(s);
-        if(std::find(tDilS.begin(), tDilS.end(), dt) != tDilS.end()) // if dt is available, compute
-        {
-            // std::cout << "dt=" << dt << std::endl;
-            // std::cin.get();
-            if(dmfCase_.at(s)=="phi")
-            {
-                for (int t = Ntfirst; t < Ntfirst + Ntlocal; t++)   //loop over (local) timeslices
-                {
-                    tmp3d_ = Zero();
-                    for (int k = 0; k < nVec; k++)
-                    {
-                        ExtractSliceLocal(evec3d_,epack.evec[k],0,t-Ntfirst,nd - 1);
-                        // std::cout << t<< " " <<  k<< " " <<  dl<< " " <<  iNoise.at(s)<< " " <<  dt<< " " <<  ds << std::endl;
-                        tmp3d_ += evec3d_ * peramb.at(s).tensor(t, k, dl, iNoise.at(s), dt, ds);
-                    }
-                    InsertSliceLocal(tmp3d_,dv.at(s)[iD],0,t-Ntfirst,nd - 1);
-                }
-            }
-            else if(dmfCase_.at(s)=="rho"){
-                dv.at(s)[iD] = n.at(s).makeSource(iD, iNoise.at(s));
-            }
-        }
-    }
-}
-
 //############################
-//# aux class implementation #
+//# helper class implementation #
 //############################
 template <typename FImpl, typename Field>
 DmfHelper<FImpl,Field>::DmfHelper(DistillationNoise & nl, DistillationNoise & nr, std::map<std::string,std::string> c)

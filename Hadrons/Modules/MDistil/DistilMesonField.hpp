@@ -75,14 +75,12 @@ private:
     std::vector<std::vector<RealF>>     momenta_;
     int                                 nExt_;
     int                                 nStr_;
-    // Vector<ComplexF>                    blockbuf_;
-    // Vector<Complex>                     cachebuf_;
     int                                 eff_nt_;
     std::vector<std::vector<int>>       noisePairs_;           // read from extermal object (diluted noise class)
     TimeSliceMap                        st_;
     std::string                         outputMFStem_;
     bool                                hasPhase_{false};
-    int                                 dilutionSize_ls_;
+    std::map<std::string, int>          dilutionSize_ls_;
     std::map<std::string, std::string>  noiseInput_  ;
     std::map<std::string, std::string>  perambInput_ ;
     std::vector<std::string>            sides_       ;
@@ -189,15 +187,17 @@ void TDistilMesonField<FImpl>::setup(void)
     nStr_       = gamma_.size();
 
     //not taking into account different spin/lap dilution on each side, just different time dilutions
-    if( noisel.dilutionSize(Index::l)*noisel.dilutionSize(Index::s) != noiser.dilutionSize(Index::l)*noiser.dilutionSize(Index::s) )
-    {
-        HADRONS_ERROR(Argument,"Spin-Lap dilution spaces do not have same dimension on both sides.");
-    }
-    dilutionSize_ls_ = noisel.dilutionSize(Index::l)*noisel.dilutionSize(Index::s);
+    // if( noisel.dilutionSize(Index::l)*noisel.dilutionSize(Index::s) != noiser.dilutionSize(Index::l)*noiser.dilutionSize(Index::s) )
+    // {
+    //     HADRONS_ERROR(Argument,"Spin-Lap dilution spaces do not have same dimension on both sides.");
+    // }
+    // dilutionSize_ls_ = noisel.dilutionSize(Index::l)*noisel.dilutionSize(Index::s);
+
+    dilutionSize_ls_ = { {"left",noisel.dilutionSize(Index::l)*noisel.dilutionSize(Index::s)} , {"right",noiser.dilutionSize(Index::l)*noiser.dilutionSize(Index::s)} };
 
     envTmpLat(ComplexField,             "coor");
     envCache(std::vector<ComplexField>, "phasename",    1, momenta_.size(), g );
-    envTmp(DistilVector,                "dvl",          1, noisel.dilutionSize() , g); //st_size() * dilutionSize_ls_, g); // temporary setting this to full dilution size
+    envTmp(DistilVector,                "dvl",          1, noisel.dilutionSize() , g);
     envTmp(DistilVector,                "dvr",          1, noiser.dilutionSize() , g);
     envTmp(Computation,                 "computation",  1, dmf_case_ , g, g3d, blockSize_ , cacheSize_, env().getDim(g->Nd() - 1));
     envTmp(Helper,                      "helper"   ,    1, noisel, noiser , dmf_case_);
@@ -261,10 +261,6 @@ void TDistilMesonField<FImpl>::execute(void)
     eff_nt_     = helper.computeEffTimeDimension();
     noisePairs_ = helper.parseNoisePairs(par().noisePairs);
 
-    //populate matrix sets
-    // blockbuf_.resize(nExt_*nStr_*eff_nt_*blockSize_*blockSize_);
-    // cachebuf_.resize(nExt_*nStr_*nt*cacheSize_*cacheSize_);
-
     // ObjArray_LR<DistillationNoise*> n;
     // n = {&noisel, &noiser};
     // std::cout << "dilution size= " << n[0]->dilutionSize() << std::endl;
@@ -286,6 +282,7 @@ void TDistilMesonField<FImpl>::execute(void)
     LOG(Message) << "EffTime dimension = "     << eff_nt_ << std::endl;
     LOG(Message) << "Selected block size: " << par().blockSize << std::endl;
     LOG(Message) << "Selected cache size: " << par().cacheSize << std::endl;
+    LOG(Message) << "Lap-spin dilution size (left x right): " << dilutionSize_ls_.at("left") << " x " << dilutionSize_ls_.at("right") << std::endl;
 
     for(auto &inoise : noisePairs_)
     {
@@ -312,7 +309,7 @@ void TDistilMesonField<FImpl>::execute(void)
             std::string outStem = outputMFStem_ + "/noise" + std::to_string(inoise[0]) + "_" + std::to_string(inoise[1]) + "/";
             Hadrons::mkdir(outStem);
             std::string mfName = groupName+"_"+dmf_case_.at("left")+"-"+dmf_case_.at("right")+".h5";
-            A2AMatrixIo<ComplexF> matrixIo(outStem+mfName, groupName, eff_nt_, dilutionSize_ls_, dilutionSize_ls_);
+            A2AMatrixIo<ComplexF> matrixIo(outStem+mfName, groupName, eff_nt_, dilutionSize_ls_.at("left"), dilutionSize_ls_.at("right"));
             matrixIoTable.push_back(matrixIo);
             //initialize file with no outputName group (containing atributes of momentum and gamma) but no dataset inside
             if(g->IsBoss())
