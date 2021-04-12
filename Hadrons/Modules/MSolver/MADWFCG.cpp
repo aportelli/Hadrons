@@ -1,9 +1,9 @@
 /*
- * WardIdentity.cpp, part of Hadrons (https://github.com/aportelli/Hadrons)
+ * MADWFCG.cpp, part of Hadrons (https://github.com/aportelli/Hadrons)
  *
  * Copyright (C) 2015 - 2020
  *
- * Author: Antonin Portelli <antonin.portelli@me.com>
+ * Author: Raoul Hodgson <raoul.hodgson@ed.ac.uk>
  *
  * Hadrons is free software: you can redistribute it and/or modify
  * it under the terms of the GNU General Public License as published by
@@ -23,11 +23,13 @@
  */
 
 /*  END LEGAL */
-#include <Hadrons/Modules/MContraction/WardIdentity.hpp>
+#include <Hadrons/Modules/MSolver/MADWFCG.hpp>
 
 using namespace Grid;
 using namespace Hadrons;
-using namespace MContraction;
+using namespace MSolver;
 
-template class Grid::Hadrons::MContraction::TWardIdentity<FIMPL>;
+template class Grid::Hadrons::MSolver::TMADWFCG<ZFIMPLD, FIMPLD, HADRONS_DEFAULT_LANCZOS_NBASIS>;
+template class Grid::Hadrons::MSolver::TMADWFCG< FIMPLD, FIMPLD, HADRONS_DEFAULT_LANCZOS_NBASIS>;
+
 

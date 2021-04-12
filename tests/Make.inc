@@ -1,5 +1,5 @@
-tests-local: Test_QED_Local Test_QED Test_diskvector Test_distil Test_free_prop Test_hadrons_meson_3pt Test_hadrons_spectrum Test_sigma_to_nucleon 
-EXTRA_PROGRAMS = Test_QED_Local Test_QED Test_diskvector Test_distil Test_free_prop Test_hadrons_meson_3pt Test_hadrons_spectrum Test_sigma_to_nucleon
+tests-local: Test_QED_Local Test_QED Test_diskvector Test_distil Test_free_prop Test_hadrons_meson_3pt Test_hadrons_spectrum Test_sigma_to_nucleon Test_xi_to_sigma
+EXTRA_PROGRAMS = Test_QED_Local Test_QED Test_diskvector Test_distil Test_free_prop Test_hadrons_meson_3pt Test_hadrons_spectrum Test_sigma_to_nucleon Test_xi_to_sigma
 
 Test_QED_Local_SOURCES=Test_QED.cc
 Test_QED_LDADD=-lHadrons -lGrid
@@ -25,5 +25,8 @@ Test_hadrons_spectrum_LDADD=-lHadrons -lGrid
 Test_sigma_to_nucleon_SOURCES=Test_sigma_to_nucleon.cc
 Test_sigma_to_nucleon_LDADD=-lHadrons -lGrid
 
-CLEANFILES = Test_QED_Local Test_QED Test_diskvector Test_distil Test_free_prop Test_hadrons_meson_3pt Test_hadrons_spectrum Test_sigma_to_nucleon
+Test_xi_to_sigma_SOURCES=Test_xi_to_sigma.cc
+Test_xi_to_sigma_LDADD=-lHadrons -lGrid
+
+CLEANFILES = Test_QED_Local Test_QED Test_diskvector Test_distil Test_free_prop Test_hadrons_meson_3pt Test_hadrons_spectrum Test_sigma_to_nucleon Test_xi_to_sigma
 
