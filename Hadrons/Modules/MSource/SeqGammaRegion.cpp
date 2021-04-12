@@ -1,11 +1,9 @@
 /*
- * BaryonGamma3pt.cpp, part of Hadrons (https://github.com/aportelli/Hadrons)
+ * SeqGamma.cpp, part of Hadrons (https://github.com/aportelli/Hadrons)
  *
  * Copyright (C) 2015 - 2020
  *
  * Author: Antonin Portelli <antonin.portelli@me.com>
- * Author: Raoul Hodgson <raoul.hodgson@ed.ac.uk.com>
- * Author: Raoul Hodgson <raoul.hodgson@ed.ac.uk>
  *
  * Hadrons is free software: you can redistribute it and/or modify
  * it under the terms of the GNU General Public License as published by
@@ -25,13 +23,11 @@
  */
 
 /*  END LEGAL */
-#include <Hadrons/Modules/MContraction/BaryonGamma3pt.hpp>
+#include <Hadrons/Modules/MSource/SeqGammaRegion.hpp>
 
 using namespace Grid;
 using namespace Hadrons;
-using namespace MContraction;
+using namespace MSource;
 
-#if (!defined(GRID_HIP))
-template class Grid::Hadrons::MContraction::TBaryonGamma3pt<FIMPL>;
-#endif
-
+template class Grid::Hadrons::MSource::TSeqGammaRegion<FIMPL>;
+template class Grid::Hadrons::MSource::TSeqGammaRegion<ZFIMPL>;
