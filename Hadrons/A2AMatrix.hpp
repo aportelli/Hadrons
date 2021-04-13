@@ -107,10 +107,10 @@ public:
                     const unsigned int blockSizei, const unsigned int blockSizej);
     void saveBlock(const T *data, const unsigned int i, const unsigned int j,
                     const unsigned int blockSizei, const unsigned int blockSizej,
-                    std::string datasetName, const unsigned int chunkSize);
+                    std::string datasetName, const unsigned int chunkSize, const unsigned int ntChunkSize);
     void saveBlock(const A2AMatrixSet<T> &m, const unsigned int ext, const unsigned int str,
                     const unsigned int i, const unsigned int j,
-                    std::string datasetName="", const unsigned int chunkSize=0);
+                    std::string datasetName="", const unsigned int chunkSize=0, const unsigned int ntChunkSize=1);
     template <template <class> class Vec, typename VecT>
     void load(Vec<VecT> &v, double *tRead = nullptr, GridBase *grid = nullptr, std::string datasetName = "");
 private:
@@ -505,7 +505,8 @@ void A2AMatrixIo<T>::saveBlock(const T *data,
                                const unsigned int blockSizei,
                                const unsigned int blockSizej,
                                std::string datasetName,
-                               const unsigned int chunkSize)
+                               const unsigned int chunkSize,
+                               const unsigned int ntChunkSize)
 {
 //distillation
 #ifdef HAVE_HDF5
@@ -526,7 +527,7 @@ void A2AMatrixIo<T>::saveBlock(const T *data,
         std::vector<hsize_t>    dim = {static_cast<hsize_t>(nt_), 
                                     static_cast<hsize_t>(ni_), 
                                     static_cast<hsize_t>(nj_)},
-                                chunk = {static_cast<hsize_t>(1),   // used to be hard-coded to nt_
+                                chunk = {static_cast<hsize_t>(ntChunkSize),   // used to be hard-coded to nt_
                                     static_cast<hsize_t>(chunkSize), 
                                     static_cast<hsize_t>(chunkSize)};
         dataspace.setExtentSimple(dim.size(), dim.data());
@@ -555,8 +556,9 @@ void A2AMatrixIo<T>::saveBlock(const T *data,
 
 template <typename T>
 void A2AMatrixIo<T>::saveBlock(const A2AMatrixSet<T> &m,
-                               const unsigned int ext, const unsigned int str,
-                               const unsigned int i, const unsigned int j, std::string datasetName, const unsigned int chunkSize)
+                                const unsigned int ext, const unsigned int str,
+                                const unsigned int i, const unsigned int j,
+                                std::string datasetName, const unsigned int chunkSize, const unsigned int ntChunkSize)
 {
     unsigned int blockSizei = m.dimension(3);
     unsigned int blockSizej = m.dimension(4);
@@ -566,7 +568,7 @@ void A2AMatrixIo<T>::saveBlock(const A2AMatrixSet<T> &m,
     if(datasetName.empty() && chunkSize==0)
         saveBlock(m.data() + offset, i, j, blockSizei, blockSizej);                         // a2a
     else
-        saveBlock(m.data() + offset, i, j, blockSizei, blockSizej, datasetName, chunkSize); // distillation
+        saveBlock(m.data() + offset, i, j, blockSizei, blockSizej, datasetName, chunkSize, ntChunkSize); // distillation
 }
 
 template <typename T>
