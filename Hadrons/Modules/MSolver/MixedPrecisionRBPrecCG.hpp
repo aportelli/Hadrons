@@ -156,11 +156,22 @@ void TMixedPrecisionRBPrecCG<FImplInner, FImplOuter, nBasis>
     auto Ls        = env().getObjectLs(par().innerAction);
     auto &imat     = envGet(FMatInner, par().innerAction);
     auto &omat     = envGet(FMatOuter, par().outerAction);
-    auto guesserPt = makeGuesser<FImplOuter, nBasis>(par().eigenPack);
 
-    auto makeSolver = [&imat, &omat, guesserPt, Ls, this](bool subGuess) 
+    auto guesserPt64 = makeGuesser<FImplOuter, nBasis>("");
+    auto guesserPt32 = makeGuesser<FImplInner, nBasis>("");
+
+    try
     {
-        return [&imat, &omat, guesserPt, subGuess, Ls, this]
+        guesserPt64 = makeGuesser<FImplOuter, nBasis>(par().eigenPack);
+    }
+    catch (Exceptions::ObjectType &e)
+    {
+        guesserPt32 = makeGuesser<FImplInner, nBasis>(par().eigenPack);
+    }
+
+    auto makeSolver = [&imat, &omat, guesserPt32, guesserPt64, Ls, this](bool subGuess)
+    {
+        return [&imat, &omat, guesserPt32, guesserPt64, subGuess, Ls, this]
         (FermionFieldOuter &sol, const FermionFieldOuter &source) 
         {
             typedef typename FermionFieldInner::vector_type VTypeInner;
@@ -172,10 +183,11 @@ void TMixedPrecisionRBPrecCG<FImplInner, FImplOuter, nBasis>
                      par().maxOuterIteration, 
                      env().template getRbGrid<VTypeInner>(Ls),
                      simat, somat);
+                mpcg.useGuesser(*guesserPt32);
             OperatorFunctionWrapper<FermionFieldOuter> wmpcg(mpcg);
             HADRONS_DEFAULT_SCHUR_SOLVE<FermionFieldOuter> schurSolver(wmpcg);
             schurSolver.subtractGuess(subGuess);
-            schurSolver(omat, source, sol, *guesserPt);
+            schurSolver(omat, source, sol, *guesserPt64);
         };
     };
     auto solver = makeSolver(false);
