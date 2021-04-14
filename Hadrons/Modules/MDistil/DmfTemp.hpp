@@ -77,9 +77,9 @@ public:
     void distVec(std::map<std::string, DistilVector&> & dv,
                 std::map<std::string, DistillationNoise&> n,
                 const std::vector<int> inoise,
-                std::map<std::string, PerambTensor&> & peramb,
                 const LapEvecs            & epack,
-                std::map<std::string, std::vector<int>>   timeDilSource
+                std::map<std::string, std::vector<int>>   timeDilSource,
+                std::map<std::string, PerambTensor&> peramb={}
                 );
 };
 
@@ -131,9 +131,9 @@ void DmfComputation<FImpl,Field,T,Tio>
 ::distVec(std::map<std::string, DistilVector&>&     dv,
           std::map<std::string, DistillationNoise&> n,
           const std::vector<int>                    inoise,
-          std::map<std::string, PerambTensor&>&     peramb,
           const LapEvecs&                           epack,
-          std::map<std::string, std::vector<int>>   timeDilSource)
+          std::map<std::string, std::vector<int>>   timeDilSource,
+          std::map<std::string, PerambTensor&>      peramb)
 {
     const int nd = g_->Nd();
     const int nVec = epack.evec.size();

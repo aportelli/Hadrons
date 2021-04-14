@@ -105,7 +105,29 @@ TDistilMesonField<FImpl>::TDistilMesonField(const std::string name)
 template <typename FImpl>
 std::vector<std::string> TDistilMesonField<FImpl>::getInput(void)
 {   
-    return{par().lapEvec, par().leftPeramb, par().rightPeramb, par().leftNoise, par().rightNoise};
+    std::vector<std::string> in = {par().lapEvec, par().leftNoise, par().rightNoise};
+
+    std::string c = par().mesonFieldCase;
+    // check mesonfield case
+    if(!(c=="phi phi" || c=="phi rho" || c=="rho phi" || c=="rho rho"))
+    {
+        HADRONS_ERROR(Argument,"Bad meson field case");
+    }
+
+    dmf_case_.emplace("left"  , c.substr(0,3));
+    dmf_case_.emplace("right" , c.substr(4,7));
+
+    // should I do a softer check?
+    if(dmf_case_.at("left")=="phi")
+    {
+        in.push_back( par().leftPeramb );
+    }
+    if(dmf_case_.at("right")=="phi")
+    {
+        in.push_back( par().rightPeramb );
+    }
+
+    return in;
 }
 
 template <typename FImpl>
@@ -120,15 +142,15 @@ std::vector<std::string> TDistilMesonField<FImpl>::getOutput(void)
 template <typename FImpl>
 void TDistilMesonField<FImpl>::setup(void)
 {
-    std::string c = par().mesonFieldCase;
-    // check mesonfield case
-    if(!(c=="phi phi" || c=="phi rho" || c=="rho phi" || c=="rho rho"))
-    {
-        HADRONS_ERROR(Argument,"Bad meson field case");
-    }
+    // std::string c = par().mesonFieldCase;
+    // // check mesonfield case
+    // if(!(c=="phi phi" || c=="phi rho" || c=="rho phi" || c=="rho rho"))
+    // {
+    //     HADRONS_ERROR(Argument,"Bad meson field case");
+    // }
 
-    dmf_case_.emplace("left"  , c.substr(0,3));
-    dmf_case_.emplace("right" , c.substr(4,7));
+    // dmf_case_.emplace("left"  , c.substr(0,3));
+    // dmf_case_.emplace("right" , c.substr(4,7));
 
     outputMFStem_       = par().outPath;
     GridCartesian *g    = envGetGrid(FermionField);
@@ -155,7 +177,7 @@ void TDistilMesonField<FImpl>::setup(void)
         }
         momenta_.push_back(p);
     }
-    nExt_       = momenta_.size(); //noise pairs computed independently, but can optmize embedding it into nExt??
+    nExt_   = momenta_.size(); //noise pairs computed 'independently', but can optmize by embedding it into nExt??
 
     //parse gamma
     gamma_.clear();
@@ -185,13 +207,6 @@ void TDistilMesonField<FImpl>::setup(void)
         gamma_ = strToVec<Gamma::Algebra>(par().gamma);
     }
     nStr_       = gamma_.size();
-
-    //not taking into account different spin/lap dilution on each side, just different time dilutions
-    // if( noisel.dilutionSize(Index::l)*noisel.dilutionSize(Index::s) != noiser.dilutionSize(Index::l)*noiser.dilutionSize(Index::s) )
-    // {
-    //     HADRONS_ERROR(Argument,"Spin-Lap dilution spaces do not have same dimension on both sides.");
-    // }
-    // dilutionSize_ls_ = noisel.dilutionSize(Index::l)*noisel.dilutionSize(Index::s);
 
     dilutionSize_ls_ = { {"left",noisel.dilutionSize(Index::l)*noisel.dilutionSize(Index::s)} , {"right",noiser.dilutionSize(Index::l)*noiser.dilutionSize(Index::s)} };
 
@@ -242,19 +257,22 @@ void TDistilMesonField<FImpl>::execute(void)
     }
     std::map<std::string, std::vector<int>> timeDilSource = {{"left",lSources},{"right",rSources}};
 
-    // todo: do the following only in the necessary cases
-    PerambTensor &perambl = envGet( PerambTensor , par().leftPeramb);
-    PerambTensor &perambr = envGet( PerambTensor , par().rightPeramb);
-    std::map<std::string, PerambTensor&> peramb = {{"left",perambl},{"right",perambr}};
-    // parse source times
-    std::map<std::string, std::vector<int>> peramb_st = {{"left",{}},{"right",{}}}; //source times from the peramb objs
+    // // todo: do the following only in the necessary cases
+   
+    // // parse source times
+    // std::map<std::string, std::vector<int>> peramb_st = {{"left",{}},{"right",{}}}; //source times from the peramb objs
+
+    // parse timeSource from Perambs
+    std::map<std::string, std::vector<int>> peramb_st; // = { {"left",{}} , {"right",{}} };
     for(auto & s : sides_)
     {
         if(dmf_case_.at(s)=="phi")
         {
             auto & inPeramb = envGet(PerambTensor , perambInput_.at(s));
-            peramb_st.at(s) = inPeramb.MetaData.timeSources;
+            peramb_st.emplace(s , inPeramb.MetaData.timeSources);
+            // peramb_st.at(s) = inPeramb.MetaData.timeSources;
             //TODO: check timeDilSource are subsets of this
+            std::cout << peramb_st.at(s) << std::endl;
         }
     }
 
@@ -327,7 +345,21 @@ void TDistilMesonField<FImpl>::execute(void)
         LOG(Message) << "momenta:" << std::endl << momenta_ << std::endl;
 
         //computation of distvectors
-        computation.distVec(distVector, noise, inoise, peramb, epack, timeDilSource);
+        if(dmf_case_.at("left")=="phi" || dmf_case_.at("right")=="phi")
+        {
+            std::map<std::string, PerambTensor&> peramb; // = { {"left", perambl} , {"right", perambr} };
+            if(dmf_case_.at("left")=="phi"){
+                PerambTensor &perambl = envGet( PerambTensor , par().leftPeramb);
+                peramb.emplace( "left" , perambl);
+            }
+            if(dmf_case_.at("right")=="phi"){
+                PerambTensor &perambr = envGet( PerambTensor , par().rightPeramb);
+                peramb.emplace( "right" , perambr);
+            }
+            computation.distVec(distVector, noise, inoise, epack, timeDilSource, peramb);
+        }
+        else
+            computation.distVec(distVector, noise, inoise, epack, timeDilSource);
 
         // computing mesonfield blocks and saving to disk
         LOG(Message) << "Time-dilution blocks computation starting..." << std::endl;
