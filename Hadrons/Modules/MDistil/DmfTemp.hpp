@@ -81,6 +81,18 @@ public:
                 std::map<std::string, std::vector<int>>   timeDilSource,
                 std::map<std::string, PerambTensor&> peramb={}
                 );
+    void makePhiComponent(Field           & phiComponent,
+                 DistillationNoise      & n,
+                 const int                inoise,
+                 const int                iD,
+                 PerambTensor           & peramb,
+                 const LapEvecs         & epack
+                );
+    void makeRhoComponent(Field          & rhoComponent,
+                 DistillationNoise  & n,
+                 const int           inoise,
+                 const int           iD
+                );
 };
 
 // aux class declaration
@@ -125,6 +137,42 @@ public:
 //####################################
 //# computation class implementation #
 //####################################
+template <typename FImpl, typename Field, typename T, typename Tio>
+void DmfComputation<FImpl,Field,T,Tio>
+::makePhiComponent(Field             & phiComponent,
+          DistillationNoise      & n,
+          const int                inoise,
+          const int                iD,
+          PerambTensor           & peramb,
+          const LapEvecs         & epack
+          )
+{
+    std::array<unsigned int,3> c = n.dilutionCoordinates(iD);
+    unsigned int dt = c[Index::t] , dl = c[Index::l] , ds = c[Index::s];
+    const int nVec = epack.evec.size();
+    const int Ntfirst = g_->LocalStarts()[nd_ - 1];
+    const int Ntlocal = g_->LocalDimensions()[nd_ - 1];
+    for (int t = Ntfirst; t < Ntfirst + Ntlocal; t++)   //loop over (local) timeslices
+    {
+        tmp3d_ = Zero();
+        for (int k = 0; k < nVec; k++)
+        {
+            ExtractSliceLocal(evec3d_,epack.evec[k],0,t-Ntfirst,nd_ - 1);
+            tmp3d_ += evec3d_ * peramb.tensor(t, k, dl, inoise, dt, ds);
+        }
+        InsertSliceLocal(tmp3d_,phiComponent,0,t-Ntfirst,nd_ - 1);
+    }
+}
+
+template <typename FImpl, typename Field, typename T, typename Tio>
+void DmfComputation<FImpl,Field,T,Tio>
+::makeRhoComponent(Field                  & rhoComponent,
+          DistillationNoise      & n,
+          const int                inoise,
+          const int                iD)   
+{
+        rhoComponent = n.makeSource(iD, inoise);
+}
 
 template <typename FImpl, typename Field, typename T, typename Tio>
 void DmfComputation<FImpl,Field,T,Tio>
@@ -135,43 +183,21 @@ void DmfComputation<FImpl,Field,T,Tio>
           std::map<std::string, std::vector<int>>   timeDilSource,
           std::map<std::string, PerambTensor&>      peramb)
 {
-    const int nd = g_->Nd();
-    const int nVec = epack.evec.size();
-    const int Ntfirst = g_->LocalStarts()[nd - 1];
-    const int Ntlocal = g_->LocalDimensions()[nd - 1];
     std::map<std::string,int> iNoise = {{"left",inoise[0]},{"right",inoise[1]}};
-
-    // std::cout << "tDilSLeft=" << timeDilSource.at("left") << std::endl;
-    // std::cout << "tDilSRight=" << timeDilSource.at("right") << std::endl;
-    // std::cin.get();
-
     for(std::string s : sides_)    // computation
     for(int iD=0 ; iD<n.at(s).dilutionSize() ; iD++)  // computation of phi or rho
     {
-        std::array<unsigned int,3> c = n.at(s).dilutionCoordinates(iD);
-        unsigned int dt = c[0] , dl = c[1] , ds = c[2];
         dv.at(s)[iD] = Zero();
         std::vector<int> tDilS = timeDilSource.at(s);
+        unsigned int dt = n.at(s).dilutionCoordinates(iD)[Index::t];
         if(std::find(tDilS.begin(), tDilS.end(), dt) != tDilS.end()) // if time source is available, compute that block
         {
-            // std::cout << "dt=" << dt << std::endl;
-            // std::cin.get();
             if(dmfCase_.at(s)=="phi")
             {
-                for (int t = Ntfirst; t < Ntfirst + Ntlocal; t++)   //loop over (local) timeslices
-                {
-                    tmp3d_ = Zero();
-                    for (int k = 0; k < nVec; k++)
-                    {
-                        ExtractSliceLocal(evec3d_,epack.evec[k],0,t-Ntfirst,nd - 1);
-                        // std::cout << t<< " " <<  k<< " " <<  dl<< " " <<  iNoise.at(s)<< " " <<  dt<< " " <<  ds << std::endl;
-                        tmp3d_ += evec3d_ * peramb.at(s).tensor(t, k, dl, iNoise.at(s), dt, ds);
-                    }
-                    InsertSliceLocal(tmp3d_,dv.at(s)[iD],0,t-Ntfirst,nd - 1);
-                }
+                makePhiComponent(dv.at(s)[iD] , n.at(s) , iNoise.at(s) , iD , peramb.at(s), epack);
             }
             else if(dmfCase_.at(s)=="rho"){
-                dv.at(s)[iD] = n.at(s).makeSource(iD, iNoise.at(s));
+                makeRhoComponent(dv.at(s)[iD] , n.at(s) , iNoise.at(s), iD);
             }
         }
     }
