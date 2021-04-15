@@ -264,8 +264,10 @@ void DmfComputation<FImpl,Field,T,Tio>
                         for(int it=0 ; it<stInter.size() ; it++)  //only wish to copy non-zero timeslices to block; guaranteed to fit because of neff = sup (partition sizes)
                         for(int iicache=0 ; iicache<icacheSize ; iicache++)
                         for(int jjcache=0;  jjcache<jcacheSize ; jjcache++)
+			{
                             block(iExt,iStr,it,icache+iicache,jcache+jjcache) = blockCache(iExt,iStr,stInter[it],iicache,jjcache);
-                        });
+			}
+			});
                     }
                     tarray->stopTimer("cache copy");
                 }
