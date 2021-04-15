@@ -9,6 +9,10 @@
 #include <Hadrons/NamedTensor.hpp>
 #include "DmfTemp.hpp"
 
+#ifndef HADRONS_DISTIL_IO_TYPE
+#define HADRONS_DISTIL_IO_TYPE ComplexF
+#endif
+
 BEGIN_HADRONS_NAMESPACE
 
 /******************************************************************************
@@ -30,15 +34,15 @@ public:
                                     std::string,                outPath,
                                     std::string,                mesonFieldCase,
                                     std::string,                lapEvec,
-                                    std::string,                leftPeramb,
-                                    std::string,                rightPeramb,
                                     std::string,                leftNoise,
                                     std::string,                rightNoise,
-                                    std::string,                gamma,
-                                    int,                        blockSize,
-                                    int,                        cacheSize,
                                     std::string,                leftTimeDilSources,
                                     std::string,                rightTimeDilSources,
+                                    std::string,                leftPeramb,
+                                    std::string,                rightPeramb,
+                                    unsigned int,               blockSize,
+                                    unsigned int,               cacheSize,
+                                    std::string,                gamma,
                                     std::vector<std::string>,   momenta,
                                     std::vector<std::string>,   noisePairs)
 };
@@ -48,7 +52,7 @@ class TDistilMesonField: public Module<DistilMesonFieldPar>
 {
 public:
     FERM_TYPE_ALIASES(FImpl,);
-    typedef DmfComputation<FImpl, FermionField, Complex, ComplexF>    Computation;
+    typedef DmfComputation<FImpl, FermionField, Complex, HADRONS_DISTIL_IO_TYPE>    Computation;
     typedef DmfHelper<FImpl, FermionField>         Helper;
 public:
     typedef typename Computation::Index Index;
@@ -57,7 +61,7 @@ public:
 public:
     // constructor
     TDistilMesonField(const std::string name);
-    // destructorœ
+    // destructor
     virtual ~TDistilMesonField(void) {};
     // dependency relation
     virtual std::vector<std::string> getInput(void);
@@ -67,24 +71,21 @@ public:
     // execution
     virtual void execute(void);
 private:
-    int blockSize_;
-    int cacheSize_;
+    unsigned int blockSize_;
+    unsigned int cacheSize_;
     std::map<std::string,std::string>   dmf_case_;
-    // std::string                        momphName_;
     std::vector<Gamma::Algebra>         gamma_;
     std::vector<std::vector<RealF>>     momenta_;
-    int                                 nExt_;
-    int                                 nStr_;
-    int                                 eff_nt_;
+    unsigned int                        nExt_;
+    unsigned int                        nStr_;
+    unsigned int                        eff_nt_;
     std::vector<std::vector<int>>       noisePairs_;           // read from extermal object (diluted noise class)
-    TimeSliceMap                        st_;
     std::string                         outputMFStem_;
     bool                                hasPhase_{false};
-    std::map<std::string, int>          dilutionSize_ls_;
+    std::map<std::string, unsigned int> dilutionSize_ls_;
     std::map<std::string, std::string>  noiseInput_  ;
     std::map<std::string, std::string>  perambInput_ ;
     std::vector<std::string>            sides_       ;
-    // DmfHelper<FImpl>                   *helper_;
     
 };
 
@@ -118,13 +119,12 @@ std::vector<std::string> TDistilMesonField<FImpl>::getInput(void)
     dmf_case_.emplace("right" , c.substr(4,7));
 
     // should I do a softer check?
-    if(dmf_case_.at("left")=="phi")
+    for(auto s : sides_)
     {
-        in.push_back( par().leftPeramb );
-    }
-    if(dmf_case_.at("right")=="phi")
-    {
-        in.push_back( par().rightPeramb );
+        if(dmf_case_.at(s)=="phi")
+        {
+            in.push_back( s=="left" ? par().leftPeramb : par().rightPeramb);
+        }
     }
 
     return in;
@@ -134,7 +134,6 @@ template <typename FImpl>
 std::vector<std::string> TDistilMesonField<FImpl>::getOutput(void)
 {
     std::vector<std::string> out = {};
-    
     return out;
 }
 
@@ -142,16 +141,6 @@ std::vector<std::string> TDistilMesonField<FImpl>::getOutput(void)
 template <typename FImpl>
 void TDistilMesonField<FImpl>::setup(void)
 {
-    // std::string c = par().mesonFieldCase;
-    // // check mesonfield case
-    // if(!(c=="phi phi" || c=="phi rho" || c=="rho phi" || c=="rho rho"))
-    // {
-    //     HADRONS_ERROR(Argument,"Bad meson field case");
-    // }
-
-    // dmf_case_.emplace("left"  , c.substr(0,3));
-    // dmf_case_.emplace("right" , c.substr(4,7));
-
     outputMFStem_       = par().outPath;
     GridCartesian *g    = envGetGrid(FermionField);
     GridCartesian *g3d  = envGetSliceGrid(FermionField, g->Nd() - 1);  // 3d grid (as a 4d one with collapsed time dimension)
@@ -223,11 +212,10 @@ template <typename FImpl>
 void TDistilMesonField<FImpl>::execute(void)
 {
     GridCartesian *g        = envGetGrid(FermionField);
-
     auto &epack             = envGet(LapEvecs, par().lapEvec);
-    int nVec                = epack.evec.size();
+    const unsigned int nVec = epack.evec.size();
     const unsigned int nd   = g->Nd();
-    const int nt            = env().getDim(nd - 1);
+    const unsigned int nt   = env().getDim(nd - 1);
 
     // temps
     envGetTmp(DistilVector,     dvl);
@@ -237,42 +225,50 @@ void TDistilMesonField<FImpl>::execute(void)
     auto &phase = envGet(std::vector<ComplexField>, "phasename");
 
     // do not use operator []!! similar but better way to do that?
-    std::map<std::string, DistilVector & > distVector = {{"left",dvl}  ,{"right",dvr}};
+    std::map<std::string, DistilVector & > distVectors = {{"left",dvl}  ,{"right",dvr}};
     DistillationNoise &noisel = envGet( DistillationNoise , par().leftNoise);
     DistillationNoise &noiser = envGet( DistillationNoise , par().rightNoise);
-    std::map<std::string, DistillationNoise & >   noise = {{"left",noisel},{"right",noiser}};
+    std::map<std::string, DistillationNoise & >   noises = {{"left",noisel},{"right",noiser}};
     
     //encapsulate this in helper or computation class
-    std::vector<int> lSources = strToVec<int>(par().leftTimeDilSources);
-    std::vector<int> rSources = strToVec<int>(par().rightTimeDilSources);
-    if(lSources.empty())
-    {
-        lSources.resize(noisel.dilutionSize(Index::t));
-        std::iota(std::begin(lSources), std::end(lSources), 0);
-    }
-    if(rSources.empty())
-    {
-        rSources.resize(noiser.dilutionSize(Index::t));
-        std::iota(std::begin(rSources), std::end(rSources), 0);
-    }
-    std::map<std::string, std::vector<int>> timeDilSource = {{"left",lSources},{"right",rSources}};
+    std::vector<unsigned int> lSources = strToVec<unsigned int>(par().leftTimeDilSources);
+    std::vector<unsigned int> rSources = strToVec<unsigned int>(par().rightTimeDilSources);
 
-    // // todo: do the following only in the necessary cases
-   
-    // // parse source times
-    // std::map<std::string, std::vector<int>> peramb_st = {{"left",{}},{"right",{}}}; //source times from the peramb objs
+    std::map<std::string, std::vector<unsigned int>> timeDilSource = {{"left",lSources},{"right",rSources}};
+    //in case it's empty, include all possible time sources
+    for(auto s : sides_)
+    {
+        if(timeDilSource.at(s).empty()){
+            timeDilSource.at(s).resize(noises.at(s).dilutionSize(Index::t));
+            std::iota( timeDilSource.at(s).begin() , timeDilSource.at(s).end() , 0);    //create sequence from 0 to TI-1
+        }
+        std::sort(timeDilSource.at(s).begin(), timeDilSource.at(s).end());  //guarantee they are ordered
+
+        if( timeDilSource.at(s).size() > noises.at(s).dilutionSize(Index::t) )
+        {
+            HADRONS_ERROR(Argument,"Invalid number of time sources.");
+        }
+        else if( !std::none_of( timeDilSource.at(s).cbegin() , timeDilSource.at(s).cend(), [s,&noises](int dt){ return dt >= noises.at(s).dilutionSize(Index::t); }) )
+        {
+            HADRONS_ERROR(Argument,"Invalid value for one or more time sources.");
+        }
+    }
 
     // parse timeSource from Perambs
-    std::map<std::string, std::vector<int>> peramb_st; // = { {"left",{}} , {"right",{}} };
+    std::map<std::string, std::vector<int>> peramb_st;
     for(auto & s : sides_)
     {
         if(dmf_case_.at(s)=="phi")
         {
             auto & inPeramb = envGet(PerambTensor , perambInput_.at(s));
             peramb_st.emplace(s , inPeramb.MetaData.timeSources);
-            // peramb_st.at(s) = inPeramb.MetaData.timeSources;
-            //TODO: check timeDilSource are subsets of this
-            // std::cout << peramb_st.at(s) << std::endl;
+            std::sort( peramb_st.at(s).begin() , peramb_st.at(s).end() );   //guarantee they are ordered
+            if( !std::includes(peramb_st.at(s).begin(), peramb_st.at(s).end(),
+                             timeDilSource.at(s).begin(), timeDilSource.at(s).end()) )  //check if input time source is compatible with peramb's (subset of it)
+            {
+                HADRONS_ERROR(Argument,"Time sources are not available on " +s+ " perambulator");
+                // std::cout << timeDilSource.at(s) << " is subset of" << peramb_st.at(s) << std::endl;
+            }
         }
     }
 
@@ -294,8 +290,8 @@ void TDistilMesonField<FImpl>::execute(void)
     }
     
     LOG(Message) << "Selected time-dilution partitions:"         << std::endl;
-    LOG(Message) << " Left:" << timeDilSource.at("left") << std::endl;
-    LOG(Message) << " Right:" << timeDilSource.at("right") << std::endl;
+    LOG(Message) << "Left:" << timeDilSource.at("left") << std::endl;
+    LOG(Message) << "Right:" << timeDilSource.at("right") << std::endl;
     LOG(Message) << "Meson field case: "    << par().mesonFieldCase << std::endl;
     LOG(Message) << "EffTime dimension = "     << eff_nt_ << std::endl;
     LOG(Message) << "Selected block size: " << par().blockSize << std::endl;
@@ -305,13 +301,13 @@ void TDistilMesonField<FImpl>::execute(void)
     for(auto &inoise : noisePairs_)
     {
         // set up io object and metadata for all gamma/momenta -> turn into method
-        std::vector<A2AMatrixIo<ComplexF>> matrixIoTable;
+        std::vector<A2AMatrixIo<HADRONS_DISTIL_IO_TYPE>> matrixIoTable;
         DistilMesonFieldMetadata<FImpl> md;
-        for(int iExt=0; iExt<nExt_; iExt++)
-        for(int iStr=0; iStr<nStr_; iStr++)
+        for(unsigned int iExt=0; iExt<nExt_; iExt++)
+        for(unsigned int iStr=0; iStr<nStr_; iStr++)
         {
             // metadata;
-            md.momentum             = momenta_[iExt];
+            md.momenta              = momenta_[iExt];
             md.gamma                = gamma_[iStr];
             md.noise_pair           = inoise;
             md.leftTimeDilSources   = timeDilSource.at("left");
@@ -319,17 +315,17 @@ void TDistilMesonField<FImpl>::execute(void)
 
             std::stringstream ss;
             ss << md.gamma << "_";
-            for (unsigned int mu = 0; mu < md.momentum.size(); ++mu)
-                ss << md.momentum[mu] << ((mu == md.momentum.size() - 1) ? "" : "_");
+            for (unsigned int mu = 0; mu < md.momenta.size(); ++mu)
+                ss << md.momenta[mu] << ((mu == md.momenta.size() - 1) ? "" : "_");
             std::string groupName = ss.str();
 
             // io init
             std::string outStem = outputMFStem_ + "/noise" + std::to_string(inoise[0]) + "_" + std::to_string(inoise[1]) + "/";
             Hadrons::mkdir(outStem);
             std::string mfName = groupName+"_"+dmf_case_.at("left")+"-"+dmf_case_.at("right")+".h5";
-            A2AMatrixIo<ComplexF> matrixIo(outStem+mfName, groupName, eff_nt_, dilutionSize_ls_.at("left"), dilutionSize_ls_.at("right"));
+            A2AMatrixIo<HADRONS_DISTIL_IO_TYPE> matrixIo(outStem+mfName, groupName, eff_nt_, dilutionSize_ls_.at("left"), dilutionSize_ls_.at("right"));
             matrixIoTable.push_back(matrixIo);
-            //initialize file with no outputName group (containing atributes of momentum and gamma) but no dataset inside
+            //initialize file with no outputName group (containing atributes of momenta and gamma) but no dataset inside
             if(g->IsBoss())
             {
                 startTimer("IO: total");
@@ -348,22 +344,23 @@ void TDistilMesonField<FImpl>::execute(void)
         if(dmf_case_.at("left")=="phi" || dmf_case_.at("right")=="phi")
         {
             std::map<std::string, PerambTensor&> peramb; // = { {"left", perambl} , {"right", perambr} };
-            if(dmf_case_.at("left")=="phi"){
-                PerambTensor &perambl = envGet( PerambTensor , par().leftPeramb);
-                peramb.emplace( "left" , perambl);
+            for(auto s : sides_)
+            {
+                if(dmf_case_.at(s)=="phi"){
+                    PerambTensor &perambtemp = envGet( PerambTensor , s=="left" ? par().leftPeramb : par().rightPeramb);
+                    peramb.emplace(s , perambtemp);
+                }
             }
-            if(dmf_case_.at("right")=="phi"){
-                PerambTensor &perambr = envGet( PerambTensor , par().rightPeramb);
-                peramb.emplace( "right" , perambr);
-            }
-            computation.distVec(distVector, noise, inoise, epack, timeDilSource, peramb);
+            computation.distVec(distVectors, noises, inoise, epack, timeDilSource, peramb);
         }
         else
-            computation.distVec(distVector, noise, inoise, epack, timeDilSource);
+        {
+            computation.distVec(distVectors, noises, inoise, epack, timeDilSource);
+        }
 
         // computing mesonfield blocks and saving to disk
         LOG(Message) << "Time-dilution blocks computation starting..." << std::endl;
-        computation.execute(matrixIoTable, st_, distVector, noise, gamma_, phase, nExt_, nStr_, dilutionSize_ls_, eff_nt_, timeDilSource, this);
+        computation.execute(matrixIoTable, distVectors, noises, gamma_, phase, nExt_, nStr_, dilutionSize_ls_, eff_nt_, timeDilSource, this);
 
         LOG(Message) << "Meson fields saved at " << outputMFStem_ << std::endl;
     }
