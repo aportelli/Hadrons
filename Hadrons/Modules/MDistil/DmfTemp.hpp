@@ -227,6 +227,7 @@ void DmfComputation<FImpl,Field,T,Tio>
     for (auto& dtR : timeDilSource.at("right"))
     {
         std::map<std::string,std::vector<unsigned int>> p = { {"left",{}} , {"right",{}}};
+
         for(auto s : sides_)
         {
             if(dmfCase_.at(s)=="phi")
@@ -238,6 +239,7 @@ void DmfComputation<FImpl,Field,T,Tio>
             {
                 p.at(s) =  n.at(s).timeSlices(s=="left" ? dtL : dtR);
             }
+            
         }
 
         std::vector<unsigned int> stInter;
@@ -250,7 +252,6 @@ void DmfComputation<FImpl,Field,T,Tio>
             LOG(Message) << "################### dtL_" << dtL << " dtR_" << dtR << " ################### " << std::endl; 
             LOG(Message) << "At least one rho found. Time slices to be saved=" << stInter << "..." << std::endl;
             std::string datasetName = "dtL"+std::to_string(dtL)+"_dtR"+std::to_string(dtR);
-            // LOG(Message) << "Computing dilution dataset " << datasetName << "..." << std::endl;
 
             unsigned int nblocki = dil_size_ls.at("left")/bSize_ + (((dil_size_ls.at("left") % bSize_) != 0) ? 1 : 0);
             unsigned int nblockj = dil_size_ls.at("right")/bSize_ + (((dil_size_ls.at("right") % bSize_) != 0) ? 1 : 0);
@@ -300,30 +301,16 @@ void DmfComputation<FImpl,Field,T,Tio>
 
                     // loop through the cacheblock (inside them) and point blockCache to block
                     tarray->startTimer("cache copy");
-                    if(dmfcase=="phi phi")
+                    unsigned int stSize = stInter.size();
+                    thread_for_collapse(5,iExt,n_ext,{
+                    for(unsigned int iStr=0;iStr<n_str;iStr++)
+                    for(unsigned int it=0;it<stSize;it++)
+                    for(unsigned int iicache=0;iicache<icacheSize;iicache++)
+                    for(unsigned int jjcache=0;jjcache<jcacheSize;jjcache++)
                     {
-                        thread_for_collapse( 5, iExt ,n_ext,{
-                        for(unsigned int iStr=0 ;iStr<n_str ; iStr++)
-                        for(unsigned int t=0 ; t<nt_ ; t++)
-                        for(unsigned int iicache=0 ; iicache<icacheSize ; iicache++)
-                        for(unsigned int jjcache=0;  jjcache<jcacheSize ; jjcache++)
-                        {
-                            block(iExt,iStr,t,icache+iicache,jcache+jjcache) = blockCache(iExt,iStr,t,iicache,jjcache);
-                        }
-                        });
+                        block(iExt,iStr,it,icache+iicache,jcache+jjcache)=blockCache(iExt,iStr,stInter[it],iicache,jjcache);
                     }
-                    else
-                    {
-                        thread_for_collapse( 5, iExt ,n_ext,{
-                        for(unsigned int iStr=0 ;iStr<n_str ; iStr++)
-                        for(unsigned int it=0 ; it<stInter.size() ; it++)  //only wish to copy non-zero timeslices to block; guaranteed to fit because of neff = sup (partition sizes)
-                        for(unsigned int iicache=0 ; iicache<icacheSize ; iicache++)
-                        for(unsigned int jjcache=0;  jjcache<jcacheSize ; jjcache++)
-                        {
-                            block(iExt,iStr,it,icache+iicache,jcache+jjcache) = blockCache(iExt,iStr,stInter[it],iicache,jjcache);
-                        }
-                        });
-                    }
+                    });
                     tarray->stopTimer("cache copy");
                 }
 
