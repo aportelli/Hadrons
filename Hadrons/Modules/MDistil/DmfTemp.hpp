@@ -136,16 +136,19 @@ void DmfComputation<FImpl,Field,T,Tio>
 {
     std::array<unsigned int,3> c = n.dilutionCoordinates(iD);
     unsigned int dt = c[Index::t] , dl = c[Index::l] , ds = c[Index::s];
+    std::vector<int> p_ts = peramb.MetaData.timeSources;
+    std::vector<int>::iterator itr_dt = std::find(p_ts.begin(), p_ts.end(), dt);
+    unsigned int idt = std::distance(p_ts.begin(), itr_dt); //gets correspondent index of dt in the tensor obj
     const unsigned int nVec = epack.evec.size();
     const unsigned int Ntfirst = g_->LocalStarts()[nd_ - 1];
     const unsigned int Ntlocal = g_->LocalDimensions()[nd_ - 1];
-    for (unsigned int t = Ntfirst; t < Ntfirst + Ntlocal; t++)   //loop over (local) timeslices
+    for (unsigned int t = Ntfirst; t < Ntfirst + Ntlocal; t++)
     {
         tmp3d_ = Zero();
         for (unsigned int k = 0; k < nVec; k++)
         {
             ExtractSliceLocal(evec3d_,epack.evec[k],0,t-Ntfirst,nd_ - 1);
-            tmp3d_ += evec3d_ * peramb.tensor(t, k, dl, inoise, dt, ds);
+            tmp3d_ += evec3d_ * peramb.tensor(t, k, dl, inoise, idt, ds);
         }
         InsertSliceLocal(tmp3d_,phiComponent,0,t-Ntfirst,nd_ - 1);
     }
@@ -227,7 +230,6 @@ void DmfComputation<FImpl,Field,T,Tio>
     for (auto& dtR : timeDilSource.at("right"))
     {
         std::map<std::string,std::vector<unsigned int>> p = { {"left",{}} , {"right",{}}};
-
         for(auto s : sides_)
         {
             if(dmfCase_.at(s)=="phi")
@@ -239,7 +241,6 @@ void DmfComputation<FImpl,Field,T,Tio>
             {
                 p.at(s) =  n.at(s).timeSlices(s=="left" ? dtL : dtR);
             }
-            
         }
 
         std::vector<unsigned int> stInter;
