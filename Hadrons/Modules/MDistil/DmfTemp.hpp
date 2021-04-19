@@ -22,6 +22,8 @@ public:
                                     std::vector<int>,           noise_pair,
                                     std::vector<unsigned int>,  left_time_sources,
                                     std::vector<unsigned int>,  right_time_sources,
+                                    TimeSliceMap,               left_time_dilution,
+                                    TimeSliceMap,               right_time_dilution,
                                     std::string,                meson_field_case)
 };
 
@@ -111,7 +113,6 @@ public:
     unsigned int computeEffTimeDimension();
     std::vector<std::vector<int>> parseNoisePairs(std::vector<std::string> inputN);
     void computePhase(std::vector<std::vector<RealF>> momenta, ComplexField &coor, std::vector<int> dim, std::vector<ComplexField> &phase);
-private:
     TimeSliceMap timeSliceMap(DistillationNoise & n);
 };
 
@@ -323,7 +324,7 @@ void DmfComputation<FImpl,T,Tio>
                 tarray->startTimer("IO: total");
                 tarray->startTimer("IO: write block");
                 double ioTime = -tarray->getDTimer("IO: write block");
-    #ifdef HADRONS_A2AM_PARALLEL_IO
+#ifdef HADRONS_A2AM_PARALLEL_IO
                 //parallel io
                 unsigned int inode = g_->ThisRank();
                 unsigned int nnode = g_->RankCount(); 
@@ -333,14 +334,14 @@ void DmfComputation<FImpl,T,Tio>
                     unsigned int iExt = ies/n_str;
                     unsigned int iStr = ies%n_str;
                     if(iblock==0 && jblock==0){              // creates dataset only if it's the first block of the dataset
-                        io_table[iStr + n_str*iExt].saveBlock(block, iExt , iStr , iblock, jblock, datasetName, cSize_);   //set surface chunk size as cSize_ (the chunk itself is 3D)
+                        io_table[iStr + n_str*iExt].saveBlock(block, iExt , iStr , iblock, jblock, datasetName, cSize_);   //set 2D chunk size as cSize_ (the chunk itself is 3D)
                     }
                     else{
                         io_table[iStr + n_str*iExt].saveBlock(block, iExt , iStr , iblock, jblock, datasetName);
                     }
                 }
                 g_->Barrier();
-    #else
+#else
                 // serial io, can remove later
                 LOG(Message) << "Starting serial IO" << std::endl;
                 for(unsigned int iExt=0; iExt<n_ext; iExt++)
@@ -353,7 +354,7 @@ void DmfComputation<FImpl,T,Tio>
                         matrixIoTable[iStr + n_str*iExt].saveBlock(block, iExt, iStr, iblock, jblock, datasetName);
                     }
                 }
-    #endif
+#endif
                 tarray->stopTimer("IO: total");
                 tarray->stopTimer("IO: write block");
                 ioTime    += tarray->getDTimer("IO: write block");

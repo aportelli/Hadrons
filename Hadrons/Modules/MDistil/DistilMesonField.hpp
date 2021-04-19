@@ -267,17 +267,12 @@ void TDistilMesonField<FImpl>::execute(void)
                              timeDilSource.at(s).begin(), timeDilSource.at(s).end()) )  //check if input time source is compatible with peramb's (subset of it)
             {
                 HADRONS_ERROR(Argument,"Time sources are not available on " +s+ " perambulator");
-                // std::cout << timeDilSource.at(s) << " is subset of" << peramb_st.at(s) << std::endl;
             }
         }
     }
 
     eff_nt_     = helper.computeEffTimeDimension();
     noisePairs_ = helper.parseNoisePairs(par().noisePairs);
-
-    // ObjArray_LR<DistillationNoise*> n;
-    // n = {&noisel, &noiser};
-    // std::cout << "dilution size= " << n[0]->dilutionSize() << std::endl;
 
     //compute momentum phase
     if (!hasPhase_)
@@ -312,6 +307,8 @@ void TDistilMesonField<FImpl>::execute(void)
             md.noise_pair           = inoise;
             md.left_time_sources    = timeDilSource.at("left");
             md.right_time_sources   = timeDilSource.at("right");
+            md.left_time_dilution   = helper.timeSliceMap(noises.at("left"));
+            md.right_time_dilution  = helper.timeSliceMap(noises.at("right"));
             md.meson_field_case     = dmf_case_.at("left") + " " + dmf_case_.at("right");
 
             std::stringstream ss;
