@@ -334,7 +334,7 @@ void DmfComputation<FImpl,T,Tio>
                     unsigned int iExt = ies/n_str;
                     unsigned int iStr = ies%n_str;
                     if(iblock==0 && jblock==0){              // creates dataset only if it's the first block of the dataset
-                        io_table[iStr + n_str*iExt].saveBlock(block, iExt , iStr , iblock, jblock, datasetName, cSize_);   //set 2D chunk size as cSize_ (the chunk itself is 3D)
+                        io_table[iStr + n_str*iExt].saveBlock(block, iExt , iStr , iblock, jblock, datasetName, cSize_, 1);   //set 2D chunk size as cSize_ (the chunk itself is 3D)
                     }
                     else{
                         io_table[iStr + n_str*iExt].saveBlock(block, iExt , iStr , iblock, jblock, datasetName);
