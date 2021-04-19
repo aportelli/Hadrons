@@ -36,8 +36,8 @@ public:
                                     std::string,                lapEvec,
                                     std::string,                leftNoise,
                                     std::string,                rightNoise,
-                                    std::string,                leftTimeDilSources,
-                                    std::string,                rightTimeDilSources,
+                                    std::string,                leftTimeSources,
+                                    std::string,                rightTimeSources,
                                     std::string,                leftPeramb,
                                     std::string,                rightPeramb,
                                     unsigned int,               blockSize,
@@ -52,8 +52,8 @@ class TDistilMesonField: public Module<DistilMesonFieldPar>
 {
 public:
     FERM_TYPE_ALIASES(FImpl,);
-    typedef DmfComputation<FImpl, FermionField, Complex, HADRONS_DISTIL_IO_TYPE>    Computation;
-    typedef DmfHelper<FImpl, FermionField>         Helper;
+    typedef DmfComputation<FImpl, Complex, HADRONS_DISTIL_IO_TYPE>    Computation;
+    typedef DmfHelper<FImpl>         Helper;
 public:
     typedef typename Computation::Index Index;
     typedef typename Computation::DistilVector DistilVector;
@@ -231,8 +231,8 @@ void TDistilMesonField<FImpl>::execute(void)
     std::map<std::string, DistillationNoise & >   noises = {{"left",noisel},{"right",noiser}};
     
     //encapsulate this in helper or computation class
-    std::vector<unsigned int> lSources = strToVec<unsigned int>(par().leftTimeDilSources);
-    std::vector<unsigned int> rSources = strToVec<unsigned int>(par().rightTimeDilSources);
+    std::vector<unsigned int> lSources = strToVec<unsigned int>(par().leftTimeSources);
+    std::vector<unsigned int> rSources = strToVec<unsigned int>(par().rightTimeSources);
 
     std::map<std::string, std::vector<unsigned int>> timeDilSource = {{"left",lSources},{"right",rSources}};
     //in case it's empty, include all possible time sources
@@ -310,8 +310,9 @@ void TDistilMesonField<FImpl>::execute(void)
             md.momenta              = momenta_[iExt];
             md.gamma                = gamma_[iStr];
             md.noise_pair           = inoise;
-            md.leftTimeDilSources   = timeDilSource.at("left");
-            md.rightTimeDilSources  = timeDilSource.at("right");
+            md.left_time_sources    = timeDilSource.at("left");
+            md.right_time_sources   = timeDilSource.at("right");
+            md.meson_field_case     = dmf_case_.at("left") + " " + dmf_case_.at("right");
 
             std::stringstream ss;
             ss << md.gamma << "_";

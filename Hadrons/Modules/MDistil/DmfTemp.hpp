@@ -20,19 +20,19 @@ public:
                                     std::vector<RealF>,         momenta,
                                     Gamma::Algebra,             gamma,
                                     std::vector<int>,           noise_pair,
-                                    std::vector<unsigned int>,  leftTimeDilSources,
-                                    std::vector<unsigned int>,  rightTimeDilSources,
-                                    )
+                                    std::vector<unsigned int>,  left_time_sources,
+                                    std::vector<unsigned int>,  right_time_sources,
+                                    std::string,                meson_field_case)
 };
 
 //computation class declaration
-template <typename FImpl, typename Field, typename T, typename Tio>
+template <typename FImpl, typename T, typename Tio>
 class DmfComputation
 {
 public:
     FERM_TYPE_ALIASES(FImpl,);
     typedef DistillationNoise<FImpl> DistillationNoise;
-    typedef typename std::vector<Field> DistilVector;
+    typedef typename std::vector<FermionField> DistilVector;
     typedef typename DistillationNoise::Index Index;
 public:
     //todo: maybe reposition later
@@ -45,7 +45,7 @@ private:
     GridCartesian*                      g_;
     GridCartesian*                      g3d_;
     ColourVectorField                   evec3d_;
-    Field                               tmp3d_;
+    FermionField                        tmp3d_;
     Vector<Tio>                         bBuf_;
     Vector<T>                           cBuf_;
     const unsigned int                  bSize_;
@@ -54,55 +54,50 @@ private:
     unsigned int                        nd_;
 public:
     DmfComputation(std::map<std::string,std::string>    c,
-                    GridCartesian*                      g,
-                    GridCartesian*                      g3d,
-                    const unsigned int                  blockSize,
-                    const unsigned int                  cacheSize,
-                    unsigned int                        nt
-                    );
+                   GridCartesian*                       g,
+                   GridCartesian*                       g3d,
+                   const unsigned int                   blockSize,
+                   const unsigned int                   cacheSize,
+                   unsigned int                         nt);
 public:
-    void execute(std::vector<A2AMatrixIo<Tio>> io_table,
-                    std::map<std::string, DistilVector&>                dv,
-                    std::map<std::string, DistillationNoise&>           n,
-                    std::vector<Gamma::Algebra>                         gamma,
-                    std::vector<ComplexField>                           ph,
-                    const unsigned int                                  n_ext,
-                    const unsigned int                                  n_str,
-                    std::map<std::string, unsigned int>                 dil_size_ls,
-                    const unsigned int                                  eff_nt,
-                    std::map<std::string, std::vector<unsigned int>>    timeDilSource,
-                    TimerArray*                                         tarray
-                    );
-    void distVec(std::map<std::string, DistilVector&>                   dv,
-                    std::map<std::string, DistillationNoise&>           n,
-                    std::vector<int>                                    inoise,
-                    LapEvecs&                                           epack,
-                    std::map<std::string, std::vector<unsigned int>>    timeDilSource,
-                    std::map<std::string, PerambTensor&>                peramb={}
-                    );
+    void execute(std::vector<A2AMatrixIo<Tio>>                      io_table,
+                 std::map<std::string, DistilVector&>               dv,
+                 std::map<std::string, DistillationNoise&>          n,
+                 std::vector<Gamma::Algebra>                        gamma,
+                 std::vector<ComplexField>                          ph,
+                 const unsigned int                                 n_ext,
+                 const unsigned int                                 n_str,
+                 std::map<std::string, unsigned int>                dil_size_ls,
+                 const unsigned int                                 eff_nt,
+                 std::map<std::string, std::vector<unsigned int>>   timeDilSource,
+                 TimerArray*                                        tarray);
+    void distVec(std::map<std::string, DistilVector&>               dv,
+                 std::map<std::string, DistillationNoise&>          n,
+                 std::vector<int>                                   inoise,
+                 LapEvecs&                                          epack,
+                 std::map<std::string, std::vector<unsigned int>>   timeDilSource,
+                 std::map<std::string, PerambTensor&>               peramb={});
 private:
-    void makePhiComponent(Field&                    phiComponent,
-                            DistillationNoise&      n,
-                            const int               inoise,
-                            const unsigned int      iD,
-                            PerambTensor&           peramb,
-                            LapEvecs&               epack
-                            );
-    void makeRhoComponent(Field&                    rhoComponent,
-                            DistillationNoise&      n,
-                            const int               inoise,
-                            const unsigned int      iD
-                            );
+    void makePhiComponent(FermionField&         phiComponent,
+                          DistillationNoise&    n,
+                          const int             inoise,
+                          const unsigned int    iD,
+                          PerambTensor&         peramb,
+                          LapEvecs&             epack);
+    void makeRhoComponent(FermionField&         rhoComponent,
+                          DistillationNoise&    n,
+                          const int             inoise,
+                          const unsigned int    iD);
 };
 
 // aux class declaration
-template <typename FImpl, typename Field>
+template <typename FImpl>
 class DmfHelper
 {
 public:
     FERM_TYPE_ALIASES(FImpl,);
     typedef DistillationNoise<FImpl> DistillationNoise;
-    typedef typename std::vector<Field> DistilVector;
+    typedef typename std::vector<FermionField> DistilVector;
     typedef typename DistillationNoise::Index Index;
 private:
     unsigned int nt_;
@@ -125,14 +120,14 @@ private:
 //####################################
 //# computation class implementation #
 //####################################
-template <typename FImpl, typename Field, typename T, typename Tio>
-void DmfComputation<FImpl,Field,T,Tio>
-::makePhiComponent(Field& phiComponent,
-          DistillationNoise&    n,
-          const int             inoise,
-          const unsigned int    iD,
-          PerambTensor&         peramb,
-          LapEvecs&             epack)
+template <typename FImpl, typename T, typename Tio>
+void DmfComputation<FImpl,T,Tio>
+::makePhiComponent(FermionField&        phiComponent,
+                   DistillationNoise&   n,
+                   const int            inoise,
+                   const unsigned int   iD,
+                   PerambTensor&        peramb,
+                   LapEvecs&            epack)
 {
     std::array<unsigned int,3> c = n.dilutionCoordinates(iD);
     unsigned int dt = c[Index::t] , dl = c[Index::l] , ds = c[Index::s];
@@ -154,18 +149,18 @@ void DmfComputation<FImpl,Field,T,Tio>
     }
 }
 
-template <typename FImpl, typename Field, typename T, typename Tio>
-void DmfComputation<FImpl,Field,T,Tio>
-::makeRhoComponent(Field&       rhoComponent,
-          DistillationNoise&    n,
-          const int             inoise,
-          const unsigned int    iD)   
+template <typename FImpl, typename T, typename Tio>
+void DmfComputation<FImpl,T,Tio>
+::makeRhoComponent(FermionField&        rhoComponent,
+                   DistillationNoise&   n,
+                   const int            inoise,
+                   const unsigned int   iD)   
 {
-        rhoComponent = n.makeSource(iD, inoise);
+    rhoComponent = n.makeSource(iD, inoise);
 }
 
-template <typename FImpl, typename Field, typename T, typename Tio>
-void DmfComputation<FImpl,Field,T,Tio>
+template <typename FImpl, typename T, typename Tio>
+void DmfComputation<FImpl,T,Tio>
 ::distVec(std::map<std::string, DistilVector&>              dv,
           std::map<std::string, DistillationNoise&>         n,
           std::vector<int>                                  inoise,
@@ -193,8 +188,8 @@ void DmfComputation<FImpl,Field,T,Tio>
     }
 }
 
-template <typename FImpl, typename Field, typename T, typename Tio>
-DmfComputation<FImpl,Field,T,Tio>
+template <typename FImpl, typename T, typename Tio>
+DmfComputation<FImpl,T,Tio>
 ::DmfComputation(std::map<std::string,std::string>  c,
                  GridCartesian*                     g,
                  GridCartesian*                     g3d,
@@ -206,8 +201,8 @@ DmfComputation<FImpl,Field,T,Tio>
 {
 }
 
-template <typename FImpl, typename Field, typename T, typename Tio>
-void DmfComputation<FImpl,Field,T,Tio>
+template <typename FImpl, typename T, typename Tio>
+void DmfComputation<FImpl,T,Tio>
 ::execute(std::vector<A2AMatrixIo<Tio>>                     io_table,
           std::map<std::string, DistilVector&>              dv,
           std::map<std::string, DistillationNoise&>         n,
@@ -375,16 +370,18 @@ void DmfComputation<FImpl,Field,T,Tio>
 //############################
 //# helper class implementation #
 //############################
-template <typename FImpl, typename Field>
-DmfHelper<FImpl,Field>::DmfHelper(DistillationNoise & nl, DistillationNoise & nr, std::map<std::string,std::string> c)
+template <typename FImpl>
+DmfHelper<FImpl>::DmfHelper(DistillationNoise&                  nl,
+                            DistillationNoise&                  nr,
+                            std::map<std::string,std::string>   c)
 : noiseTimeMapl_( timeSliceMap(nl) ) , noiseTimeMapr_( timeSliceMap(nr) ) , dmfCase_(c)
 {
     nt_ = nr.getNt();
     nd_ = nr.getGrid()->Nd();
 }
 
-template <typename FImpl, typename Field>
-unsigned int DmfHelper<FImpl,Field>::effTime(TimeSliceMap tmap)
+template <typename FImpl>
+unsigned int DmfHelper<FImpl>::effTime(TimeSliceMap tmap)
 {
     // assuming it's a rho
     // compute eff_nt (1<=eff_nt<=nt_), the time extensin in the final object when there's at least one rho involved
@@ -394,8 +391,8 @@ unsigned int DmfHelper<FImpl,Field>::effTime(TimeSliceMap tmap)
     return eff_nt;
 }
 
-template <typename FImpl, typename Field>
-unsigned int DmfHelper<FImpl,Field>::computeEffTimeDimension()
+template <typename FImpl>
+unsigned int DmfHelper<FImpl>::computeEffTimeDimension()
 {
     if(dmfCase_.at("left")=="rho" || dmfCase_.at("right")=="rho")
     {
@@ -410,8 +407,8 @@ unsigned int DmfHelper<FImpl,Field>::computeEffTimeDimension()
     }
 }
 
-template <typename FImpl, typename Field>
-std::vector<std::vector<int>> DmfHelper<FImpl,Field>::parseNoisePairs(std::vector<std::string> inputN)
+template <typename FImpl>
+std::vector<std::vector<int>> DmfHelper<FImpl>::parseNoisePairs(std::vector<std::string> inputN)
 {
     std::vector<std::vector<int>> nPairs;
     nPairs.clear();
@@ -423,8 +420,11 @@ std::vector<std::vector<int>> DmfHelper<FImpl,Field>::parseNoisePairs(std::vecto
     return(nPairs);
 }
 
-template <typename FImpl, typename Field>
-void DmfHelper<FImpl,Field>::computePhase(std::vector<std::vector<RealF>> momenta, ComplexField &coor, std::vector<int> dim, std::vector<ComplexField> &phase)
+template <typename FImpl>
+void DmfHelper<FImpl>::computePhase(std::vector<std::vector<RealF>> momenta,
+                                    ComplexField&                   coor,
+                                    std::vector<int>                dim,
+                                    std::vector<ComplexField>&      phase)
 {
     Complex           i(0.0,1.0);
     for (unsigned int j = 0; j < momenta.size(); ++j)
@@ -439,8 +439,8 @@ void DmfHelper<FImpl,Field>::computePhase(std::vector<std::vector<RealF>> moment
     }
 }
 
-template <typename FImpl, typename Field>
-TimeSliceMap DmfHelper<FImpl,Field>::timeSliceMap(DistillationNoise & n)
+template <typename FImpl>
+TimeSliceMap DmfHelper<FImpl>::timeSliceMap(DistillationNoise & n)
 {
     TimeSliceMap m;
     for(unsigned int it=0 ; it<n.dilutionSize(Index::t) ; it++)
