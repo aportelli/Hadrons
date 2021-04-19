@@ -64,6 +64,9 @@ public:
 MODULE_REGISTER_TMP(GaugeSinglePrecisionCast, 
                     ARG(TPrecisionCast<GIMPLD::GaugeField, GIMPLF::GaugeField>),
                     MUtilities);
+MODULE_REGISTER_TMP(GaugeLinkSinglePrecisionCast, 
+                    ARG(TPrecisionCast<GIMPLD::GaugeLinkField, GIMPLF::GaugeLinkField>),
+                    MUtilities);
 MODULE_REGISTER_TMP(FermionSinglePrecisionCast, 
                     ARG(TPrecisionCast<FIMPLD::FermionField, FIMPLF::FermionField>),
                     MUtilities);
