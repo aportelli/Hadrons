@@ -7,7 +7,7 @@
 #include <Hadrons/A2AMatrix.hpp>
 #include <Hadrons/DilutedNoise.hpp>
 #include <Hadrons/NamedTensor.hpp>
-#include "DmfTemp.hpp"
+#include <Hadrons/Modules/MDistil/DistilMatrix.hpp>
 
 #ifndef HADRONS_DISTIL_IO_TYPE
 #define HADRONS_DISTIL_IO_TYPE ComplexF
@@ -36,6 +36,7 @@ public:
                                     std::string,                lapEvec,
                                     std::string,                leftNoise,
                                     std::string,                rightNoise,
+                                    std::vector<std::string>,   noisePairs,
                                     std::string,                leftTimeSources,
                                     std::string,                rightTimeSources,
                                     std::string,                leftPeramb,
@@ -43,8 +44,7 @@ public:
                                     unsigned int,               blockSize,
                                     unsigned int,               cacheSize,
                                     std::string,                gamma,
-                                    std::vector<std::string>,   momenta,
-                                    std::vector<std::string>,   noisePairs)
+                                    std::vector<std::string>,   momenta)
 };
 
 template <typename FImpl>
