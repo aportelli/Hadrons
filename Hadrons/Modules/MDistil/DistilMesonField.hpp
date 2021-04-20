@@ -318,9 +318,9 @@ void TDistilMesonField<FImpl>::execute(void)
             std::string groupName = ss.str();
 
             // io init
-            std::string outStem = outputMFStem_ + "/noise" + std::to_string(inoise[0]) + "_" + std::to_string(inoise[1]) + "/";
+            std::string outStem = outputMFStem_ + "/noise" + std::to_string(inoise[0]) + "_" + std::to_string(inoise[1]) + "/" +dmf_case_.at("left")+"-"+dmf_case_.at("right") + "/";
             Hadrons::mkdir(outStem);
-            std::string mfName = groupName+"_"+dmf_case_.at("left")+"-"+dmf_case_.at("right")+".h5";
+            std::string mfName = groupName+".h5";
             A2AMatrixIo<HADRONS_DISTIL_IO_TYPE> matrixIo(outStem+mfName, groupName, eff_nt_, dilutionSize_ls_.at("left"), dilutionSize_ls_.at("right"));
             matrixIoTable.push_back(matrixIo);
             //initialize file with no outputName group (containing atributes of momenta and gamma) but no dataset inside
