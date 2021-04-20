@@ -38,37 +38,6 @@
 BEGIN_HADRONS_NAMESPACE
 BEGIN_MODULE_NAMESPACE(MDistil)
 
-/*************************************************************************************
- Rotate eigenvectors into our phase convention
- First component of first eigenvector is real and positive
- *************************************************************************************/
-
-inline void RotateEigen(std::vector<LatticeColourVector> & evec)
-{
-    ColourVector cv0;
-    auto grid = evec[0].Grid();
-    Coordinate siteFirst(grid->Nd(),0);
-    peekSite(cv0, evec[0], siteFirst);
-    const std::complex<Real> cplx0{cv0()()(0).real(), cv0()()(0).imag()};
-    if( cplx0.imag() == 0 )
-        LOG(Message) << "RotateEigen() : Site 0 : " << cplx0 << " => already meets phase convention" << std::endl;
-    else
-    {
-        const Real cplx0_mag{ std::abs(cplx0) };
-        const std::complex<Real> std_phase{std::conj(cplx0/cplx0_mag)};
-        LOG(Message) << "RotateEigen() : Site 0 : |" << cplx0 << "|=" << cplx0_mag
-                     << " => phase=" << (std::arg(std_phase) / M_PI) << " pi" << std::endl;
-        {
-            const Grid::Complex phase{std_phase.real(),std_phase.imag()};
-            for( int k = 0 ; k < evec.size() ; k++ )
-                evec[k] *= phase;
-            // Get rid of the rounding error in imaginary phase on the very first site
-            peekSite(cv0, evec[0], siteFirst);
-            cv0()()(0).imag(0); // this should be zero after the phase multiply - force it to be so
-            pokeSite(cv0, evec[0], siteFirst);
-        }
-    }
-}
 
 /******************************************************************************
  
@@ -133,6 +102,7 @@ public:
     // dependency relation
     virtual std::vector<std::string> getInput(void);
     virtual std::vector<std::string> getOutput(void);
+    virtual void RotateEigen(std::vector<ColourVectorField> & evec);
     // setup
     virtual void setup(void);
     // execution
@@ -140,6 +110,39 @@ public:
 };
 
 MODULE_REGISTER_TMP(LapEvec, TLapEvec<FIMPL>, MDistil);
+
+/*************************************************************************************
+ Rotate eigenvectors into our phase convention
+ First component of first eigenvector is real and positive
+ *************************************************************************************/
+
+template <typename FImpl>
+inline void TLapEvec<FImpl>::RotateEigen(std::vector<ColourVectorField> & evec)
+{
+    ColourVector cv0;
+    auto grid = evec[0].Grid();
+    Coordinate siteFirst(grid->Nd(),0);
+    peekSite(cv0, evec[0], siteFirst);
+    const std::complex<Real> cplx0{cv0()()(0).real(), cv0()()(0).imag()};
+    if( cplx0.imag() == 0 )
+        LOG(Message) << "RotateEigen() : Site 0 : " << cplx0 << " => already meets phase convention" << std::endl;
+    else
+    {
+        const Real cplx0_mag{ std::abs(cplx0) };
+        const std::complex<Real> std_phase{std::conj(cplx0/cplx0_mag)};
+        LOG(Message) << "RotateEigen() : Site 0 : |" << cplx0 << "|=" << cplx0_mag
+                     << " => phase=" << (std::arg(std_phase) / M_PI) << " pi" << std::endl;
+        {
+            const Grid::Complex phase{std_phase.real(),std_phase.imag()};
+            for( int k = 0 ; k < evec.size() ; k++ )
+                evec[k] *= phase;
+            // Get rid of the rounding error in imaginary phase on the very first site
+            peekSite(cv0, evec[0], siteFirst);
+            cv0()()(0).imag(0); // this should be zero after the phase multiply - force it to be so
+            pokeSite(cv0, evec[0], siteFirst);
+        }
+    }
+}
 
 /******************************************************************************
  TLapEvec implementation
@@ -186,7 +189,6 @@ void TLapEvec<FImpl>::setup(void)
  
  *************************************************************************************/
 
-//template<typename FImpl> //would this be desired? 
 template<typename Field, typename GaugeField>
 class Laplacian3D : public LinearOperatorBase<Field>, public LinearFunction<Field> {
     typedef typename GaugeField::vector_type vCoeff_t;
@@ -213,7 +215,6 @@ public:
         conformable( in, out );
         out = ( ( Real ) ( 2 * nd ) ) * in;
         Field tmp_(in.Grid());
-        //typedef typename GaugeField::vector_type vCoeff_t;
         for (int mu = 0 ; mu < nd ; mu++)
         {
             out -= U[mu] * Cshift( in, mu, 1);
