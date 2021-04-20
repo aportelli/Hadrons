@@ -76,7 +76,7 @@ public:
     void distVec(std::map<std::string, DistilVector&>                   dv,
                     std::map<std::string, DistillationNoise&>           n,
                     std::vector<int>                                    inoise,
-                    LapEvecs&                                           epack,
+                    typename DistillationNoise::LapPack&                                           epack,
                     std::map<std::string, std::vector<unsigned int>>    timeDilSource,
                     std::map<std::string, PerambTensor&>                peramb={}
                     );
@@ -86,7 +86,7 @@ private:
                             const int               inoise,
                             const unsigned int      iD,
                             PerambTensor&           peramb,
-                            LapEvecs&               epack
+                            typename DistillationNoise::LapPack&               epack
                             );
     void makeRhoComponent(Field&                    rhoComponent,
                             DistillationNoise&      n,
@@ -132,7 +132,7 @@ void DmfComputation<FImpl,Field,T,Tio>
           const int             inoise,
           const unsigned int    iD,
           PerambTensor&         peramb,
-          LapEvecs&             epack)
+          typename DistillationNoise::LapPack&             epack)
 {
     std::array<unsigned int,3> c = n.dilutionCoordinates(iD);
     unsigned int dt = c[Index::t] , dl = c[Index::l] , ds = c[Index::s];
@@ -166,7 +166,7 @@ void DmfComputation<FImpl,Field,T,Tio>
 ::distVec(std::map<std::string, DistilVector&>              dv,
           std::map<std::string, DistillationNoise&>         n,
           std::vector<int>                                  inoise,
-          LapEvecs&                                         epack,
+          typename DistillationNoise::LapPack&       epack,
           std::map<std::string, std::vector<unsigned int>>  timeDilSource,
           std::map<std::string, PerambTensor&>              peramb)
 {

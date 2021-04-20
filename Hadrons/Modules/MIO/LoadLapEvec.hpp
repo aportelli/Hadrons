@@ -31,7 +31,7 @@
 #include <Hadrons/Global.hpp>
 #include <Hadrons/Module.hpp>
 #include <Hadrons/ModuleFactory.hpp>
-#include <Hadrons/NamedTensor.hpp>
+#include <Hadrons/DilutedNoise.hpp>
 
 BEGIN_HADRONS_NAMESPACE
 
@@ -97,14 +97,14 @@ std::vector<std::string> TLoadLapEvec<FImpl>::getOutput(void)
 template <typename FImpl>
 void TLoadLapEvec<FImpl>::setup(void)
 {
-    envCreate(MDistil::LapEvecs, getName(), 1, par().nVec, env().getGrid());
+    envCreate(typename DistillationNoise<FImpl>::LapPack, getName(), 1, par().nVec, env().getGrid());
 }
 
 // execution ///////////////////////////////////////////////////////////////////
 template <typename FImpl>
 void TLoadLapEvec<FImpl>::execute(void)
 {
-    auto & LapEvec4d = envGet(MDistil::LapEvecs, getName() );
+    auto & LapEvec4d = envGet(typename DistillationNoise<FImpl>::LapPack, getName() );
     std::string fileName{ par().LapEvecFileName };
     fileName.append( 1, '.' );
     fileName.append( std::to_string( vm().getTrajectory() ) );

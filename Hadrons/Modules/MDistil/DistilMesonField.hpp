@@ -212,7 +212,7 @@ template <typename FImpl>
 void TDistilMesonField<FImpl>::execute(void)
 {
     GridCartesian *g        = envGetGrid(FermionField);
-    auto &epack             = envGet(LapEvecs, par().lapEvec);
+    auto &epack             = envGet(typename DistillationNoise::LapPack, par().lapEvec);
     const unsigned int nVec = epack.evec.size();
     const unsigned int nd   = g->Nd();
     const unsigned int nt   = env().getDim(nd - 1);

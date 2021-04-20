@@ -34,6 +34,7 @@
 #include <Hadrons/ModuleFactory.hpp>
 #include <Hadrons/EigenPack.hpp>
 #include <Hadrons/NamedTensor.hpp>
+#include <Hadrons/DilutedNoise.hpp>
 
 BEGIN_HADRONS_NAMESPACE
 BEGIN_MODULE_NAMESPACE(MDistil)
@@ -176,9 +177,9 @@ void TLapEvec<FImpl>::setup(void)
     envTmpLat(GaugeField, "Umu_smear");
     envTmp(LatticeGaugeField, "UmuNoTime", 1, gridLD);
     envTmp(ColourVectorField,  "src",1,gridLD);
-    envTmp(std::vector<LapEvecs>,  "eig", 1, Ntlocal);
+    envTmp(std::vector<typename DistillationNoise<FImpl>::LapPack>,  "eig", 1, Ntlocal);
     // Output objects
-    envCreate(LapEvecs, getName(), 1, par().Lanczos.Nvec, gridHD);
+    envCreate(typename DistillationNoise<FImpl>::LapPack, getName(), 1, par().Lanczos.Nvec, gridHD);
 }
 
 /*************************************************************************************
@@ -269,8 +270,8 @@ void TLapEvec<FImpl>::execute(void)
     // Invert nabla operator separately on each time-slice
     ////////////////////////////////////////////////////////////////////////
     
-    auto & eig4d = envGet(LapEvecs, getName() );
-    envGetTmp(std::vector<LapEvecs>, eig);   // Eigenpack for each timeslice
+    auto & eig4d = envGet(typename DistillationNoise<FImpl>::LapPack, getName() );
+    envGetTmp(std::vector<typename DistillationNoise<FImpl>::LapPack>, eig);   // Eigenpack for each timeslice
     envGetTmp(GaugeField, UmuNoTime); // Gauge field without time dimension
     envGetTmp(ColourVectorField, src);
     GridCartesian * gridHD = envGetGrid(FermionField);

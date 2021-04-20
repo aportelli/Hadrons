@@ -171,9 +171,6 @@ public:
 
 BEGIN_MODULE_NAMESPACE(MDistil)
 
-//Eigenvectors of the Laplacian
-using LapEvecs = Grid::Hadrons::EigenPack<LatticeColourVector>;
-
 class PerambMetadata : Serializable
 {
 public:

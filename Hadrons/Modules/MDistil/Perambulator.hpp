@@ -218,7 +218,7 @@ void TPerambulator<FImpl>::execute(void)
     int nDT = dilNoise.dilutionSize(DistillationNoise<FImpl>::Index::t);	
     int nD = nDL * nDS * nDT;
     auto &perambulator = envGet(PerambTensor, getName());
-    auto &epack = envGet(LapEvecs, par().lapEigenPack);
+    auto &epack = envGet(typename DistillationNoise<FImpl>::LapPack, par().lapEigenPack);
     
     pMode perambMode{par().perambMode};
     LOG(Message)<< "Mode " << perambMode << std::endl;
