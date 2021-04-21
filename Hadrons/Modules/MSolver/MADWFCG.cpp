@@ -30,6 +30,7 @@ using namespace Hadrons;
 using namespace MSolver;
 
 template class Grid::Hadrons::MSolver::TMADWFCG<ZFIMPLD, FIMPLD, HADRONS_DEFAULT_LANCZOS_NBASIS>;
+template class Grid::Hadrons::MSolver::TMADWFCG<ZFIMPLF, FIMPLD, HADRONS_DEFAULT_LANCZOS_NBASIS>;
 template class Grid::Hadrons::MSolver::TMADWFCG< FIMPLD, FIMPLD, HADRONS_DEFAULT_LANCZOS_NBASIS>;
 
 
