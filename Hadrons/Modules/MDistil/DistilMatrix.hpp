@@ -36,6 +36,7 @@ public:
     typedef DistillationNoise<FImpl> DistillationNoise;
     typedef typename std::vector<FermionField> DistilVector;
     typedef typename DistillationNoise::Index Index;
+    typedef typename DistillationNoise::LapPack LapPack;
 public:
     //todo: maybe reposition later
     long    global_counter = 0;
@@ -76,7 +77,7 @@ public:
     void distVec(std::map<std::string, DistilVector&>               dv,
                  std::map<std::string, DistillationNoise&>          n,
                  std::vector<int>                                   inoise,
-                 LapEvecs&                                          epack,
+                 LapPack&                                           epack,
                  std::map<std::string, std::vector<unsigned int>>   timeDilSource,
                  std::map<std::string, PerambTensor&>               peramb={});
 private:
@@ -85,7 +86,7 @@ private:
                           const int             inoise,
                           const unsigned int    iD,
                           PerambTensor&         peramb,
-                          LapEvecs&             epack);
+                          LapPack&              epack);
     void makeRhoComponent(FermionField&         rhoComponent,
                           DistillationNoise&    n,
                           const int             inoise,
@@ -101,6 +102,7 @@ public:
     typedef DistillationNoise<FImpl> DistillationNoise;
     typedef typename std::vector<FermionField> DistilVector;
     typedef typename DistillationNoise::Index Index;
+    typedef typename DistillationNoise::LapPack LapPack;
 private:
     unsigned int nt_;
     unsigned int nd_;
@@ -128,7 +130,7 @@ void DmfComputation<FImpl,T,Tio>
                    const int            inoise,
                    const unsigned int   iD,
                    PerambTensor&        peramb,
-                   LapEvecs&            epack)
+                   LapPack&             epack)
 {
     std::array<unsigned int,3> c = n.dilutionCoordinates(iD);
     unsigned int dt = c[Index::t] , dl = c[Index::l] , ds = c[Index::s];
@@ -165,7 +167,7 @@ void DmfComputation<FImpl,T,Tio>
 ::distVec(std::map<std::string, DistilVector&>              dv,
           std::map<std::string, DistillationNoise&>         n,
           std::vector<int>                                  inoise,
-          LapEvecs&                                         epack,
+          LapPack&                                          epack,
           std::map<std::string, std::vector<unsigned int>>  timeDilSource,
           std::map<std::string, PerambTensor&>              peramb)
 {
