@@ -212,7 +212,7 @@ template <typename FImpl>
 void TDistilMesonField<FImpl>::execute(void)
 {
     GridCartesian *g        = envGetGrid(FermionField);
-    auto &epack             = envGet(LapEvecs, par().lapEvec);
+    auto &epack             = envGet(typename DistillationNoise::LapPack, par().lapEvec);
     const unsigned int nVec = epack.evec.size();
     const unsigned int nd   = g->Nd();
     const unsigned int nt   = env().getDim(nd - 1);
@@ -302,7 +302,7 @@ void TDistilMesonField<FImpl>::execute(void)
         for(unsigned int iStr=0; iStr<nStr_; iStr++)
         {
             // metadata;
-            md.momenta              = momenta_[iExt];
+            md.momentum             = momenta_[iExt];
             md.gamma                = gamma_[iStr];
             md.noise_pair           = inoise;
             md.left_time_sources    = timeDilSource.at("left");
@@ -313,8 +313,8 @@ void TDistilMesonField<FImpl>::execute(void)
 
             std::stringstream ss;
             ss << md.gamma << "_";
-            for (unsigned int mu = 0; mu < md.momenta.size(); ++mu)
-                ss << md.momenta[mu] << ((mu == md.momenta.size() - 1) ? "" : "_");
+            for (unsigned int mu = 0; mu < md.momentum.size(); ++mu)
+                ss << md.momentum[mu] << ((mu == md.momentum.size() - 1) ? "" : "_");
             std::string groupName = ss.str();
 
             // io init

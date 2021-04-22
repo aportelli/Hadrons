@@ -17,7 +17,7 @@ class DistilMesonFieldMetadata: Serializable
 {
 public:
     GRID_SERIALIZABLE_CLASS_MEMBERS(DistilMesonFieldMetadata,
-                                    std::vector<RealF>,         momenta,
+                                    std::vector<RealF>,         momentum,
                                     Gamma::Algebra,             gamma,
                                     std::vector<int>,           noise_pair,
                                     std::vector<unsigned int>,  left_time_sources,
