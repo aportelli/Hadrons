@@ -648,7 +648,7 @@ void A2AMatrixIo<T>::load(Vec<VecT> &v, double *tRead, GridBase *grid, std::stri
         Hdf5Reader reader(filename_);
         push(reader, dataname_);
         auto &group = reader.getGroup();
-        dataset = group.openDataSet(HADRONS_A2AM_NAME);
+        dataset = group.openDataSet(datasetName);
         datatype = dataset.getCompType();
         dataspace = dataset.getSpace();
         hdim.resize(dataspace.getSimpleExtentNdims());
