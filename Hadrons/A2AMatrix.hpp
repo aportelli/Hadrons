@@ -45,6 +45,11 @@
 #define HADRONS_A2AM_IO_TYPE ComplexF
 #endif
 
+//to be removed
+#ifndef NT_CHUNK_SIZE
+#define NT_CHUNK_SIZE 1
+#endif
+
 #define HADRONS_A2AM_PARALLEL_IO
 
 BEGIN_HADRONS_NAMESPACE
@@ -106,18 +111,16 @@ public:
     void initFile(const MetadataType &d, const unsigned int chunkSize);
     // block I/O
     void saveBlock(const T *data, const unsigned int i, const unsigned int j,
-                   const unsigned int blockSizei, const unsigned int blockSizej);
+                   const unsigned int blockSizei, const unsigned int blockSizej, std::string datasetName="");   //distillation update: option to pass custom dataset name
     void saveBlock(const A2AMatrixSet<T> &m, const unsigned int ext, const unsigned int str,
                    const unsigned int i, const unsigned int j);
-    //distillation overloads
-    void saveBlock(const T *data, const unsigned int i, const unsigned int j,
+    //distillation overloads and new methods
+    void createBlock(const T *data, const unsigned int i, const unsigned int j,
                    const unsigned int blockSizei, const unsigned int blockSizej,
-                   std::string datasetName, const unsigned int chunkSize, const unsigned int ntChunkSize);
-    void saveBlock(const T *data, const unsigned int i, const unsigned int j,
-                   const unsigned int blockSizei, const unsigned int blockSizej, std::string datasetName);
+                   std::string datasetName, const unsigned int chunkSize);
     void saveBlock(const A2AMatrixSet<T> &m, const unsigned int ext, const unsigned int str,
                    const unsigned int i, const unsigned int j,
-                   std::string datasetName, const unsigned int chunkSize, const unsigned int ntChunkSize);
+                   std::string datasetName, const unsigned int chunkSize);
     void saveBlock(const A2AMatrixSet<T> &m, const unsigned int ext, const unsigned int str,
                    const unsigned int i, const unsigned int j,
                    std::string datasetName);
@@ -494,7 +497,8 @@ void A2AMatrixIo<T>::saveBlock(const T *data,
                                const unsigned int i, 
                                const unsigned int j,
                                const unsigned int blockSizei,
-                               const unsigned int blockSizej)
+                               const unsigned int blockSizej,
+                               std::string datasetName)
 {
 #ifdef HAVE_HDF5
     Hdf5Reader           reader(filename_, false);
@@ -507,9 +511,13 @@ void A2AMatrixIo<T>::saveBlock(const T *data,
     H5NS::DataSet        dataset;
     //    size_t               shift;
 
+    if(datasetName.empty()){
+        datasetName = HADRONS_A2AM_NAME;
+    }
+
     push(reader, dataname_);
     auto &group = reader.getGroup();
-    dataset     = group.openDataSet(HADRONS_A2AM_NAME);
+    dataset     = group.openDataSet(datasetName);
     dataspace   = dataset.getSpace();
     dataspace.selectHyperslab(H5S_SELECT_SET, count.data(), offset.data(),
                               stride.data(), block.data());
@@ -532,12 +540,12 @@ void A2AMatrixIo<T>::saveBlock(const A2AMatrixSet<T> &m,
     saveBlock(m.data() + offset, i, j, blockSizei, blockSizej);
 }
 
-//distillation overloads
+//distillation overloads and new methods
 template <typename T>
-void A2AMatrixIo<T>::saveBlock(const T *data,
+void A2AMatrixIo<T>::createBlock(const T *data,
                                const unsigned int i, const unsigned int j,
                                const unsigned int blockSizei, const unsigned int blockSizej,
-                               std::string datasetName, const unsigned int chunkSize, const unsigned int ntChunkSize)
+                               std::string datasetName, const unsigned int chunkSize)
 {
 #ifdef HAVE_HDF5
     Hdf5Reader           reader(filename_, false);
@@ -556,7 +564,7 @@ void A2AMatrixIo<T>::saveBlock(const T *data,
     std::vector<hsize_t>    dim = {static_cast<hsize_t>(nt_), 
                                 static_cast<hsize_t>(ni_), 
                                 static_cast<hsize_t>(nj_)},
-                            chunk = {static_cast<hsize_t>(ntChunkSize),
+                            chunk = {static_cast<hsize_t>(NT_CHUNK_SIZE),
                                 static_cast<hsize_t>(chunkSize), 
                                 static_cast<hsize_t>(chunkSize)};
     dataspace.setExtentSimple(dim.size(), dim.data());
@@ -565,39 +573,6 @@ void A2AMatrixIo<T>::saveBlock(const T *data,
     plist.setChunk(chunk.size(), chunk.data());
     plist.setFletcher32();
     dataset = group.createDataSet(datasetName, Hdf5Type<T>::type(), dataspace, plist);
-
-    dataspace = dataset.getSpace();
-    dataspace.selectHyperslab(H5S_SELECT_SET, count.data(), offset.data(),
-                              stride.data(), block.data());
-    dataset.write(data, Hdf5Type<T>::type(), memspace, dataspace);
-#else
-    HADRONS_ERROR(Implementation, "all-to-all matrix I/O needs HDF5 library");
-#endif
-}
-
-template <typename T>
-void A2AMatrixIo<T>::saveBlock(const T *data,
-                               const unsigned int i, const unsigned int j,
-                               const unsigned int blockSizei, const unsigned int blockSizej, std::string datasetName)
-{
-#ifdef HAVE_HDF5
-    Hdf5Reader           reader(filename_, false);
-    std::vector<hsize_t> count = {nt_, blockSizei, blockSizej},
-                         offset = {0, static_cast<hsize_t>(i),
-                                   static_cast<hsize_t>(j)},
-                         stride = {1, 1, 1},
-                         block  = {1, 1, 1}; 
-    H5NS::DataSpace      memspace(count.size(), count.data()), dataspace;
-    H5NS::DataSet        dataset;
-
-    push(reader, dataname_);
-    auto &group = reader.getGroup();
-    
-    dataset = group.openDataSet(datasetName);
-    dataspace = dataset.getSpace();
-    dataspace.selectHyperslab(H5S_SELECT_SET, count.data(), offset.data(),
-                              stride.data(), block.data());
-    dataset.write(data, Hdf5Type<T>::type(), memspace, dataspace);
 #else
     HADRONS_ERROR(Implementation, "all-to-all matrix I/O needs HDF5 library");
 #endif
@@ -607,14 +582,15 @@ template <typename T>
 void A2AMatrixIo<T>::saveBlock(const A2AMatrixSet<T> &m,
                                const unsigned int ext, const unsigned int str,
                                const unsigned int i, const unsigned int j, std::string datasetName,
-                               const unsigned int chunkSize, const unsigned int ntChunkSize)
+                               const unsigned int chunkSize)
 {
     unsigned int blockSizei = m.dimension(3);
     unsigned int blockSizej = m.dimension(4);
     unsigned int nstr       = m.dimension(1);
     size_t       offset     = (ext*nstr + str)*nt_*blockSizei*blockSizej;
 
-    saveBlock(m.data() + offset, i, j, blockSizei, blockSizej, datasetName, chunkSize, ntChunkSize);
+    createBlock(m.data() + offset, i, j, blockSizei, blockSizej, datasetName, chunkSize);
+    saveBlock(m.data() + offset, i, j, blockSizei, blockSizej, datasetName);
 }
 
 template <typename T>
