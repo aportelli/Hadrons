@@ -481,7 +481,8 @@ void A2AMatrixIo<T>::initFile(const MetadataType &d)
 {
 #ifdef HAVE_HDF5
     Hdf5Writer writer(filename_);
-    write(writer, dataname_, d);
+    push(writer, dataname_);
+    write(writer, "Metadata", d);
 #else
     HADRONS_ERROR(Implementation, "all-to-all matrix I/O needs HDF5 library");
 #endif
