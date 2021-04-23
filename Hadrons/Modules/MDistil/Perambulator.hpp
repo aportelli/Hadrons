@@ -174,6 +174,7 @@ void TPerambulator<FImpl>::setup(void)
     }
 	    
     envCreate(PerambTensor, getName(), 1, Nt, nVec, nDL, nNoise, nSourceT, nDS);
+    envTmp(PerambIndexTensor, "PerambMultiFileTmp",1,Nt,nVec,nDL,nNoise,nDS);
     pMode perambMode{par().perambMode};
     if(perambMode == pMode::outputSolve)
     {
@@ -365,11 +366,45 @@ void TPerambulator<FImpl>::execute(void)
     // Save the perambulator to disk from the boss node
     if (grid4d->IsBoss())
     {
-        std::string sPerambName {par().perambFileName};
-        sPerambName.append(".");
-        sPerambName.append(std::to_string(vm().getTrajectory()));
-	makeFileDir(sPerambName, grid4d);
-        perambulator.write(sPerambName.c_str());
+	bool multiFile = (par().multiFile == "true" || par().multiFile == "True" || par().multiFile == "1");
+	if (multiFile)
+	{
+            envGetTmp(PerambIndexTensor, PerambMultiFileTmp);
+            for (int dt = 0; dt < Nt; dt++)
+            {
+	        std::vector<int>::iterator it = std::find(std::begin(invT), std::end(invT), dt);
+   	        if(it == std::end(invT))
+   	        {
+   	            //skip dilution indices which are not in invT
+   	            continue;
+   	        }
+		LOG(Message) <<  "saving perambulator dt= " << dt << std::endl;
+	        idt=it - std::begin(invT);
+                std::string sPerambName {par().perambFileName};
+                sPerambName.append("/iDT_");
+                sPerambName.append(std::to_string(dt));
+                sPerambName.append(".");
+                sPerambName.append(std::to_string(vm().getTrajectory()));
+                makeFileDir(sPerambName, grid4d);
+                for (int t = 0; t < Nt; t++)
+                for (int ivec = 0; ivec < nVec; ivec++)
+                for (int idl = 0; idl < nDL; idl++)
+                for (int in = 0; in < nNoise; in++)
+                for (int ids = 0; ids < nDS; ids++)
+		    PerambMultiFileTmp.tensor(t,ivec,idl,in,ids) = perambulator.tensor(t,ivec,idl,in,idt,ids);
+                PerambMultiFileTmp.MetaData.timeDilutionIndex = dt;
+                PerambMultiFileTmp.write(sPerambName.c_str());
+	    }
+
+	}
+	else
+	{
+            std::string sPerambName {par().perambFileName};
+            sPerambName.append(".");
+            sPerambName.append(std::to_string(vm().getTrajectory()));
+            makeFileDir(sPerambName, grid4d);
+            perambulator.write(sPerambName.c_str());
+	}
     }
 
     // Also save the full sink if specified
