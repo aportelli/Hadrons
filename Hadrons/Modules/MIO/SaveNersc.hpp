@@ -33,16 +33,14 @@
 BEGIN_HADRONS_NAMESPACE
 
 /******************************************************************************
- *                       Save a NERSC configuration                           *
+ Save a NERSC configuration
+
+ gauge        Name of the gauge field object to write
+ file         Name of the file to write the gauge field to
+ ensebleLabel Label of the ensemble. Recommended this includes
+              a suffix identifying this as gauge-fixed and which gauge
  ******************************************************************************/
 
-// gauge          Name of the gauge field object to write
-// file           Name of the file to write the gauge field to
-// gaugeMetadata  (optional) Name of the file the gauge was loaded from
-//                ... so metadata can be copied
-// comment        (optional) value to write in COMMENT field of gauge-field metadata
-//                e.g. "gauge fixed: alpha=0.05, maxiter=1000000, Omega_tol=1e-12,
-//                      Phi_tol=1e-12, gaugeFix=coulomb, Fourier=true"
 
 BEGIN_MODULE_NAMESPACE(MIO)
 
@@ -52,8 +50,7 @@ public:
     GRID_SERIALIZABLE_CLASS_MEMBERS(SaveNerscPar,
                                     std::string, gauge,
                                     std::string, file,
-                                    std::string, gaugeMetadata,
-                                    std::string, comment);
+                                    std::string, ensembleLabel);
 };
 
 template <typename GImpl>
@@ -105,61 +102,16 @@ void TSaveNersc<GImpl>::setup(void)
 {
 }
 
-// Class to write metadata /////////////////////////////////////////////////////
-template<typename GImpl> class CachedGaugeFixedStatistics
-{
-public:
-    GAUGE_TYPE_ALIASES(GImpl,);
-    FieldMetaData fmd;
-
-    CachedGaugeFixedStatistics(std::string metadataFile, GridBase *grid)
-    {
-        LOG(Message) << "Copying NERSC metadata from file '" << metadataFile
-                     << "'" << std::endl;
-        NerscIO::readHeader(metadataFile, grid, fmd);
-    }
-
-    void operator()(GaugeField & data,FieldMetaData &header)
-    {
-        header.link_trace=WilsonLoops<GImpl>::linkTrace(data);
-        header.plaquette =WilsonLoops<GImpl>::avgPlaquette(data);
-        header.hdr_version = fmd.hdr_version;
-        header.storage_format = fmd.storage_format;
-        header.ensemble_id = fmd.ensemble_id;
-        header.ensemble_label = fmd.ensemble_label;
-        header.sequence_number = fmd.sequence_number;
-    }
-};
-
 // execution ///////////////////////////////////////////////////////////////////
 template <typename GImpl>
 void TSaveNersc<GImpl>::execute(void)
 {
-    std::map<std::string,std::string> extraMetadata;
-    if( !par().comment.empty() )
-    {
-        extraMetadata["COMMENT"] = par().comment;
-    }
-
-    std::string   traj = "." + std::to_string(vm().getTrajectory());
-    std::string fileName = par().file + traj;
+    std::string fileName = par().file + "." + std::to_string(vm().getTrajectory());
     LOG(Message) << "Saving NERSC configuration to file '" << fileName
                  << "'" << std::endl;
 
     auto &U = envGet(GaugeField, par().gauge);
-    const bool bCopyMetadata = !par().gaugeMetadata.empty();
-    if( bCopyMetadata )
-    {
-        using CachedStats = CachedGaugeFixedStatistics<GImpl>;
-        std::string metadataFile = par().gaugeMetadata + traj;
-        CachedStats Cache(metadataFile, U.Grid());
-        NerscIO::writeConfiguration<CachedGaugeFixedStatistics<GImpl>>
-                                   (U, fileName, 0, 0, Cache, &extraMetadata);
-    }
-    else
-    {
-        NerscIO::writeConfiguration<GaugeStatistics<GImpl>>(U, fileName, 0, 0, &extraMetadata);
-    }
+    NerscIO::writeConfiguration(U, fileName, par().ensembleLabel);
 }
 
 END_MODULE_NAMESPACE
