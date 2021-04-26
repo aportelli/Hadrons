@@ -1,10 +1,15 @@
-#ifndef atwork_hpp
-#define atwork_hpp
+#ifndef Distil_matrix_hpp_
+#define Distil_matrix_hpp_
 
 #include <Hadrons/Global.hpp>
 #include <Hadrons/A2AMatrix.hpp>
 #include <Hadrons/DilutedNoise.hpp>
 #include <Hadrons/NamedTensor.hpp>
+#include <Hadrons/TimerArray.hpp>
+
+#ifndef HADRONS_DISTIL_IO_TYPE
+#define HADRONS_DISTIL_IO_TYPE ComplexF
+#endif
 
 BEGIN_HADRONS_NAMESPACE
 BEGIN_MODULE_NAMESPACE(MDistil)
@@ -55,24 +60,28 @@ private:
     const unsigned int                  cSize_;
     unsigned int                        nt_;
     unsigned int                        nd_;
+    std::vector<std::vector<RealF>>     momenta_;
+    std::vector<Gamma::Algebra>         gamma_;
 public:
     DmfComputation(std::map<std::string,std::string>    c,
+                   std::vector<std::vector<RealF>>      momenta,
+                   std::vector<Gamma::Algebra>          gamma,
                    GridCartesian*                       g,
                    GridCartesian*                       g3d,
                    const unsigned int                   blockSize,
                    const unsigned int                   cacheSize,
                    unsigned int                         nt);
 public:
-    void execute(std::vector<A2AMatrixIo<Tio>>                      io_table,
+    void execute(std::string                                        outPath,
                  std::map<std::string, DistilVector&>               dv,
                  std::map<std::string, DistillationNoise&>          n,
-                 std::vector<Gamma::Algebra>                        gamma,
+                 std::vector<int>                                   inoise,
                  std::vector<ComplexField>                          ph,
-                 const unsigned int                                 n_ext,
-                 const unsigned int                                 n_str,
                  std::map<std::string, unsigned int>                dil_size_ls,
                  const unsigned int                                 eff_nt,
                  std::map<std::string, std::vector<unsigned int>>   timeDilSource,
+                 TimeSliceMap                                       leftTimeMap,
+                 TimeSliceMap                                       rightTimeMap,
                  TimerArray*                                        tarray);
     void distVec(std::map<std::string, DistilVector&>               dv,
                  std::map<std::string, DistillationNoise&>          n,
@@ -194,38 +203,43 @@ void DmfComputation<FImpl,T,Tio>
 template <typename FImpl, typename T, typename Tio>
 DmfComputation<FImpl,T,Tio>
 ::DmfComputation(std::map<std::string,std::string>  c,
+                 std::vector<std::vector<RealF>>    momenta,
+                 std::vector<Gamma::Algebra>        gamma,
                  GridCartesian*                     g,
                  GridCartesian*                     g3d,
                  const unsigned int                 blockSize,
                  const unsigned int                 cacheSize,
                  unsigned int                       nt)
-: dmfCase_(c), g_(g), g3d_(g3d), evec3d_(g3d), tmp3d_(g3d)
+: dmfCase_(c), momenta_(momenta), gamma_(gamma), g_(g), g3d_(g3d), evec3d_(g3d), tmp3d_(g3d)
 , nt_(nt), nd_(g->Nd()), bSize_(blockSize) , cSize_(cacheSize)
 {
 }
 
 template <typename FImpl, typename T, typename Tio>
 void DmfComputation<FImpl,T,Tio>
-::execute(std::vector<A2AMatrixIo<Tio>>                     io_table,
+::execute(std::string                                       outPath,
           std::map<std::string, DistilVector&>              dv,
           std::map<std::string, DistillationNoise&>         n,
-          std::vector<Gamma::Algebra>                       gamma,
+          std::vector<int>                                  inoise,
           std::vector<ComplexField>                         ph,
-          const unsigned int                                n_ext,
-          const unsigned int                                n_str,
           std::map<std::string, unsigned int>               dil_size_ls,
           const unsigned int                                eff_nt,
           std::map<std::string, std::vector<unsigned int>>  timeDilSource,
+          TimeSliceMap                                      leftTimeMap,
+          TimeSliceMap                                      rightTimeMap,
           TimerArray*                                       tarray)
 {
+    const int n_ext = momenta_.size();
+    const int n_str = gamma_.size();
+    bool fileIsInit = false;
     bBuf_.resize(n_ext*n_str*eff_nt*bSize_*bSize_); //does Hadrons environment know about this?
     cBuf_.resize(n_ext*n_str*nt_*cSize_*cSize_);
     
     const unsigned int vol = g_->_gsites;
     std::string dmfcase = dmfCase_.at("left") + " " + dmfCase_.at("right");
     // computing mesonfield blocks and saving to disk
-    for (auto& dtL : timeDilSource.at("left"))
-    for (auto& dtR : timeDilSource.at("right"))
+    for (unsigned int dtL : timeDilSource.at("left"))
+    for (unsigned int dtR : timeDilSource.at("right"))
     {
         std::map<std::string,std::vector<unsigned int>> p = { {"left",{}} , {"right",{}}};
         for(auto s : sides_)
@@ -246,7 +260,7 @@ void DmfComputation<FImpl,T,Tio>
                               p.at("right").begin(), p.at("right").end(),
                               std::back_inserter(stInter));
 
-        if( !stInter.empty() ) // only execute rho rho case when partitions have at least one time slice in common
+        if( !stInter.empty() ) // only execute case when partitions have at least one time slice in common
         {
             LOG(Message) << "################### dtL_" << dtL << " dtR_" << dtR << " ################### " << std::endl; 
             LOG(Message) << "At least one rho found. Time slices to be saved=" << stInter << "..." << std::endl;
@@ -255,10 +269,11 @@ void DmfComputation<FImpl,T,Tio>
             unsigned int nblocki = dil_size_ls.at("left")/bSize_ + (((dil_size_ls.at("left") % bSize_) != 0) ? 1 : 0);
             unsigned int nblockj = dil_size_ls.at("right")/bSize_ + (((dil_size_ls.at("right") % bSize_) != 0) ? 1 : 0);
 
-            // loop over blocls in the current time-dilution block
+            // loop over blocks in the current time-dilution block
             for(unsigned int iblock=0 ; iblock<dil_size_ls.at("left") ; iblock+=bSize_) //set according to memory size
             for(unsigned int jblock=0 ; jblock<dil_size_ls.at("right") ; jblock+=bSize_)
             {
+                // RESIZE bBuf_ HERE : eff_nt -> eff_nt=stInter.size()
                 unsigned int iblockSize = MIN(dil_size_ls.at("left")-iblock,bSize_);    // iblockSize is the size of the current block (indexed by i); N_i-i is the size of the eventual remainder block
                 unsigned int jblockSize = MIN(dil_size_ls.at("right")-jblock,bSize_);
                 A2AMatrixSet<Tio> block(bBuf_.data(), n_ext , n_str , eff_nt, iblockSize, jblockSize);
@@ -289,7 +304,7 @@ void DmfComputation<FImpl,T,Tio>
                     tarray->startTimer("kernel");
                     // assuming certain indexation here! (dt must be the slowest index for this to work; otherwise will have to compute l/r block at each contraction)
                     unsigned int iDl = n.at("left").dilutionIndex(dtL,0,0) , iDr = n.at("right").dilutionIndex(dtR,0,0);
-                    A2Autils<FImpl>::MesonField(blockCache, &dv.at("left")[iDl+iblock+icache], &dv.at("right")[iDr+jblock+jcache], gamma, ph, nd_ - 1, &timer);
+                    A2Autils<FImpl>::MesonField(blockCache, &dv.at("left")[iDl+iblock+icache], &dv.at("right")[iDr+jblock+jcache], gamma_, ph, nd_ - 1, &timer);
                     tarray->stopTimer("kernel");
                     time_kernel += timer;
 
@@ -323,42 +338,74 @@ void DmfComputation<FImpl,T,Tio>
 
                 // saving current block to disk
                 LOG(Message) << "Writing block to disk" << std::endl;
+                double ioTime = (tarray!=nullptr) ? -tarray->getDTimer("IO: write block") : 0.0;
                 tarray->startTimer("IO: total");
-                tarray->startTimer("IO: write block");
-                double ioTime = -tarray->getDTimer("IO: write block");
 #ifdef HADRONS_A2AM_PARALLEL_IO
                 //parallel io
                 unsigned int inode = g_->ThisRank();
                 unsigned int nnode = g_->RankCount(); 
                 LOG(Message) << "Starting parallel IO. Rank count=" << nnode  << std::endl;
+                DistilMesonFieldMetadata<FImpl> md;
                 g_->Barrier();
                 for(unsigned int ies=inode ; ies<n_ext*n_str ; ies+=nnode){
                     unsigned int iExt = ies/n_str;
                     unsigned int iStr = ies%n_str;
+
+                    // metadata;
+                    md.momentum             = momenta_[iExt];
+                    md.gamma                = gamma_[iStr];
+                    md.noise_pair           = inoise;
+                    md.left_time_sources    = timeDilSource.at("left");
+                    md.right_time_sources   = timeDilSource.at("right");
+                    md.left_time_dilution   = leftTimeMap;
+                    md.right_time_dilution  = rightTimeMap;
+                    md.meson_field_case     = dmfCase_.at("left") + " " + dmfCase_.at("right");
+
+                    std::stringstream ss;
+                    ss << md.gamma << "_";
+                    for (unsigned int mu = 0; mu < md.momentum.size(); ++mu)
+                        ss << md.momentum[mu] << ((mu == md.momentum.size() - 1) ? "" : "_");
+                    std::string groupName = ss.str();
+
+                    // io init
+                    std::string outStem = outPath + "/noise" + std::to_string(inoise[0]) + "_" + std::to_string(inoise[1]) + "/" +dmfCase_.at("left")+"-"+dmfCase_.at("right") + "/";
+                    Hadrons::mkdir(outStem);
+                    std::string mfName = groupName+".h5";
+                    A2AMatrixIo<HADRONS_DISTIL_IO_TYPE> matrixIo(outStem+mfName, groupName, eff_nt, dil_size_ls.at("left"), dil_size_ls.at("right"));
+                    
+                    tarray->startTimer("IO: write block");
                     if(iblock==0 && jblock==0){              // creates dataset only if it's the first block of the dataset
-                        io_table[iStr + n_str*iExt].saveBlock(block, iExt , iStr , iblock, jblock, datasetName, cSize_);   //set 2D chunk size as cSize_ (the chunk itself is 3D)
+                        //execute this once per file:
+                        if( (dtL==timeDilSource.at("left")[0]) && (dtR==timeDilSource.at("right")[0]) )
+                        // if(g->IsBoss())
+                        {
+                            tarray->startTimer("IO: file creation");
+                            matrixIo.initFile(md);
+                            tarray->stopTimer("IO: file creation");
+                        }
+                        matrixIo.saveBlock(block, iExt , iStr , iblock, jblock, datasetName, cSize_);   //sets 2D chunk size and creates dataset
                     }
                     else{
-                        io_table[iStr + n_str*iExt].saveBlock(block, iExt , iStr , iblock, jblock, datasetName);
+                        matrixIo.saveBlock(block, iExt , iStr , iblock, jblock, datasetName);
                     }
+                    tarray->stopTimer("IO: write block");
                 }
                 g_->Barrier();
-#else
-                // serial io, can remove later
-                LOG(Message) << "Starting serial IO" << std::endl;
-                for(unsigned int iExt=0; iExt<n_ext; iExt++)
-                for(unsigned int iStr=0; iStr<n_str; iStr++)
-                {
-                    if(iblock==0 && jblock==0){              // creates dataset only if it's the first block of the dataset
-                        matrixIoTable[iStr + n_str*iExt].saveBlock(block, iExt, iStr, iblock, jblock, datasetName, cSize_);   //set surface chunk size as cSize_ (the chunk itself is 3D)
-                    }
-                    else{
-                        matrixIoTable[iStr + n_str*iExt].saveBlock(block, iExt, iStr, iblock, jblock, datasetName);
-                    }
-                }
+// #else
+//                 // serial io, can remove later
+//                 LOG(Message) << "Starting serial IO" << std::endl;
+//                 for(unsigned int iExt=0; iExt<n_ext; iExt++)
+//                 for(unsigned int iStr=0; iStr<n_str; iStr++)
+//                 {
+//                     if(iblock==0 && jblock==0){              // creates dataset only if it's the first block of the dataset
+//                         matrixIoTable[iStr + n_str*iExt].saveBlock(block, iExt, iStr, iblock, jblock, datasetName, cSize_);   //set surface chunk size as cSize_ (the chunk itself is 3D)
+//                     }
+//                     else{
+//                         matrixIoTable[iStr + n_str*iExt].saveBlock(block, iExt, iStr, iblock, jblock, datasetName);
+//                     }
+//                 }
 #endif
                 tarray->stopTimer("IO: total");
-                tarray->stopTimer("IO: write block");
                 ioTime    += tarray->getDTimer("IO: write block");
                 unsigned int bytesBlockSize  = static_cast<double>(n_ext*n_str*eff_nt*iblockSize*jblockSize*sizeof(Tio));
                 LOG(Message)    << "HDF5 IO done " << sizeString(bytesBlockSize) << " in "
@@ -471,4 +518,4 @@ static void printMap(TimeSliceMap &m)
 END_MODULE_NAMESPACE
 END_HADRONS_NAMESPACE
 
-#endif
+#endif // Distil_matrix_hpp_
