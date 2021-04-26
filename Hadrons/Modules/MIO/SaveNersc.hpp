@@ -49,7 +49,7 @@ class SaveNerscPar: Serializable
 public:
     GRID_SERIALIZABLE_CLASS_MEMBERS(SaveNerscPar,
                                     std::string, gauge,
-                                    std::string, file,
+                                    std::string, fileStem,
                                     std::string, ensembleLabel);
 };
 
@@ -106,11 +106,12 @@ void TSaveNersc<GImpl>::setup(void)
 template <typename GImpl>
 void TSaveNersc<GImpl>::execute(void)
 {
-    std::string fileName = par().file + "." + std::to_string(vm().getTrajectory());
+    std::string fileName = par().fileStem + "." + std::to_string(vm().getTrajectory());
     LOG(Message) << "Saving NERSC configuration to file '" << fileName
                  << "'" << std::endl;
 
     auto &U = envGet(GaugeField, par().gauge);
+    makeFileDir(fileName, U.Grid());
     NerscIO::writeConfiguration(U, fileName, par().ensembleLabel);
 }
 
