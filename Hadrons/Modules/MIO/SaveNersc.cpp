@@ -1,5 +1,5 @@
 /*
- * LoadField.cpp, part of Hadrons (https://github.com/aportelli/Hadrons)
+ * LoadNersc.cpp, part of Hadrons (https://github.com/aportelli/Hadrons)
  *
  * Copyright (C) 2015 - 2020
  *
@@ -23,14 +23,10 @@
  */
 
 /*  END LEGAL */
-#include <Hadrons/Modules/MIO/LoadField.hpp>
+#include <Hadrons/Modules/MIO/SaveNersc.hpp>
 
 using namespace Grid;
 using namespace Hadrons;
 using namespace MIO;
 
-template class Grid::Hadrons::MIO::TLoadField<FIMPL::PropagatorField>;
-#ifdef GRID_DEFAULT_PRECISION_DOUBLE
-template class Grid::Hadrons::MIO::TLoadField<FIMPL::PropagatorField, FIMPLF::PropagatorField>;
-#endif
-template class Grid::Hadrons::MIO::TLoadField<GIMPL::GaugeLinkField>;
+template class Grid::Hadrons::MIO::TSaveNersc<GIMPL>;
