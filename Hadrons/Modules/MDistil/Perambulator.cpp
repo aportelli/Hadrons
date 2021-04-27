@@ -48,6 +48,9 @@ BEGIN_MODULE_NAMESPACE(MDistil)
 const std::string                PerambTensor::Name__{"Perambulator"};
 const std::array<std::string, 6> PerambTensor::DefaultIndexNames__{"nT", "nVec", "LI", "nNoise", "nT_inv", "SI"};
 
+const std::string                PerambIndexTensor::Name__{"Perambulator"};
+const std::array<std::string, 5> PerambIndexTensor::DefaultIndexNames__{"nT", "nVec", "LI", "nNoise", "SI"};
+
 const std::string                TimesliceEvals::Name__{"TimesliceEigenValues"};
 const std::array<std::string, 2> TimesliceEvals::DefaultIndexNames__{"nT", "nVec"};
 

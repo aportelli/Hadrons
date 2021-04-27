@@ -171,9 +171,6 @@ public:
 
 BEGIN_MODULE_NAMESPACE(MDistil)
 
-//Eigenvectors of the Laplacian
-using LapEvecs = Grid::Hadrons::EigenPack<LatticeColourVector>;
-
 class PerambMetadata : Serializable
 {
 public:
@@ -190,6 +187,25 @@ class PerambTensor : public NamedTensor<SpinVector, 6, PerambMetadata>
     template<typename... IndexTypes>
     PerambTensor(Eigen::Index nT, Eigen::Index nVec, Eigen::Index LI, Eigen::Index nNoise, Eigen::Index nT_inv, Eigen::Index SI)
     : NamedTensor{Name__, DefaultIndexNames__, nT, nVec, LI, nNoise, nT_inv, SI} {}
+};
+
+// Separate class for multiFile
+class PerambIndexMetadata : Serializable
+{
+public:
+    GRID_SERIALIZABLE_CLASS_MEMBERS(PerambIndexMetadata, int, Version,
+                                    int, timeDilutionIndex );
+};
+
+class PerambIndexTensor : public NamedTensor<SpinVector, 5, PerambIndexMetadata>
+{
+    public:
+    static const std::string                Name__;
+    static const std::array<std::string, 5> DefaultIndexNames__;
+    // Construct a named tensor explicitly specifying size of each dimension
+    template<typename... IndexTypes>
+    PerambIndexTensor(Eigen::Index nT, Eigen::Index nVec, Eigen::Index LI, Eigen::Index nNoise, Eigen::Index SI)
+    : NamedTensor{Name__, DefaultIndexNames__, nT, nVec, LI, nNoise, SI} {}
 };
 
 class TimesliceEvals : public NamedTensor<RealD, 2>
