@@ -78,7 +78,6 @@ public:
                  std::vector<int>                                   inoise,
                  std::vector<ComplexField>                          ph,
                  std::map<std::string, unsigned int>                dil_size_ls,
-                 const unsigned int                                 eff_nt,
                  std::map<std::string, std::vector<unsigned int>>   timeDilSource,
                  TimeSliceMap                                       leftTimeMap,
                  TimeSliceMap                                       rightTimeMap,
@@ -118,10 +117,8 @@ private:
     std::map<std::string,std::string> dmfCase_;
     TimeSliceMap noiseTimeMapl_, noiseTimeMapr_;
     const std::vector<std::string> sides = {"left","right"};
-    unsigned int effTime(TimeSliceMap tmap);
 public:
     DmfHelper(DistillationNoise & nl, DistillationNoise & nr, std::map<std::string,std::string> c);
-    unsigned int computeEffTimeDimension();
     std::vector<std::vector<int>> parseNoisePairs(std::vector<std::string> inputN);
     void computePhase(std::vector<std::vector<RealF>> momenta, ComplexField &coor, std::vector<int> dim, std::vector<ComplexField> &phase);
     TimeSliceMap timeSliceMap(DistillationNoise & n);
@@ -223,7 +220,6 @@ void DmfComputation<FImpl,T,Tio>
           std::vector<int>                                  inoise,
           std::vector<ComplexField>                         ph,
           std::map<std::string, unsigned int>               dil_size_ls,
-          const unsigned int                                eff_nt,
           std::map<std::string, std::vector<unsigned int>>  timeDilSource,
           TimeSliceMap                                      leftTimeMap,
           TimeSliceMap                                      rightTimeMap,
@@ -232,7 +228,6 @@ void DmfComputation<FImpl,T,Tio>
     const int n_ext = momenta_.size();
     const int n_str = gamma_.size();
     bool fileIsInit = false;
-    bBuf_.resize(n_ext*n_str*eff_nt*bSize_*bSize_); //does Hadrons environment know about this?
     cBuf_.resize(n_ext*n_str*nt_*cSize_*cSize_);
     
     const unsigned int vol = g_->_gsites;
@@ -260,10 +255,15 @@ void DmfComputation<FImpl,T,Tio>
                               p.at("right").begin(), p.at("right").end(),
                               std::back_inserter(stInter));
 
+        // RESIZE bBuf_ HERE : eff_nt -> eff_nt=stInter.size()
+        const int eff_nt = stInter.size();
+        bBuf_.resize(n_ext*n_str*eff_nt*bSize_*bSize_); //does Hadrons environment know about this?
+
         if( !stInter.empty() ) // only execute case when partitions have at least one time slice in common
         {
             LOG(Message) << "################### dtL_" << dtL << " dtR_" << dtR << " ################### " << std::endl; 
             LOG(Message) << "At least one rho found. Time slices to be saved=" << stInter << "..." << std::endl;
+            LOG(Message) << "Time extension in file = " << eff_nt << std::endl;
             std::string datasetName = "dtL"+std::to_string(dtL)+"_dtR"+std::to_string(dtR);
 
             unsigned int nblocki = dil_size_ls.at("left")/bSize_ + (((dil_size_ls.at("left") % bSize_) != 0) ? 1 : 0);
@@ -273,7 +273,6 @@ void DmfComputation<FImpl,T,Tio>
             for(unsigned int iblock=0 ; iblock<dil_size_ls.at("left") ; iblock+=bSize_) //set according to memory size
             for(unsigned int jblock=0 ; jblock<dil_size_ls.at("right") ; jblock+=bSize_)
             {
-                // RESIZE bBuf_ HERE : eff_nt -> eff_nt=stInter.size()
                 unsigned int iblockSize = MIN(dil_size_ls.at("left")-iblock,bSize_);    // iblockSize is the size of the current block (indexed by i); N_i-i is the size of the eventual remainder block
                 unsigned int jblockSize = MIN(dil_size_ls.at("right")-jblock,bSize_);
                 A2AMatrixSet<Tio> block(bBuf_.data(), n_ext , n_str , eff_nt, iblockSize, jblockSize);
@@ -428,33 +427,6 @@ DmfHelper<FImpl>::DmfHelper(DistillationNoise&                  nl,
 {
     nt_ = nr.getNt();
     nd_ = nr.getGrid()->Nd();
-}
-
-template <typename FImpl>
-unsigned int DmfHelper<FImpl>::effTime(TimeSliceMap tmap)
-{
-    // assuming it's a rho
-    // compute eff_nt (1<=eff_nt<=nt_), the time extensin in the final object when there's at least one rho involved
-    unsigned int eff_nt = 1;
-    for(auto &e : tmap)
-        e.size() > eff_nt ? eff_nt = e.size() : 0;      //get the highest possible eff_nt from st
-    return eff_nt;
-}
-
-template <typename FImpl>
-unsigned int DmfHelper<FImpl>::computeEffTimeDimension()
-{
-    if(dmfCase_.at("left")=="rho" || dmfCase_.at("right")=="rho")
-    {
-        unsigned int left_neff = (dmfCase_.at("left")=="phi") ? 0  : effTime(noiseTimeMapl_);
-        unsigned int right_neff = (dmfCase_.at("right")=="phi") ? 0 : effTime(noiseTimeMapr_);
-        // std::cout << left_neff << " " << right_neff << std::endl;
-        return MAX(left_neff,right_neff);    // if it's from phi (=0) it will be ignored by MAX
-    }
-    else
-    {
-        return nt_;
-    }
 }
 
 template <typename FImpl>

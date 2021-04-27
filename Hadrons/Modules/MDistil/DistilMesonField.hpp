@@ -74,7 +74,6 @@ private:
     unsigned int blockSize_;
     unsigned int cacheSize_;
     std::map<std::string,std::string>   dmf_case_;
-    unsigned int                        eff_nt_;
     std::vector<std::vector<int>>       noisePairs_;           // read from extermal object (diluted noise class)
     std::string                         outputMFStem_;
     bool                                hasPhase_{false};
@@ -265,7 +264,6 @@ void TDistilMesonField<FImpl>::execute(void)
         }
     }
 
-    eff_nt_     = helper.computeEffTimeDimension();
     noisePairs_ = helper.parseNoisePairs(par().noisePairs);
 
     //compute momentum phase
@@ -282,7 +280,6 @@ void TDistilMesonField<FImpl>::execute(void)
     LOG(Message) << "Left:" << timeDilSource.at("left") << std::endl;
     LOG(Message) << "Right:" << timeDilSource.at("right") << std::endl;
     LOG(Message) << "Meson field case: "    << par().mesonFieldCase << std::endl;
-    LOG(Message) << "EffTime dimension = "  << eff_nt_ << std::endl;
     LOG(Message) << "Selected block size: " << par().blockSize << std::endl;
     LOG(Message) << "Selected cache size: " << par().cacheSize << std::endl;
     LOG(Message) << "Lap-spin dilution size (left x right): " << dilutionSize_ls_.at("left") << " x " << dilutionSize_ls_.at("right") << std::endl;
@@ -313,7 +310,7 @@ void TDistilMesonField<FImpl>::execute(void)
 
         // computing mesonfield blocks and saving to disk
         LOG(Message) << "Time-dilution blocks computation starting..." << std::endl;
-        computation.execute(outputMFStem_, distVectors, noises, inoise, phase, dilutionSize_ls_, eff_nt_, timeDilSource, helper.timeSliceMap(noises.at("left")), helper.timeSliceMap(noises.at("right")), this);
+        computation.execute(outputMFStem_, distVectors, noises, inoise, phase, dilutionSize_ls_, timeDilSource, helper.timeSliceMap(noises.at("left")), helper.timeSliceMap(noises.at("right")), this);
 
         LOG(Message) << "Meson fields saved at " << outputMFStem_ << std::endl;
     }
