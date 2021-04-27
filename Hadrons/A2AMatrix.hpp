@@ -115,6 +115,8 @@ public:
     void saveBlock(const A2AMatrixSet<T> &m, const unsigned int ext, const unsigned int str,
                    const unsigned int i, const unsigned int j);
     //distillation overloads and new methods
+    void saveAttr(H5NS::H5Object& obj, const void *data,  const int rank, 
+                                  const hsize_t *dim, const H5NS::DataType &type);
     void createBlock(const T *data, const unsigned int i, const unsigned int j,
                    const unsigned int blockSizei, const unsigned int blockSizej,
                    std::string datasetName, const unsigned int chunkSize);
@@ -541,9 +543,17 @@ void A2AMatrixIo<T>::saveBlock(const A2AMatrixSet<T> &m,
 }
 
 //distillation overloads and new methods
+
 template <typename T>
-void A2AMatrixIo<T>::createBlock(const T *data,
-                               const unsigned int i, const unsigned int j,
+void A2AMatrixIo<T>::saveAttr(H5NS::H5Object& obj, const void *data, const int rank, const hsize_t *dim, const H5NS::DataType &type)
+{
+    H5NS::DataSpace attrSpace(rank, dim);
+    H5NS::Attribute attr = obj.createAttribute("time_slices", type, attrSpace);
+    attr.write(type, data);
+}
+
+template <typename T>
+void A2AMatrixIo<T>::createBlock(const T *data, const unsigned int i, const unsigned int j,
                                const unsigned int blockSizei, const unsigned int blockSizej,
                                std::string datasetName, const unsigned int chunkSize)
 {
@@ -573,6 +583,11 @@ void A2AMatrixIo<T>::createBlock(const T *data,
     plist.setChunk(chunk.size(), chunk.data());
     plist.setFletcher32();
     dataset = group.createDataSet(datasetName, Hdf5Type<T>::type(), dataspace, plist);
+
+    std::vector<unsigned int> st = {0,16,11};
+    hsize_t         attrDim = st.size();
+    saveAttr(dataset, st.data(), 1, &attrDim, Hdf5Type<unsigned int>::type());
+
 #else
     HADRONS_ERROR(Implementation, "all-to-all matrix I/O needs HDF5 library");
 #endif
