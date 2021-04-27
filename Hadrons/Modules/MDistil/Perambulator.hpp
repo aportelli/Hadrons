@@ -132,7 +132,12 @@ void TPerambulator<FImpl>::setup(void)
     GridCartesian * grid3d = envGetSliceGrid(FermionField,grid4d->Nd() -1);
     const int  Nt{env().getDim(Tdir)};
     auto &dilNoise = envGet(DistillationNoise<FImpl>, par().distilNoise);
-    int nNoise = dilNoise.size();	
+    int nNoise = dilNoise.size();
+    int nDL = dilNoise.dilutionSize(DistillationNoise<FImpl>::Index::l);	
+    int nDS = dilNoise.dilutionSize(DistillationNoise<FImpl>::Index::s);	
+    int nDT = dilNoise.dilutionSize(DistillationNoise<FImpl>::Index::t);
+    pMode perambMode{par().perambMode};
+    // get nVec from DilutedNoise class, unless specified here. This is useful (and allowed) only in the inputSolve mode, where an already computed full solve can be recycled to compute a new perambulator with a smaller nVec.   
     int nVec=0;
     if(par().nVec.empty())
     {
@@ -142,9 +147,21 @@ void TPerambulator<FImpl>::setup(void)
     {
         nVec = std::stoi(par().nVec);
     }
-    int nDL = dilNoise.dilutionSize(DistillationNoise<FImpl>::Index::l);	
-    int nDS = dilNoise.dilutionSize(DistillationNoise<FImpl>::Index::s);	
-    int nDT = dilNoise.dilutionSize(DistillationNoise<FImpl>::Index::t);	
+    if(nVec > dilNoise.getNl())
+    {
+        HADRONS_ERROR(Argument, "nVec cannot be larger than the one specified in DilutedNoise");
+    }
+    if(perambMode != pMode::inputSolve && nVec < dilNoise.getNl())
+    {
+        HADRONS_ERROR(Argument, "only perambMode = inputSolve supports a different nVec to the one specified in DilutedNoise");
+    }
+    // If we run with reduced nVec we still need the same DilutedNoise object, we have to keep track of two different values of nDL: the one used for the original full solve, and the one used in this module execution 
+    int nDL_reduced=nDL;
+    if(nDL>nVec)
+    {
+        nDL_reduced=nVec;
+    }
+    // read in and verify the format of the vector of time sources used in this module execution. Must be a subset of available time dilution indices.
     int nSourceT;
     std::string sourceT = par().timeSources;
     if(par().timeSources.empty())
@@ -172,10 +189,10 @@ void TPerambulator<FImpl>::setup(void)
 	    }
 	}
     }
-	    
-    envCreate(PerambTensor, getName(), 1, Nt, nVec, nDL, nNoise, nSourceT, nDS);
-    envTmp(PerambIndexTensor, "PerambMultiFileTmp",1,Nt,nVec,nDL,nNoise,nDS);
-    pMode perambMode{par().perambMode};
+
+    // Perambulator dimensions need to use the reduced value for nDL     
+    envCreate(PerambTensor, getName(), 1, Nt, nVec, nDL_reduced, nNoise, nSourceT, nDS);
+    envTmp(PerambIndexTensor, "PerambMultiFileTmp",1,Nt,nVec,nDL_reduced,nNoise,nDS);
     if(perambMode == pMode::outputSolve)
     {
         LOG(Message)<< "setting up output field for full solves" << std::endl;
@@ -190,6 +207,7 @@ void TPerambulator<FImpl>::setup(void)
     envTmp(ColourVectorField,    "cv3dtmp", 1, grid3d);
     envTmp(ColourVectorField,    "evec3d",  1, grid3d);
     
+    // No solver needed if an already existing solve is recycled    
     if(perambMode != pMode::inputSolve)
     {
         Ls_ = env().getObjectLs(par().solver);
@@ -218,6 +236,12 @@ void TPerambulator<FImpl>::execute(void)
     int nDS = dilNoise.dilutionSize(DistillationNoise<FImpl>::Index::s);	
     int nDT = dilNoise.dilutionSize(DistillationNoise<FImpl>::Index::t);	
     int nD = nDL * nDS * nDT;
+    // If we run with reduced nVec we still need the same DilutedNoise object, but a smaller laplacian dilution dimension
+    int nDL_reduced=nDL;
+    if(nDL>nVec)
+    {
+        nDL_reduced=nVec;
+    }
     auto &perambulator = envGet(PerambTensor, getName());
     auto &epack = envGet(typename DistillationNoise<FImpl>::LapPack, par().lapEigenPack);
     
@@ -268,7 +292,7 @@ void TPerambulator<FImpl>::execute(void)
     LOG(Message) << "Source times" << sourceTimes << std::endl;
     perambulator.MetaData.timeSources = invT;
 
-    int idt,dt,dk,ds,dIndexSolve,nVecFullSolve = 0; 
+    int idt,dt,dk,ds,dIndexSolve = 0; 
     std::array<unsigned int, 3> index;
     for (int inoise = 0; inoise < nNoise; inoise++)
     {
@@ -277,6 +301,11 @@ void TPerambulator<FImpl>::execute(void)
             index = dilNoise.dilutionCoordinates(d);
    	    dt = index[DistillationNoise<FImpl>::Index::t];
    	    dk = index[DistillationNoise<FImpl>::Index::l];
+	    if(dk>=nDL_reduced)
+	    {
+   	        //skip laplacian dilution indices which are larger than (reduced) number of eigenvectors used for the perambulator 
+   	        continue;
+	    }
    	    ds = index[DistillationNoise<FImpl>::Index::s];
 	    std::vector<int>::iterator it = std::find(std::begin(invT), std::end(invT), dt);
    	    if(it == std::end(invT))
@@ -288,9 +317,8 @@ void TPerambulator<FImpl>::execute(void)
             if(perambMode == pMode::inputSolve)
    	    {
                 auto &solveIn         = envGet(std::vector<FermionField>, par().fullSolve);
-   	        // index of the solve just has the reduced time dimension & uses nVec from solveIn
-                nVecFullSolve   = solveIn.size()/nNoise/nDS/nSourceT;
-   	        dIndexSolve = ds + nDS * dk + nVecFullSolve * nDL * idt;
+   	        // index of the solve just has the reduced time dimension & uses nDL from solveIn
+   	        dIndexSolve = ds + nDS * dk + nDL * nDS * idt;
                 fermion4dtmp = solveIn[inoise+nNoise*dIndexSolve];
 		LOG(Message) <<  "re-using source vector: noise " << inoise << " dilution (d_t,d_k,d_alpha) : (" << dt << ","<< dk << "," << ds << ")" << std::endl;
    	    } 
@@ -315,7 +343,7 @@ void TPerambulator<FImpl>::execute(void)
                 if(perambMode == pMode::outputSolve)
                 {
    	            // index of the solve just has the reduced time dimension 
-   	            dIndexSolve = ds + nDS * dk + nVec * nDL * idt;
+   	            dIndexSolve = ds + nDS * dk + nVec * nDS * idt;
                     auto &solveOut = envGet(std::vector<FermionField>, getName()+"_full_solve");
                     solveOut[inoise+nNoise*dIndexSolve] = fermion4dtmp;
                 }
@@ -388,7 +416,7 @@ void TPerambulator<FImpl>::execute(void)
                 makeFileDir(sPerambName, grid4d);
                 for (int t = 0; t < Nt; t++)
                 for (int ivec = 0; ivec < nVec; ivec++)
-                for (int idl = 0; idl < nDL; idl++)
+                for (int idl = 0; idl < nDL_reduced; idl++)
                 for (int in = 0; in < nNoise; in++)
                 for (int ids = 0; ids < nDS; ids++)
 		    PerambMultiFileTmp.tensor(t,ivec,idl,in,ids) = perambulator.tensor(t,ivec,idl,in,idt,ids);
