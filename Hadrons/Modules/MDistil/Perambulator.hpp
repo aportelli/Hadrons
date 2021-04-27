@@ -301,16 +301,16 @@ void TPerambulator<FImpl>::execute(void)
             index = dilNoise.dilutionCoordinates(d);
    	    dt = index[DistillationNoise<FImpl>::Index::t];
    	    dk = index[DistillationNoise<FImpl>::Index::l];
+   	    //skip laplacian dilution indices which are larger than (reduced) number of eigenvectors used for the perambulator 
 	    if(dk>=nDL_reduced)
 	    {
-   	        //skip laplacian dilution indices which are larger than (reduced) number of eigenvectors used for the perambulator 
    	        continue;
 	    }
    	    ds = index[DistillationNoise<FImpl>::Index::s];
 	    std::vector<int>::iterator it = std::find(std::begin(invT), std::end(invT), dt);
+   	    //skip dilution indices which are not in invT
    	    if(it == std::end(invT))
    	    {
-   	        //skip dilution indices which are not in invT
    	        continue;
    	    }
 	    idt=it - std::begin(invT);
@@ -343,7 +343,7 @@ void TPerambulator<FImpl>::execute(void)
                 if(perambMode == pMode::outputSolve)
                 {
    	            // index of the solve just has the reduced time dimension 
-   	            dIndexSolve = ds + nDS * dk + nVec * nDS * idt;
+   	            dIndexSolve = ds + nDS * dk + nDL * nDS * idt;
                     auto &solveOut = envGet(std::vector<FermionField>, getName()+"_full_solve");
                     solveOut[inoise+nNoise*dIndexSolve] = fermion4dtmp;
                 }
