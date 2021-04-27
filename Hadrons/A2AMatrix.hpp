@@ -115,14 +115,13 @@ public:
     void saveBlock(const A2AMatrixSet<T> &m, const unsigned int ext, const unsigned int str,
                    const unsigned int i, const unsigned int j);
     //distillation overloads and new methods
-    void saveAttr(H5NS::H5Object& obj, const void *data,  const int rank, 
+    void saveAttr(H5NS::H5Object& obj, std::string attrName, const void *data,  const int rank, 
                                   const hsize_t *dim, const H5NS::DataType &type);
-    void createBlock(const T *data, const unsigned int i, const unsigned int j,
-                   const unsigned int blockSizei, const unsigned int blockSizej,
-                   std::string datasetName, const unsigned int chunkSize);
-    void saveBlock(const A2AMatrixSet<T> &m, const unsigned int ext, const unsigned int str,
-                   const unsigned int i, const unsigned int j,
-                   std::string datasetName, const unsigned int chunkSize);
+    void createBlock(std::string datasetName, const unsigned int chunkSize, const std::vector<unsigned int> timeSlices);
+    void saveBlock(const A2AMatrixSet<T> &m,
+                               const unsigned int ext, const unsigned int str,
+                               const unsigned int i, const unsigned int j, std::string datasetName,
+                               const std::vector<unsigned int> timeSlices, const unsigned int chunkSize);
     void saveBlock(const A2AMatrixSet<T> &m, const unsigned int ext, const unsigned int str,
                    const unsigned int i, const unsigned int j,
                    std::string datasetName);
@@ -543,28 +542,21 @@ void A2AMatrixIo<T>::saveBlock(const A2AMatrixSet<T> &m,
 }
 
 //distillation overloads and new methods
-
 template <typename T>
-void A2AMatrixIo<T>::saveAttr(H5NS::H5Object& obj, const void *data, const int rank, const hsize_t *dim, const H5NS::DataType &type)
+void A2AMatrixIo<T>::saveAttr(H5NS::H5Object& obj, std::string attrName, const void *data, const int rank, const hsize_t *dim, const H5NS::DataType &type)
 {
+    //saves generic attribute to H5 object
     H5NS::DataSpace attrSpace(rank, dim);
-    H5NS::Attribute attr = obj.createAttribute("time_slices", type, attrSpace);
+    H5NS::Attribute attr = obj.createAttribute(attrName, type, attrSpace);
     attr.write(type, data);
 }
 
 template <typename T>
-void A2AMatrixIo<T>::createBlock(const T *data, const unsigned int i, const unsigned int j,
-                               const unsigned int blockSizei, const unsigned int blockSizej,
-                               std::string datasetName, const unsigned int chunkSize)
+void A2AMatrixIo<T>::createBlock(std::string datasetName, const unsigned int chunkSize, const std::vector<unsigned int> timeSlices)
 {
 #ifdef HAVE_HDF5
     Hdf5Reader           reader(filename_, false);
-    std::vector<hsize_t> count = {nt_, blockSizei, blockSizej},
-                         offset = {0, static_cast<hsize_t>(i),
-                                   static_cast<hsize_t>(j)},
-                         stride = {1, 1, 1},
-                         block  = {1, 1, 1}; 
-    H5NS::DataSpace      memspace(count.size(), count.data()), dataspace;
+    H5NS::DataSpace      dataspace;
     H5NS::DataSet        dataset;
 
     push(reader, dataname_);
@@ -583,11 +575,9 @@ void A2AMatrixIo<T>::createBlock(const T *data, const unsigned int i, const unsi
     plist.setChunk(chunk.size(), chunk.data());
     plist.setFletcher32();
     dataset = group.createDataSet(datasetName, Hdf5Type<T>::type(), dataspace, plist);
-
-    std::vector<unsigned int> st = {0,16,11};
-    hsize_t         attrDim = st.size();
-    saveAttr(dataset, st.data(), 1, &attrDim, Hdf5Type<unsigned int>::type());
-
+    //save timeslice metadata
+    hsize_t         attrDim = timeSlices.size();
+    saveAttr(dataset, "time_slices", timeSlices.data(), 1, &attrDim, Hdf5Type<unsigned int>::type());
 #else
     HADRONS_ERROR(Implementation, "all-to-all matrix I/O needs HDF5 library");
 #endif
@@ -597,14 +587,14 @@ template <typename T>
 void A2AMatrixIo<T>::saveBlock(const A2AMatrixSet<T> &m,
                                const unsigned int ext, const unsigned int str,
                                const unsigned int i, const unsigned int j, std::string datasetName,
-                               const unsigned int chunkSize)
+                               const std::vector<unsigned int> timeSlices, const unsigned int chunkSize)
 {
     unsigned int blockSizei = m.dimension(3);
     unsigned int blockSizej = m.dimension(4);
     unsigned int nstr       = m.dimension(1);
     size_t       offset     = (ext*nstr + str)*nt_*blockSizei*blockSizej;
 
-    createBlock(m.data() + offset, i, j, blockSizei, blockSizej, datasetName, chunkSize);
+    createBlock(datasetName, chunkSize, timeSlices);
     saveBlock(m.data() + offset, i, j, blockSizei, blockSizej, datasetName);
 }
 

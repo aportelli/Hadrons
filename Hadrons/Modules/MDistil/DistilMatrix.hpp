@@ -382,7 +382,7 @@ void DmfComputation<FImpl,T,Tio>
                             matrixIo.initFile(md);
                             tarray->stopTimer("IO: file creation");
                         }
-                        matrixIo.saveBlock(block, iExt , iStr , iblock, jblock, datasetName, cSize_);   //sets 2D chunk size and creates dataset
+                        matrixIo.saveBlock(block, iExt , iStr , iblock, jblock, datasetName, stInter, cSize_);   //sets 2D chunk size and creates dataset
                     }
                     else{
                         matrixIo.saveBlock(block, iExt , iStr , iblock, jblock, datasetName);
