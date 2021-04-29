@@ -25,12 +25,18 @@ public:
                                     std::vector<RealF>,         momentum,
                                     Gamma::Algebra,             gamma,
                                     std::vector<int>,           noise_pair,
-                                    std::vector<unsigned int>,  left_time_sources,
-                                    std::vector<unsigned int>,  right_time_sources,
-                                    TimeSliceMap,               left_time_dilution,
-                                    TimeSliceMap,               right_time_dilution,
                                     std::string,                meson_field_case)
 };
+
+// class TimeDilutionBlocksMetadata: Serializable
+// {
+// public:
+//     GRID_SERIALIZABLE_CLASS_MEMBERS(TimeDilutionBlocksMetadata,
+//                                     std::vector<unsigned int>,  left_time_sources,
+//                                     std::vector<unsigned int>,  right_time_sources,
+//                                     TimeSliceMap,               left_time_dilution,
+//                                     TimeSliceMap,               right_time_dilution)
+// };
 
 //computation class declaration
 template <typename FImpl, typename T, typename Tio>
@@ -123,7 +129,6 @@ public:
     void computePhase(std::vector<std::vector<RealF>> momenta, ComplexField &coor, std::vector<int> dim, std::vector<ComplexField> &phase);
     TimeSliceMap timeSliceMap(DistillationNoise & n);
 };
-
 
 
 //####################################
@@ -225,10 +230,15 @@ void DmfComputation<FImpl,T,Tio>
           TimeSliceMap                                      rightTimeMap,
           TimerArray*                                       tarray)
 {
+    std::vector<std::vector<unsigned int>> timeDilutionPairList;
     const int n_ext = momenta_.size();
     const int n_str = gamma_.size();
     bool fileIsInit = false;
     cBuf_.resize(n_ext*n_str*nt_*cSize_*cSize_);
+    
+    // io init
+    std::string outStem = outPath + "/noise" + std::to_string(inoise[0]) + "_" + std::to_string(inoise[1]) + "/" +dmfCase_.at("left")+"-"+dmfCase_.at("right") + "/";
+    Hadrons::mkdir(outStem);
     
     const unsigned int vol = g_->_gsites;
     std::string dmfcase = dmfCase_.at("left") + " " + dmfCase_.at("right");
@@ -261,10 +271,11 @@ void DmfComputation<FImpl,T,Tio>
 
         if( !stInter.empty() ) // only execute case when partitions have at least one time slice in common
         {
-            LOG(Message) << "################### dtL_" << dtL << " dtR_" << dtR << " ################### " << std::endl; 
+            timeDilutionPairList.push_back({dtL,dtR});
+            LOG(Message) << "################### " << dtL << "-" << dtR << " ################### " << std::endl; 
             LOG(Message) << "At least one rho found. Time slices to be saved=" << stInter << "..." << std::endl;
             LOG(Message) << "Time extension in file = " << eff_nt << std::endl;
-            std::string datasetName = "dtL"+std::to_string(dtL)+"_dtR"+std::to_string(dtR);
+            std::string datasetName = std::to_string(dtL)+"-"+std::to_string(dtR);
 
             unsigned int nblocki = dil_size_ls.at("left")/bSize_ + (((dil_size_ls.at("left") % bSize_) != 0) ? 1 : 0);
             unsigned int nblockj = dil_size_ls.at("right")/bSize_ + (((dil_size_ls.at("right") % bSize_) != 0) ? 1 : 0);
@@ -354,10 +365,6 @@ void DmfComputation<FImpl,T,Tio>
                     md.momentum             = momenta_[iExt];
                     md.gamma                = gamma_[iStr];
                     md.noise_pair           = inoise;
-                    md.left_time_sources    = timeDilSource.at("left");
-                    md.right_time_sources   = timeDilSource.at("right");
-                    md.left_time_dilution   = leftTimeMap;
-                    md.right_time_dilution  = rightTimeMap;
                     md.meson_field_case     = dmfCase_.at("left") + " " + dmfCase_.at("right");
 
                     std::stringstream ss;
@@ -365,11 +372,8 @@ void DmfComputation<FImpl,T,Tio>
                     for (unsigned int mu = 0; mu < md.momentum.size(); ++mu)
                         ss << md.momentum[mu] << ((mu == md.momentum.size() - 1) ? "" : "_");
                     std::string groupName = ss.str();
-
-                    // io init
-                    std::string outStem = outPath + "/noise" + std::to_string(inoise[0]) + "_" + std::to_string(inoise[1]) + "/" +dmfCase_.at("left")+"-"+dmfCase_.at("right") + "/";
-                    Hadrons::mkdir(outStem);
                     std::string mfName = groupName+".h5";
+
                     A2AMatrixIo<HADRONS_DISTIL_IO_TYPE> matrixIo(outStem+mfName, groupName, eff_nt, dil_size_ls.at("left"), dil_size_ls.at("right"));
                     
                     tarray->startTimer("IO: write block");
@@ -412,6 +416,24 @@ void DmfComputation<FImpl,T,Tio>
                                 << bytesBlockSize/ioTime*0.95367431640625 // 1.0e6/1024/1024
                                 << " MB/s)" << std::endl;
             }
+        }
+    }
+
+    if(g_->IsBoss())
+    {
+        for(unsigned int iext=0 ; iext<n_ext ; iext++)
+        for(unsigned int istr=0 ; istr<n_str ; istr++)
+        {
+            std::stringstream ss;
+            ss << gamma_[istr] << "_";
+            for (unsigned int mu = 0; mu < momenta_[iext].size(); ++mu)
+                ss << momenta_[iext][mu] << ((mu == momenta_[iext].size() - 1) ? "" : "_");
+            std::string groupName = ss.str();
+            std::string mfName = groupName+".h5";
+            A2AMatrixIo<HADRONS_DISTIL_IO_TYPE> matrixIo(outStem+mfName, groupName, nt_, dil_size_ls.at("left"), dil_size_ls.at("right"));
+            matrixIo.save2dMetadata("time_dilution_left" ,leftTimeMap);
+            matrixIo.save2dMetadata("time_dilution_right",rightTimeMap);
+            matrixIo.save2dMetadata("time_source_blocks",timeDilutionPairList);
         }
     }
 }

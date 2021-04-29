@@ -241,7 +241,8 @@ void TDistilMesonField<FImpl>::execute(void)
         {
             HADRONS_ERROR(Argument,"Invalid number of time sources.");
         }
-        else if( !std::none_of( timeDilSource.at(s).cbegin() , timeDilSource.at(s).cend(), [s,&noises](int dt){ return dt >= noises.at(s).dilutionSize(Index::t); }) )
+        else if( !std::none_of( timeDilSource.at(s).cbegin() , timeDilSource.at(s).cend(), 
+                                [s,&noises](int dt){ return dt >= noises.at(s).dilutionSize(Index::t); }) ) //checks if any element is larger than time dilution size
         {
             HADRONS_ERROR(Argument,"Invalid value for one or more time sources.");
         }
