@@ -11,6 +11,8 @@
 #define HADRONS_DISTIL_IO_TYPE ComplexF
 #endif
 
+#define DISTILGROUPNAME "DistilMesonField"
+
 BEGIN_HADRONS_NAMESPACE
 BEGIN_MODULE_NAMESPACE(MDistil)
 
@@ -365,16 +367,16 @@ void DmfComputation<FImpl,T,Tio>
                     md.momentum             = momenta_[iExt];
                     md.gamma                = gamma_[iStr];
                     md.noise_pair           = inoise;
-                    md.meson_field_case     = dmfCase_.at("left") + " " + dmfCase_.at("right");
+                    md.meson_field_case     = dmfCase_.at("left") + "-" + dmfCase_.at("right");
 
                     std::stringstream ss;
                     ss << md.gamma << "_";
                     for (unsigned int mu = 0; mu < md.momentum.size(); ++mu)
                         ss << md.momentum[mu] << ((mu == md.momentum.size() - 1) ? "" : "_");
-                    std::string groupName = ss.str();
-                    std::string mfName = groupName+".h5";
+                    std::string fileName = ss.str();
+                    std::string mfName = fileName+".h5";
 
-                    A2AMatrixIo<HADRONS_DISTIL_IO_TYPE> matrixIo(outStem+mfName, groupName, eff_nt, dil_size_ls.at("left"), dil_size_ls.at("right"));
+                    A2AMatrixIo<HADRONS_DISTIL_IO_TYPE> matrixIo(outStem+mfName, DISTILGROUPNAME, eff_nt, dil_size_ls.at("left"), dil_size_ls.at("right"));
                     
                     tarray->startTimer("IO: write block");
                     if(iblock==0 && jblock==0){              // creates dataset only if it's the first block of the dataset
@@ -428,12 +430,12 @@ void DmfComputation<FImpl,T,Tio>
             ss << gamma_[istr] << "_";
             for (unsigned int mu = 0; mu < momenta_[iext].size(); ++mu)
                 ss << momenta_[iext][mu] << ((mu == momenta_[iext].size() - 1) ? "" : "_");
-            std::string groupName = ss.str();
-            std::string mfName = groupName+".h5";
-            A2AMatrixIo<HADRONS_DISTIL_IO_TYPE> matrixIo(outStem+mfName, groupName, nt_, dil_size_ls.at("left"), dil_size_ls.at("right"));
+            std::string fileName = ss.str();
+            std::string mfName = fileName+".h5";
+            A2AMatrixIo<HADRONS_DISTIL_IO_TYPE> matrixIo(outStem+mfName, DISTILGROUPNAME, nt_, dil_size_ls.at("left"), dil_size_ls.at("right"));
             matrixIo.save2dMetadata("time_dilution_left" ,leftTimeMap);
             matrixIo.save2dMetadata("time_dilution_right",rightTimeMap);
-            matrixIo.save2dMetadata("time_source_blocks",timeDilutionPairList);
+            matrixIo.save2dMetadata("time_source_blocks", timeDilutionPairList);
         }
     }
 }
