@@ -188,6 +188,7 @@ void TPerambulator<FImpl>::setup(void)
 		HADRONS_ERROR(Range, "elements of sourceTimes must lie between 0 and nDT");
 	    }
 	}
+	//another check: in order
     }
 
     // Perambulator dimensions need to use the reduced value for nDL     
@@ -401,9 +402,9 @@ void TPerambulator<FImpl>::execute(void)
             for (int dt = 0; dt < Nt; dt++)
             {
 	        std::vector<int>::iterator it = std::find(std::begin(invT), std::end(invT), dt);
+   	        //skip dilution indices which are not in invT
    	        if(it == std::end(invT))
    	        {
-   	            //skip dilution indices which are not in invT
    	            continue;
    	        }
 		LOG(Message) <<  "saving perambulator dt= " << dt << std::endl;
@@ -414,7 +415,7 @@ void TPerambulator<FImpl>::execute(void)
                 sPerambName.append(".");
                 sPerambName.append(std::to_string(vm().getTrajectory()));
                 makeFileDir(sPerambName, grid4d);
-                for (int t = 0; t < Nt; t++)
+	       	for (int t = 0; t < Nt; t++)
                 for (int ivec = 0; ivec < nVec; ivec++)
                 for (int idl = 0; idl < nDL_reduced; idl++)
                 for (int in = 0; in < nNoise; in++)

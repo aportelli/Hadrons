@@ -129,8 +129,69 @@ public:
         std::string FileName_{FileName};
         FileName_.append( NamedTensorFileExtension );
         LOG(Message) << "Writing " << Name_ << " to file " << FileName_ << " tag " << Tag << std::endl;
+	if(1)
+	{
         Default_Writer w( FileName_ );
         write( w, Tag, *this );
+	}
+	else
+	{
+        #ifdef HAVE_HDF5
+	//empty file with only metadata first
+        Hdf5Writer writer( FileName_);
+        //write( writer, Tag, *this );
+        //write (writer, Tag, MetaData);
+        //write (writer, Tag, IndexNames);
+        //write (writer, Tag, NamedTensorDefaultMetaData);
+        LOG(Message) << "meta " << MetaData  << std::endl;
+	std::vector<hsize_t> dims, 
+		             gridDims,
+                             offset = {0, 0, 0},
+                             stride = {1, 1, 1},
+                             block  = {1, 1, 1};
+
+        constexpr unsigned int ContainerRank{Traits::Rank};     
+        LOG(Message) << "ranks " << NumIndices_ << " + " << ContainerRank << std::endl;
+        for (int i = 0; i < NumIndices_; i++)
+	{
+	    dims.push_back(tensor.dimension(i));
+            LOG(Message) << "dim[ " << i << "]= " << tensor.dimension(i) << std::endl;
+	}
+        for (int i = 0; i < ContainerRank; i++)
+	{
+            if(Traits::Dimension(i) > 1)
+	    {
+	        dims.push_back(Traits::Dimension(i));
+	    }
+	    gridDims.push_back(Traits::Dimension(i));
+            LOG(Message) << "dim[ " << i+NumIndices_ << "]= " << Traits::Dimension(i) << std::endl;
+	}    
+        LOG(Message) << "dims " << dims << std::endl;
+
+	H5NS::DataSet dataset;
+	H5NS::DataSpace      memspace(dims.size(), dims.data()), 
+		             dataspace(dims.size(), dims.data());
+	H5NS::DSetCreatPropList     plist;
+	
+        plist.setFletcher32();
+	plist.setChunk(dims.size(), dims.data());
+	dataspace=dataset.getSpace();
+	dataspace.selectHyperslab(H5S_SELECT_SET, dims.data(), offset.data(),
+                              stride.data(), block.data());
+        H5NS::H5File file;
+	H5NS::Group &group = writer.getGroup();
+	 //dataset = group.createDataSet(tensor, Hdf5Type<Complex>::type(), dataspace, plist);
+
+	//dataset.write(tensor , Hdf5Type<Complex>::type(), memspace, dataspace);
+
+
+
+
+
+        #else
+        HADRONS_ERROR(Implementation, "NamedTensor I/O needs HDF5 library");
+        #endif
+	}
     }
     void write(const std::string &FileName) const { return write(FileName, Name_); }
 
@@ -174,7 +235,8 @@ BEGIN_MODULE_NAMESPACE(MDistil)
 class PerambMetadata : Serializable
 {
 public:
-    GRID_SERIALIZABLE_CLASS_MEMBERS(PerambMetadata, int, Version,
+    GRID_SERIALIZABLE_CLASS_MEMBERS(PerambMetadata, 
+		                    int, Version,
                                     std::vector<int>, timeSources );
 };
 
