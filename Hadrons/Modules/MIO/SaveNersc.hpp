@@ -35,10 +35,10 @@ BEGIN_HADRONS_NAMESPACE
 /******************************************************************************
  Save a NERSC configuration
 
- gauge        Name of the gauge field object to write
- file         Name of the file to write the gauge field to
- ensebleLabel Label of the ensemble. Recommended this includes
-              a suffix identifying this as gauge-fixed and which gauge
+ gauge         Name of the gauge field object to write
+ fileStem      Namestem of the file to write the gauge field to
+ ensembleLabel Label of the ensemble. Recommended this includes
+               a suffix identifying this as gauge-fixed and which gauge
  ******************************************************************************/
 
 

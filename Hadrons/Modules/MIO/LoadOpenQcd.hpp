@@ -33,7 +33,9 @@
 BEGIN_HADRONS_NAMESPACE
 
 /******************************************************************************
- *                       Load an OpenQcd configuration                           *
+ Load an OpenQcd configuration
+
+ file    Namestem of the files to read in                     
  ******************************************************************************/
 BEGIN_MODULE_NAMESPACE(MIO)
 
