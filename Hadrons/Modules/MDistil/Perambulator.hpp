@@ -423,6 +423,8 @@ void TPerambulator<FImpl>::execute(void)
 		    PerambMultiFileTmp.tensor(t,ivec,idl,in,ids) = perambulator.tensor(t,ivec,idl,in,idt,ids);
                 PerambMultiFileTmp.MetaData.timeDilutionIndex = dt;
                 PerambMultiFileTmp.write(sPerambName.c_str());
+                sPerambName.append("_bbb");
+		writeNamedTensor(PerambMultiFileTmp,sPerambName.c_str());
 	    }
 
 	}
@@ -432,7 +434,7 @@ void TPerambulator<FImpl>::execute(void)
             sPerambName.append(".");
             sPerambName.append(std::to_string(vm().getTrajectory()));
             makeFileDir(sPerambName, grid4d);
-            perambulator.write(sPerambName.c_str());
+            //perambulator.write(sPerambName.c_str());
 	}
     }
 

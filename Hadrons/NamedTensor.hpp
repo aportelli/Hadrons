@@ -72,6 +72,10 @@ public:
                                     Eigen::TensorMap<ET>,     tensor,
                                     std::vector<std::string>, IndexNames,
 		                    MetaData_,                MetaData );
+   // Eigen::TensorMap<ET>     tensor;
+   
+   // std::vector<std::string> IndexNames;//,
+   // MetaData_   MetaData;
 
     // Name of the object and Index names as set in the constructor
     const std::string                          &Name_;
@@ -124,76 +128,16 @@ public:
     using Default_Writer = Grid::BinaryWriter;
 #endif
     
-    void write(const std::string &FileName, const std::string &Tag) const
+    template <typename MetaDataType_ = MetaData_>
+    void write(const std::string &FileName, const std::string &Tag, const MetaDataType_ &MD) const
     {
         std::string FileName_{FileName};
         FileName_.append( NamedTensorFileExtension );
         LOG(Message) << "Writing " << Name_ << " to file " << FileName_ << " tag " << Tag << std::endl;
-	if(1)
-	{
         Default_Writer w( FileName_ );
         write( w, Tag, *this );
-	}
-	else
-	{
-        #ifdef HAVE_HDF5
-	//empty file with only metadata first
-        Hdf5Writer writer( FileName_);
-        //write( writer, Tag, *this );
-        //write (writer, Tag, MetaData);
-        //write (writer, Tag, IndexNames);
-        //write (writer, Tag, NamedTensorDefaultMetaData);
-        LOG(Message) << "meta " << MetaData  << std::endl;
-	std::vector<hsize_t> dims, 
-		             gridDims,
-                             offset = {0, 0, 0},
-                             stride = {1, 1, 1},
-                             block  = {1, 1, 1};
-
-        constexpr unsigned int ContainerRank{Traits::Rank};     
-        LOG(Message) << "ranks " << NumIndices_ << " + " << ContainerRank << std::endl;
-        for (int i = 0; i < NumIndices_; i++)
-	{
-	    dims.push_back(tensor.dimension(i));
-            LOG(Message) << "dim[ " << i << "]= " << tensor.dimension(i) << std::endl;
-	}
-        for (int i = 0; i < ContainerRank; i++)
-	{
-            if(Traits::Dimension(i) > 1)
-	    {
-	        dims.push_back(Traits::Dimension(i));
-	    }
-	    gridDims.push_back(Traits::Dimension(i));
-            LOG(Message) << "dim[ " << i+NumIndices_ << "]= " << Traits::Dimension(i) << std::endl;
-	}    
-        LOG(Message) << "dims " << dims << std::endl;
-
-	H5NS::DataSet dataset;
-	H5NS::DataSpace      memspace(dims.size(), dims.data()), 
-		             dataspace(dims.size(), dims.data());
-	H5NS::DSetCreatPropList     plist;
-	
-        plist.setFletcher32();
-	plist.setChunk(dims.size(), dims.data());
-	dataspace=dataset.getSpace();
-	dataspace.selectHyperslab(H5S_SELECT_SET, dims.data(), offset.data(),
-                              stride.data(), block.data());
-        H5NS::H5File file;
-	H5NS::Group &group = writer.getGroup();
-	 //dataset = group.createDataSet(tensor, Hdf5Type<Complex>::type(), dataspace, plist);
-
-	//dataset.write(tensor , Hdf5Type<Complex>::type(), memspace, dataspace);
-
-
-
-
-
-        #else
-        HADRONS_ERROR(Implementation, "NamedTensor I/O needs HDF5 library");
-        #endif
-	}
     }
-    void write(const std::string &FileName) const { return write(FileName, Name_); }
+    void write(const std::string &FileName) const { return write<MetaData_>(FileName, Name_, MetaData); }
 
     // Read tensor.
     // Validate:
@@ -204,7 +148,7 @@ public:
         // Grab index names and dimensions
         std::vector<std::string> OldIndexNames{std::move(IndexNames)};
         const typename ET::Dimensions OldDimensions{tensor.dimensions()};
-        read(r, Tag, *this);
+       // read(r, Tag, *this);
         const typename ET::Dimensions & NewDimensions{tensor.dimensions()};
         for (int i = 0; i < NumIndices_; i++)
             if(OldDimensions[i] && OldDimensions[i] != NewDimensions[i])
@@ -280,6 +224,69 @@ class TimesliceEvals : public NamedTensor<RealD, 2>
     TimesliceEvals(Eigen::Index nT, Eigen::Index nVec)
     : NamedTensor{Name__, DefaultIndexNames__, nT, nVec} {}
 };
+
+template<typename Scalar_, int NumIndices_, typename MetaData_>
+void writeNamedTensor(NamedTensor<Scalar_,NumIndices_,MetaData_> &obj,std::string filename)
+{
+        #ifdef HAVE_HDF5
+    using ET = Eigen::Tensor<Scalar_, NumIndices_, Eigen::RowMajor>;
+    using Traits = Grid::EigenIO::Traits<ET>;
+
+        Hdf5Writer writer( filename );
+	MetaData_ md=obj.MetaData;
+	std::vector<std::string> in = obj.IndexNames;
+        write (writer, "MetaData", md);
+        write (writer, "IndexNames", in);
+
+
+	Eigen::TensorMap<ET> et=obj.tensor;
+	std::vector<hsize_t> dims, 
+		             gridDims,
+                             offset;
+
+        constexpr unsigned int ContainerRank{Traits::Rank};     
+        LOG(Message) << "ranks " << NumIndices_ << " + " << ContainerRank << std::endl;
+        for (int i = 0; i < NumIndices_; i++)
+	{
+	    dims.push_back(et.dimension(i));
+	    offset.push_back(0);
+            LOG(Message) << "dimi[ " << i << "]= " << et.dimension(i) << std::endl;
+	}
+        for (int i = 0; i < ContainerRank; i++)
+	{
+            if(Traits::Dimension(i) > 1)
+	    {
+	        dims.push_back(Traits::Dimension(i));
+	        offset.push_back(0);
+	    }
+	    gridDims.push_back(Traits::Dimension(i));
+            LOG(Message) << "dim[ " << i+NumIndices_ << "]= " << Traits::Dimension(i) << std::endl;
+	}   
+        using Scalar = typename Traits::scalar_type;	
+        LOG(Message) << "dims " << dims << std::endl;
+        LOG(Message) << "offset " << offset << std::endl;
+
+	H5NS::DataSet dataset;
+	H5NS::DataSpace      memspace(dims.size(), dims.data()), 
+		             dataspace(dims.size(), dims.data());
+	H5NS::DSetCreatPropList     plist;
+	
+        plist.setFletcher32();
+	plist.setChunk(dims.size(), dims.data());
+	H5NS::Group &group = writer.getGroup();
+	dataset     = group.createDataSet("Tensor",Hdf5Type<Scalar>::type(), dataspace, plist);
+	const Scalar * pWriteBuffer;
+        pWriteBuffer = EigenIO::getFirstScalar(obj.tensor);
+
+	dataset.write(pWriteBuffer,Hdf5Type<Scalar>::type(), dataspace);
+        LOG(Message) << "ten " <<  obj.tensor(0) << std::endl;
+        LOG(Message) << "tenten " <<  pWriteBuffer << std::endl;
+
+        #else
+        HADRONS_ERROR(Implementation, "NamedTensor I/O needs HDF5 library");
+        #endif
+}
+
 
 END_MODULE_NAMESPACE
 END_HADRONS_NAMESPACE
