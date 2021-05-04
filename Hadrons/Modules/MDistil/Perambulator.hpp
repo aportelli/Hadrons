@@ -425,6 +425,7 @@ void TPerambulator<FImpl>::execute(void)
                 PerambMultiFileTmp.write(sPerambName.c_str());
                 sPerambName.append("_bbb");
 		writeNamedTensor(PerambMultiFileTmp,sPerambName.c_str());
+		readNamedTensor(PerambMultiFileTmp,sPerambName.c_str());
 	    }
 
 	}
