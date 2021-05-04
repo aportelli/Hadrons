@@ -228,63 +228,56 @@ class TimesliceEvals : public NamedTensor<RealD, 2>
 template<typename Scalar_, int NumIndices_, typename MetaData_>
 void writeNamedTensor(NamedTensor<Scalar_,NumIndices_,MetaData_> &obj,std::string filename)
 {
-        #ifdef HAVE_HDF5
+    #ifdef HAVE_HDF5
     using ET = Eigen::Tensor<Scalar_, NumIndices_, Eigen::RowMajor>;
     using Traits = Grid::EigenIO::Traits<ET>;
+    using Scalar = typename Traits::scalar_type;	
 
-        Hdf5Writer writer( filename );
-	MetaData_ md=obj.MetaData;
-	std::vector<std::string> in = obj.IndexNames;
-        write (writer, "MetaData", md);
-        write (writer, "IndexNames", in);
+    Eigen::TensorMap<ET> et=obj.tensor;
+    std::vector<hsize_t> dims, 
+	                 gridDims;
 
-
-	Eigen::TensorMap<ET> et=obj.tensor;
-	std::vector<hsize_t> dims, 
-		             gridDims,
-                             offset;
-
-        constexpr unsigned int ContainerRank{Traits::Rank};     
-        LOG(Message) << "ranks " << NumIndices_ << " + " << ContainerRank << std::endl;
-        for (int i = 0; i < NumIndices_; i++)
-	{
-	    dims.push_back(et.dimension(i));
-	    offset.push_back(0);
-            LOG(Message) << "dimi[ " << i << "]= " << et.dimension(i) << std::endl;
-	}
-        for (int i = 0; i < ContainerRank; i++)
-	{
-            if(Traits::Dimension(i) > 1)
-	    {
-	        dims.push_back(Traits::Dimension(i));
-	        offset.push_back(0);
-	    }
-	    gridDims.push_back(Traits::Dimension(i));
-            LOG(Message) << "dim[ " << i+NumIndices_ << "]= " << Traits::Dimension(i) << std::endl;
-	}   
-        using Scalar = typename Traits::scalar_type;	
-        LOG(Message) << "dims " << dims << std::endl;
-        LOG(Message) << "offset " << offset << std::endl;
-
-	H5NS::DataSet dataset;
-	H5NS::DataSpace      memspace(dims.size(), dims.data()), 
-		             dataspace(dims.size(), dims.data());
-	H5NS::DSetCreatPropList     plist;
+    constexpr unsigned int ContainerRank{Traits::Rank};     
+    LOG(Message) << "ranks " << NumIndices_ << " + " << ContainerRank << std::endl;
+    for (int i = 0; i < NumIndices_; i++)
+    {
+        dims.push_back(et.dimension(i));
+        LOG(Message) << "dimi[ " << i << "]= " << et.dimension(i) << std::endl;
+    }
+    for (int i = 0; i < ContainerRank; i++)
+    {
+        if(Traits::Dimension(i) > 1)
+        {
+            dims.push_back(Traits::Dimension(i));
+        }
+        gridDims.push_back(Traits::Dimension(i));
+        LOG(Message) << "dim[ " << i+NumIndices_ << "]= " << Traits::Dimension(i) << std::endl;
+    }   
+    LOG(Message) << "dims " << dims << std::endl;
+    
+    Hdf5Writer writer( filename );
+    MetaData_ md=obj.MetaData;
+    std::vector<std::string> in = obj.IndexNames;
+    write (writer, "MetaData", md);
+    write (writer, "IndexNames", in);
+    write (writer, "GridDimensions", gridDims);
+    H5NS::DataSet dataset;
+    H5NS::DataSpace      memspace(dims.size(), dims.data()), 
+		         dataspace(dims.size(), dims.data());
+    H5NS::DSetCreatPropList     plist;
 	
-        plist.setFletcher32();
-	plist.setChunk(dims.size(), dims.data());
-	H5NS::Group &group = writer.getGroup();
-	dataset     = group.createDataSet("Tensor",Hdf5Type<Scalar>::type(), dataspace, plist);
-	const Scalar * pWriteBuffer;
-        pWriteBuffer = EigenIO::getFirstScalar(obj.tensor);
+    plist.setFletcher32();
+    plist.setChunk(dims.size(), dims.data());
+    H5NS::Group &group = writer.getGroup();
+    dataset     = group.createDataSet("Tensor",Hdf5Type<Scalar>::type(), dataspace, plist);
+    const Scalar * pWriteBuffer;
+    pWriteBuffer = EigenIO::getFirstScalar(obj.tensor);
 
-	dataset.write(pWriteBuffer,Hdf5Type<Scalar>::type(), dataspace);
-        LOG(Message) << "ten " <<  obj.tensor(0) << std::endl;
-        LOG(Message) << "tenten " <<  pWriteBuffer << std::endl;
+    dataset.write(pWriteBuffer,Hdf5Type<Scalar>::type(), dataspace);
 
-        #else
-        HADRONS_ERROR(Implementation, "NamedTensor I/O needs HDF5 library");
-        #endif
+    #else
+    HADRONS_ERROR(Implementation, "NamedTensor I/O needs HDF5 library");
+    #endif
 }
 
 
