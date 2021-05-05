@@ -24,10 +24,12 @@ class DistilMesonFieldMetadata: Serializable
 {
 public:
     GRID_SERIALIZABLE_CLASS_MEMBERS(DistilMesonFieldMetadata,
+                                    unsigned int,               nt,
+                                    unsigned int,               nvec,
                                     std::vector<RealF>,         momentum,
-                                    Gamma::Algebra,             gamma,
+                                    Gamma::Algebra,             opr,               // just gamma matrices for now, but could turn into more general operators in the future
                                     std::vector<int>,           noise_pair,
-                                    std::string,                meson_field_case)
+                                    std::string,                meson_field_type)
 };
 
 // class TimeDilutionBlocksMetadata: Serializable
@@ -57,7 +59,7 @@ public:
     double  global_bytes   = 0.0;
 private:
     const std::vector<std::string>      sides_ = {"left","right"};
-    std::map<std::string,std::string>   dmfCase_;
+    std::map<std::string,std::string>   dmfType_;
     GridCartesian*                      g_;
     GridCartesian*                      g3d_;
     ColourVectorField                   evec3d_;
@@ -122,7 +124,7 @@ public:
 private:
     unsigned int nt_;
     unsigned int nd_;
-    std::map<std::string,std::string> dmfCase_;
+    std::map<std::string,std::string> dmfType_;
     TimeSliceMap noiseTimeMapl_, noiseTimeMapr_;
     const std::vector<std::string> sides = {"left","right"};
 public:
@@ -193,11 +195,11 @@ void DmfComputation<FImpl,T,Tio>
         unsigned int dt = n.at(s).dilutionCoordinates(iD)[Index::t];
         if(std::find(tDilS.begin(), tDilS.end(), dt) != tDilS.end()) // if time source is available, compute that block
         {
-            if(dmfCase_.at(s)=="phi")
+            if(dmfType_.at(s)=="phi")
             {
                 makePhiComponent(dv.at(s)[iD] , n.at(s) , iNoise.at(s) , iD , peramb.at(s), epack);
             }
-            else if(dmfCase_.at(s)=="rho"){
+            else if(dmfType_.at(s)=="rho"){
                 makeRhoComponent(dv.at(s)[iD] , n.at(s) , iNoise.at(s), iD);
             }
         }
@@ -214,7 +216,7 @@ DmfComputation<FImpl,T,Tio>
                  const unsigned int                 blockSize,
                  const unsigned int                 cacheSize,
                  unsigned int                       nt)
-: dmfCase_(c), momenta_(momenta), gamma_(gamma), g_(g), g3d_(g3d), evec3d_(g3d), tmp3d_(g3d)
+: dmfType_(c), momenta_(momenta), gamma_(gamma), g_(g), g3d_(g3d), evec3d_(g3d), tmp3d_(g3d)
 , nt_(nt), nd_(g->Nd()), bSize_(blockSize) , cSize_(cacheSize)
 {
 }
@@ -239,11 +241,11 @@ void DmfComputation<FImpl,T,Tio>
     cBuf_.resize(n_ext*n_str*nt_*cSize_*cSize_);
     
     // io init
-    std::string outStem = outPath + "/noise" + std::to_string(inoise[0]) + "_" + std::to_string(inoise[1]) + "/" +dmfCase_.at("left")+"-"+dmfCase_.at("right") + "/";
+    std::string outStem = outPath + "/noise" + std::to_string(inoise[0]) + "_" + std::to_string(inoise[1]) + "/" +dmfType_.at("left")+"-"+dmfType_.at("right") + "/";
     Hadrons::mkdir(outStem);
     
     const unsigned int vol = g_->_gsites;
-    std::string dmfcase = dmfCase_.at("left") + " " + dmfCase_.at("right");
+    std::string dmfType = dmfType_.at("left") + " " + dmfType_.at("right");
     // computing mesonfield blocks and saving to disk
     for (unsigned int dtL : timeDilSource.at("left"))
     for (unsigned int dtR : timeDilSource.at("right"))
@@ -251,7 +253,7 @@ void DmfComputation<FImpl,T,Tio>
         std::map<std::string,std::vector<unsigned int>> p = { {"left",{}} , {"right",{}}};
         for(auto s : sides_)
         {
-            if(dmfCase_.at(s)=="phi")
+            if(dmfType_.at(s)=="phi")
             {
                 p.at(s).resize(nt_);
                 std::iota(std::begin(p.at(s)), std::end(p.at(s)), 0); //phi: filling with all time slices <-> intersects with non-empty
@@ -297,7 +299,7 @@ void DmfComputation<FImpl,T,Tio>
                 << std::endl;
 
                 LOG(Message) << "Block size = "         << eff_nt*iblockSize*jblockSize*sizeof(Tio) << "MB/momentum/gamma" << std::endl;
-                LOG(Message) << "Cache block size = "   << nt_*cSize_*cSize_*sizeof(T) << "MB/momentum/gamma" << std::endl;  //remember to change this in case I change chunk size from nt_ to something else
+                LOG(Message) << "Cache block size = "   << NT_CHUNK_SIZE*cSize_*cSize_*sizeof(T) << "MB/momentum/gamma" << std::endl;  //remember to change this in case I change chunk size from nt_ to something else
 
                 double flops        = 0.0;
                 double bytes        = 0.0;
@@ -364,13 +366,15 @@ void DmfComputation<FImpl,T,Tio>
                     unsigned int iStr = ies%n_str;
 
                     // metadata;
+                    md.nt                   = nt_;
+                    md.nvec                 = n.at("left").getNl();     //nvec is the same for both sides
                     md.momentum             = momenta_[iExt];
-                    md.gamma                = gamma_[iStr];
+                    md.opr                  = gamma_[iStr];
                     md.noise_pair           = inoise;
-                    md.meson_field_case     = dmfCase_.at("left") + "-" + dmfCase_.at("right");
+                    md.meson_field_type     = dmfType_.at("left") + "-" + dmfType_.at("right");
 
                     std::stringstream ss;
-                    ss << md.gamma << "_";
+                    ss << md.opr << "_";
                     for (unsigned int mu = 0; mu < md.momentum.size(); ++mu)
                         ss << md.momentum[mu] << ((mu == md.momentum.size() - 1) ? "" : "_");
                     std::string fileName = ss.str();
@@ -447,7 +451,7 @@ template <typename FImpl>
 DmfHelper<FImpl>::DmfHelper(DistillationNoise&                  nl,
                             DistillationNoise&                  nr,
                             std::map<std::string,std::string>   c)
-: noiseTimeMapl_( timeSliceMap(nl) ) , noiseTimeMapr_( timeSliceMap(nr) ) , dmfCase_(c)
+: noiseTimeMapl_( timeSliceMap(nl) ) , noiseTimeMapr_( timeSliceMap(nr) ) , dmfType_(c)
 {
     nt_ = nr.getNt();
     nd_ = nr.getGrid()->Nd();

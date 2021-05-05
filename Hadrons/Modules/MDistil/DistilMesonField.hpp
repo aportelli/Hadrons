@@ -18,11 +18,9 @@ BEGIN_HADRONS_NAMESPACE
 /******************************************************************************
  *                         DistilMesonField                                 *
  * Eliminates DistilVectors module. Receives LapH eigenvectors and 
- * perambulator/noise (as left/right fields). Computes MesonFields by 
- * block(and chunking it) and save them to H5 file.
+ * perambulator/noise (as left/right objs). Computes MesonFields by 
+ * block (and chunking it) and save them to H5 files.
  * 
- * For now, do not load anything from disk. Trying phi phi case 
- * with full-dilution.
  ******************************************************************************/
 
 BEGIN_MODULE_NAMESPACE(MDistil)
@@ -32,7 +30,7 @@ class DistilMesonFieldPar: Serializable
 public:
     GRID_SERIALIZABLE_CLASS_MEMBERS(DistilMesonFieldPar,
                                     std::string,                outPath,
-                                    std::string,                mesonFieldCase,
+                                    std::string,                mesonFieldType,
                                     std::string,                lapEvec,
                                     std::string,                leftNoise,
                                     std::string,                rightNoise,
@@ -73,7 +71,7 @@ public:
 private:
     unsigned int blockSize_;
     unsigned int cacheSize_;
-    std::map<std::string,std::string>   dmf_case_;
+    std::map<std::string,std::string>   dmf_type_;
     std::vector<std::vector<int>>       noisePairs_;           // read from extermal object (diluted noise class)
     std::string                         outputMFStem_;
     bool                                hasPhase_{false};
@@ -104,20 +102,20 @@ std::vector<std::string> TDistilMesonField<FImpl>::getInput(void)
 {   
     std::vector<std::string> in = {par().lapEvec, par().leftNoise, par().rightNoise};
 
-    std::string c = par().mesonFieldCase;
-    // check mesonfield case
+    std::string c = par().mesonFieldType;
+    // check mesonfield type
     if(!(c=="phi phi" || c=="phi rho" || c=="rho phi" || c=="rho rho"))
     {
-        HADRONS_ERROR(Argument,"Bad meson field case");
+        HADRONS_ERROR(Argument,"Bad meson field type");
     }
 
-    dmf_case_.emplace("left"  , c.substr(0,3));
-    dmf_case_.emplace("right" , c.substr(4,7));
+    dmf_type_.emplace("left"  , c.substr(0,3));
+    dmf_type_.emplace("right" , c.substr(4,7));
 
     // should I do a softer check?
     for(auto s : sides_)
     {
-        if(dmf_case_.at(s)=="phi")
+        if(dmf_type_.at(s)=="phi")
         {
             in.push_back( s=="left" ? par().leftPeramb : par().rightPeramb);
         }
@@ -196,8 +194,8 @@ void TDistilMesonField<FImpl>::setup(void)
     envCache(std::vector<ComplexField>, "phasename",    1, momenta_.size(), g );
     envTmp(DistilVector,                "dvl",          1, noisel.dilutionSize() , g);
     envTmp(DistilVector,                "dvr",          1, noiser.dilutionSize() , g);
-    envTmp(Computation,                 "computation",  1, dmf_case_, momenta_, gamma_, g, g3d, blockSize_ , cacheSize_, env().getDim(g->Nd() - 1));
-    envTmp(Helper,                      "helper"   ,    1, noisel, noiser , dmf_case_);
+    envTmp(Computation,                 "computation",  1, dmf_type_, momenta_, gamma_, g, g3d, blockSize_ , cacheSize_, env().getDim(g->Nd() - 1));
+    envTmp(Helper,                      "helper"   ,    1, noisel, noiser , dmf_type_);
 }
 
 // execution ///////////////////////////////////////////////////////////////////
@@ -223,6 +221,11 @@ void TDistilMesonField<FImpl>::execute(void)
     DistillationNoise &noiser = envGet( DistillationNoise , par().rightNoise);
     std::map<std::string, DistillationNoise & >   noises = {{"left",noisel},{"right",noiser}};
     
+    if((noisel.getNl() != nVec) || (noiser.getNl() != nVec))
+    {
+        HADRONS_ERROR(Size, "Incompatibility between number of Laplacian eigenvectors and Laplacian subspace size in noises.");
+    }
+
     //encapsulate this in helper or computation class
     std::vector<unsigned int> lSources = strToVec<unsigned int>(par().leftTimeSources);
     std::vector<unsigned int> rSources = strToVec<unsigned int>(par().rightTimeSources);
@@ -252,7 +255,7 @@ void TDistilMesonField<FImpl>::execute(void)
     std::map<std::string, std::vector<int>> peramb_st;
     for(auto & s : sides_)
     {
-        if(dmf_case_.at(s)=="phi")
+        if(dmf_type_.at(s)=="phi")
         {
             auto & inPeramb = envGet(PerambTensor , perambInput_.at(s));
             peramb_st.emplace(s , inPeramb.MetaData.timeSources);
@@ -280,7 +283,7 @@ void TDistilMesonField<FImpl>::execute(void)
     LOG(Message) << "Selected time-dilution partitions:"         << std::endl;
     LOG(Message) << "Left:" << timeDilSource.at("left") << std::endl;
     LOG(Message) << "Right:" << timeDilSource.at("right") << std::endl;
-    LOG(Message) << "Meson field case: "    << par().mesonFieldCase << std::endl;
+    LOG(Message) << "Meson field type: "    << par().mesonFieldType << std::endl;
     LOG(Message) << "Selected block size: " << par().blockSize << std::endl;
     LOG(Message) << "Selected cache size: " << par().cacheSize << std::endl;
     LOG(Message) << "Lap-spin dilution size (left x right): " << dilutionSize_ls_.at("left") << " x " << dilutionSize_ls_.at("right") << std::endl;
@@ -292,12 +295,12 @@ void TDistilMesonField<FImpl>::execute(void)
         LOG(Message) << "Momenta:" << momenta_ << std::endl;
 
         //computation of distvectors
-        if(dmf_case_.at("left")=="phi" || dmf_case_.at("right")=="phi")
+        if(dmf_type_.at("left")=="phi" || dmf_type_.at("right")=="phi")
         {
             std::map<std::string, PerambTensor&> peramb; // = { {"left", perambl} , {"right", perambr} };
             for(auto s : sides_)
             {
-                if(dmf_case_.at(s)=="phi"){
+                if(dmf_type_.at(s)=="phi"){
                     PerambTensor &perambtemp = envGet( PerambTensor , s=="left" ? par().leftPeramb : par().rightPeramb);
                     peramb.emplace(s , perambtemp);
                 }
