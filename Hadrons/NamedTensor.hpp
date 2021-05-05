@@ -128,8 +128,7 @@ public:
     using Default_Writer = Grid::BinaryWriter;
 #endif
     
-    template <typename MetaDataType_ = MetaData_>
-    void write(const std::string &FileName, const std::string &Tag, const MetaDataType_ &MD) const
+    void write(const std::string &FileName, const std::string &Tag) const
     {
         std::string FileName_{FileName};
         FileName_.append( NamedTensorFileExtension );
@@ -137,7 +136,7 @@ public:
         Default_Writer w( FileName_ );
         write( w, Tag, *this );
     }
-    void write(const std::string &FileName) const { return write<MetaData_>(FileName, Name_, MetaData); }
+    void write(const std::string &FileName) const { return write(FileName, Name_); }
 
     // Read tensor.
     // Validate:
@@ -148,7 +147,7 @@ public:
         // Grab index names and dimensions
         std::vector<std::string> OldIndexNames{std::move(IndexNames)};
         const typename ET::Dimensions OldDimensions{tensor.dimensions()};
-       // read(r, Tag, *this);
+        read(r, Tag, *this);
         const typename ET::Dimensions & NewDimensions{tensor.dimensions()};
         for (int i = 0; i < NumIndices_; i++)
             if(OldDimensions[i] && OldDimensions[i] != NewDimensions[i])
@@ -263,8 +262,7 @@ void writeNamedTensor(NamedTensor<Scalar_,NumIndices_,MetaData_> &obj,std::strin
     write (writer, "GridDimensions", gridDims);
     write (writer, "TensorDimensions", dims);
     H5NS::DataSet dataset;
-    H5NS::DataSpace      memspace(dims.size(), dims.data()), 
-		         dataspace(dims.size(), dims.data());
+    H5NS::DataSpace      dataspace(dims.size(), dims.data());
     H5NS::DSetCreatPropList     plist;
 	
     plist.setFletcher32();
@@ -293,6 +291,7 @@ void readNamedTensor(NamedTensor<Scalar_,NumIndices_,MetaData_> &obj,std::string
     std::vector<hsize_t> dims,
 	                 tensorDims, 
 	                 gridDims;
+    hsize_t size=1;
 
     
     Hdf5Reader reader( filename );
@@ -302,15 +301,35 @@ void readNamedTensor(NamedTensor<Scalar_,NumIndices_,MetaData_> &obj,std::string
     {
         tensorDims.push_back(dims[i]);
         LOG(Message) << "dimi[ " << i << "]= " << dims[i] << std::endl;
+	size*=dims[i];
     }
     for (int i = 0; i < gridDims.size(); i++)
     {
         tensorDims.push_back(gridDims[i]);
+	size*=gridDims[i];
         LOG(Message) << "dim[ " << i+NumIndices_ << "]= " << gridDims[i] << std::endl;
     }   
     LOG(Message) << "dims " << dims << std::endl;
     LOG(Message) << "Grid dims " << gridDims << std::endl;
     LOG(Message) << "tensor dims " << tensorDims << std::endl;
+    LOG(Message) << "tens " << obj.tensor.size() << std::endl;
+
+    read (reader, "MetaData", obj.MetaData);
+    read (reader, "IndexNames", obj.IndexNames);
+    
+    H5NS::DataSet dataset;
+
+    H5NS::DataSpace      dataspace(tensorDims.size(), tensorDims.data());
+
+    H5NS::Group &group = reader.getGroup();
+    dataset=group.openDataSet("Tensor");
+    std::vector<Scalar> buf;
+    buf.resize(size);
+    dataset.read(buf.data(),Hdf5Type<Scalar>::type());
+
+    //obj.tensor = Eigen::Map<Eigen::TensorMap<ET>>(&buf); // doesn't work for me
+    //Grid::vecToTensor(&obj.tensor,&buf); // from Grid/serialisation/VectorUtils.h, but doesn't work this way
+
     #else
     HADRONS_ERROR(Implementation, "NamedTensor I/O needs HDF5 library");
     #endif
