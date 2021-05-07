@@ -70,10 +70,6 @@ public:
                                     Eigen::TensorMap<ET>,     tensor,
                                     std::vector<std::string>, IndexNames,
 		                    MetaData_,                MetaData );
-   // Eigen::TensorMap<ET>     tensor;
-   
-   // std::vector<std::string> IndexNames;//,
-   // MetaData_   MetaData;
 
     // Name of the object and Index names as set in the constructor
     const std::string                          &Name_;
@@ -129,12 +125,12 @@ public:
 	                 gridDims;
 
         constexpr unsigned int ContainerRank{Traits::Rank};     
-        LOG(Message) << "ranks " << NumIndices_ << " + " << ContainerRank << std::endl;
-        for (int i = 0; i < NumIndices_; i++)
+        // These are the tensor dimensions
+	for (int i = 0; i < NumIndices_; i++)
         {
             dims.push_back(tensor.dimension(i));
-            LOG(Message) << "dimiiii[ " << i << "]= " << tensor.dimension(i) << std::endl;
         }
+	// These are the dimensions of the Grid datatype - for vectrs and matrices, we do not write dimensions of size 1
         for (int i = 0; i < ContainerRank; i++)
         {
             if(Traits::Dimension(i) > 1)
@@ -142,9 +138,7 @@ public:
                 dims.push_back(Traits::Dimension(i));
             }
             gridDims.push_back(Traits::Dimension(i));
-            LOG(Message) << "dim[ " << i+NumIndices_ << "]= " << Traits::Dimension(i) << std::endl;
         }   
-        LOG(Message) << "dimsii " << dims << std::endl;
     
         Hdf5Writer writer( FileName_ );
 	Grid::write (writer, "MetaData", MetaData);
