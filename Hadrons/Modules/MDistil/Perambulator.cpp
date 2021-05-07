@@ -37,12 +37,6 @@ BEGIN_HADRONS_NAMESPACE
 
 // Global constants for distillation
 
-#ifdef HAVE_HDF5
-extern const std::string NamedTensorFileExtension{".h5"};
-#else
-extern const std::string NamedTensorFileExtension{".dat"};
-#endif
-
 BEGIN_MODULE_NAMESPACE(MDistil)
 
 const std::string                PerambTensor::Name__{"Perambulator"};

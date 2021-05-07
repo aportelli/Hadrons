@@ -48,8 +48,6 @@ BEGIN_HADRONS_NAMESPACE
    3) If the tensor has non-zero size, the tensor being loaded must have same extent in each dimension
  ******************************************************************************/
 
-extern const std::string NamedTensorFileExtension;
-
 class NamedTensorDefaultMetadata : Serializable
 {
 public:
@@ -120,27 +118,12 @@ public:
     }
     bool ValidateIndexNames() const { return ValidateIndexNames(DefaultIndexNames_); }
 
-#ifdef HAVE_HDF5
-    using Default_Reader = Grid::Hdf5Reader;
-    using Default_Writer = Grid::Hdf5Writer;
-#else
-    using Default_Reader = Grid::BinaryReader;
-    using Default_Writer = Grid::BinaryWriter;
-#endif
-    
     void write(const std::string &FileName, const std::string &Tag) const
     {
-        std::string FileName_{FileName};
-        FileName_.append( NamedTensorFileExtension );
-        LOG(Message) << "Writing " << Name_ << " to file " << FileName_ << " tag " << Tag << std::endl;
-        if(0)
-	{
-       	Default_Writer w( FileName_ );
-        write( w, Tag, *this );
-	}
-	else
-	{
         #ifdef HAVE_HDF5
+        std::string FileName_{FileName};
+        FileName_.append( ".h5" );
+        LOG(Message) << "Writing " << Name_ << " to file " << FileName_ << " tag " << Tag << std::endl;
         using ScalarType = typename Traits::scalar_type;	
         std::vector<hsize_t> dims, 
 	                 gridDims;
@@ -181,7 +164,6 @@ public:
         #else
         HADRONS_ERROR(Implementation, "NamedTensor I/O needs HDF5 library");
         #endif
-	}
     }
     void write(const std::string &FileName) const { return write(FileName, Name_); }
 
@@ -189,12 +171,28 @@ public:
     // Validate:
     //  1) index names (if requested)
     //  2) index dimensions (if they are non-zero when called)
-    template<typename Reader> void read(Reader &r, bool bValidate, const std::string &Tag)
+    template<typename Reader> void read(Reader &reader, bool bValidate, const std::string &Tag)
     {
+        #ifdef HAVE_HDF5
         // Grab index names and dimensions
         std::vector<std::string> OldIndexNames{std::move(IndexNames)};
-        const typename ET::Dimensions OldDimensions{tensor.dimensions()};
-        read(r, Tag, *this);
+	const typename ET::Dimensions OldDimensions{tensor.dimensions()};
+
+	using ScalarType = typename Traits::scalar_type;	
+        std::vector<hsize_t> dims,
+	                 gridDims;
+    
+	Grid::read (reader, "GridDimensions", gridDims);
+	Grid::read (reader, "TensorDimensions", dims);
+	Grid::read (reader, "MetaData", MetaData);
+	Grid::read (reader, "IndexNames", IndexNames);
+    
+        H5NS::DataSet dataset;
+        H5NS::Group &group = reader.getGroup();
+        dataset=group.openDataSet(Tag);
+        dataset.read(tensor.data(),Hdf5Type<ScalarType>::type());
+
+	//validate dimesnions and labels
         const typename ET::Dimensions & NewDimensions{tensor.dimensions()};
         for (int i = 0; i < NumIndices_; i++)
             if(OldDimensions[i] && OldDimensions[i] != NewDimensions[i])
@@ -205,13 +203,23 @@ public:
         {
             HADRONS_ERROR(Definition,"NamedTensor::read dimension name");
         }
+        #else
+        HADRONS_ERROR(Implementation, "NamedTensor I/O needs HDF5 library");
+        #endif
     }
     template<typename Reader> void read(Reader &r, bool bValidate = true) { read(r, bValidate, Name_); }
 
     inline void read (const std::string &FileName, bool bValidate, const std::string &Tag)
     {
-        Default_Reader r(FileName + NamedTensorFileExtension);
+        #ifdef HAVE_HDF5
+        std::string FileName_{FileName};
+        FileName_.append( ".h5" );
+        LOG(Message) << "reading " << FileName_ << std::endl;
+        Hdf5Reader r( FileName_ );
         read(r, bValidate, Tag);
+        #else
+        HADRONS_ERROR(Implementation, "NamedTensor I/O needs HDF5 library");
+        #endif
     }
     inline void read (const std::string &FileName, bool bValidate= true) { return read(FileName, bValidate, Name_); }
 };
@@ -270,117 +278,6 @@ class TimesliceEvals : public NamedTensor<RealD, 2>
     TimesliceEvals(Eigen::Index nT, Eigen::Index nVec)
     : NamedTensor{Name__, DefaultIndexNames__, nT, nVec} {}
 };
-
-template<typename Scalar_, int NumIndices_, typename MetaData_>
-void writeNamedTensor(NamedTensor<Scalar_,NumIndices_,MetaData_> &obj,std::string filename)
-{
-    #ifdef HAVE_HDF5
-    using ET = Eigen::Tensor<Scalar_, NumIndices_, Eigen::RowMajor>;
-    using Traits = Grid::EigenIO::Traits<ET>;
-    using Scalar = typename Traits::scalar_type;	
-
-    Eigen::TensorMap<ET> et=obj.tensor;
-    std::vector<hsize_t> dims, 
-	                 gridDims;
-
-    constexpr unsigned int ContainerRank{Traits::Rank};     
-    LOG(Message) << "ranks " << NumIndices_ << " + " << ContainerRank << std::endl;
-    for (int i = 0; i < NumIndices_; i++)
-    {
-        dims.push_back(et.dimension(i));
-        LOG(Message) << "dimi[ " << i << "]= " << et.dimension(i) << std::endl;
-    }
-    for (int i = 0; i < ContainerRank; i++)
-    {
-        if(Traits::Dimension(i) > 1)
-        {
-            dims.push_back(Traits::Dimension(i));
-        }
-        gridDims.push_back(Traits::Dimension(i));
-        LOG(Message) << "dim[ " << i+NumIndices_ << "]= " << Traits::Dimension(i) << std::endl;
-    }   
-    LOG(Message) << "dims " << dims << std::endl;
-    
-    Hdf5Writer writer( filename );
-    MetaData_ md=obj.MetaData;
-    std::vector<std::string> in = obj.IndexNames;
-    write (writer, "MetaData", md);
-    write (writer, "IndexNames", in);
-    write (writer, "GridDimensions", gridDims);
-    write (writer, "TensorDimensions", dims);
-    H5NS::DataSet dataset;
-    H5NS::DataSpace      dataspace(dims.size(), dims.data());
-    H5NS::DSetCreatPropList     plist;
-	
-    plist.setFletcher32();
-    plist.setChunk(dims.size(), dims.data());
-    H5NS::Group &group = writer.getGroup();
-    dataset     = group.createDataSet("Tensor",Hdf5Type<Scalar>::type(), dataspace, plist);
-    const Scalar * pWriteBuffer;
-    pWriteBuffer = EigenIO::getFirstScalar(obj.tensor);
-
-    dataset.write(pWriteBuffer,Hdf5Type<Scalar>::type(), dataspace);
-
-    #else
-    HADRONS_ERROR(Implementation, "NamedTensor I/O needs HDF5 library");
-    #endif
-}
-
-template<typename Scalar_, int NumIndices_, typename MetaData_>
-void readNamedTensor(NamedTensor<Scalar_,NumIndices_,MetaData_> &obj,std::string filename)
-{
-    #ifdef HAVE_HDF5
-    using ET = Eigen::Tensor<Scalar_, NumIndices_, Eigen::RowMajor>;
-    using Traits = Grid::EigenIO::Traits<ET>;
-    using Scalar = typename Traits::scalar_type;	
-
-    Eigen::TensorMap<ET> et=obj.tensor;
-    std::vector<hsize_t> dims,
-	                 tensorDims, 
-	                 gridDims;
-    hsize_t size=1;
-
-    
-    Hdf5Reader reader( filename );
-    read (reader, "GridDimensions", gridDims);
-    read (reader, "TensorDimensions", dims);
-    for (int i = 0; i < NumIndices_; i++)
-    {
-        tensorDims.push_back(dims[i]);
-        LOG(Message) << "dimi[ " << i << "]= " << dims[i] << std::endl;
-	size*=dims[i];
-    }
-    for (int i = 0; i < gridDims.size(); i++)
-    {
-        tensorDims.push_back(gridDims[i]);
-	size*=gridDims[i];
-        LOG(Message) << "dim[ " << i+NumIndices_ << "]= " << gridDims[i] << std::endl;
-    }   
-    LOG(Message) << "dims " << dims << std::endl;
-    LOG(Message) << "Grid dims " << gridDims << std::endl;
-    LOG(Message) << "tensor dims " << tensorDims << std::endl;
-    LOG(Message) << "tens " << obj.tensor.size() << std::endl;
-
-    read (reader, "MetaData", obj.MetaData);
-    read (reader, "IndexNames", obj.IndexNames);
-    
-    H5NS::DataSet dataset;
-
-    H5NS::DataSpace      dataspace(tensorDims.size(), tensorDims.data());
-
-    H5NS::Group &group = reader.getGroup();
-    dataset=group.openDataSet("Tensor");
-    std::vector<Scalar> buf;
-    buf.resize(size);
-    dataset.read(buf.data(),Hdf5Type<Scalar>::type());
-
-    //obj.tensor = Eigen::Map<Eigen::TensorMap<ET>>(&buf); // doesn't work for me
-    //Grid::vecToTensor(&obj.tensor,&buf); // from Grid/serialisation/VectorUtils.h, but doesn't work this way
-
-    #else
-    HADRONS_ERROR(Implementation, "NamedTensor I/O needs HDF5 library");
-    #endif
-}
 
 END_MODULE_NAMESPACE
 END_HADRONS_NAMESPACE
