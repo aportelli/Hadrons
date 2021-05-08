@@ -104,7 +104,7 @@ std::vector<std::string> TDistilMesonField<FImpl>::getInput(void)
 
     std::string c = par().mesonFieldType;
     // check mesonfield type
-    if(!(c=="phi phi" || c=="phi rho" || c=="rho phi" || c=="rho rho"))
+    if(!(c=="phi-phi" || c=="phi-rho" || c=="rho-phi" || c=="rho-rho"))
     {
         HADRONS_ERROR(Argument,"Bad meson field type");
     }
