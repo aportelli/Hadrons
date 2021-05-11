@@ -603,7 +603,7 @@ void A2AMatrixIo<T>::createDilutionBlock(std::string datasetName, const unsigned
     //save timeslice metadata
     hsize_t         attrDim = timeSlices.size();
     H5NS::DataSpace attrSpace(1, &attrDim);
-    H5NS::Attribute attr = dataset.createAttribute("time_slices",  Hdf5Type<unsigned int>::type(), attrSpace);
+    H5NS::Attribute attr = dataset.createAttribute("TimeSlices",  Hdf5Type<unsigned int>::type(), attrSpace);
     attr.write(Hdf5Type<unsigned int>::type(), timeSlices.data());
 #else
     HADRONS_ERROR(Implementation, "all-to-all matrix I/O needs HDF5 library");

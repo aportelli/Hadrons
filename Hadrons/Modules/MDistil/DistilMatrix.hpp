@@ -24,12 +24,12 @@ class DistilMesonFieldMetadata: Serializable
 {
 public:
     GRID_SERIALIZABLE_CLASS_MEMBERS(DistilMesonFieldMetadata,
-                                    unsigned int,               nt,
-                                    unsigned int,               nvec,
-                                    std::vector<RealF>,         momentum,
-                                    Gamma::Algebra,             opr,               // just gamma matrices for now, but could turn into more general operators in the future
-                                    std::vector<int>,           noise_pair,
-                                    std::string,                meson_field_type)
+                                    unsigned int,               Nt,
+                                    unsigned int,               Nvec,
+                                    std::vector<RealF>,         Momentum,
+                                    Gamma::Algebra,             Opr,               // just gamma matrices for now, but could turn into more general operators in the future
+                                    std::vector<int>,           NoisePair,
+                                    std::string,                MesonFieldType)
 };
 
 // class TimeDilutionBlocksMetadata: Serializable
@@ -279,6 +279,7 @@ void DmfComputation<FImpl,T,Tio>
             LOG(Message) << "################### " << dtL << "-" << dtR << " ################### " << std::endl; 
             LOG(Message) << "At least one rho found. Time slices to be saved=" << stInter << "..." << std::endl;
             LOG(Message) << "Time extension in file = " << eff_nt << std::endl;
+            LOG(Message) << "NT_CHUNK_SIZE=" << NT_CHUNK_SIZE << std::endl; //remove this message
             std::string datasetName = std::to_string(dtL)+"-"+std::to_string(dtR);
 
             unsigned int nblocki = dil_size_ls.at("left")/bSize_ + (((dil_size_ls.at("left") % bSize_) != 0) ? 1 : 0);
@@ -298,8 +299,8 @@ void DmfComputation<FImpl,T,Tio>
                 << iblock+iblockSize-1 << ", " << jblock << " .. " << jblock+jblockSize-1 << "]" 
                 << std::endl;
 
-                LOG(Message) << "Block size = "         << eff_nt*iblockSize*jblockSize*sizeof(Tio) << "MB/momentum/gamma" << std::endl;
-                LOG(Message) << "Cache block size = "   << NT_CHUNK_SIZE*cSize_*cSize_*sizeof(T) << "MB/momentum/gamma" << std::endl;  //remember to change this in case I change chunk size from nt_ to something else
+                LOG(Message) << "Block size = "         << eff_nt*iblockSize*jblockSize*sizeof(Tio)/1024. << "KB/momentum/gamma" << std::endl;
+                LOG(Message) << "Cache block size = "   << NT_CHUNK_SIZE*cSize_*cSize_*sizeof(T) << "B/momentum/gamma" << std::endl;  //remember to change this in case I change chunk size from nt_ to something else
 
                 double flops        = 0.0;
                 double bytes        = 0.0;
@@ -344,7 +345,7 @@ void DmfComputation<FImpl,T,Tio>
 
                 LOG(Message) << "Kernel perf (flops) " << flops/time_kernel/1.0e3/nodes 
                             << " Gflop/s/node " << std::endl;
-                LOG(Message) << "Kernel perf (read) " << bytes/time_kernel*0.000931322574615478515625/nodes //  1.0e6/1024/1024/1024/nodes
+                LOG(Message) << "Kernel perf (read) " << bytes/time_kernel*0.000931322574615478515625/nodes //  *1.0e6/1024/1024/1024/nodes
                             << " GB/s/node "  << std::endl;
                 global_counter++;
                 global_flops += flops/time_kernel/1.0e3/nodes ;
@@ -366,17 +367,17 @@ void DmfComputation<FImpl,T,Tio>
                     unsigned int iStr = ies%n_str;
 
                     // metadata;
-                    md.nt                   = nt_;
-                    md.nvec                 = n.at("left").getNl();     //nvec is the same for both sides
-                    md.momentum             = momenta_[iExt];
-                    md.opr                  = gamma_[iStr];
-                    md.noise_pair           = inoise;
-                    md.meson_field_type     = dmfType_.at("left") + "-" + dmfType_.at("right");
+                    md.Nt                   = nt_;
+                    md.Nvec                 = n.at("left").getNl();     //nvec is the same for both sides
+                    md.Momentum             = momenta_[iExt];
+                    md.Opr                  = gamma_[iStr];
+                    md.NoisePair            = inoise;
+                    md.MesonFieldType       = dmfType_.at("left") + "-" + dmfType_.at("right");
 
                     std::stringstream ss;
-                    ss << md.opr << "_";
-                    for (unsigned int mu = 0; mu < md.momentum.size(); ++mu)
-                        ss << md.momentum[mu] << ((mu == md.momentum.size() - 1) ? "" : "_");
+                    ss << md.Opr << "_";
+                    for (unsigned int mu = 0; mu < md.Momentum.size(); ++mu)
+                        ss << md.Momentum[mu] << ((mu == md.Momentum.size() - 1) ? "" : "_");
                     std::string fileName = ss.str();
                     std::string mfName = fileName+".h5";
 
@@ -437,9 +438,9 @@ void DmfComputation<FImpl,T,Tio>
             std::string fileName = ss.str();
             std::string mfName = fileName+".h5";
             A2AMatrixIo<HADRONS_DISTIL_IO_TYPE> matrixIo(outStem+mfName, DISTILGROUPNAME, nt_, dil_size_ls.at("left"), dil_size_ls.at("right"));
-            matrixIo.save2dMetadata("time_dilution_left" ,leftTimeMap);
-            matrixIo.save2dMetadata("time_dilution_right",rightTimeMap);
-            matrixIo.save2dMetadata("time_source_blocks", timeDilutionPairList);
+            matrixIo.save2dMetadata("TimeDilutionLeft" ,leftTimeMap);
+            matrixIo.save2dMetadata("TimeDilutionRight",rightTimeMap);
+            matrixIo.save2dMetadata("TimeDilutionPairs", timeDilutionPairList);
         }
     }
 }
