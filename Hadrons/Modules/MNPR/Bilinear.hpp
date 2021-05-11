@@ -32,117 +32,13 @@
 #include <Hadrons/Global.hpp>
 #include <Hadrons/Module.hpp>
 #include <Hadrons/ModuleFactory.hpp>
-#include <Hadrons/ModuleFactory.hpp>
-//#include <Grid/qcd/utils/PropagatorUtils.h>
 
 BEGIN_HADRONS_NAMESPACE
 
 /******************************************************************************
  *                                TBilinear                                       *
-        Performs bilinear contractions of the type tr[g5*adj(Sout)*g5*G*Sin]
+        Performs bilinear contractions of the type tr[g5*adj(qOut)*g5*G*qIn]
         Suitable for non exceptional momenta in Rome-Southampton NPR
-******************************************************************************/
-BEGIN_MODULE_NAMESPACE(MNPR)
-
-class BilinearPar: Serializable
-{
-public:
-    GRID_SERIALIZABLE_CLASS_MEMBERS(BilinearPar,
-                                    std::string,    Sin,
-                                    std::string,    Sout,
-                                    std::string,    pin,
-                                    std::string,    pout,
-                                    std::string,    output);
-};
-
-template <typename FImpl1, typename FImpl2>
-class TBilinear: public Module<BilinearPar>
-{
-public:
-    FERM_TYPE_ALIASES(FImpl1, 1);
-    FERM_TYPE_ALIASES(FImpl2, 2);
-    class Result: Serializable
-    {
-    public:
-        GRID_SERIALIZABLE_CLASS_MEMBERS(Result, 
-                                        std::vector<SpinColourMatrix>, bilinear);
-    };
-public:
-    // constructor
-    TBilinear(const std::string name);
-    // destructor
-    virtual ~TBilinear(void) {};
-    // dependencies/products
-    virtual std::vector<std::string> getInput(void);
-    virtual std::vector<std::string> getOutput(void);
-    //LatticeSpinColourMatrix PhaseProps(LatticeSpinColourMatrix S, std::vector<Real> p);
-    // setup
-    virtual void setup(void);
-    // execution
-    virtual void execute(void);
-};
-
-MODULE_REGISTER_TMP(Bilinear, ARG(TBilinear<FIMPL, FIMPL>), MNPR);
-
-/******************************************************************************
- *                           TBilinear implementation                            *
- ******************************************************************************/
-// constructor /////////////////////////////////////////////////////////////////
-template <typename FImpl1, typename FImpl2>
-TBilinear<FImpl1, FImpl2>::TBilinear(const std::string name)
-: Module<BilinearPar>(name)
-{}
-
-// setup ///////////////////////////////////////////////////////////////////////
-template <typename FImpl1, typename FImpl2>
-void TBilinear<FImpl1, FImpl2>::setup(void)
-{
-    //env().template registerLattice<LatticeSpinColourMatrix>(getName());
-    //env().template registerObject<SpinColourMatrix>(getName());
-}
-
-// dependencies/products ///////////////////////////////////////////////////////
-template <typename FImpl1, typename FImpl2>
-std::vector<std::string> TBilinear<FImpl1, FImpl2>::getInput(void)
-{
-    std::vector<std::string> input = {par().Sin, par().Sout};
-    
-    return input;
-}
-
-template <typename FImpl1, typename FImpl2>
-std::vector<std::string> TBilinear<FImpl1, FImpl2>::getOutput(void)
-{
-    std::vector<std::string> out = {getName()};
-    
-    return out;
-}
-
-/*
-/////Phase propagators//////////////////////////
-template <typename FImpl1, typename FImpl2>
-LatticeSpinColourMatrix TBilinear<FImpl1, FImpl2>::PhaseProps(LatticeSpinColourMatrix S, std::vector<Real> p)
-{
-    GridBase *grid = S._grid;
-    LatticeComplex      pdotx(grid),  coor(grid);
-    std::vector<int>   latt_size = grid->_fdimensions; 
-    Complex             Ci(0.0,1.0);
-    pdotx=Zero();
-    for (unsigned int mu = 0; mu < 4; ++mu)
-    {
-        Real TwoPiL =  M_PI * 2.0/ latt_size[mu];
-        LatticeCoordinate(coor,mu);
-        pdotx = pdotx +(TwoPiL * p[mu]) * coor;
-    }
-    S = S*exp(-Ci*pdotx);
-    return S;
-}
-*/
-// execution ///////////////////////////////////////////////////////////////////
-template <typename FImpl1, typename FImpl2>
-void TBilinear<FImpl1, FImpl2>::execute(void)
-{
-/**************************************************************************
 
 Compute the bilinear vertex needed for the NPR.
 V(G) = sum_x  [ g5 * adj(S'(x,p2)) * g5 * G * S'(x,p1) ]_{si,sj,ci,cj}
@@ -159,60 +55,134 @@ Returns a spin-colour matrix, with indices si,sj, ci,cj
 Conventions:
 p1 - incoming momenta
 p2 - outgoing momenta
-q = (p1-p2)
 **************************************************************************/
+BEGIN_MODULE_NAMESPACE(MNPR)
+
+class BilinearPar: Serializable
+{
+public:
+    GRID_SERIALIZABLE_CLASS_MEMBERS(BilinearPar,
+                                    std::string,    qIn,
+                                    std::string,    qOut,
+                                    std::string,    pIn,
+                                    std::string,    pOut,
+                                    std::string,    output);
+};
+
+template <typename FImpl>
+class TBilinear: public Module<BilinearPar>
+{
+public:
+    FERM_TYPE_ALIASES(FImpl,);
+    class Metadata: Serializable
+    {
+    public:
+        GRID_SERIALIZABLE_CLASS_MEMBERS(Metadata,
+                                        Gamma::Algebra, gamma,
+                                        std::string,  pIn,
+                                        std::string,  pOut);
+    };
+    typedef Correlator<Metadata, SpinColourMatrix> Result;
+public:
+    // constructor
+    TBilinear(const std::string name);
+    // destructor
+    virtual ~TBilinear(void) {};
+    // dependencies/products
+    virtual std::vector<std::string> getInput(void);
+    virtual std::vector<std::string> getOutput(void);
+    // setup
+    virtual void setup(void);
+    // execution
+    virtual void execute(void);
+};
+
+MODULE_REGISTER_TMP(Bilinear, ARG(TBilinear<FIMPL>), MNPR);
+
+/******************************************************************************
+ *                           TBilinear implementation                            *
+ ******************************************************************************/
+// constructor /////////////////////////////////////////////////////////////////
+template <typename FImpl>
+TBilinear<FImpl>::TBilinear(const std::string name)
+: Module<BilinearPar>(name)
+{}
+
+// setup ///////////////////////////////////////////////////////////////////////
+template <typename FImpl>
+void TBilinear<FImpl>::setup(void)
+{
+    envTmpLat(ComplexField, "pDotXIn");
+    envTmpLat(ComplexField, "pDotXOut");
+    envTmpLat(ComplexField, "xMu");
+}
+
+// dependencies/products ///////////////////////////////////////////////////////
+template <typename FImpl>
+std::vector<std::string> TBilinear<FImpl>::getInput(void)
+{
+    std::vector<std::string> input = {par().qIn, par().qOut};
+    
+    return input;
+}
+
+template <typename FImpl>
+std::vector<std::string> TBilinear<FImpl>::getOutput(void)
+{
+    std::vector<std::string> out = {};
+    
+    return out;
+}
+
+template <typename FImpl>
+void TBilinear<FImpl>::execute(void)
+{
 
     LOG(Message) << "Computing bilinear contractions '" << getName() << "' using"
-                 << " momentum '" << par().Sin << "' and '" << par().Sout << "'"
+                 << " propagators '" << par().qIn << "' and '" << par().qOut << "'"
                  << std::endl;
-     
-    BinaryWriter             writer(par().output);
-    
 
-    // Propogators
-    LatticeSpinColourMatrix     &Sin = *env().template getObject<LatticeSpinColourMatrix>(par().Sin);
-    LatticeSpinColourMatrix     &Sout = *env().template getObject<LatticeSpinColourMatrix>(par().Sout);
-    LatticeComplex              pdotxin(env().getGrid()), pdotxout(env().getGrid()), coor(env().getGrid());
+    // Propagators
+    auto  &qIn    = envGet(PropagatorField, par().qIn);
+    auto  &qOut   = envGet(PropagatorField, par().qOut);
+    envGetTmp(ComplexField, pDotXIn);
+    envGetTmp(ComplexField, pDotXOut);
+    envGetTmp(ComplexField, xMu);
+
     // momentum on legs
-    std::vector<Real>           pin  = strToVec<Real>(par().pin), pout = strToVec<Real>(par().pout);
-    std::vector<Real>           latt_size(pin.begin(), pin.end()); 
-    //bilinears
-    LatticeSpinColourMatrix     bilinear_x(env().getGrid());
-    SpinColourMatrix            bilinear;
+    //TODO: Do we want to check the momentum input format? Not done in MSink::Point, so probably ok like this.
+    std::vector<Real>           pIn  = strToVec<Real>(par().pIn), 
+	                        pOut = strToVec<Real>(par().pOut);
+    Coordinate                  latt_size = GridDefaultLatt(); 
     Gamma                       g5(Gamma::Algebra::Gamma5);
-    Result                      result;
     Complex                     Ci(0.0,1.0);
+    std::vector<Result>         result;
+    Result                      r;
 
-    //
-
-    pdotxin=Zero();
-    pdotxout=Zero();
+    pDotXIn=Zero();
+    pDotXOut=Zero();
     for (unsigned int mu = 0; mu < 4; ++mu)
     {
         Real TwoPiL =  M_PI * 2.0/ latt_size[mu];
-        LatticeCoordinate(coor,mu);
-        pdotxin = pdotxin +(TwoPiL * pin[mu]) * coor;
-        pdotxout= pdotxout +(TwoPiL * pout[mu]) * coor;
+        LatticeCoordinate(xMu,mu);
+        pDotXIn  = pDotXIn  + (TwoPiL * pIn[mu])  * xMu;
+        pDotXOut = pDotXOut + (TwoPiL * pOut[mu]) * xMu;
     }
-    Sin = Sin*exp(-Ci*pdotxin); //phase corrections
-    Sout = Sout*exp(-Ci*pdotxout);
+    qIn  = qIn  * exp(-Ci*pDotXIn); //phase corrections
+    qOut = qOut * exp(-Ci*pDotXOut);
     
-    ////Set up gamma vector//////////////////////////
-    std::vector<Gamma> gammavector;
-    for( int i=0; i<Gamma::nGamma; i++){
-        Gamma::Algebra gam = i;
-        gammavector.push_back(Gamma(gam));
-    }
-    result.bilinear.resize(Gamma::nGamma);
-    /////////////////////////////////////////////////
-    //LatticeSpinMatrix temp = g5*Sout;
-    ////////Form Vertex//////////////////////////////
-    for (int i=0; i < Gamma::nGamma; i++){
-        bilinear_x = g5*adj(Sout)*g5*gammavector[i]*Sin; 
-        result.bilinear[i] = sum(bilinear_x); //sum over lattice sites
+    r.info.pIn  = par().pIn;
+    r.info.pOut = par().pOut;
+    for (auto &G: Gamma::gall)
+    {
+	r.info.gamma = G.g;
+	r.corr.push_back( sum(g5*adj(qOut)*g5*G*qIn) );
+        result.push_back(r);
+	//This is all still quite hacky - we probably want to think about the output format a little more!
+	r.corr.erase(r.corr.begin());
     }
     //////////////////////////////////////////////////
-    write(writer, par().output, result.bilinear);
+    saveResult(par().output, "bilinear", result);
     LOG(Message) << "Complete. Writing results to " << par().output << std:: endl;
 }
 

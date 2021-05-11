@@ -62,6 +62,12 @@ class TFourQuark: public Module<FourQuarkPar>
 public:
     FERM_TYPE_ALIASES(FImpl1, 1);
     FERM_TYPE_ALIASES(FImpl2, 2);
+    //typedef typename LSCSC;
+    const static int prec1 = getPrecision<PropagatorField1>::value;
+    const static int prec2 = getPrecision<PropagatorField2>::value;
+    const static int prec = std::max(prec1,prec2);
+    typedef typename std::enable_if<prec==2, LatticeSpinColourSpinColourMatrix> SCSCField;
+    typedef typename std::enable_if<prec==1, LatticeSpinColourSpinColourMatrixF> SCSCField;
     class Result: Serializable
     {
     public:
@@ -117,6 +123,7 @@ void TFourQuark<FImpl1, FImpl2>::tensorprod(LatticeSpinColourSpinColourMatrix &l
 {
             // FIXME ; is there a general need for this construct ? In which case we should encapsulate the
             //         below loops in a helper function.
+            LOG(Message) << "prec?? " << a << std::endl;
             //LOG(Message) << "sp co mat a is - " << a << std::endl;
             //LOG(Message) << "sp co mat b is - " << b << std::endl;
 	    autoView(lret_v, lret, CpuWrite);
@@ -188,7 +195,11 @@ We have up to 256 of these including the offdiag (G1 != G2).
     LOG(Message) << "Computing fourquark contractions '" << getName() << "' using"
                  << " momentum '" << par().Sin << "' and '" << par().Sout << "'"
                  << std::endl;
-    
+            LOG(Message) << "prec1 " << prec1 << std::endl;
+            LOG(Message) << "prec2 " << prec2 << std::endl;
+            LOG(Message) << "max-prec: " << std::max(prec1,prec2) << std::endl;
+
+    /* 
     BinaryWriter             writer(par().output);
     
     PropagatorField1                            &Sin = *env().template getObject<PropagatorField1>(par().Sin);
@@ -235,7 +246,7 @@ We have up to 256 of these including the offdiag (G1 != G2).
             for ( int nu=0; nu<Gamma::nGamma; nu++){
                 LatticeSpinColourMatrix     bilinear_nu(env().getGrid());
                 bilinear_nu = g5*adj(Sout)*g5*gammavector[nu]*Sin;
-                LOG(Message) << "bilinear_nu for nu = " << nu << " is - " << bilinear_mu << std::endl;
+                //LOG(Message) << "bilinear_nu for nu = " << nu << " is - " << bilinear_mu << std::endl;
                 result.fourquark[mu*Gamma::nGamma/2 + nu] = Zero();
                 tensorprod(lret,bilinear_mu,bilinear_nu);
                 result.fourquark[mu*Gamma::nGamma/2 + nu] = sum(lret);
@@ -253,6 +264,7 @@ We have up to 256 of these including the offdiag (G1 != G2).
         }
     }
     write(writer, "fourquark", result.fourquark);
+    */
 #endif
 }
 
