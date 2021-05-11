@@ -11,7 +11,7 @@
 #define HADRONS_DISTIL_IO_TYPE ComplexF
 #endif
 
-#define DISTILGROUPNAME "DistilMesonField"
+#define DISTIL_GROUP_NAME "DistilMesonField"
 
 BEGIN_HADRONS_NAMESPACE
 BEGIN_MODULE_NAMESPACE(MDistil)
@@ -241,7 +241,7 @@ void DmfComputation<FImpl,T,Tio>
     cBuf_.resize(n_ext*n_str*nt_*cSize_*cSize_);
     
     // io init
-    std::string outStem = outPath + "/noise" + std::to_string(inoise[0]) + "_" + std::to_string(inoise[1]) + "/" +dmfType_.at("left")+"-"+dmfType_.at("right") + "/";
+    std::string outStem = outPath + "/" +dmfType_.at("left")+"-"+dmfType_.at("right") + "/";
     Hadrons::mkdir(outStem);
     
     const unsigned int vol = g_->_gsites;
@@ -375,13 +375,14 @@ void DmfComputation<FImpl,T,Tio>
                     md.MesonFieldType       = dmfType_.at("left") + "-" + dmfType_.at("right");
 
                     std::stringstream ss;
-                    ss << md.Opr << "_";
+                    ss << md.Opr << "_p";
                     for (unsigned int mu = 0; mu < md.Momentum.size(); ++mu)
                         ss << md.Momentum[mu] << ((mu == md.Momentum.size() - 1) ? "" : "_");
-                    std::string fileName = ss.str();
-                    std::string mfName = fileName+".h5";
+                    std::string fileName = ss.str() + "_n" + std::to_string(inoise[0]) + "_" + std::to_string(inoise[1]);
+                    
+                    std::string mfName = fileName + ".h5";
 
-                    A2AMatrixIo<HADRONS_DISTIL_IO_TYPE> matrixIo(outStem+mfName, DISTILGROUPNAME, eff_nt, dil_size_ls.at("left"), dil_size_ls.at("right"));
+                    A2AMatrixIo<HADRONS_DISTIL_IO_TYPE> matrixIo(outStem+mfName, DISTIL_GROUP_NAME, eff_nt, dil_size_ls.at("left"), dil_size_ls.at("right"));
                     
                     tarray->startTimer("IO: write block");
                     if(iblock==0 && jblock==0){              // creates dataset only if it's the first block of the dataset
@@ -432,17 +433,18 @@ void DmfComputation<FImpl,T,Tio>
         for(unsigned int istr=0 ; istr<n_str ; istr++)
         {
             std::stringstream ss;
-            ss << gamma_[istr] << "_";
+            ss << gamma_[istr] << "_p";
             for (unsigned int mu = 0; mu < momenta_[iext].size(); ++mu)
                 ss << momenta_[iext][mu] << ((mu == momenta_[iext].size() - 1) ? "" : "_");
-            std::string fileName = ss.str();
+            std::string fileName = ss.str() + "_n" + std::to_string(inoise[0]) + "_" + std::to_string(inoise[1]);
             std::string mfName = fileName+".h5";
-            A2AMatrixIo<HADRONS_DISTIL_IO_TYPE> matrixIo(outStem+mfName, DISTILGROUPNAME, nt_, dil_size_ls.at("left"), dil_size_ls.at("right"));
+            A2AMatrixIo<HADRONS_DISTIL_IO_TYPE> matrixIo(outStem+mfName, DISTIL_GROUP_NAME, nt_, dil_size_ls.at("left"), dil_size_ls.at("right"));
             matrixIo.save2dMetadata("TimeDilutionLeft" ,leftTimeMap);
             matrixIo.save2dMetadata("TimeDilutionRight",rightTimeMap);
             matrixIo.save2dMetadata("TimeDilutionPairs", timeDilutionPairList);
         }
     }
+    LOG(Message) << "Files written to " + outStem + std::end;
 }
 
 //############################
