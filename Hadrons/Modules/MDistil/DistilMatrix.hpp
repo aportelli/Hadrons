@@ -57,6 +57,7 @@ public:
     long    global_counter = 0;
     double  global_flops   = 0.0;
     double  global_bytes   = 0.0;
+    double  global_iospeed = 0.0;
 private:
     const std::vector<std::string>      sides_ = {"left","right"};
     std::map<std::string,std::string>   dmfType_;
@@ -279,7 +280,7 @@ void DmfComputation<FImpl,T,Tio>
             LOG(Message) << "################### " << dtL << "-" << dtR << " ################### " << std::endl; 
             LOG(Message) << "At least one rho found. Time slices to be saved=" << stInter << "..." << std::endl;
             LOG(Message) << "Time extension in file = " << eff_nt << std::endl;
-            LOG(Message) << "NT_CHUNK_SIZE=" << NT_CHUNK_SIZE << std::endl; //remove this message
+            LOG(Message) << "NT_CHUNK_SIZE=" << NT_CHUNK_SIZE << std::endl;                                             //remove this message
             std::string datasetName = std::to_string(dtL)+"-"+std::to_string(dtR);
 
             unsigned int nblocki = dil_size_ls.at("left")/bSize_ + (((dil_size_ls.at("left") % bSize_) != 0) ? 1 : 0);
@@ -379,7 +380,6 @@ void DmfComputation<FImpl,T,Tio>
                     for (unsigned int mu = 0; mu < md.Momentum.size(); ++mu)
                         ss << md.Momentum[mu] << ((mu == md.Momentum.size() - 1) ? "" : "_");
                     std::string fileName = ss.str() + "_n" + std::to_string(inoise[0]) + "_" + std::to_string(inoise[1]);
-                    
                     std::string mfName = fileName + ".h5";
 
                     A2AMatrixIo<HADRONS_DISTIL_IO_TYPE> matrixIo(outStem+mfName, DISTIL_GROUP_NAME, eff_nt, dil_size_ls.at("left"), dil_size_ls.at("right"));
@@ -402,33 +402,21 @@ void DmfComputation<FImpl,T,Tio>
                     tarray->stopTimer("IO: write block");
                 }
                 g_->Barrier();
-// #else
-//                 // serial io, can remove later
-//                 LOG(Message) << "Starting serial IO" << std::endl;
-//                 for(unsigned int iExt=0; iExt<n_ext; iExt++)
-//                 for(unsigned int iStr=0; iStr<n_str; iStr++)
-//                 {
-//                     if(iblock==0 && jblock==0){              // creates dataset only if it's the first block of the dataset
-//                         matrixIoTable[iStr + n_str*iExt].saveBlock(block, iExt, iStr, iblock, jblock, datasetName, cSize_);   //set surface chunk size as cSize_ (the chunk itself is 3D)
-//                     }
-//                     else{
-//                         matrixIoTable[iStr + n_str*iExt].saveBlock(block, iExt, iStr, iblock, jblock, datasetName);
-//                     }
-//                 }
 #endif
                 tarray->stopTimer("IO: total");
                 ioTime    += tarray->getDTimer("IO: write block");
                 unsigned int bytesBlockSize  = static_cast<double>(n_ext*n_str*eff_nt*iblockSize*jblockSize*sizeof(Tio));
+                double iospeed = bytesBlockSize/ioTime*0.95367431640625;     // 1.0e6/1024/1024
                 LOG(Message)    << "HDF5 IO done " << sizeString(bytesBlockSize) << " in "
-                                << ioTime  << " us (" 
-                                << bytesBlockSize/ioTime*0.95367431640625 // 1.0e6/1024/1024
-                                << " MB/s)" << std::endl;
+                                << ioTime  << " us (" << iospeed << " MB/s)" << std::endl;
+                global_iospeed += iospeed;
             }
         }
     }
 
     if(g_->IsBoss())
     {
+        tarray->startTimer("IO: total");
         for(unsigned int iext=0 ; iext<n_ext ; iext++)
         for(unsigned int istr=0 ; istr<n_str ; istr++)
         {
@@ -443,8 +431,8 @@ void DmfComputation<FImpl,T,Tio>
             matrixIo.save2dMetadata("TimeDilutionRight",rightTimeMap);
             matrixIo.save2dMetadata("TimeDilutionPairs", timeDilutionPairList);
         }
+        tarray->stopTimer("IO: total");
     }
-    LOG(Message) << "Files written to " + outStem + std::end;
 }
 
 //############################

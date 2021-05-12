@@ -321,6 +321,7 @@ void TDistilMesonField<FImpl>::execute(void)
     LOG(Message) << "A2AUtils::MesonField kernel executed " << computation.global_counter << " times over " << cacheSize_ << "^2 cache blocks" << std::endl;
     LOG(Message) << "Average kernel perf (flops) "          << computation.global_flops/computation.global_counter        << " Gflop/s/node " << std::endl;
     LOG(Message) << "Average kernel perf (read) "           << computation.global_bytes/computation.global_counter        << " GB/s/node "    << std::endl;
+    LOG(Message) << "Average IO speed (write) "             << computation.global_iospeed/computation.global_counter      << " MB/s "    << std::endl;
 }
 
 
