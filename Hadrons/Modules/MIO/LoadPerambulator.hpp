@@ -50,9 +50,9 @@ class LoadPerambulatorPar: Serializable
 {
 public:
     GRID_SERIALIZABLE_CLASS_MEMBERS(LoadPerambulatorPar,
-                                        std::string, PerambFileName,
+                                        std::string, perambFileName,
                                         std::string, distilNoise,
-					int, nSourceT);
+                                        std::string, timeSources);
 };
 
 template <typename FImpl>
@@ -103,20 +103,113 @@ void TLoadPerambulator<FImpl>::setup(void)
     int nVec = dilNoise.getNl();	
     int nDL = dilNoise.dilutionSize(DistillationNoise<FImpl>::Index::l);	
     int nDS = dilNoise.dilutionSize(DistillationNoise<FImpl>::Index::s);	
+    int nDT = dilNoise.dilutionSize(DistillationNoise<FImpl>::Index::t);	
     const int  Nt{env().getDim(Tdir)};
+    int nSourceT;
+    std::string sourceT = par().timeSources;
+    if(par().timeSources.empty())
+    {
+	nSourceT=nDT;
+    }
+    else
+    {
+	// check whether input is legal, i.e. a number of integers between 0 and (nDT-1)
+	std::regex rex("[0-9 ]+");
+	std::smatch sm;
+	std::regex_match(sourceT, sm, rex);
+	if (!sm[0].matched)
+	{
+	    HADRONS_ERROR(Range, "sourceTimes must be list of non-negative integers");
+	}
+	std::istringstream is(sourceT);
+	std::vector<int> iT ( ( std::istream_iterator<int>( is )  ), (std::istream_iterator<int>() ) );
+	nSourceT = iT.size();
+        for (int ii = 0; ii < nSourceT; ii++)
+	{
+	    if (iT[ii] >= nDT)
+	    {
+		HADRONS_ERROR(Range, "elements of sourceTimes must lie between 0 and nDT");
+	    }
+	}
+	//another check: in order
+    }
   
-    envCreate(MDistil::PerambTensor, getName(), 1, Nt, nVec, nDL, nNoise, par().nSourceT, nDS);
+    envCreate(MDistil::PerambTensor, getName(), 1, Nt, nVec, nDL, nNoise, nSourceT, nDS);
+    envTmp(MDistil::PerambIndexTensor, "PerambTmp", 1, Nt, nVec, nDL, nNoise, nDS);
 }
 
 // execution ///////////////////////////////////////////////////////////////////
 template <typename FImpl>
 void TLoadPerambulator<FImpl>::execute(void)
 {
-  auto &perambulator = envGet(MDistil::PerambTensor, getName());
-  std::string sPerambName{ par().PerambFileName };
-  sPerambName.append( 1, '.' );
-  sPerambName.append( std::to_string( vm().getTrajectory() ) );
-  perambulator.read(sPerambName.c_str());
+    auto &perambulator = envGet(MDistil::PerambTensor, getName());
+    auto &dilNoise = envGet(DistillationNoise<FImpl>, par().distilNoise);
+    int nNoise = dilNoise.size();	
+    int nVec = dilNoise.getNl();	
+    int nDL = dilNoise.dilutionSize(DistillationNoise<FImpl>::Index::l);	
+    int nDS = dilNoise.dilutionSize(DistillationNoise<FImpl>::Index::s);	
+    int nDT = dilNoise.dilutionSize(DistillationNoise<FImpl>::Index::t);	
+    const int  Nt{env().getDim(Tdir)};
+    std::string sourceT = par().timeSources;
+    int nSourceT;
+    std::vector<int> invT;
+    std::vector<std::vector<unsigned int>> sourceTimes;
+    if(par().timeSources.empty())
+    {
+	// create sourceTimes all time-dilution indices
+	nSourceT=nDT;
+        for (int dt = 0; dt < nDT; dt++)
+	{
+	    std::vector<unsigned int> sT = dilNoise.timeSlices(dt);
+	    sourceTimes.push_back(sT);
+	    invT.push_back(dt);
+	}
+        LOG(Message) << "Reading perambulator for all " << nDT << " time-dilution vectors" << std::endl;
+    }
+    else
+    {
+	std::istringstream is(sourceT);
+	std::vector<int> iT ( ( std::istream_iterator<int>( is )  ), (std::istream_iterator<int>() ) );
+	nSourceT = iT.size();
+	// create sourceTimes from the chosen subset of time-dilution indices
+        for (int dt = 0; dt < nSourceT; dt++)
+	{
+	    std::vector<unsigned int> sT = dilNoise.timeSlices(iT[dt]);
+	    sourceTimes.push_back(sT);
+	    invT.push_back(iT[dt]);
+	}
+        LOG(Message) << "Reading perambulator for a subset of " << nSourceT << " time-dilution vectors" << std::endl;
+    }
+    LOG(Message) << "Source times" << sourceTimes << std::endl;
+    perambulator.MetaData.timeSources = invT;
+
+    
+    envGetTmp(MDistil::PerambIndexTensor, PerambTmp);
+    for (int dt = 0; dt < Nt; dt++)
+    {
+        std::vector<int>::iterator it = std::find(std::begin(invT), std::end(invT), dt);
+        //skip dilution indices which are not in invT
+        if(it == std::end(invT))
+        {
+            continue;
+        }
+        LOG(Message) <<  "reading perambulator dt= " << dt << std::endl;
+	int idt=it - std::begin(invT);
+        std::string sPerambName {par().perambFileName};
+        sPerambName.append("/iDT_");
+        sPerambName.append(std::to_string(dt));
+        sPerambName.append(".");
+        sPerambName.append(std::to_string(vm().getTrajectory()));
+        PerambTmp.read(sPerambName.c_str());
+	for (int t = 0; t < Nt; t++)
+        for (int ivec = 0; ivec < nVec; ivec++)
+        for (int idl = 0; idl < nDL; idl++)
+        for (int in = 0; in < nNoise; in++)
+        for (int ids = 0; ids < nDS; ids++)
+	{
+	    perambulator.tensor(t,ivec,idl,in,idt,ids) = PerambTmp.tensor(t,ivec,idl,in,ids);
+	}
+    }
 }
 
 END_MODULE_NAMESPACE
