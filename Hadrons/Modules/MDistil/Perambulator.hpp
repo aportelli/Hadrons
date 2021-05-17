@@ -393,7 +393,7 @@ void TPerambulator<FImpl>::execute(void)
     }
     
     // Save the perambulator to disk from the boss node
-    if (grid4d->IsBoss())
+    if (grid4d->IsBoss() && !par().perambFileName.empty())
     {
         envGetTmp(PerambIndexTensor, PerambMultiFileTmp);
         for (int dt = 0; dt < Nt; dt++)
