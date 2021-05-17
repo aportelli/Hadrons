@@ -124,6 +124,8 @@ void TStoutSmearing<GImpl>::execute(void)
     buf = U;
     LOG(Message) << "plaquette= " << WilsonLoops<GImpl>::avgPlaquette(U)
                  << std::endl;
+    // This is only here to return the original field in case steps=0. Not sure whether it's needed.
+    Usmr = U;
     for (unsigned int n = 0; n < par().steps; ++n)
     {
         smearer.smear(Usmr, buf);
