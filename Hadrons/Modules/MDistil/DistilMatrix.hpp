@@ -27,7 +27,7 @@ public:
                                     unsigned int,               Nt,
                                     unsigned int,               Nvec,
                                     std::vector<RealF>,         Momentum,
-                                    Gamma::Algebra,             Opr,               // just gamma matrices for now, but could turn into more general operators in the future
+                                    Gamma::Algebra,             Operator,               // just gamma matrices for now, but could turn into more general operators in the future
                                     std::vector<int>,           NoisePair,
                                     std::string,                MesonFieldType)
 };
@@ -371,12 +371,12 @@ void DmfComputation<FImpl,T,Tio>
                     md.Nt                   = nt_;
                     md.Nvec                 = n.at("left").getNl();     //nvec is the same for both sides
                     md.Momentum             = momenta_[iExt];
-                    md.Opr                  = gamma_[iStr];
+                    md.Operator             = gamma_[iStr];
                     md.NoisePair            = inoise;
                     md.MesonFieldType       = dmfType_.at("left") + "-" + dmfType_.at("right");
 
                     std::stringstream ss;
-                    ss << md.Opr << "_p";
+                    ss << md.Operator << "_p";
                     for (unsigned int mu = 0; mu < md.Momentum.size(); ++mu)
                         ss << md.Momentum[mu] << ((mu == md.Momentum.size() - 1) ? "" : "_");
                     std::string fileName = ss.str() + "_n" + std::to_string(inoise[0]) + "_" + std::to_string(inoise[1]);
@@ -430,6 +430,7 @@ void DmfComputation<FImpl,T,Tio>
             matrixIo.save2dMetadata("TimeDilutionLeft" ,leftTimeMap);
             matrixIo.save2dMetadata("TimeDilutionRight",rightTimeMap);
             matrixIo.save2dMetadata("TimeDilutionPairs", timeDilutionPairList);
+            // matrixIo.saveStringMetadata("Operator" , gamma_[istr]);
         }
         tarray->stopTimer("IO: total");
     }
