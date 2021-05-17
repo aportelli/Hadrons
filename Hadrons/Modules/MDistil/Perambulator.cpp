@@ -40,7 +40,7 @@ BEGIN_HADRONS_NAMESPACE
 BEGIN_MODULE_NAMESPACE(MDistil)
 
 const std::string                PerambTensor::Name__{"Perambulator"};
-const std::array<std::string, 6> PerambTensor::DefaultIndexNames__{"nT", "nVec", "nDL", "nNoise", "nDT_inv", "nDS"};
+const std::array<std::string, 6> PerambTensor::DefaultIndexNames__{"nT", "nVec", "LI", "nNoise", "nT_inv", "SI"};
 
 const std::string                PerambIndexTensor::Name__{"Perambulator"};
 const std::array<std::string, 5> PerambIndexTensor::DefaultIndexNames__{"nT", "nVec", "nDL", "nNoise", "nDS"};
