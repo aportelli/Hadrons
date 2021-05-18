@@ -36,6 +36,7 @@
 #include <Hadrons/NamedTensor.hpp>
 #include <Hadrons/Solver.hpp>
 #include <Hadrons/DistillationVectors.hpp>
+#include <Hadrons/Modules/MDistil/DistilUtils.hpp>
 
 BEGIN_HADRONS_NAMESPACE
 BEGIN_MODULE_NAMESPACE(MDistil)
@@ -45,6 +46,8 @@ BEGIN_MODULE_NAMESPACE(MDistil)
  ******************************************************************************/
 
 GRID_SERIALIZABLE_ENUM(pMode, undef, perambOnly, 0, inputSolve, 1, outputSolve, 2);
+
+
 
 
 class PerambulatorPar: Serializable
@@ -164,33 +167,8 @@ void TPerambulator<FImpl>::setup(void)
     // read in and verify the format of the vector of time sources used in this module execution. Must be a subset of available time dilution indices.
     int nSourceT;
     std::string sourceT = par().timeSources;
-    if(par().timeSources.empty())
-    {
-	nSourceT=nDT;
-    }
-    else
-    {
-	// check whether input is legal, i.e. a number of integers between 0 and (nDT-1)
-	std::regex rex("[0-9 ]+");
-	std::smatch sm;
-	std::regex_match(sourceT, sm, rex);
-	if (!sm[0].matched)
-	{
-	    HADRONS_ERROR(Range, "sourceTimes must be list of non-negative integers");
-	}
-	std::istringstream is(sourceT);
-	std::vector<int> iT ( ( std::istream_iterator<int>( is )  ), (std::istream_iterator<int>() ) );
-	nSourceT = iT.size();
-        for (int ii = 0; ii < nSourceT; ii++)
-	{
-	    if (iT[ii] >= nDT)
-	    {
-		HADRONS_ERROR(Range, "elements of sourceTimes must lie between 0 and nDT");
-	    }
-	}
-	//another check: in order
-    }
-
+    nSourceT = verifyTimeSourcesInput(sourceT, nDT);
+    
     // Perambulator dimensions need to use the reduced value for nDL     
     envCreate(PerambTensor, getName(), 1, Nt, nVec, nDL_reduced, nNoise, nSourceT, nDS);
     envTmp(PerambIndexTensor, "PerambMultiFileTmp",1,Nt,nVec,nDL_reduced,nNoise,nDS);
@@ -291,6 +269,7 @@ void TPerambulator<FImpl>::execute(void)
         LOG(Message) << "Computing inversions on a subset of " << nSourceT << " time-dilution vectors" << std::endl;
     }
     LOG(Message) << "Source times" << sourceTimes << std::endl;
+
     perambulator.MetaData.timeSources = invT;
 
     int idt,dt,dk,ds,dIndexSolve = 0; 
