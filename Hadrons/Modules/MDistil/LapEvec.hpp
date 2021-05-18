@@ -56,7 +56,7 @@ BEGIN_MODULE_NAMESPACE(MDistil)
 
 struct ChebyshevParameters: Serializable {
     GRID_SERIALIZABLE_CLASS_MEMBERS(ChebyshevParameters,
-                                    int, PolyOrder,
+                                    int, polyOrder,
                                     double, alpha,
                                     double, beta)
     ChebyshevParameters() = default;
@@ -65,12 +65,12 @@ struct ChebyshevParameters: Serializable {
 
 struct LanczosParameters: Serializable {
     GRID_SERIALIZABLE_CLASS_MEMBERS(LanczosParameters,
-                                    int, Nvec,
-                                    int, Nk,
-                                    int, Np,
-                                    int, MaxIt,
+                                    int, nVec,
+                                    int, nK,
+                                    int, nP,
+                                    int, maxIt,
                                     double, resid,
-                                    int, IRLLog)
+                                    int, irlLog)
     LanczosParameters() = default;
     template <class ReaderClass> LanczosParameters(Reader<ReaderClass>& Reader){read(Reader,"Lanczos",*this);}
 };
@@ -80,9 +80,9 @@ struct LanczosParameters: Serializable {
 struct LapEvecPar: Serializable {
     GRID_SERIALIZABLE_CLASS_MEMBERS(LapEvecPar
                                     ,std::string,         gauge
-                                    ,ChebyshevParameters, Cheby
-                                    ,LanczosParameters,   Lanczos
-                                    ,std::string,         FileName)
+                                    ,ChebyshevParameters, cheby
+                                    ,LanczosParameters,   lanczos
+                                    ,std::string,         fileName)
 };
 
 /******************************************************************************
@@ -179,7 +179,7 @@ void TLapEvec<FImpl>::setup(void)
     envTmp(ColourVectorField,  "src",1,gridLD);
     envTmp(std::vector<typename DistillationNoise<FImpl>::LapPack>,  "eig", 1, Ntlocal);
     // Output objects
-    envCreate(typename DistillationNoise<FImpl>::LapPack, getName(), 1, par().Lanczos.Nvec, gridHD);
+    envCreate(typename DistillationNoise<FImpl>::LapPack, getName(), 1, par().lanczos.nVec, gridHD);
 }
 
 /*************************************************************************************
@@ -254,13 +254,13 @@ public:
 template <typename FImpl>
 void TLapEvec<FImpl>::execute(void)
 {
-    const ChebyshevParameters &ChebPar{par().Cheby};
-    const LanczosParameters   &LPar{par().Lanczos};
+    const ChebyshevParameters &ChebPar{par().cheby};
+    const LanczosParameters   &LPar{par().lanczos};
     
     // Disable IRL logging if requested
-    LOG(Message) << "IRLLog=" << LPar.IRLLog << std::endl;
+    LOG(Message) << "irlLog=" << LPar.irlLog << std::endl;
     const int PreviousIRLLogState{GridLogIRL.isActive()};
-    GridLogIRL.Active( LPar.IRLLog == 0 ? 0 : 1 );
+    GridLogIRL.Active( LPar.irlLog == 0 ? 0 : 1 );
     
     // Stout smeared gauge field
     envGetTmp(GaugeField, Umu_smear);
@@ -280,10 +280,10 @@ void TLapEvec<FImpl>::execute(void)
     const int Ntfirst{gridHD->LocalStarts()[Tdir]};
     uint32_t ConvergenceErrors{0};
     const int NtFull{env().getDim(Tdir)};
-    TimesliceEvals Evals{ NtFull, LPar.Nvec };
+    TimesliceEvals Evals{ NtFull, LPar.nVec };
     for (int t = 0; t < NtFull; t++)
     {
-        for (int v = 0; v < LPar.Nvec; v++)
+        for (int v = 0; v < LPar.nVec; v++)
 	{
             Evals.tensor( t, v ) = 0;
 	}
@@ -293,16 +293,16 @@ void TLapEvec<FImpl>::execute(void)
         LOG(Message) << "------------------------------------------------------------" << std::endl;
         LOG(Message) << " Compute eigenpack, local timeslice = " << t << " / " << Ntlocal << std::endl;
         LOG(Message) << " Lanczos residual = " << LPar.resid << std::endl;
-        LOG(Message) << " Number of Lap eigenvectors (nvec) = " << LPar.Nvec << std::endl;
+        LOG(Message) << " Number of Lap eigenvectors (nvec) = " << LPar.nVec << std::endl;
         LOG(Message) << "------------------------------------------------------------" << std::endl;
-        eig[t].resize(LPar.Nk+LPar.Np,gridLD);
+        eig[t].resize(LPar.nK+LPar.nP,gridLD);
         
         // Construct smearing operator
         ExtractSliceLocal(UmuNoTime,Umu_smear,0,t,Tdir); // switch to 3d/4d objects
         Laplacian3D<ColourVectorField,GaugeField> Nabla(UmuNoTime);
-        LOG(Message) << "Chebyshev preconditioning to order " << ChebPar.PolyOrder
+        LOG(Message) << "Chebyshev preconditioning to order " << ChebPar.polyOrder
                      << " with parameters (alpha,beta) = (" << ChebPar.alpha << "," << ChebPar.beta << ")" << std::endl;
-        Chebyshev<ColourVectorField> Cheb(ChebPar.alpha,ChebPar.beta,ChebPar.PolyOrder);
+        Chebyshev<ColourVectorField> Cheb(ChebPar.alpha,ChebPar.beta,ChebPar.polyOrder);
         
         // Construct source vector according to Test_dwf_compressed_lanczos.cc
         src = 11.0; // NB: This is a dummy parameter and just needs to be non-zero
@@ -312,22 +312,22 @@ void TLapEvec<FImpl>::execute(void)
         
         Laplacian3DHerm<ColourVectorField> NablaCheby(Cheb,Nabla);
         ImplicitlyRestartedLanczos<ColourVectorField>
-        IRL(NablaCheby,Nabla,LPar.Nvec,LPar.Nk,LPar.Nk+LPar.Np,LPar.resid,LPar.MaxIt);
+        IRL(NablaCheby,Nabla,LPar.nVec,LPar.nK,LPar.nK+LPar.nP,LPar.resid,LPar.maxIt);
         int Nconv = 0;
         IRL.calc(eig[t].eval,eig[t].evec,src,Nconv);
-        if (Nconv < LPar.Nvec)
+        if (Nconv < LPar.nVec)
         {
             // NB: Can't assert here since we are processing local slices - i.e. not all nodes would assert
             ConvergenceErrors = 1;
             LOG(Error) << "MDistil::LapEvec : Not enough eigenvectors converged. If this occurs in practice, we should modify the eigensolver to iterate once more to ensure the second convergence test does not take us below the requested number of eigenvectors" << std::endl;
         }
-        if( Nconv != LPar.Nvec )
+        if( Nconv != LPar.nVec )
 	{
-            eig[t].resize(LPar.Nvec, gridLD);
+            eig[t].resize(LPar.nVec, gridLD);
 	}
 	RotateEigen( eig[t].evec ); // Rotate the eigenvectors into our phase convention
         
-        for (int i=0;i<LPar.Nvec;i++)
+        for (int i=0;i<LPar.nVec;i++)
 	{
             InsertSliceLocal(eig[t].evec[i],eig4d.evec[i],0,t,Tdir);
             if(t==0 && Ntfirst==0)
@@ -347,7 +347,7 @@ void TLapEvec<FImpl>::execute(void)
         HADRONS_ERROR(Program,"The eingensolver failed to find enough eigenvectors on at least one node");
     }
     // Now write out the 4d eigenvectors
-    std::string sEigenPackName(par().FileName);
+    std::string sEigenPackName(par().fileName);
     if( !sEigenPackName.empty() )
     {
         eig4d.record.solverXml = parString();
