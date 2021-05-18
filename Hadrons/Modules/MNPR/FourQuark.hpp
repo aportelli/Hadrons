@@ -66,8 +66,8 @@ public:
     const static int prec1 = getPrecision<PropagatorField1>::value;
     const static int prec2 = getPrecision<PropagatorField2>::value;
     const static int prec = std::max(prec1,prec2);
-    typedef typename std::enable_if<prec==2, LatticeSpinColourSpinColourMatrix> SCSCField;
-    typedef typename std::enable_if<prec==1, LatticeSpinColourSpinColourMatrixF> SCSCField;
+    //typedef typename std::enable_if<prec==2, LatticeSpinColourSpinColourMatrix> SCSCField;
+    //typedef typename std::enable_if<prec==1, LatticeSpinColourSpinColourMatrixF> SCSCField;
     class Result: Serializable
     {
     public:
