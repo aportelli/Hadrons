@@ -219,6 +219,7 @@ void TDistilMesonField<FImpl>::execute(void)
     std::map<std::string, DistilVector & > distVectors = {{"left",dvl}  ,{"right",dvr}};
     DistillationNoise &noisel = envGet( DistillationNoise , par().leftNoise);
     DistillationNoise &noiser = envGet( DistillationNoise , par().rightNoise);
+
     std::map<std::string, DistillationNoise & >   noises = {{"left",noisel},{"right",noiser}};
     
     if((noisel.getNl() != nVec) || (noiser.getNl() != nVec))

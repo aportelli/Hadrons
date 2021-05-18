@@ -33,6 +33,7 @@
 
 #include <Hadrons/Global.hpp>
 #include <Hadrons/EigenPack.hpp>
+#include <Grid/util/Sha.h>
 
 BEGIN_HADRONS_NAMESPACE
 
@@ -84,6 +85,7 @@ public:
     void generateNoise(GridSerialRNG &rng);
     // generate dummy noise - vector of 1s, used for exact distillation only
     void exactNoisePolicy(void);
+    std::string generateHash(void) const;
 protected:
     virtual void buildMap(void) = 0;
     DilutionMap  &getMap(const bool createIfEmpty = true);
@@ -290,6 +292,7 @@ void DistillationNoise<FImpl>::dumpDilutionMap(void)
     dump(Index::l);
     LOG(Message) << "Spin index sets:" << std::endl;
     dump(Index::s);
+
 }
 
 template <typename FImpl>
@@ -330,6 +333,27 @@ bool DistillationNoise<FImpl>::mapEmpty(void) const
     }
 
     return empty;
+}
+
+template <typename FImpl>
+std::string DistillationNoise<FImpl>::generateHash(void) const
+{
+    if (mapEmpty())
+    {
+        buildMap();
+    }
+    std::vector<unsigned char> hnoise = GridChecksum::sha256( &noise_.front().front() , sizeof(Type)*noiseSize_*noise_.size() );
+    std::vector<unsigned int> linearizedMap;
+    for(auto& m : map_)
+    for(auto& p : m)
+    for(auto& t : p)
+        linearizedMap.push_back(t);
+    std::vector<unsigned char> hmap = GridChecksum::sha256( &linearizedMap.front() , sizeof(unsigned int)*linearizedMap.size() );
+
+    std::string scomb       = GridChecksum::sha256_string(hnoise)+GridChecksum::sha256_string(hmap);
+    std::vector<unsigned char> hcomb = GridChecksum::sha256( scomb.c_str() , sizeof(char)*scomb.size() );
+
+    return GridChecksum::sha256_string(hcomb);
 }
 
 /******************************************************************************
