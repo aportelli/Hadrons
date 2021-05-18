@@ -109,34 +109,7 @@ void TLoadPerambulator<FImpl>::setup(void)
     int nSourceT;
     std::string sourceT = par().timeSources;
     nSourceT = MDistil::verifyTimeSourcesInput(sourceT,nDT);
-    /*
-    if(par().timeSources.empty())
-    {
-	nSourceT=nDT;
-    }
-    else
-    {
-	// check whether input is legal, i.e. a number of integers between 0 and (nDT-1)
-	std::regex rex("[0-9 ]+");
-	std::smatch sm;
-	std::regex_match(sourceT, sm, rex);
-	if (!sm[0].matched)
-	{
-	    HADRONS_ERROR(Range, "sourceTimes must be list of non-negative integers");
-	}
-	std::istringstream is(sourceT);
-	std::vector<int> iT ( ( std::istream_iterator<int>( is )  ), (std::istream_iterator<int>() ) );
-	nSourceT = iT.size();
-        for (int ii = 0; ii < nSourceT; ii++)
-	{
-	    if (iT[ii] >= nDT)
-	    {
-		HADRONS_ERROR(Range, "elements of sourceTimes must lie between 0 and nDT");
-	    }
-	}
-	//another check: in order
-    }
-    */
+
     envCreate(MDistil::PerambTensor, getName(), 1, Nt, nVec, nDL, nNoise, nSourceT, nDS);
     envTmp(MDistil::PerambIndexTensor, "PerambTmp", 1, Nt, nVec, nDL, nNoise, nDS);
 }
@@ -153,39 +126,12 @@ void TLoadPerambulator<FImpl>::execute(void)
     int nDS = dilNoise.dilutionSize(DistillationNoise<FImpl>::Index::s);	
     int nDT = dilNoise.dilutionSize(DistillationNoise<FImpl>::Index::t);	
     const int  Nt{env().getDim(Tdir)};
+
     std::string sourceT = par().timeSources;
     int nSourceT;
     std::vector<int> invT;
-    std::vector<std::vector<unsigned int>> sourceTimes;
-    if(par().timeSources.empty())
-    {
-	// create sourceTimes all time-dilution indices
-	nSourceT=nDT;
-        for (int dt = 0; dt < nDT; dt++)
-	{
-	    std::vector<unsigned int> sT = dilNoise.timeSlices(dt);
-	    sourceTimes.push_back(sT);
-	    invT.push_back(dt);
-	}
-        LOG(Message) << "Reading perambulator for all " << nDT << " time-dilution vectors" << std::endl;
-    }
-    else
-    {
-	std::istringstream is(sourceT);
-	std::vector<int> iT ( ( std::istream_iterator<int>( is )  ), (std::istream_iterator<int>() ) );
-	nSourceT = iT.size();
-	// create sourceTimes from the chosen subset of time-dilution indices
-        for (int dt = 0; dt < nSourceT; dt++)
-	{
-	    std::vector<unsigned int> sT = dilNoise.timeSlices(iT[dt]);
-	    sourceTimes.push_back(sT);
-	    invT.push_back(iT[dt]);
-	}
-        LOG(Message) << "Reading perambulator for a subset of " << nSourceT << " time-dilution vectors" << std::endl;
-    }
-    LOG(Message) << "Source times" << sourceTimes << std::endl;
+    nSourceT = MDistil::getSourceTimesFromInput(sourceT,nDT,dilNoise,invT);    
     perambulator.MetaData.timeSources = invT;
-
     
     envGetTmp(MDistil::PerambIndexTensor, PerambTmp);
     for (int dt = 0; dt < Nt; dt++)

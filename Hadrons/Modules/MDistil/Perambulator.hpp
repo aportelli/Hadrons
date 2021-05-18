@@ -241,35 +241,7 @@ void TPerambulator<FImpl>::execute(void)
     std::string sourceT = par().timeSources;
     int nSourceT;
     std::vector<int> invT;
-    std::vector<std::vector<unsigned int>> sourceTimes;
-    if(par().timeSources.empty())
-    {
-	// create sourceTimes all time-dilution indices
-	nSourceT=nDT;
-        for (int dt = 0; dt < nDT; dt++)
-	{
-	    std::vector<unsigned int> sT = dilNoise.timeSlices(dt);
-	    sourceTimes.push_back(sT);
-	    invT.push_back(dt);
-	}
-        LOG(Message) << "Computing inversions on all " << nDT << " time-dilution vectors" << std::endl;
-    }
-    else
-    {
-	std::istringstream is(sourceT);
-	std::vector<int> iT ( ( std::istream_iterator<int>( is )  ), (std::istream_iterator<int>() ) );
-	nSourceT = iT.size();
-	// create sourceTimes from the chosen subset of time-dilution indices
-        for (int dt = 0; dt < nSourceT; dt++)
-	{
-	    std::vector<unsigned int> sT = dilNoise.timeSlices(iT[dt]);
-	    sourceTimes.push_back(sT);
-	    invT.push_back(iT[dt]);
-	}
-        LOG(Message) << "Computing inversions on a subset of " << nSourceT << " time-dilution vectors" << std::endl;
-    }
-    LOG(Message) << "Source times" << sourceTimes << std::endl;
-
+    nSourceT = getSourceTimesFromInput(sourceT,nDT,dilNoise,invT);    
     perambulator.MetaData.timeSources = invT;
 
     int idt,dt,dk,ds,dIndexSolve = 0; 
