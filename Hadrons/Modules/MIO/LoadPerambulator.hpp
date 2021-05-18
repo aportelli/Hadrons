@@ -38,6 +38,7 @@
 #include <Hadrons/ModuleFactory.hpp>
 #include <Hadrons/DilutedNoise.hpp>
 #include <Hadrons/NamedTensor.hpp>
+#include <Hadrons/Modules/MDistil/DistilUtils.hpp>
 
 BEGIN_HADRONS_NAMESPACE
 BEGIN_MODULE_NAMESPACE(MIO)
@@ -107,6 +108,8 @@ void TLoadPerambulator<FImpl>::setup(void)
     const int  Nt{env().getDim(Tdir)};
     int nSourceT;
     std::string sourceT = par().timeSources;
+    nSourceT = MDistil::verifyTimeSourcesInput(sourceT,nDT);
+    /*
     if(par().timeSources.empty())
     {
 	nSourceT=nDT;
@@ -133,7 +136,7 @@ void TLoadPerambulator<FImpl>::setup(void)
 	}
 	//another check: in order
     }
-  
+    */
     envCreate(MDistil::PerambTensor, getName(), 1, Nt, nVec, nDL, nNoise, nSourceT, nDS);
     envTmp(MDistil::PerambIndexTensor, "PerambTmp", 1, Nt, nVec, nDL, nNoise, nDS);
 }
