@@ -34,6 +34,7 @@
 #include <Hadrons/Global.hpp>
 #include <Hadrons/EigenPack.hpp>
 #include <Grid/util/Sha.h>
+#include <Hadrons/DistillationVectors.hpp>
 
 BEGIN_HADRONS_NAMESPACE
 
@@ -85,7 +86,8 @@ public:
     void generateNoise(GridSerialRNG &rng);
     // generate dummy noise - vector of 1s, used for exact distillation only
     void exactNoisePolicy(void);
-    std::string generateHash(void) const;
+    std::string generateHash(void);
+    void write(const std::string filestem, const std::string dataname);
 protected:
     virtual void buildMap(void) = 0;
     DilutionMap  &getMap(const bool createIfEmpty = true);
@@ -336,7 +338,7 @@ bool DistillationNoise<FImpl>::mapEmpty(void) const
 }
 
 template <typename FImpl>
-std::string DistillationNoise<FImpl>::generateHash(void) const
+std::string DistillationNoise<FImpl>::generateHash(void)
 {
     if (mapEmpty())
     {
@@ -354,6 +356,39 @@ std::string DistillationNoise<FImpl>::generateHash(void) const
     std::vector<unsigned char> hcomb = GridChecksum::sha256( scomb.c_str() , sizeof(char)*scomb.size() );
 
     return GridChecksum::sha256_string(hcomb);
+}
+
+template <typename FImpl>
+void DistillationNoise<FImpl>::write(const std::string filestem, const std::string dataname)
+{
+#ifdef HAVE_HDF5
+    Hdf5Writer writer(filestem+".h5");
+    push(writer, dataname);
+    auto &group = writer.getGroup();
+
+    //metadata write
+    hsize_t         attr_dim = 1;
+    //hash
+    std::string shash = generateHash();
+    H5NS::DataSpace hash_space(1, &attr_dim);
+    H5NS::DataType  hash_type(H5T_STRING, shash.size());
+    H5NS::Attribute attr_hash = group.createAttribute("NoiseHash", hash_type, hash_space);
+    attr_hash.write(hash_type, shash.c_str() );
+
+    //missing dilution schemes
+
+    //noise write
+    std::vector<hsize_t>    dim = {static_cast<hsize_t>(noiseSize_)};
+    H5NS::DataSpace         dataspace(dim.size(), dim.data());
+    H5NS::DataSpace         memspace = dataspace;
+    H5NS::DataSet           dataset;
+    
+    dataset = group.createDataSet("Noise", Hdf5Type<Type>::type(), dataspace);
+    dataset.write(&noise_.front().front() , Hdf5Type<Type>::type(), memspace, dataspace);
+
+#else
+    HADRONS_ERROR(Implementation, "all-to-all matrix I/O needs HDF5 library");
+#endif
 }
 
 /******************************************************************************

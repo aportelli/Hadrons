@@ -18,8 +18,7 @@ BEGIN_MODULE_NAMESPACE(MDistil)
 
 using TimeSliceMap = std::vector<std::vector<unsigned int>>; // this is here because TimeSliceMap is a return type in methods below
 
-
-// metadata class
+// metadata serialiser class
 template <typename FImpl>
 class DistilMesonFieldMetadata: Serializable
 {
@@ -33,14 +32,15 @@ public:
                                     std::string,                MesonFieldType)
 };
 
-// class TimeDilutionBlocksMetadata: Serializable
+// //metadata io class
+// template <typename T>
+// class DistilMetadataIo
 // {
 // public:
-//     GRID_SERIALIZABLE_CLASS_MEMBERS(TimeDilutionBlocksMetadata,
-//                                     std::vector<unsigned int>,  left_time_sources,
-//                                     std::vector<unsigned int>,  right_time_sources,
-//                                     TimeSliceMap,               left_time_dilution,
-//                                     TimeSliceMap,               right_time_dilution)
+//     // constructor
+//     DistilMetadataIo(std::string filename, std::string metadataname);
+//     //methods
+//     void save2dMetadata(const std::string label, const std::vector<std::vector<unsigned int>>& data);
 // };
 
 //computation class declaration
