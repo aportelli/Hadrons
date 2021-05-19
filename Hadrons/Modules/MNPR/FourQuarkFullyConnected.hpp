@@ -40,13 +40,21 @@ class TFourQuarkFullyConnected : public Module<FourQuarkFullyConnectedPar>
 public:
     FERM_TYPE_ALIASES(FImpl1, 1)
     FERM_TYPE_ALIASES(FImpl2, 2)
+    template<typename P1, typename P2, typename V = void> struct Traits {};
+    template<typename P1, typename P2>
+    struct Traits<P1, P2, typename std::enable_if<getPrecision<P1>::value == 1 && getPrecision<P2>::value == 1>::type>
+      { using PrecisionType = LatticeSpinColourSpinColourMatrixF; };
+    template<typename P1, typename P2>
+    struct Traits<P1, P2, typename std::enable_if<getPrecision<P1>::value != 1 || getPrecision<P2>::value != 1>::type>
+      { using PrecisionType = LatticeSpinColourSpinColourMatrix; };
+    using SCSCField = typename Traits<PropagatorField1, PropagatorField2>::PrecisionType;
 
     TFourQuarkFullyConnected(const std::string name);
     virtual ~TFourQuarkFullyConnected(void) {};
 
     virtual std::vector<std::string> getInput();
     virtual std::vector<std::string> getOutput();
-    virtual void tensorprod(LatticeSpinColourSpinColourMatrix &lret, LatticeSpinColourMatrix &a, LatticeSpinColourMatrix &b);
+    virtual void tensorprod(SCSCField &lret, PropagatorField1 &a, PropagatorField2 &b);
 
 protected:
     virtual void setup(void);
@@ -58,13 +66,9 @@ MODULE_REGISTER_TMP(FourQuarkFullyConnected, ARG(TFourQuarkFullyConnected<FIMPL,
 // Copied from Julia Kettle's FourQuark/Bilinear code:
 // https://github.com/Julia-Kettle/Grid/blob/1ac5498c3d5ad1dc3ba8c4ce08ec6f1f102d10e0/Hadrons/Modules/MNPR/Bilinear.hpp#L120
 template <typename FImpl1, typename FImpl2>
-void TFourQuarkFullyConnected<FImpl1, FImpl2>::tensorprod(LatticeSpinColourSpinColourMatrix &lret, LatticeSpinColourMatrix &a, LatticeSpinColourMatrix &b)
+void TFourQuarkFullyConnected<FImpl1, FImpl2>::tensorprod(SCSCField &lret, PropagatorField1 &a, PropagatorField2 &b)
 {
     // Tensor product of 2 Lattice Spin Colour Matrices
-  //  auto lret_v = lret.View();
-  //  auto a_v = a.View();
-  //  auto b_v = b.View();
-
     autoView(lret_v, lret, AcceleratorRead);
     autoView(a_v, a, AcceleratorRead);
     autoView(b_v, b, AcceleratorRead);
@@ -112,7 +116,7 @@ void TFourQuarkFullyConnected<FImpl1, FImpl2>::setup()
 
     envTmpLat(LatticeSpinColourMatrix, "bilinear");
     envTmpLat(LatticeSpinColourMatrix, "bilinear_tmp");
-    envTmpLat(LatticeSpinColourSpinColourMatrix, "lret");
+    envTmpLat(SCSCField, "lret");
 
     envTmpLat(LatticeComplex, "bilinear_phase");
     envTmpLat(LatticeComplex, "coordinate");
@@ -130,7 +134,7 @@ void TFourQuarkFullyConnected<FImpl1, FImpl2>::execute()
 
     envGetTmp(LatticeSpinColourMatrix, bilinear);
     envGetTmp(LatticeSpinColourMatrix, bilinear_tmp);
-    envGetTmp(LatticeSpinColourSpinColourMatrix, lret);
+    envGetTmp(SCSCField, lret);
 
     std::vector<int> latt_size(env().getGrid()->FullDimensions().toVector());
     std::vector<Real> pin = strToVec<Real>(par().pin);
