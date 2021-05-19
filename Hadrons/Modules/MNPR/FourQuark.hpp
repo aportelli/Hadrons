@@ -62,12 +62,14 @@ class TFourQuark: public Module<FourQuarkPar>
 public:
     FERM_TYPE_ALIASES(FImpl1, 1);
     FERM_TYPE_ALIASES(FImpl2, 2);
-    //typedef typename LSCSC;
-    const static int prec1 = getPrecision<PropagatorField1>::value;
-    const static int prec2 = getPrecision<PropagatorField2>::value;
-    const static int prec = std::max(prec1,prec2);
-    //typedef typename std::enable_if<prec==2, LatticeSpinColourSpinColourMatrix> SCSCField;
-    //typedef typename std::enable_if<prec==1, LatticeSpinColourSpinColourMatrixF> SCSCField;
+    template<typename P1, typename P2, typename V = void> struct Traits {};
+    template<typename P1, typename P2>
+    struct Traits<P1, P2, typename std::enable_if<getPrecision<P1>::value == 1 && getPrecision<P2>::value == 1>::type>
+      { using PrecisionType = LatticeSpinColourSpinColourMatrixF; };
+    template<typename P1, typename P2>
+    struct Traits<P1, P2, typename std::enable_if<getPrecision<P1>::value != 1 || getPrecision<P2>::value != 1>::type>
+      { using PrecisionType = LatticeSpinColourSpinColourMatrix; };
+    using SCSCField = typename Traits<PropagatorField1, PropagatorField2>::PrecisionType;
     class Result: Serializable
     {
     public:
@@ -83,7 +85,7 @@ public:
     virtual std::vector<std::string> getInput(void);
     virtual std::vector<std::string> getOutput(void);
     // setup
-    virtual void tensorprod(LatticeSpinColourSpinColourMatrix &lret, LatticeSpinColourMatrix a, LatticeSpinColourMatrix b);
+    virtual void tensorprod(SCSCField &lret, PropagatorField1 a, PropagatorField2 b);
     virtual void setup(void);
     // execution
     virtual void execute(void);
@@ -119,11 +121,11 @@ std::vector<std::string> TFourQuark<FImpl1, FImpl2>::getOutput(void)
 
 
 template <typename FImpl1, typename FImpl2>
-void TFourQuark<FImpl1, FImpl2>::tensorprod(LatticeSpinColourSpinColourMatrix &lret, LatticeSpinColourMatrix a, LatticeSpinColourMatrix b)
+void TFourQuark<FImpl1, FImpl2>::tensorprod(SCSCField &lret, PropagatorField1 a, PropagatorField2 b)
 {
             // FIXME ; is there a general need for this construct ? In which case we should encapsulate the
             //         below loops in a helper function.
-            LOG(Message) << "prec?? " << a << std::endl;
+            //LOG(Message) << "prec?? " << a << std::endl;
             //LOG(Message) << "sp co mat a is - " << a << std::endl;
             //LOG(Message) << "sp co mat b is - " << b << std::endl;
 	    autoView(lret_v, lret, CpuWrite);
@@ -156,7 +158,7 @@ void TFourQuark<FImpl1, FImpl2>::tensorprod(LatticeSpinColourSpinColourMatrix &l
 template <typename FImpl1, typename FImpl2>
 void TFourQuark<FImpl1, FImpl2>::setup(void)
 {
-    envCreateLat(LatticeSpinColourMatrix, getName());
+    envCreateLat(SCSCField, getName());
 }
 
 // execution ///////////////////////////////////////////////////////////////////
@@ -191,15 +193,16 @@ We have up to 256 of these including the offdiag (G1 != G2).
 
 
 
+    const static int prec1 = getPrecision<SCSCField>::value;
 
     LOG(Message) << "Computing fourquark contractions '" << getName() << "' using"
                  << " momentum '" << par().Sin << "' and '" << par().Sout << "'"
                  << std::endl;
             LOG(Message) << "prec1 " << prec1 << std::endl;
-            LOG(Message) << "prec2 " << prec2 << std::endl;
-            LOG(Message) << "max-prec: " << std::max(prec1,prec2) << std::endl;
+          //  LOG(Message) << "prec2 " << prec2 << std::endl;
+          //  LOG(Message) << "max-prec: " << std::max(prec1,prec2) << std::endl;
 
-    /* 
+     
     BinaryWriter             writer(par().output);
     
     PropagatorField1                            &Sin = *env().template getObject<PropagatorField1>(par().Sin);
@@ -211,7 +214,7 @@ We have up to 256 of these including the offdiag (G1 != G2).
     std::vector<Real>                           latt_size(pin.begin(), pin.end());
     LatticeComplex                              pdotxin(env().getGrid()), pdotxout(env().getGrid()), coor(env().getGrid());
     LatticeSpinColourMatrix                     bilinear_mu(env().getGrid()), bilinear_nu(env().getGrid());
-    LatticeSpinColourSpinColourMatrix           lret(env().getGrid()); 
+    SCSCField           lret(env().getGrid()); 
     Complex                         Ci(0.0,1.0);
 
     //Phase propagators
@@ -264,7 +267,7 @@ We have up to 256 of these including the offdiag (G1 != G2).
         }
     }
     write(writer, "fourquark", result.fourquark);
-    */
+    
 #endif
 }
 
