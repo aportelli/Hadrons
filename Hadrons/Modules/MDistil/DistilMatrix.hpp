@@ -11,7 +11,7 @@
 #define HADRONS_DISTIL_IO_TYPE ComplexF
 #endif
 
-#define DISTIL_GROUP_NAME "DistilMesonField"
+#define DISTIL_MATRIX_NAME "DistilMesonField"
 
 BEGIN_HADRONS_NAMESPACE
 BEGIN_MODULE_NAMESPACE(MDistil)
@@ -32,16 +32,44 @@ public:
                                     std::string,                MesonFieldType)
 };
 
-// //metadata io class
-// template <typename T>
-// class DistilMetadataIo
-// {
-// public:
-//     // constructor
-//     DistilMetadataIo(std::string filename, std::string metadataname);
-//     //methods
-//     void save2dMetadata(const std::string label, const std::vector<std::vector<unsigned int>>& data);
-// };
+//metadata io class
+class DistilMetadataIo
+{
+private:
+    std::string filename_, metadataname_;
+public:
+    // constructor
+    DistilMetadataIo(std::string filename, std::string metadataname):filename_(filename) , metadataname_(metadataname) {}
+    //methods
+    void write2dMetadata(const std::string name, const std::vector<std::vector<unsigned int>>& data)     //generalise vector<vector> ??
+    {
+        // auxiliar variable-length struct (see hdf5 variable-length documentation)
+        typedef struct  {
+            size_t len; /* Length of VL data (in base type units) */      
+            void *p;    /* Pointer to VL data */        
+        } VlStorage;
+#ifdef HAVE_HDF5
+        Hdf5Reader  reader(filename_, false);
+        push(reader, metadataname_);    //creates main h5 group
+        H5NS::Group &subgroup = reader.getGroup();
+
+        H5NS::VarLenType vl_type(Hdf5Type<unsigned int>::type());
+        std::vector<VlStorage> vl_data(data.size());
+        for(unsigned int i=0 ; i<data.size() ; i++)
+        {
+            vl_data.at(i).len = data.at(i).size();
+            vl_data.at(i).p = (void*) &data.at(i).front();
+        }
+
+        hsize_t         attrDim = data.size();
+        H5NS::DataSpace attrSpace(1, &attrDim);
+        H5NS::Attribute attr = subgroup.createAttribute(name, vl_type, attrSpace);
+        attr.write(vl_type, &vl_data.front());
+#else
+        HADRONS_ERROR(Implementation, "all-to-all matrix I/O needs HDF5 library");
+#endif
+    }
+};
 
 //computation class declaration
 template <typename FImpl, typename T, typename Tio>
@@ -383,7 +411,7 @@ void DmfComputation<FImpl,T,Tio>
                     std::string fileName = ss.str() + "_n" + std::to_string(inoise[0]) + "_" + std::to_string(inoise[1]);
                     std::string mfName = fileName + ".h5";
 
-                    A2AMatrixIo<HADRONS_DISTIL_IO_TYPE> matrixIo(outStem+mfName, DISTIL_GROUP_NAME, eff_nt, dil_size_ls.at("left"), dil_size_ls.at("right"));
+                    A2AMatrixIo<HADRONS_DISTIL_IO_TYPE> matrixIo(outStem+mfName, DISTIL_MATRIX_NAME, eff_nt, dil_size_ls.at("left"), dil_size_ls.at("right"));
                     
                     tarray->startTimer("IO: write block");
                     if(iblock==0 && jblock==0){              // creates dataset only if it's the first block of the dataset
@@ -414,7 +442,7 @@ void DmfComputation<FImpl,T,Tio>
             }
         }
     }
-
+    //saving 2d metadata
     if(g_->IsBoss())
     {
         tarray->startTimer("IO: total");
@@ -427,11 +455,11 @@ void DmfComputation<FImpl,T,Tio>
                 ss << momenta_[iext][mu] << ((mu == momenta_[iext].size() - 1) ? "" : "_");
             std::string fileName = ss.str() + "_n" + std::to_string(inoise[0]) + "_" + std::to_string(inoise[1]);
             std::string mfName = fileName+".h5";
-            A2AMatrixIo<HADRONS_DISTIL_IO_TYPE> matrixIo(outStem+mfName, DISTIL_GROUP_NAME, nt_, dil_size_ls.at("left"), dil_size_ls.at("right"));
-            matrixIo.save2dMetadata("TimeDilutionLeft" ,leftTimeMap);
-            matrixIo.save2dMetadata("TimeDilutionRight",rightTimeMap);
-            matrixIo.save2dMetadata("TimeDilutionPairs", timeDilutionPairList);
-            // matrixIo.saveStringMetadata("Operator" , gamma_[istr]);
+            std::string distilname = DISTIL_MATRIX_NAME;
+            DistilMetadataIo mdIo(outStem+mfName, distilname+"/Metadata" );
+            mdIo.write2dMetadata("TimeDilutionPairs", timeDilutionPairList);
+            mdIo.write2dMetadata("TimeDilutionLeft" ,leftTimeMap);
+            mdIo.write2dMetadata("TimeDilutionRight",rightTimeMap);
         }
         tarray->stopTimer("IO: total");
     }

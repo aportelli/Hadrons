@@ -118,9 +118,6 @@ public:
     // void saveStringMetadata(std::string name, const std::string value);
     template <typename MetadataType>
     void initFile(const MetadataType &d);
-    void save2dMetadata(const std::string name, const std::vector<std::vector<unsigned int>>& data);
-    void saveAttr(H5NS::H5Object& obj, std::string attrName, const void *data,  const int rank, 
-                                  const hsize_t *dim, const H5NS::DataType &type);
     void createDilutionBlock(std::string datasetName, const unsigned int chunkSize, const std::vector<unsigned int> timeSlices);
     void saveBlock(const A2AMatrixSet<T> &m,
                                const unsigned int ext, const unsigned int str,
@@ -496,37 +493,6 @@ void A2AMatrixIo<T>::initFile(const MetadataType &d)
 #endif
 }
 
-template <typename T>
-void A2AMatrixIo<T>::save2dMetadata(const std::string name, const std::vector<std::vector<unsigned int>>& data)     //generalise vector<vector> ??
-{
-    // auxiliar variable-length struct (see hdf5 variable-length documentation)
-    typedef struct  {
-        size_t len; /* Length of VL data (in base type units) */      
-        void *p;    /* Pointer to VL data */        
-    } VlStorage;
-
-#ifdef HAVE_HDF5
-    Hdf5Reader  reader(filename_, false);
-    push(reader, dataname_+"/Metadata");    //creates main h5 group
-    H5NS::Group &subgroup = reader.getGroup();
-
-    H5NS::VarLenType vl_type(Hdf5Type<unsigned int>::type());
-    std::vector<VlStorage> vl_data(data.size());
-    for(unsigned int i=0 ; i<data.size() ; i++)
-    {
-        vl_data.at(i).len = data.at(i).size();
-        vl_data.at(i).p = (void*) &data.at(i).front();
-    }
-
-    hsize_t         attrDim = data.size();
-    H5NS::DataSpace attrSpace(1, &attrDim);
-    H5NS::Attribute attr = subgroup.createAttribute(name, vl_type, attrSpace);
-    attr.write(vl_type, &vl_data.front());
-#else
-    HADRONS_ERROR(Implementation, "all-to-all matrix I/O needs HDF5 library");
-#endif
-}
-
 // block I/O ///////////////////////////////////////////////////////////////////
 template <typename T>
 void A2AMatrixIo<T>::saveBlock(const T *data, 
@@ -577,26 +543,6 @@ void A2AMatrixIo<T>::saveBlock(const A2AMatrixSet<T> &m,
 }
 
 //distillation overloads and new methods
-
-
-// template <typename T>
-// void A2AMatrixIo<T>::saveStringMetadata(std::string name, const std::string value)
-// {
-// #ifdef HAVE_HDF5
-//     Hdf5Reader  reader(filename_, false);
-//     push(reader, dataname_+"/Metadata");    //creates main h5 group
-//     H5NS::Group &subgroup = reader.getGroup();
-
-//     //save string metadata
-//     hsize_t         attrDim = value.size();
-//     H5NS::DataSpace attrSpace(1, &attrDim);
-//     H5NS::Attribute attr = subgroup.createAttribute(name,  H5T_STRING, attrSpace);
-//     attr.write(H5T_STRING, value);
-// #else
-//     HADRONS_ERROR(Implementation, "all-to-all matrix I/O needs HDF5 library");
-// #endif
-// }
-
 template <typename T>
 void A2AMatrixIo<T>::createDilutionBlock(std::string datasetName, const unsigned int chunkSize, const std::vector<unsigned int> timeSlices)
 {
