@@ -37,7 +37,7 @@ BEGIN_HADRONS_NAMESPACE
 
 /******************************************************************************
  *                                TBilinear                                       *
-        Performs bilinear contractions of the type tr[g5*adj(qOut)*g5*G*qIn]
+        Performs bilinear contractions of the type tr[g5*adj(qOut')*g5*G*qIn']
         Suitable for non exceptional momenta in Rome-Southampton NPR
 
 Compute the bilinear vertex needed for the NPR.
@@ -78,7 +78,7 @@ public:
     {
     public:
         GRID_SERIALIZABLE_CLASS_MEMBERS(Metadata,
-                                        Gamma::Algebra, gamma,
+                                        std::string,  description,
                                         std::string,  pIn,
                                         std::string,  pOut);
     };
@@ -145,6 +145,7 @@ void TBilinear<FImpl>::execute(void)
     // Propagators
     auto  &qIn    = envGet(PropagatorField, par().qIn);
     auto  &qOut   = envGet(PropagatorField, par().qOut);
+    LatticeSpinColourMatrix qIn_phased(env().getGrid()), qOut_phased(env().getGrid());
     envGetTmp(ComplexField, pDotXIn);
     envGetTmp(ComplexField, pDotXOut);
     envGetTmp(ComplexField, xMu);
@@ -152,35 +153,57 @@ void TBilinear<FImpl>::execute(void)
     // momentum on legs
     //TODO: Do we want to check the momentum input format? Not done in MSink::Point, so probably ok like this.
     std::vector<Real>           pIn  = strToVec<Real>(par().pIn), 
-	                        pOut = strToVec<Real>(par().pOut);
+	                            pOut = strToVec<Real>(par().pOut);
     Coordinate                  latt_size = GridDefaultLatt(); 
     Gamma                       g5(Gamma::Algebra::Gamma5);
     Complex                     Ci(0.0,1.0);
     std::vector<Result>         result;
     Result                      r;
 
+    Real volume = 1.0;
+    for (int mu = 0; mu < Nd; mu++) {
+        volume *= latt_size[mu];
+    }
+
     pDotXIn=Zero();
     pDotXOut=Zero();
     for (unsigned int mu = 0; mu < 4; ++mu)
     {
-        Real TwoPiL =  M_PI * 2.0/ latt_size[mu];
+        Real TwoPiL =  M_PI * 2.0 / latt_size[mu];
         LatticeCoordinate(xMu,mu);
         pDotXIn  = pDotXIn  + (TwoPiL * pIn[mu])  * xMu;
         pDotXOut = pDotXOut + (TwoPiL * pOut[mu]) * xMu;
     }
-    qIn  = qIn  * exp(-Ci*pDotXIn); //phase corrections
-    qOut = qOut * exp(-Ci*pDotXOut);
+    qIn_phased  = qIn  * exp(-Ci * pDotXIn); //phase corrections
+    qOut_phased = qOut * exp(-Ci * pDotXOut);
     
-    r.info.pIn  = par().pIn;
-    r.info.pOut = par().pOut;
+    r.info.pIn  = par().pIn; // Redundant to write these into every group
+    r.info.pOut = par().pOut; // Redundant to write these into every group
     for (auto &G: Gamma::gall)
     {
-	r.info.gamma = G.g;
-	r.corr.push_back( sum(g5*adj(qOut)*g5*G*qIn) );
+    	r.info.description = Gamma::name[G.g]; // The change from Gamma::Algebra to string causes all strings to have the same length
+                                               // which leads to trailing spaces in the string. Is there an easy way to avoid this?
+    	r.corr.push_back( (1.0 / volume) * sum(g5 * adj(qOut_phased) * g5 * G * qIn_phased) );
         result.push_back(r);
-	//This is all still quite hacky - we probably want to think about the output format a little more!
-	r.corr.erase(r.corr.begin());
+    	//This is all still quite hacky - we probably want to think about the output format a little more!
+    	r.corr.erase(r.corr.begin());
     }
+
+    // Also write the propagators to the outfile
+    r.info.pIn  = par().pIn;
+    r.info.pOut = " ";
+    r.info.description = "qIn";
+    r.corr.push_back( (1.0 / volume) * sum(qIn_phased) );
+    result.push_back(r);
+    r.corr.erase(r.corr.begin());
+
+    r.info.pIn  = " ";
+    r.info.pOut = par().pOut;
+    r.info.description = "qOut";
+    r.corr.push_back( (1.0 / volume) * sum(g5 * adj(qOut_phased) * g5) );
+    result.push_back(r);
+    r.corr.erase(r.corr.begin());
+
     //////////////////////////////////////////////////
     saveResult(par().output, "bilinear", result);
     LOG(Message) << "Complete. Writing results to " << par().output << std:: endl;

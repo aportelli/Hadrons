@@ -46,30 +46,30 @@ BEGIN_MODULE_NAMESPACE(MSource)
 
 class MomentumPar: Serializable
 {
-public:
-//What is meant by serializable in this context
-GRID_SERIALIZABLE_CLASS_MEMBERS(MomentumPar,
-std::string, mom);
+    public:
+    //What is meant by serializable in this context
+    GRID_SERIALIZABLE_CLASS_MEMBERS(MomentumPar,
+    std::string, mom);
 };
 
 
 template <typename FImpl>
 class TMomentum: public Module<MomentumPar>
 {
-public:
-FERM_TYPE_ALIASES(FImpl,);
-public:
-// constructor
-TMomentum(const std::string name);
-// destructor
-virtual ~TMomentum(void) {};
-// dependency relation
-virtual std::vector<std::string> getInput(void);
-virtual std::vector<std::string> getOutput(void);
-// setup
-virtual void setup(void);
-// execution
-virtual void execute(void);
+    public:
+    FERM_TYPE_ALIASES(FImpl,);
+    public:
+    // constructor
+    TMomentum(const std::string name);
+    // destructor
+    virtual ~TMomentum(void) {};
+    // dependency relation
+    virtual std::vector<std::string> getInput(void);
+    virtual std::vector<std::string> getOutput(void);
+    // setup
+    virtual void setup(void);
+    // execution
+    virtual void execute(void);
 };
 
 MODULE_REGISTER_TMP(Momentum, TMomentum<FIMPL>, MSource);
@@ -122,20 +122,20 @@ void TMomentum<FImpl>::execute(void)
     Complex                    i(0.0,1.0);
 
     LOG(Message) << " " << std::endl;
+    src = Zero();
     //get the momentum from parameters
-    p  = strToVec<Real>(par().mom);
+    p = strToVec<Real>(par().mom);
     C = Zero();
     LOG(Message) << "momentum converted from string - " << std::to_string(p[0]) <<std::to_string(p[1]) <<std::to_string(p[2]) <<   std::to_string(p[3]) << std::endl;
     for(int mu=0;mu<4;mu++){
-    Real TwoPiL =  M_PI * 2.0/ latt_size[mu];
-    LatticeCoordinate(coor,mu);
-    C = C +(TwoPiL * p[mu]) * coor;
+        Real TwoPiL =  M_PI * 2.0 / latt_size[mu];
+        LatticeCoordinate(coor,mu);
+        C = C + (TwoPiL * p[mu]) * coor;
     }
     C = exp(C*i);
     LOG(Message) << "exponential of pdotx taken " << std::endl;
     src = src + C;
     LOG(Message) << "source created" << std::endl;
-
 }
 
 
