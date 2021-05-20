@@ -78,9 +78,11 @@ public:
                                         std::vector<Complex>, DmuPAmu, // D_mu trace(pseudoscalar*conserved_axial_mu)
                                         std::vector<Complex>, PP,      // Pseudoscalar density
                                         std::vector<Complex>, PJ5q,    // Midpoint axial current density
-                                        std::vector<Complex>, mres,    // residual mass = PJ5q / PP
+                                        std::vector<Complex>, mres,    // residual mass = <PJ5q> / <PP>
                                         std::vector<Complex>, VDmuJmu, // D_mu trace(local_vector*conserved_vector_mu)
-                                        std::vector<Complex>, DefectPA); // DmuPAmu[t] - 2.*(result.mass*result.PP[t] + result.PJ5q[t])
+                                        std::vector<Complex>, DefectPA,// DmuPAmu[t] - 2.*(result.mass*result.PP[t] + result.PJ5q[t])
+                                        std::vector<Complex>, PA0,     //      trace(pseudoscalar*conserved_axial_0)
+                                        std::vector<Complex>, PALocal0);//trace( temporal local axial - pseudoscalar )
     };
 
 public:
@@ -186,6 +188,8 @@ void TWardIdentity<FImpl>::execute(void)
     result.mres.resize(nt, 0.);
     result.VDmuJmu.resize(nt, 0.);
     result.DefectPA.resize(nt, 0.);
+    result.PA0.resize(nt, 0.);
+    result.PALocal0.resize(nt, 0.);
 
     // Compute D_mu V_mu (D here is backward derivative)
     // There is no point performing Dmu on spatial directions, because after the spatial sum, these become zero
@@ -220,7 +224,13 @@ void TWardIdentity<FImpl>::execute(void)
         // Pseudoscalar-Axial current density
         tmp_current = trace(g5 * tmp);
         SlicedComplex sumPA(nt);
-        SliceOut(result.DmuPAmu, sumPA, tmp_current);
+        // Save temporal component of pseudoscalar-(partially) conserved axial
+        // \mathcal{A}_0 from eq (37) in https://arxiv.org/pdf/hep-lat/0612005.pdf
+        SliceOut(result.PA0, sumPA, tmp_current, false);
+        for (size_t t = 0; t < nt; ++t)
+        {
+            result.DmuPAmu[t] = TensorRemove(sumPA[t] - sumPA[(t-1+nt)%nt]);
+        }
         // <P|J5q>
         act.ContractJ5q(prop, tmp_current);
         SlicedComplex sumPJ5q(nt);
@@ -243,6 +253,12 @@ void TWardIdentity<FImpl>::execute(void)
         tmp_current = trace(adj(psi) * psi);
         SlicedComplex sumPP(nt);
         SliceOut(result.PP, sumPP, tmp_current, false);
+        // Compute and save temporal component of local-axial current
+        // A_0 from eq (37) in https://arxiv.org/pdf/hep-lat/0612005.pdf
+        // together with \mathcal{A}_0 allows Z_A to be computed, see eq (38)
+        tmp_current = trace(adj(psi) * (gT * psi));
+        SlicedComplex sumPALocal0(nt);
+        SliceOut(result.PALocal0, sumPALocal0, tmp_current, false);
 #ifdef  COMPARE_Test_Cayley_mres
         LOG(Message) << "Axial Ward Identity by timeslice" << std::endl;
         LOG(Message) << "Mass=" << result.mass << std::endl;
