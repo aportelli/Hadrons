@@ -87,7 +87,8 @@ public:
     // generate dummy noise - vector of 1s, used for exact distillation only
     void exactNoisePolicy(void);
     std::string generateHash(void);
-    void write(const std::string filestem, const std::string dataname);
+    void save(const std::string filename, const std::string dataname, const unsigned int traj);
+    void load(const std::string filename, const std::string dataname, const unsigned int traj);
 protected:
     virtual void buildMap(void) = 0;
     DilutionMap  &getMap(const bool createIfEmpty = true);
@@ -359,41 +360,67 @@ std::string DistillationNoise<FImpl>::generateHash(void)
 }
 
 template <typename FImpl>
-void DistillationNoise<FImpl>::write(const std::string filestem, const std::string dataname)
+void DistillationNoise<FImpl>::save(const std::string filename, const std::string dataname, const unsigned int traj)
 {
 #ifdef HAVE_HDF5
-    Hdf5Writer writer(filestem+".h5");
-    push(writer, dataname);
-    auto &group = writer.getGroup();
+    if(grid_->IsBoss())
+    {
+        std::string filestem = filename + "." + std::to_string(traj) + ".h5";
+        Hdf5Writer writer(filestem);
+        push(writer, dataname);
+        auto &group = writer.getGroup();
 
-    //metadata write
-    hsize_t         attr_dim = 1;
-    //hash
-    std::string shash = generateHash();
-    H5NS::DataSpace hash_space(1, &attr_dim);
-    H5NS::DataType  hash_type(H5T_STRING, shash.size());
-    H5NS::Attribute attr_hash = group.createAttribute("NoiseHash", hash_type, hash_space);
-    attr_hash.write(hash_type, shash.c_str() );
-    //dilution sizes
-    std::vector<int> dil_sizes = {dilutionSize(Index::t),dilutionSize(Index::l),dilutionSize(Index::s)};   //t,l,s
-    attr_dim        = dil_sizes.size();
-    H5NS::DataSpace dil_space(1, &attr_dim);
-    H5NS::Attribute attr_dil = group.createAttribute("DilutionSizes",  Hdf5Type<unsigned int>::type(), dil_space);
-    attr_dil.write(Hdf5Type<unsigned int>::type(), dil_sizes.data());
+        //metadata write
+        hsize_t         attr_dim = 1;
+        //hash
+        std::string shash = generateHash();
+        H5NS::DataSpace hash_space(1, &attr_dim);
+        H5NS::DataType  hash_type(H5T_STRING, shash.size());
+        H5NS::Attribute attr_hash = group.createAttribute("NoiseHash", hash_type, hash_space);
+        attr_hash.write(hash_type, shash.c_str() );
+        //dilution sizes
+        std::vector<int> dil_sizes = {dilutionSize(Index::t),dilutionSize(Index::l),dilutionSize(Index::s)};   //t,l,s
+        attr_dim        = dil_sizes.size();
+        H5NS::DataSpace dil_space(1, &attr_dim);
+        H5NS::Attribute attr_dil = group.createAttribute("DilutionSizes",  Hdf5Type<unsigned int>::type(), dil_space);
+        attr_dil.write(Hdf5Type<unsigned int>::type(), dil_sizes.data());
 
-    //noise write
-    std::vector<hsize_t>    dim = {static_cast<hsize_t>(noiseSize_)};
-    H5NS::DataSpace         dataspace(dim.size(), dim.data());
-    H5NS::DataSpace         memspace = dataspace;
-    H5NS::DataSet           dataset;
-    
-    dataset = group.createDataSet("Noise", Hdf5Type<Type>::type(), dataspace);
-    dataset.write(&noise_.front().front() , Hdf5Type<Type>::type(), memspace, dataspace);
-
+        //noise write
+        std::vector<hsize_t>    dim = {static_cast<hsize_t>(noiseSize_)};
+        H5NS::DataSpace         dataspace(dim.size(), dim.data());
+        H5NS::DataSpace         memspace = dataspace;
+        H5NS::DataSet           dataset;
+        
+        dataset = group.createDataSet("Noise", Hdf5Type<Type>::type(), dataspace);
+        dataset.write(&noise_.front().front() , Hdf5Type<Type>::type(), memspace, dataspace);
+    }
 #else
     HADRONS_ERROR(Implementation, "all-to-all matrix I/O needs HDF5 library");
 #endif
 }
+
+// template <typename FImpl>
+// void DistillationNoise<FImpl>::load(const std::string filename, const std::string dataname, const unsigned int traj)
+// {
+//     if(grid_->IsBoss())
+//     {
+//         std::string filestem = filename + "." + std::to_string(traj) + ".h5";
+//         Hdf5Reader reader(filestem);
+//         push(reader, dataname);
+//         auto &group = reader.getGroup();
+
+//         //noise
+//         H5NS::DataSet dataset = group.openDataSet(datasetName);
+//         H5NS::DataType datatype = dataset.getCompType();
+//         H5NS::DataSpace dataspace = dataset.getSpace();
+
+//         std::vector<hsize_t> hdim;
+//         hdim.resize(dataspace.getSimpleExtentNdims());
+//         dataspace.getSimpleExtentDims(hdim.data());
+
+//         dataset.read(noise_.data(), datatype, memspace, dataspace);
+//     }
+// }
 
 /******************************************************************************
  *                 Container for interlaced distillation noise                *

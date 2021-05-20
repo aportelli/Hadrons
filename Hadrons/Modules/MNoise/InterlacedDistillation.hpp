@@ -22,7 +22,7 @@ public:
                                     unsigned int, si,
                                     unsigned int, nNoise,
                                     std::string, lapEigenPack,
-                                    std::string, fileStem);
+                                    std::string, fileName);
 };
 
 template <typename FImpl>
@@ -110,9 +110,9 @@ void TInterlacedDistillation<FImpl>::execute(void)
     noise.generateNoise(rngSerial());
     noise.dumpDilutionMap();
 
-    if(!par().fileStem.empty() && envGetGrid(FermionField)->IsBoss())
+    if(!par().fileName.empty())
     {
-        noise.write(par().fileStem , "InterlacedDistillation");
+        noise.save(par().fileName, "InterlacedDistillation", vm().getTrajectory());
     }
 }
 
