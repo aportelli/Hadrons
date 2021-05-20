@@ -110,7 +110,7 @@ void TInterlacedDistillation<FImpl>::execute(void)
     noise.generateNoise(rngSerial());
     noise.dumpDilutionMap();
 
-    if(!par().fileStem.empty())
+    if(!par().fileStem.empty() && envGetGrid(FermionField)->IsBoss())
     {
         noise.write(par().fileStem , "InterlacedDistillation");
     }

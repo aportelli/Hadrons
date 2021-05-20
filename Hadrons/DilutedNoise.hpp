@@ -374,8 +374,12 @@ void DistillationNoise<FImpl>::write(const std::string filestem, const std::stri
     H5NS::DataType  hash_type(H5T_STRING, shash.size());
     H5NS::Attribute attr_hash = group.createAttribute("NoiseHash", hash_type, hash_space);
     attr_hash.write(hash_type, shash.c_str() );
-
-    //missing dilution schemes
+    //dilution sizes
+    std::vector<int> dil_sizes = {dilutionSize(Index::t),dilutionSize(Index::l),dilutionSize(Index::s)};   //t,l,s
+    attr_dim        = dil_sizes.size();
+    H5NS::DataSpace dil_space(1, &attr_dim);
+    H5NS::Attribute attr_dil = group.createAttribute("DilutionSizes",  Hdf5Type<unsigned int>::type(), dil_space);
+    attr_dil.write(Hdf5Type<unsigned int>::type(), dil_sizes.data());
 
     //noise write
     std::vector<hsize_t>    dim = {static_cast<hsize_t>(noiseSize_)};
