@@ -256,7 +256,7 @@ void TWardIdentity<FImpl>::execute(void)
         // Compute and save temporal component of local-axial current
         // A_0 from eq (37) in https://arxiv.org/pdf/hep-lat/0612005.pdf
         // together with \mathcal{A}_0 allows Z_A to be computed, see eq (38)
-        tmp_current = trace(adj(psi) * (gT * psi));
+        tmp_current = - trace(adj(psi) * (gT * psi));
         SlicedComplex sumPALocal0(nt);
         SliceOut(result.PALocal0, sumPALocal0, tmp_current, false);
 #ifdef  COMPARE_Test_Cayley_mres
