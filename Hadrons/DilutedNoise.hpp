@@ -347,17 +347,26 @@ std::string DistillationNoise<FImpl>::generateHash(void)
     {
         buildMap();
     }
-    std::vector<unsigned char> hnoise = GridChecksum::sha256( &noise_.front().front() , sizeof(Type)*noiseSize_*noise_.size() );
-    std::vector<unsigned int> linearizedMap;
+
+    //noise hash by component
+    std::string scomb = "";
+    for(auto &n : noise_)
+    {
+        std::vector<unsigned char> hnoise = GridChecksum::sha256( &noise_.front().front() , sizeof(Type)*noiseSize_*noise_.size() );
+        scomb += GridChecksum::sha256_string(hnoise);
+    }
+    
+    //dilution map hash
+    std::vector<unsigned int> linmap;
     for(auto& m : map_)
     for(auto& p : m)
     for(auto& t : p)
-        linearizedMap.push_back(t);
-    std::vector<unsigned char> hmap = GridChecksum::sha256( &linearizedMap.front() , sizeof(unsigned int)*linearizedMap.size() );
-
-    std::string scomb       = GridChecksum::sha256_string(hnoise)+GridChecksum::sha256_string(hmap);
-    std::vector<unsigned char> hcomb = GridChecksum::sha256( scomb.c_str() , sizeof(char)*scomb.size() );
-
+        linmap.push_back(t);
+    std::vector<unsigned char> hmap = GridChecksum::sha256( &linmap.front() , sizeof(unsigned int)*linmap.size() );
+    
+    scomb       += GridChecksum::sha256_string(hmap);   //concatenated noise hashes and map hash
+    //hash of concatenation
+    std::vector<unsigned char> hcomb = GridChecksum::sha256( scomb.c_str() , sizeof(char)*scomb.size() ); 
     return GridChecksum::sha256_string(hcomb);
 }
 
@@ -440,7 +449,6 @@ void DistillationNoise<FImpl>::loadDilSizes(const std::string filestem, const st
     //metadata dilsizes
     H5NS::Attribute attr_dil = group.openAttribute("DilutionSizes");
     attr_dil.read(Hdf5Type<int>::type() , &dilsizes[0]);
-    std::cout << "dil sizes : " << dilsizes[0] << " " << dilsizes[1] << " " << dilsizes[2] << std::endl;
 #else
     HADRONS_ERROR(Implementation, "all-to-all matrix I/O needs HDF5 library");
 #endif
@@ -458,7 +466,6 @@ int DistillationNoise<FImpl>::loadNnoise(const std::string filestem, const std::
     int nnoise = 0;
     H5NS::Attribute attr_nnoise = group.openAttribute("Nnoise");
     attr_nnoise.read(Hdf5Type<int>::type() , &nnoise);
-    std::cout << "nnoise : " << nnoise << std::endl;
     return nnoise;
 #else
     HADRONS_ERROR(Implementation, "all-to-all matrix I/O needs HDF5 library");
@@ -565,12 +572,9 @@ void InterlacedDistillationNoise<FImpl>::load(const std::string filename, const 
     if(this->grid_->IsBoss())
     {
         std::string filestem = filename + "." + std::to_string(traj) + ".h5";
-        std::cout << "noiseSize=" << this->noiseSize_ << std::endl;
         unsigned int nnoise = this->loadNnoise(filestem,distilname);
         this->loadNoise(filestem,distilname,nnoise);
         this->loadDilSizes(filestem,distilname,interlacing_);
-
-        std::cout << this->generateHash() << std::endl;
         auto& n = this->getNoise();
     }
 #else

@@ -106,7 +106,8 @@ void TLoadInterlacedNoise<FImpl>::execute(void)
                     << noise.getInterlacing(Index::l) << ", "
                     << noise.getInterlacing(Index::s) << ")" << std::endl;
     noise.dumpDilutionMap();
-    LOG(Message) << "Noise hash : " << std::endl << noise.generateHash() << std::endl;
+    LOG(Message) << "Noise hash : " << std::endl;
+    LOG(Message) << noise.generateHash() << std::endl;
 }
 
 END_MODULE_NAMESPACE
