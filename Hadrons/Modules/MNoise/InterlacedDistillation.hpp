@@ -109,6 +109,7 @@ void TInterlacedDistillation<FImpl>::execute(void)
 
     noise.generateNoise(rngSerial());
     noise.dumpDilutionMap();
+    LOG(Message) << "Noise hash : " << noise.generateHash() << std::endl;
 
     if(!par().fileName.empty())
     {

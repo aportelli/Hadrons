@@ -31,7 +31,7 @@ public:
     GRID_SERIALIZABLE_CLASS_MEMBERS(DistilMesonFieldPar,
                                     std::string,                outPath,
                                     std::string,                mesonFieldType,
-                                    std::string,                lapEvec,
+                                    std::string,                lapEigenPack,
                                     std::string,                leftNoise,
                                     std::string,                rightNoise,
                                     std::vector<std::string>,   noisePairs,
@@ -100,7 +100,7 @@ TDistilMesonField<FImpl>::TDistilMesonField(const std::string name)
 template <typename FImpl>
 std::vector<std::string> TDistilMesonField<FImpl>::getInput(void)
 {   
-    std::vector<std::string> in = {par().lapEvec, par().leftNoise, par().rightNoise};
+    std::vector<std::string> in = {par().lapEigenPack, par().leftNoise, par().rightNoise};
 
     std::string c = par().mesonFieldType;
     // check mesonfield type
@@ -203,7 +203,7 @@ template <typename FImpl>
 void TDistilMesonField<FImpl>::execute(void)
 {
     GridCartesian *g        = envGetGrid(FermionField);
-    auto &epack             = envGet(typename DistillationNoise::LapPack, par().lapEvec);
+    auto &epack             = envGet(typename DistillationNoise::LapPack, par().lapEigenPack);
     const unsigned int nVec = epack.evec.size();
     const unsigned int nd   = g->Nd();
     const unsigned int nt   = env().getDim(nd - 1);
@@ -220,7 +220,7 @@ void TDistilMesonField<FImpl>::execute(void)
     DistillationNoise &noisel = envGet( DistillationNoise , par().leftNoise);
     DistillationNoise &noiser = envGet( DistillationNoise , par().rightNoise);
 
-    std::map<std::string, DistillationNoise & >   noises = {{"left",noisel},{"right",noiser}};
+    std::map<std::string, DistillationNoise & > noises = {{"left",noisel},{"right",noiser}};
     
     if((noisel.getNl() != nVec) || (noiser.getNl() != nVec))
     {
