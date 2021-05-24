@@ -8,6 +8,7 @@
 #include <Hadrons/DilutedNoise.hpp>
 #include <Hadrons/NamedTensor.hpp>
 #include <Hadrons/Modules/MDistil/DistilMatrix.hpp>
+#include <Hadrons/Modules/MDistil/DistilUtils.hpp>
 
 #ifndef HADRONS_DISTIL_IO_TYPE
 #define HADRONS_DISTIL_IO_TYPE ComplexF
@@ -152,6 +153,9 @@ void TDistilMesonField<FImpl>::setup(void)
     blockSize_ = par().blockSize;
     cacheSize_ = par().cacheSize;
 
+    MDistil::verifyTimeSourcesInput(par().leftTimeSources,noisel.dilutionSize(Index::t));
+    MDistil::verifyTimeSourcesInput(par().rightTimeSources,noiser.dilutionSize(Index::t));
+
     // parse momenta
     momenta_.clear();
     for(auto &p_string : par().momenta)
@@ -292,17 +296,6 @@ void TDistilMesonField<FImpl>::execute(void)
         if(timeDilSource.at(s).empty()){
             timeDilSource.at(s).resize(noises.at(s).dilutionSize(Index::t));
             std::iota( timeDilSource.at(s).begin() , timeDilSource.at(s).end() , 0);    //create sequence from 0 to TI-1
-        }
-        std::sort(timeDilSource.at(s).begin(), timeDilSource.at(s).end());  //guarantee they are ordered
-
-        if( timeDilSource.at(s).size() > noises.at(s).dilutionSize(Index::t) )
-        {
-            HADRONS_ERROR(Argument,"Invalid number of time sources.");
-        }
-        else if( !std::none_of( timeDilSource.at(s).cbegin() , timeDilSource.at(s).cend(), 
-                                [s,&noises](int dt){ return dt >= noises.at(s).dilutionSize(Index::t); }) ) //checks if any element is larger than time dilution size
-        {
-            HADRONS_ERROR(Argument,"Invalid value for one or more time sources.");
         }
     }
 
