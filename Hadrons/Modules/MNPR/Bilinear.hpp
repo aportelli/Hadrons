@@ -189,21 +189,6 @@ void TBilinear<FImpl>::execute(void)
     	r.corr.erase(r.corr.begin());
     }
 
-    // Also write the propagators to the outfile
-    r.info.pIn  = par().pIn;
-    r.info.pOut = " ";
-    r.info.description = "qIn";
-    r.corr.push_back( (1.0 / volume) * sum(qIn_phased) );
-    result.push_back(r);
-    r.corr.erase(r.corr.begin());
-
-    r.info.pIn  = " ";
-    r.info.pOut = par().pOut;
-    r.info.description = "qOut";
-    r.corr.push_back( (1.0 / volume) * sum(g5 * adj(qOut_phased) * g5) );
-    result.push_back(r);
-    r.corr.erase(r.corr.begin());
-
     //////////////////////////////////////////////////
     saveResult(par().output, "bilinear", result);
     LOG(Message) << "Complete. Writing results to " << par().output << std:: endl;
