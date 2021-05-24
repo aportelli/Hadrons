@@ -73,14 +73,13 @@ private:
     unsigned int cacheSize_;
     std::map<std::string,std::string>   dmf_type_;
     std::vector<std::vector<int>>       noisePairs_;           // read from extermal object (diluted noise class)
-    std::string                         outputMFStem_;
+    std::string                         outputMFPath_;
     bool                                hasPhase_{false};
     std::map<std::string, unsigned int> dilutionSize_ls_;
     std::map<std::string, std::string>  perambInput_ ;
     std::vector<std::string>            sides_       ;
     std::vector<std::vector<RealF>>     momenta_;
-    std::vector<Gamma::Algebra>         gamma_;
-    
+    std::vector<Gamma::Algebra>         gamma_;  
 };
 
 MODULE_REGISTER_TMP(DistilMesonField, TDistilMesonField<FIMPL>, MDistil);
@@ -135,7 +134,7 @@ std::vector<std::string> TDistilMesonField<FImpl>::getOutput(void)
 template <typename FImpl>
 void TDistilMesonField<FImpl>::setup(void)
 {
-    outputMFStem_       = par().outPath;
+    outputMFPath_       = par().outPath;
     GridCartesian *g    = envGetGrid(FermionField);
     GridCartesian *g3d  = envGetSliceGrid(FermionField, g->Nd() - 1);  // 3d grid (as a 4d one with collapsed time dimension)
 
@@ -194,7 +193,7 @@ void TDistilMesonField<FImpl>::setup(void)
     envCache(std::vector<ComplexField>, "phasename",    1, momenta_.size(), g );
     envTmp(DistilVector,                "dvl",          1, noisel.dilutionSize() , g);
     envTmp(DistilVector,                "dvr",          1, noiser.dilutionSize() , g);
-    envTmp(Computation,                 "computation",  1, dmf_type_, momenta_, gamma_, g, g3d, blockSize_ , cacheSize_, env().getDim(g->Nd() - 1));
+    envTmp(Computation,                 "computation",  1, dmf_type_, g, g3d, blockSize_ , cacheSize_, env().getDim(g->Nd() - 1), momenta_.size(), gamma_.size());
     envTmp(Helper,                      "helper"   ,    1, noisel, noiser , dmf_type_);
 }
 
@@ -202,6 +201,10 @@ void TDistilMesonField<FImpl>::setup(void)
 template <typename FImpl>
 void TDistilMesonField<FImpl>::execute(void)
 {
+    std::string outpath = par().outPath + "/" + dmf_type_.at("left")+"-"+dmf_type_.at("right") + "/";
+    Hadrons::mkdir(outpath);
+
+    //start
     GridCartesian *g        = envGetGrid(FermionField);
     auto &epack             = envGet(typename DistillationNoise::LapPack, par().lapEigenPack);
     const unsigned int nVec = epack.evec.size();
@@ -219,6 +222,37 @@ void TDistilMesonField<FImpl>::execute(void)
     std::map<std::string, DistilVector & > distVectors = {{"left",dvl}  ,{"right",dvr}};
     DistillationNoise &noisel = envGet( DistillationNoise , par().leftNoise);
     DistillationNoise &noiser = envGet( DistillationNoise , par().rightNoise);
+
+    //auxiliar lambda functions
+    auto filenameDmfFn = [this, outpath](const unsigned int m, const unsigned int o, const int nl, const int nr)
+    {
+        std::stringstream ss;
+        ss << gamma_[o] << "_p";
+        for (unsigned int mu = 0; mu < momenta_[m].size(); ++mu)
+            ss << momenta_[m][mu] << ((mu == momenta_[m].size() - 1) ? "" : "_");
+        return outpath + ss.str() + "_n" + std::to_string(nl) + "_" + std::to_string(nr) 
+                + "." + std::to_string(vm().getTrajectory()) + ".h5";
+    };
+
+    auto metadataDmfFn = [this, &nt, &nVec, &noisel, &noiser](const unsigned int m, const unsigned int o, const int nl, const int nr)
+    {
+        DistilMesonFieldMetadata<FImpl> md;
+
+        for (auto pmu: momenta_[m])
+        {
+            md.Momentum.push_back(pmu);
+        }
+        md.Operator = gamma_[o];
+        
+        md.Nt               = nt;   
+        md.Nvec             = nVec;     //nvec is the same for both sides
+        md.NoisePair        = {nl,nr};
+        md.MesonFieldType   = dmf_type_.at("left") + "-" + dmf_type_.at("right");
+        md.NoiseHashLeft    = noisel.generateHash();
+        md.NoiseHashRight   = noiser.generateHash();
+
+        return md;
+    };
 
     std::map<std::string, DistillationNoise & > noises = {{"left",noisel},{"right",noiser}};
     
@@ -315,9 +349,9 @@ void TDistilMesonField<FImpl>::execute(void)
 
         // computing mesonfield blocks and saving to disk
         LOG(Message) << "Time-dilution blocks computation starting..." << std::endl;
-        computation.execute(outputMFStem_, distVectors, noises, inoise, phase, dilutionSize_ls_, timeDilSource, helper.timeSliceMap(noises.at("left")), helper.timeSliceMap(noises.at("right")), this);
+        computation.execute(filenameDmfFn, metadataDmfFn, gamma_, distVectors, noises, inoise, phase, dilutionSize_ls_, timeDilSource, helper.timeSliceMap(noises.at("left")), helper.timeSliceMap(noises.at("right")), this);
 
-        LOG(Message) << "Meson fields saved at " << outputMFStem_ << std::endl;
+        LOG(Message) << "Meson fields saved at " << outputMFPath_ << std::endl;
     }
     LOG(Message) << "A2AUtils::MesonField kernel executed " << computation.global_counter << " times over " << cacheSize_ << "^2 cache blocks" << std::endl;
     LOG(Message) << "Average kernel perf (flops) "          << computation.global_flops/computation.global_counter        << " Gflop/s/node " << std::endl;

@@ -84,6 +84,8 @@ public:
     typedef typename std::vector<FermionField> DistilVector;
     typedef typename DistillationNoise::Index Index;
     typedef typename DistillationNoise::LapPack LapPack;
+    typedef std::function<std::string(const unsigned int, const unsigned int, const int, const int)>  FilenameFn;
+    typedef std::function<DistilMesonFieldMetadata<FImpl>(const unsigned int, const unsigned int, const int, const int)>  MetadataFn;
 public:
     //todo: maybe reposition later
     long    global_counter = 0;
@@ -101,21 +103,23 @@ private:
     Vector<T>                           cBuf_;
     const unsigned int                  bSize_;
     const unsigned int                  cSize_;
-    unsigned int                        nt_;
-    unsigned int                        nd_;
-    std::vector<std::vector<RealF>>     momenta_;
-    std::vector<Gamma::Algebra>         gamma_;
+    const unsigned int                  nt_;
+    const unsigned int                  nd_;
+    const unsigned int                  next_;
+    const unsigned int                  nstr_;
 public:
     DmfComputation(std::map<std::string,std::string>    c,
-                   std::vector<std::vector<RealF>>      momenta,
-                   std::vector<Gamma::Algebra>          gamma,
                    GridCartesian*                       g,
                    GridCartesian*                       g3d,
                    const unsigned int                   blockSize,
                    const unsigned int                   cacheSize,
-                   unsigned int                         nt);
+                   const unsigned int                   nt,
+                   const unsigned int                   next,
+                   const unsigned int                   nstr);
 public:
-    void execute(std::string                                        outPath,
+    void execute(const FilenameFn                                   &filenameDmfFn,
+                 const MetadataFn                                   &metadataDmfFn,
+                 std::vector<Gamma::Algebra>                        gamma_,
                  std::map<std::string, DistilVector&>               dv,
                  std::map<std::string, DistillationNoise&>          n,
                  std::vector<int>                                   inoise,
@@ -143,30 +147,6 @@ private:
                           const int             inoise,
                           const unsigned int    iD);
 };
-
-// aux class declaration
-template <typename FImpl>
-class DmfHelper
-{
-public:
-    FERM_TYPE_ALIASES(FImpl,);
-    typedef DistillationNoise<FImpl> DistillationNoise;
-    typedef typename std::vector<FermionField> DistilVector;
-    typedef typename DistillationNoise::Index Index;
-    typedef typename DistillationNoise::LapPack LapPack;
-private:
-    unsigned int nt_;
-    unsigned int nd_;
-    std::map<std::string,std::string> dmfType_;
-    TimeSliceMap noiseTimeMapl_, noiseTimeMapr_;
-    const std::vector<std::string> sides = {"left","right"};
-public:
-    DmfHelper(DistillationNoise & nl, DistillationNoise & nr, std::map<std::string,std::string> c);
-    std::vector<std::vector<int>> parseNoisePairs(std::vector<std::string> inputN);
-    void computePhase(std::vector<std::vector<RealF>> momenta, ComplexField &coor, std::vector<int> dim, std::vector<ComplexField> &phase);
-    TimeSliceMap timeSliceMap(DistillationNoise & n);
-};
-
 
 //####################################
 //# computation class implementation #
@@ -242,21 +222,24 @@ void DmfComputation<FImpl,T,Tio>
 template <typename FImpl, typename T, typename Tio>
 DmfComputation<FImpl,T,Tio>
 ::DmfComputation(std::map<std::string,std::string>  c,
-                 std::vector<std::vector<RealF>>    momenta,
-                 std::vector<Gamma::Algebra>        gamma,
                  GridCartesian*                     g,
                  GridCartesian*                     g3d,
                  const unsigned int                 blockSize,
                  const unsigned int                 cacheSize,
-                 unsigned int                       nt)
-: dmfType_(c), momenta_(momenta), gamma_(gamma), g_(g), g3d_(g3d), evec3d_(g3d), tmp3d_(g3d)
-, nt_(nt), nd_(g->Nd()), bSize_(blockSize) , cSize_(cacheSize)
+                 const unsigned int                 nt,
+                 const unsigned int                 next,
+                 const unsigned int                 nstr)
+: dmfType_(c), g_(g), g3d_(g3d), evec3d_(g3d), tmp3d_(g3d)
+, nt_(nt) , nd_(g->Nd()), bSize_(blockSize) , cSize_(cacheSize)
+, next_(next) , nstr_(nstr)
 {
 }
 
 template <typename FImpl, typename T, typename Tio>
 void DmfComputation<FImpl,T,Tio>
-::execute(std::string                                       outPath,
+::execute(const FilenameFn                                  &filenameDmfFn,
+          const MetadataFn                                  &metadataDmfFn,
+          std::vector<Gamma::Algebra>                       gamma_,
           std::map<std::string, DistilVector&>              dv,
           std::map<std::string, DistillationNoise&>         n,
           std::vector<int>                                  inoise,
@@ -268,14 +251,9 @@ void DmfComputation<FImpl,T,Tio>
           TimerArray*                                       tarray)
 {
     std::vector<std::vector<unsigned int>> timeDilutionPairList;
-    const int n_ext = momenta_.size();
-    const int n_str = gamma_.size();
     bool fileIsInit = false;
-    cBuf_.resize(n_ext*n_str*nt_*cSize_*cSize_);
+    cBuf_.resize(next_*nstr_*nt_*cSize_*cSize_);
     
-    // io init
-    std::string outStem = outPath + "/" +dmfType_.at("left")+"-"+dmfType_.at("right") + "/";
-    Hadrons::mkdir(outStem);
     
     const unsigned int vol = g_->_gsites;
     std::string dmfType = dmfType_.at("left") + " " + dmfType_.at("right");
@@ -303,7 +281,7 @@ void DmfComputation<FImpl,T,Tio>
                               std::back_inserter(stInter));
 
         const int nt_sparse = stInter.size();
-        bBuf_.resize(n_ext*n_str*nt_sparse*bSize_*bSize_); //does Hadrons environment know about this?
+        bBuf_.resize(next_*nstr_*nt_sparse*bSize_*bSize_); //does Hadrons environment know about this?
 
         if( !stInter.empty() ) // only execute case when partitions have at least one time slice in common
         {
@@ -323,7 +301,7 @@ void DmfComputation<FImpl,T,Tio>
             {
                 unsigned int iblockSize = MIN(dil_size_ls.at("left")-iblock,bSize_);    // iblockSize is the size of the current block (indexed by i); N_i-i is the size of the eventual remainder block
                 unsigned int jblockSize = MIN(dil_size_ls.at("right")-jblock,bSize_);
-                A2AMatrixSet<Tio> block(bBuf_.data(), n_ext , n_str , nt_sparse, iblockSize, jblockSize);
+                A2AMatrixSet<Tio> block(bBuf_.data(), next_ , nstr_ , nt_sparse, iblockSize, jblockSize);
 
                 LOG(Message) << "Distil matrix block " 
                 << jblock/bSize_ + nblocki*iblock/bSize_ + 1 
@@ -345,7 +323,7 @@ void DmfComputation<FImpl,T,Tio>
                 {
                     unsigned int icacheSize = MIN(iblockSize-icache,cSize_);      // icacheSize is the size of the current cache_ block (indexed by ii); N_ii-ii is the size of the remainder cache_ block
                     unsigned int jcacheSize = MIN(jblockSize-jcache,cSize_);
-                    A2AMatrixSet<T> blockCache(cBuf_.data(), n_ext, n_str, nt_, icacheSize, jcacheSize);
+                    A2AMatrixSet<T> blockCache(cBuf_.data(), next_, nstr_, nt_, icacheSize, jcacheSize);
 
                     double timer = 0.0;
                     tarray->startTimer("kernel");
@@ -356,20 +334,20 @@ void DmfComputation<FImpl,T,Tio>
                     time_kernel += timer;
 
                     // nExt is currently # of momenta , nStr is # of gamma matrices
-                    flops += vol*(2*8.0+6.0+8.0*n_ext)*icacheSize*jcacheSize*n_str;
+                    flops += vol*(2*8.0+6.0+8.0*next_)*icacheSize*jcacheSize*nstr_;
                     bytes += vol*(12.0*sizeof(T))*icacheSize*jcacheSize
-                            +  vol*(2.0*sizeof(T)*n_ext)*icacheSize*jcacheSize*n_str;
+                            +  vol*(2.0*sizeof(T)*next_)*icacheSize*jcacheSize*nstr_;
 
                     // loop through the cacheblock (inside them) and point blockCache to block
                     tarray->startTimer("cache copy");
                     unsigned int stSize = stInter.size();
-                    thread_for_collapse(5,iExt,n_ext,{
-                    for(unsigned int iStr=0;iStr<n_str;iStr++)
+                    thread_for_collapse(5,iext,next_,{
+                    for(unsigned int istr=0;istr<nstr_;istr++)
                     for(unsigned int it=0;it<stSize;it++)
                     for(unsigned int iicache=0;iicache<icacheSize;iicache++)
                     for(unsigned int jjcache=0;jjcache<jcacheSize;jjcache++)
                     {
-                        block(iExt,iStr,it,icache+iicache,jcache+jjcache)=blockCache(iExt,iStr,stInter[it],iicache,jjcache);
+                        block(iext,istr,it,icache+iicache,jcache+jjcache)=blockCache(iext,istr,stInter[it],iicache,jjcache);
                     }
                     });
                     tarray->stopTimer("cache copy");
@@ -392,31 +370,26 @@ void DmfComputation<FImpl,T,Tio>
                 unsigned int inode = g_->ThisRank();
                 unsigned int nnode = g_->RankCount(); 
                 LOG(Message) << "Starting parallel IO. Rank count=" << nnode  << std::endl;
-                DistilMesonFieldMetadata<FImpl> md;
                 g_->Barrier();
-                for(unsigned int ies=inode ; ies<n_ext*n_str ; ies+=nnode){
-                    unsigned int iExt = ies/n_str;
-                    unsigned int iStr = ies%n_str;
-
-                    // metadata;
-                    md.Nt               = nt_;
-                    md.Nvec             = n.at("left").getNl();     //nvec is the same for both sides
-                    md.Momentum         = momenta_[iExt];
-                    md.Operator         = gamma_[iStr];
-                    md.NoisePair        = inoise;
-                    md.MesonFieldType   = dmfType_.at("left") + "-" + dmfType_.at("right");
-                    md.NoiseHashLeft    = n.at("left").generateHash();
-                    md.NoiseHashRight   = n.at("right").generateHash();
-
-                    std::stringstream ss;
-                    ss << md.Operator << "_p";
-                    for (unsigned int mu = 0; mu < md.Momentum.size(); ++mu)
-                        ss << md.Momentum[mu] << ((mu == md.Momentum.size() - 1) ? "" : "_");
-                    std::string fileName = ss.str() + "_n" + std::to_string(inoise[0]) + "_" + std::to_string(inoise[1]);
-                    std::string mfName = fileName + ".h5";
-
-                    A2AMatrixIo<HADRONS_DISTIL_IO_TYPE> matrixIo(outStem+mfName, DISTIL_MATRIX_NAME, nt_sparse, dil_size_ls.at("left"), dil_size_ls.at("right"));
+                for(unsigned int ies=inode ; ies<next_*nstr_ ; ies+=nnode){
+                    unsigned int iext = ies/nstr_;
+                    unsigned int istr = ies%nstr_;
                     
+                    // metadata;
+                    DistilMesonFieldMetadata<FImpl> md = metadataDmfFn(iext,istr,inoise[0],inoise[1]);
+                    
+                    // md.Nt               = nt_;
+                    // md.Nvec             = n.at("left").getNl();     //nvec is the same for both sides
+                    // md.Momentum         = {0,0,0};
+                    // md.Operator         = gamma_[istr];
+                    // md.NoisePair        = inoise;
+                    // md.MesonFieldType   = dmfType_.at("left") + "-" + dmfType_.at("right");
+                    // md.NoiseHashLeft    = n.at("left").generateHash();
+                    // md.NoiseHashRight   = n.at("right").generateHash();
+
+
+                    A2AMatrixIo<HADRONS_DISTIL_IO_TYPE> matrixIo(filenameDmfFn(iext,istr,inoise[0],inoise[1]), DISTIL_MATRIX_NAME, nt_sparse, dil_size_ls.at("left"), dil_size_ls.at("right"));
+
                     tarray->startTimer("IO: write block");
                     if(iblock==0 && jblock==0){              // creates dataset only if it's the first block of the dataset
                         if( (dtL==timeDilSource.at("left")[0]) && (dtR==timeDilSource.at("right")[0]) )     //execute this once per block
@@ -425,10 +398,10 @@ void DmfComputation<FImpl,T,Tio>
                             matrixIo.initFile(md);
                             tarray->stopTimer("IO: file creation");
                         }
-                        matrixIo.saveBlock(block, iExt , iStr , iblock, jblock, datasetName, stInter, cSize_);   //sets 2D chunk size and creates dataset
+                        matrixIo.saveBlock(block, iext , istr , iblock, jblock, datasetName, stInter, cSize_);   //sets 2D chunk size and creates dataset
                     }
                     else{
-                        matrixIo.saveBlock(block, iExt , iStr , iblock, jblock, datasetName);
+                        matrixIo.saveBlock(block, iext , istr , iblock, jblock, datasetName);
                     }
                     tarray->stopTimer("IO: write block");
                 }
@@ -436,7 +409,7 @@ void DmfComputation<FImpl,T,Tio>
 #endif
                 tarray->stopTimer("IO: total");
                 ioTime    += tarray->getDTimer("IO: write block");
-                unsigned int bytesBlockSize  = static_cast<double>(n_ext*n_str*nt_sparse*iblockSize*jblockSize*sizeof(Tio));
+                unsigned int bytesBlockSize  = static_cast<double>(next_*nstr_*nt_sparse*iblockSize*jblockSize*sizeof(Tio));
                 double iospeed = bytesBlockSize/ioTime*0.95367431640625;     // 1.0e6/1024/1024
                 LOG(Message)    << "HDF5 IO done " << sizeString(bytesBlockSize) << " in "
                                 << ioTime  << " us (" << iospeed << " MB/s)" << std::endl;
@@ -444,21 +417,15 @@ void DmfComputation<FImpl,T,Tio>
             }
         }
     }
-    //saving dilution scheme 2d metadata
+    //saving dilution schemes (2d ragged metadata)
     if(g_->IsBoss())
     {
         tarray->startTimer("IO: total");
-        for(unsigned int iext=0 ; iext<n_ext ; iext++)
-        for(unsigned int istr=0 ; istr<n_str ; istr++)
+        for(unsigned int iext=0 ; iext<next_ ; iext++)
+        for(unsigned int istr=0 ; istr<nstr_ ; istr++)
         {
-            std::stringstream ss;
-            ss << gamma_[istr] << "_p";
-            for (unsigned int mu = 0; mu < momenta_[iext].size(); ++mu)
-                ss << momenta_[iext][mu] << ((mu == momenta_[iext].size() - 1) ? "" : "_");
-            std::string fileName = ss.str() + "_n" + std::to_string(inoise[0]) + "_" + std::to_string(inoise[1]);
-            std::string mfName = fileName+".h5";
-            std::string distilname = DISTIL_MATRIX_NAME;
-            DistilMetadataIo mdIo(outStem+mfName, distilname+"/Metadata" );
+            const std::string distilname = DISTIL_MATRIX_NAME;
+            DistilMetadataIo mdIo(filenameDmfFn(iext,istr,inoise[0],inoise[1]), distilname+"/Metadata" );
             mdIo.write2dMetadata("TimeDilutionPairs", timeDilutionPairList);
             mdIo.write2dMetadata("TimeDilutionLeft" ,leftTimeMap);
             mdIo.write2dMetadata("TimeDilutionRight",rightTimeMap);
@@ -466,6 +433,31 @@ void DmfComputation<FImpl,T,Tio>
         tarray->stopTimer("IO: total");
     }
 }
+
+//############################
+// aux class declaration
+//############################
+template <typename FImpl>
+class DmfHelper
+{
+public:
+    FERM_TYPE_ALIASES(FImpl,);
+    typedef DistillationNoise<FImpl> DistillationNoise;
+    typedef typename std::vector<FermionField> DistilVector;
+    typedef typename DistillationNoise::Index Index;
+    typedef typename DistillationNoise::LapPack LapPack;
+private:
+    unsigned int nt_;
+    unsigned int nd_;
+    std::map<std::string,std::string> dmfType_;
+    TimeSliceMap noiseTimeMapl_, noiseTimeMapr_;
+    const std::vector<std::string> sides = {"left","right"};
+public:
+    DmfHelper(DistillationNoise & nl, DistillationNoise & nr, std::map<std::string,std::string> c);
+    std::vector<std::vector<int>> parseNoisePairs(std::vector<std::string> inputN);
+    void computePhase(std::vector<std::vector<RealF>> momenta, ComplexField &coor, std::vector<int> dim, std::vector<ComplexField> &phase);
+    TimeSliceMap timeSliceMap(DistillationNoise & n);
+};
 
 //############################
 //# helper class implementation #
