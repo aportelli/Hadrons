@@ -78,7 +78,7 @@ public:
     {
     public:
         GRID_SERIALIZABLE_CLASS_MEMBERS(Metadata,
-                                        std::string,  description,
+                                        Gamma::Algebra, gamma,
                                         std::string,  pIn,
                                         std::string,  pOut);
     };
@@ -181,8 +181,7 @@ void TBilinear<FImpl>::execute(void)
     r.info.pOut = par().pOut; // Redundant to write these into every group
     for (auto &G: Gamma::gall)
     {
-    	r.info.description = Gamma::name[G.g]; // The change from Gamma::Algebra to string causes all strings to have the same length
-                                               // which leads to trailing spaces in the string. Is there an easy way to avoid this?
+    	r.info.gamma = G.g;
     	r.corr.push_back( (1.0 / volume) * sum(g5 * adj(qOut_phased) * g5 * G * qIn_phased) );
         result.push_back(r);
     	//This is all still quite hacky - we probably want to think about the output format a little more!
