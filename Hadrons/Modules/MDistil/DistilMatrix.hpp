@@ -16,7 +16,8 @@
 BEGIN_HADRONS_NAMESPACE
 BEGIN_MODULE_NAMESPACE(MDistil)
 
-using TimeSliceMap = std::vector<std::vector<unsigned int>>; // this is here because TimeSliceMap is a return type in methods below
+using TimeSliceMap = std::vector<std::vector<unsigned int>>;
+using DilutionMap  = std::array<std::vector<std::vector<unsigned int>>,3>;
 
 // metadata serialiser class
 template <typename FImpl>
@@ -52,6 +53,7 @@ public:
             void *p;    /* Pointer to VL data */        
         } VlStorage;
 #ifdef HAVE_HDF5
+
         Hdf5Reader  reader(filename_, false);
         push(reader, metadataname_);    //creates main h5 group
         H5NS::Group &subgroup = reader.getGroup();
@@ -126,8 +128,8 @@ public:
                  std::vector<ComplexField>                          ph,
                  std::map<std::string, unsigned int>                dil_size_ls,
                  std::map<std::string, std::vector<unsigned int>>   timeDilSource,
-                 TimeSliceMap                                       leftTimeMap,
-                 TimeSliceMap                                       rightTimeMap,
+                 DilutionMap                                        leftMap,
+                 DilutionMap                                        rightMap,
                  TimerArray*                                        tarray);
     void distVec(std::map<std::string, DistilVector&>               dv,
                  std::map<std::string, DistillationNoise&>          n,
@@ -246,8 +248,8 @@ void DmfComputation<FImpl,T,Tio>
           std::vector<ComplexField>                         ph,
           std::map<std::string, unsigned int>               dil_size_ls,
           std::map<std::string, std::vector<unsigned int>>  timeDilSource,
-          TimeSliceMap                                      leftTimeMap,
-          TimeSliceMap                                      rightTimeMap,
+          DilutionMap                                       leftMap,
+          DilutionMap                                       rightMap,
           TimerArray*                                       tarray)
 {
     std::vector<std::vector<unsigned int>> timeDilutionPairList;
@@ -376,18 +378,7 @@ void DmfComputation<FImpl,T,Tio>
                     unsigned int istr = ies%nstr_;
                     
                     // metadata;
-                    DistilMesonFieldMetadata<FImpl> md = metadataDmfFn(iext,istr,inoise[0],inoise[1]);
-                    
-                    // md.Nt               = nt_;
-                    // md.Nvec             = n.at("left").getNl();     //nvec is the same for both sides
-                    // md.Momentum         = {0,0,0};
-                    // md.Operator         = gamma_[istr];
-                    // md.NoisePair        = inoise;
-                    // md.MesonFieldType   = dmfType_.at("left") + "-" + dmfType_.at("right");
-                    // md.NoiseHashLeft    = n.at("left").generateHash();
-                    // md.NoiseHashRight   = n.at("right").generateHash();
-
-
+                    DistilMesonFieldMetadata<FImpl> md = metadataDmfFn(iext,istr,inoise[0],inoise[1]);                    
                     A2AMatrixIo<HADRONS_DISTIL_IO_TYPE> matrixIo(filenameDmfFn(iext,istr,inoise[0],inoise[1]), DISTIL_MATRIX_NAME, nt_sparse, dil_size_ls.at("left"), dil_size_ls.at("right"));
 
                     tarray->startTimer("IO: write block");
@@ -427,8 +418,13 @@ void DmfComputation<FImpl,T,Tio>
             const std::string distilname = DISTIL_MATRIX_NAME;
             DistilMetadataIo mdIo(filenameDmfFn(iext,istr,inoise[0],inoise[1]), distilname+"/Metadata" );
             mdIo.write2dMetadata("TimeDilutionPairs", timeDilutionPairList);
-            mdIo.write2dMetadata("TimeDilutionLeft" ,leftTimeMap);
-            mdIo.write2dMetadata("TimeDilutionRight",rightTimeMap);
+            //schemes
+            mdIo.write2dMetadata("TimeDilutionLeft"  , leftMap[Index::t] );
+            mdIo.write2dMetadata("TimeDilutionRight" , rightMap[Index::t]);
+            mdIo.write2dMetadata("LapDilutionLeft"   , leftMap[Index::l] );
+            mdIo.write2dMetadata("LapDilutionRight"  , rightMap[Index::l]);
+            mdIo.write2dMetadata("SpinDilutionLeft"  , leftMap[Index::s] );
+            mdIo.write2dMetadata("SpinDilutionRight" , rightMap[Index::s]);
         }
         tarray->stopTimer("IO: total");
     }
@@ -447,29 +443,23 @@ public:
     typedef typename DistillationNoise::Index Index;
     typedef typename DistillationNoise::LapPack LapPack;
 private:
-    unsigned int nt_;
     unsigned int nd_;
     std::map<std::string,std::string> dmfType_;
-    TimeSliceMap noiseTimeMapl_, noiseTimeMapr_;
     const std::vector<std::string> sides = {"left","right"};
 public:
-    DmfHelper(DistillationNoise & nl, DistillationNoise & nr, std::map<std::string,std::string> c);
+    DmfHelper(const unsigned int nd, std::map<std::string,std::string> c);
     std::vector<std::vector<int>> parseNoisePairs(std::vector<std::string> inputN);
     void computePhase(std::vector<std::vector<RealF>> momenta, ComplexField &coor, std::vector<int> dim, std::vector<ComplexField> &phase);
-    TimeSliceMap timeSliceMap(DistillationNoise & n);
+    DilutionMap getMap(DistillationNoise & n);
 };
 
 //############################
 //# helper class implementation #
 //############################
 template <typename FImpl>
-DmfHelper<FImpl>::DmfHelper(DistillationNoise&                  nl,
-                            DistillationNoise&                  nr,
-                            std::map<std::string,std::string>   c)
-: noiseTimeMapl_( timeSliceMap(nl) ) , noiseTimeMapr_( timeSliceMap(nr) ) , dmfType_(c)
+DmfHelper<FImpl>::DmfHelper(const unsigned int nd, std::map<std::string,std::string>   c)
+: dmfType_(c) , nd_(nd)
 {
-    nt_ = nr.getNt();
-    nd_ = nr.getGrid()->Nd();
 }
 
 template <typename FImpl>
@@ -505,13 +495,14 @@ void DmfHelper<FImpl>::computePhase(std::vector<std::vector<RealF>> momenta,
 }
 
 template <typename FImpl>
-TimeSliceMap DmfHelper<FImpl>::timeSliceMap(DistillationNoise & n)
+DilutionMap DmfHelper<FImpl>::getMap(DistillationNoise & n)
 {
-    TimeSliceMap m;
-    for(unsigned int it=0 ; it<n.dilutionSize(Index::t) ; it++)
+    DilutionMap m;
+    for(auto &id : { Index::t, Index::l, Index::s })
+    for(unsigned int it=0 ; it<n.dilutionSize(id) ; it++)
     {
-        std::vector<unsigned int> temp = n.timeSlices(it);
-        m.push_back(temp);
+        std::vector<unsigned int> temp = n.getDilutionPartition(id,it);
+        m[id].push_back(temp);
     }
     return m;
 }

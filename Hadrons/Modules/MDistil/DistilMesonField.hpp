@@ -194,7 +194,7 @@ void TDistilMesonField<FImpl>::setup(void)
     envTmp(DistilVector,                "dvl",          1, noisel.dilutionSize() , g);
     envTmp(DistilVector,                "dvr",          1, noiser.dilutionSize() , g);
     envTmp(Computation,                 "computation",  1, dmf_type_, g, g3d, blockSize_ , cacheSize_, env().getDim(g->Nd() - 1), momenta_.size(), gamma_.size());
-    envTmp(Helper,                      "helper"   ,    1, noisel, noiser , dmf_type_);
+    envTmp(Helper,                      "helper"   ,    1, g->Nd() , dmf_type_);
 }
 
 // execution ///////////////////////////////////////////////////////////////////
@@ -349,7 +349,9 @@ void TDistilMesonField<FImpl>::execute(void)
 
         // computing mesonfield blocks and saving to disk
         LOG(Message) << "Time-dilution blocks computation starting..." << std::endl;
-        computation.execute(filenameDmfFn, metadataDmfFn, gamma_, distVectors, noises, inoise, phase, dilutionSize_ls_, timeDilSource, helper.timeSliceMap(noises.at("left")), helper.timeSliceMap(noises.at("right")), this);
+        DilutionMap lmap = helper.getMap(noises.at("left"));
+        DilutionMap rmap = helper.getMap(noises.at("right"));
+        computation.execute(filenameDmfFn, metadataDmfFn, gamma_, distVectors, noises, inoise, phase, dilutionSize_ls_, timeDilSource, lmap, rmap, this);
 
         LOG(Message) << "Meson fields saved at " << outputMFPath_ << std::endl;
     }

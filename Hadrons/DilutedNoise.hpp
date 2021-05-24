@@ -70,6 +70,7 @@ public:
     unsigned int dilutionIndex(const unsigned t, const unsigned l, const unsigned s) const;
     std::array<unsigned int, 3> dilutionCoordinates(const unsigned int d) const;
     std::vector<unsigned int> timeSlices(const unsigned it);
+    std::vector<unsigned int> getDilutionPartition(const Index p, const unsigned i);
     const FermionField & makeSource(const unsigned int d, const unsigned int i);
     // access
     virtual void resize(const int nNoise);
@@ -182,6 +183,20 @@ std::vector<unsigned int> DistillationNoise<FImpl>::timeSlices(const unsigned in
     }
 
     return ts;
+}
+
+template <typename FImpl>
+std::vector<unsigned int> DistillationNoise<FImpl>::getDilutionPartition(const Index p, const unsigned ip)
+{
+    std::vector<unsigned int> s;
+    DilutionMap               &map = getMap();
+
+    for (auto i: map[p][ip])
+    {
+        s.push_back(i);
+    }
+
+    return s;
 }
 
 template <typename FImpl>
