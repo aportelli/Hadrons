@@ -29,7 +29,9 @@ public:
                                     std::vector<RealF>,         Momentum,
                                     Gamma::Algebra,             Operator,               // just gamma matrices for now, but could turn into more general operators in the future
                                     std::vector<int>,           NoisePair,
-                                    std::string,                MesonFieldType)
+                                    std::string,                MesonFieldType,
+                                    std::string,                NoiseHashLeft,
+                                    std::string,                NoiseHashRight,)
 };
 
 //metadata io class
@@ -41,7 +43,8 @@ public:
     // constructor
     DistilMetadataIo(std::string filename, std::string metadataname):filename_(filename) , metadataname_(metadataname) {}
     //methods
-    void write2dMetadata(const std::string name, const std::vector<std::vector<unsigned int>>& data)     //generalise vector<vector> ??
+    template <typename T>
+    void write2dMetadata(const std::string name, const std::vector<std::vector<T>>& data)
     {
         // auxiliar variable-length struct (see hdf5 variable-length documentation)
         typedef struct  {
@@ -53,7 +56,7 @@ public:
         push(reader, metadataname_);    //creates main h5 group
         H5NS::Group &subgroup = reader.getGroup();
 
-        H5NS::VarLenType vl_type(Hdf5Type<unsigned int>::type());
+        H5NS::VarLenType vl_type(Hdf5Type<T>::type());
         std::vector<VlStorage> vl_data(data.size());
         for(unsigned int i=0 ; i<data.size() ; i++)
         {
@@ -396,12 +399,14 @@ void DmfComputation<FImpl,T,Tio>
                     unsigned int iStr = ies%n_str;
 
                     // metadata;
-                    md.Nt                   = nt_;
-                    md.Nvec                 = n.at("left").getNl();     //nvec is the same for both sides
-                    md.Momentum             = momenta_[iExt];
-                    md.Operator             = gamma_[iStr];
-                    md.NoisePair            = inoise;
-                    md.MesonFieldType       = dmfType_.at("left") + "-" + dmfType_.at("right");
+                    md.Nt               = nt_;
+                    md.Nvec             = n.at("left").getNl();     //nvec is the same for both sides
+                    md.Momentum         = momenta_[iExt];
+                    md.Operator         = gamma_[iStr];
+                    md.NoisePair        = inoise;
+                    md.MesonFieldType   = dmfType_.at("left") + "-" + dmfType_.at("right");
+                    md.NoiseHashLeft    = n.at("left").generateHash();
+                    md.NoiseHashRight   = n.at("right").generateHash();
 
                     std::stringstream ss;
                     ss << md.Operator << "_p";
