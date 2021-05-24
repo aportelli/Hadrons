@@ -80,6 +80,7 @@ private:
     std::vector<std::string>            sides_       ;
     std::vector<std::vector<RealF>>     momenta_;
     std::vector<Gamma::Algebra>         gamma_;  
+    bool                                isExact_=false;
 };
 
 MODULE_REGISTER_TMP(DistilMesonField, TDistilMesonField<FIMPL>, MDistil);
@@ -118,6 +119,12 @@ std::vector<std::string> TDistilMesonField<FImpl>::getInput(void)
         {
             in.push_back( s=="left" ? par().leftPeramb : par().rightPeramb);
         }
+    }
+
+    if( ( vm().getModuleType(par().leftNoise) =="Grid::Hadrons::MNoise::ExactDistillation" ) ||
+        ( vm().getModuleType(par().rightNoise)=="Grid::Hadrons::MNoise::ExactDistillation" ) )
+    {
+        isExact_=true;
     }
 
     return in;
@@ -230,10 +237,15 @@ void TDistilMesonField<FImpl>::execute(void)
         ss << gamma_[o] << "_p";
         for (unsigned int mu = 0; mu < momenta_[m].size(); ++mu)
             ss << momenta_[m][mu] << ((mu == momenta_[m].size() - 1) ? "" : "_");
-        return outpath + ss.str() + "_n" + std::to_string(nl) + "_" + std::to_string(nr) 
-                + "." + std::to_string(vm().getTrajectory()) + ".h5";
-    };
 
+        std::string filename = outpath + ss.str(); 
+        if(!isExact_)
+        {
+            filename += "_n" + std::to_string(nl) + "_" + std::to_string(nr) ;
+        }
+        filename += "." + std::to_string(vm().getTrajectory()) + ".h5";
+        return filename;
+    };
     auto metadataDmfFn = [this, &nt, &nVec, &noisel, &noiser](const unsigned int m, const unsigned int o, const int nl, const int nr)
     {
         DistilMesonFieldMetadata<FImpl> md;
@@ -248,8 +260,16 @@ void TDistilMesonField<FImpl>::execute(void)
         md.Nvec             = nVec;     //nvec is the same for both sides
         md.NoisePair        = {nl,nr};
         md.MesonFieldType   = dmf_type_.at("left") + "-" + dmf_type_.at("right");
-        md.NoiseHashLeft    = noisel.generateHash();
-        md.NoiseHashRight   = noiser.generateHash();
+        if(isExact_)
+        {
+            md.NoiseHashLeft    = "0";
+            md.NoiseHashRight   = "0";
+        }
+        else
+        {
+            md.NoiseHashLeft    = noisel.generateHash();
+            md.NoiseHashRight   = noiser.generateHash();
+        }
 
         return md;
     };
@@ -303,7 +323,14 @@ void TDistilMesonField<FImpl>::execute(void)
         }
     }
 
-    noisePairs_ = helper.parseNoisePairs(par().noisePairs);
+    if(isExact_)
+    {
+        noisePairs_.push_back({0,0});
+    }
+    else
+    {
+        noisePairs_ = helper.parseNoisePairs(par().noisePairs);
+    }
 
     //compute momentum phase
     if (!hasPhase_)

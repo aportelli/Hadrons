@@ -507,19 +507,6 @@ DilutionMap DmfHelper<FImpl>::getMap(DistillationNoise & n)
     return m;
 }
 
-// auxiliar temporary printing function
-static void printMap(TimeSliceMap &m)
-{
-    for(auto& d : m)
-    {
-        for(auto& t : d)
-        {
-            std::cout << t << " ";
-        }
-        std::cout << std::endl;
-    }
-    std::cout << std::endl;
-}
 
 END_MODULE_NAMESPACE
 END_HADRONS_NAMESPACE
