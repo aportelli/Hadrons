@@ -69,11 +69,11 @@ template <typename FImpl1, typename FImpl2>
 void TFourQuarkFullyConnected<FImpl1, FImpl2>::tensorprod(SCSCField &lret, PropagatorField1 &a, PropagatorField2 &b)
 {
     // Tensor product of 2 Lattice Spin Colour Matrices
-    autoView(lret_v, lret, AcceleratorRead);
+    autoView(lret_v, lret, AcceleratorWrite);
     autoView(a_v, a, AcceleratorRead);
     autoView(b_v, b, AcceleratorRead);
 
-    thread_foreach( site, lret_v, {
+    accelerator_for( site, lret_v.size(), grid->Nsimd(), {
         vTComplex left;
         for(int si=0; si < Ns; ++si){
         for(int sj=0; sj < Ns; ++sj){
