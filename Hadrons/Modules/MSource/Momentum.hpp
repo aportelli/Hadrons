@@ -49,9 +49,8 @@ class MomentumPar: Serializable
     public:
     //What is meant by serializable in this context
     GRID_SERIALIZABLE_CLASS_MEMBERS(MomentumPar,
-    std::string, mom);
+                                    std::string, mom);
 };
-
 
 template <typename FImpl>
 class TMomentum: public Module<MomentumPar>
@@ -99,45 +98,39 @@ std::vector<std::string> TMomentum<FImpl>::getOutput(void)
     return out;
 }
 
-
 // setup ///////////////////////////////////////////////////////////////////////
 template <typename FImpl>
 void TMomentum<FImpl>::setup(void)
 {
     envCreateLat(PropagatorField, getName());
+    envTmpLat(ComplexField, "C");
+    envTmpLat(ComplexField, "xMu");
 }
-
 
 //execution//////////////////////////////////////////////////////////////////
 template <typename FImpl>
 void TMomentum<FImpl>::execute(void)
 {
     LOG(Message) << "Generating planewave momentum source with momentum " << par().mom << std::endl;
-    //what does this env do?
-    PropagatorField &src = envGet(PropagatorField, getName());
-    Lattice<iScalar<vInteger>> t(env().getGrid());
-    LatticeComplex             C(env().getGrid()), coor(env().getGrid());
-    std::vector<Real>          p;
-    std::vector<Real> latt_size(GridDefaultLatt().begin(), GridDefaultLatt().end()); 
-    Complex                    i(0.0,1.0);
+    PropagatorField        &src = envGet(PropagatorField, getName());
+    std::vector<Real>      p = strToVec<Real>(par().mom);;
+    std::vector<Real>      latt_size(GridDefaultLatt().begin(), GridDefaultLatt().end()); 
+    Complex                Ci(0.0,1.0);
+    envGetTmp(ComplexField, C);
+    envGetTmp(ComplexField, xMu);
 
-    LOG(Message) << " " << std::endl;
     src = Zero();
-    //get the momentum from parameters
-    p = strToVec<Real>(par().mom);
     C = Zero();
-    LOG(Message) << "momentum converted from string - " << std::to_string(p[0]) <<std::to_string(p[1]) <<std::to_string(p[2]) <<   std::to_string(p[3]) << std::endl;
-    for(int mu=0;mu<4;mu++){
+
+    for(int mu = 0; mu < 4; mu++){
         Real TwoPiL =  M_PI * 2.0 / latt_size[mu];
-        LatticeCoordinate(coor,mu);
-        C = C + (TwoPiL * p[mu]) * coor;
+        LatticeCoordinate(xMu,mu);
+        C = C + (TwoPiL * p[mu]) * xMu;
     }
-    C = exp(C*i);
-    LOG(Message) << "exponential of pdotx taken " << std::endl;
+    C = exp(C*Ci);
     src = src + C;
     LOG(Message) << "source created" << std::endl;
 }
-
 
 
 END_MODULE_NAMESPACE
