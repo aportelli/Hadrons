@@ -71,6 +71,8 @@ public:
     // dependencies/products
     virtual std::vector<std::string> getInput(void);
     virtual std::vector<std::string> getOutput(void);
+    // setup
+    virtual void setup(void);
     // execution
     virtual void execute(void);
 };
@@ -85,6 +87,15 @@ template <typename FImpl>
 TExternalLeg<FImpl>::TExternalLeg(const std::string name)
 : Module<ExternalLegPar>(name)
 {}
+
+// setup ///////////////////////////////////////////////////////////////////////
+template <typename FImpl>
+void TExternalLeg<FImpl>::setup(void)
+{
+    envTmpLat(PropagatorField, "qIn_phased");
+    envTmpLat(ComplexField, "pDotXIn");
+    envTmpLat(ComplexField, "xMu");
+}
 
 // dependencies/products ///////////////////////////////////////////////////////
 template <typename FImpl>
@@ -110,14 +121,16 @@ void TExternalLeg<FImpl>::execute(void)
     LOG(Message) << "Computing propagator '" << getName() << "' using"
                  << " momentum '" << par().pIn << "'"
                  << std::endl;
-    auto                            &qIn    = envGet(PropagatorField, par().qIn);
-    LatticeSpinColourMatrix         qIn_phased(env().getGrid());
-    std::vector<int>                pIn  = strToVec<int>(par().pIn);
-    Coordinate                      latt_size = GridDefaultLatt();
-    LatticeComplex                  pDotXIn(env().getGrid()), coor(env().getGrid());
-    Gamma                           g5(Gamma::Algebra::Gamma5);
-    Complex                         Ci(0.0,1.0);
-    Result                          r;
+    auto                &qIn    = envGet(PropagatorField, par().qIn);
+    envGetTmp(PropagatorField, qIn_phased);
+    envGetTmp(ComplexField, pDotXIn);
+    envGetTmp(ComplexField, xMu);
+    std::vector<Real>   pIn  = strToVec<Real>(par().pIn);
+    Coordinate          latt_size = GridDefaultLatt();
+    Gamma               g5(Gamma::Algebra::Gamma5);
+    Complex             Ci(0.0,1.0);
+    Result              r;
+
 
     Real volume = 1.0;
     for (int mu = 0; mu < Nd; mu++) {
@@ -128,8 +141,8 @@ void TExternalLeg<FImpl>::execute(void)
     for (unsigned int mu = 0; mu < 4; ++mu)
     {
         Real TwoPiL =  M_PI * 2.0 / latt_size[mu];
-        LatticeCoordinate(coor,mu);
-        pDotXIn = pDotXIn + (TwoPiL * pIn[mu]) * coor;
+        LatticeCoordinate(xMu,mu);
+        pDotXIn = pDotXIn + (TwoPiL * pIn[mu]) * xMu;
     }
     qIn_phased = qIn * exp(-Ci * pDotXIn); // phase corrections
 

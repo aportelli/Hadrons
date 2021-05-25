@@ -112,6 +112,8 @@ TBilinear<FImpl>::TBilinear(const std::string name)
 template <typename FImpl>
 void TBilinear<FImpl>::setup(void)
 {
+    envTmpLat(PropagatorField, "qIn_phased");
+    envTmpLat(PropagatorField, "qOut_phased");
     envTmpLat(ComplexField, "pDotXIn");
     envTmpLat(ComplexField, "pDotXOut");
     envTmpLat(ComplexField, "xMu");
@@ -145,7 +147,8 @@ void TBilinear<FImpl>::execute(void)
     // Propagators
     auto  &qIn    = envGet(PropagatorField, par().qIn);
     auto  &qOut   = envGet(PropagatorField, par().qOut);
-    LatticeSpinColourMatrix qIn_phased(env().getGrid()), qOut_phased(env().getGrid());
+    envGetTmp(PropagatorField, qIn_phased);
+    envGetTmp(PropagatorField, qOut_phased);
     envGetTmp(ComplexField, pDotXIn);
     envGetTmp(ComplexField, pDotXOut);
     envGetTmp(ComplexField, xMu);
@@ -153,7 +156,7 @@ void TBilinear<FImpl>::execute(void)
     // momentum on legs
     //TODO: Do we want to check the momentum input format? Not done in MSink::Point, so probably ok like this.
     std::vector<Real>           pIn  = strToVec<Real>(par().pIn), 
-	                            pOut = strToVec<Real>(par().pOut); // Should this be Int instead of Real?
+	                            pOut = strToVec<Real>(par().pOut);
     Coordinate                  latt_size = GridDefaultLatt(); 
     Gamma                       g5(Gamma::Algebra::Gamma5);
     Complex                     Ci(0.0,1.0);
