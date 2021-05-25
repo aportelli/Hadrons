@@ -238,10 +238,15 @@ void TFourQuarkFullyConnected<FImpl1, FImpl2>::execute()
                   Gamma(Gamma::Algebra::SigmaZT)}};
 
             for (Gamma gammaA: gsigma) {
-                for (Gamma gammaB: gsigma) {
-                    compute_diagrams(gammaA, gammaB);
-                }
+                    compute_diagrams(gammaA, gammaA);
             }
+
+            compute_diagrams(Gamma(Gamma::Algebra::SigmaXT), Gamma(Gamma::Algebra::SigmaYZ));
+            compute_diagrams(Gamma(Gamma::Algebra::SigmaXY), Gamma(Gamma::Algebra::SigmaZT));
+            compute_diagrams(Gamma(Gamma::Algebra::SigmaXZ), Gamma(Gamma::Algebra::SigmaYT));
+            compute_diagrams(Gamma(Gamma::Algebra::SigmaYT), Gamma(Gamma::Algebra::SigmaXZ));
+            compute_diagrams(Gamma(Gamma::Algebra::SigmaYZ), Gamma(Gamma::Algebra::SigmaXT));
+            compute_diagrams(Gamma(Gamma::Algebra::SigmaZT), Gamma(Gamma::Algebra::SigmaXY));
         }
     }
     else {
