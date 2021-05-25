@@ -11,26 +11,16 @@ BEGIN_HADRONS_NAMESPACE
 
 BEGIN_MODULE_NAMESPACE(MNPR)
 
-class FourQuarkFullyConnectedOuputPar : Serializable {
-public:
-    GRID_SERIALIZABLE_CLASS_MEMBERS(FourQuarkFullyConnectedOuputPar,
-                                    std::string, bilinear,
-                                    std::string, fourquark,
-                                    std::string, gammaA,
-                                    std::string, gammaB);
-
-};
-
 class FourQuarkFullyConnectedPar : Serializable
 {
 public:
         GRID_SERIALIZABLE_CLASS_MEMBERS(FourQuarkFullyConnectedPar,
-                                        std::string, Sin,
-                                        std::string, Sout,
-                                        std::string, pin,
-                                        std::string, pout,
+                                        std::string, qIn,
+                                        std::string, qOut,
+                                        std::string, pIn,
+                                        std::string, pOut,
                                         std::string, gamma_basis,
-                                        FourQuarkFullyConnectedOuputPar, output);
+                                        std::string, output);
 };
 
 
@@ -40,6 +30,16 @@ class TFourQuarkFullyConnected : public Module<FourQuarkFullyConnectedPar>
 public:
     FERM_TYPE_ALIASES(FImpl1, 1)
     FERM_TYPE_ALIASES(FImpl2, 2)
+    class Metadata: Serializable
+    {
+    public:
+        GRID_SERIALIZABLE_CLASS_MEMBERS(Metadata,
+                                        Gamma::Algebra, gammaA,
+                                        Gamma::Algebra, gammaB,
+                                        std::string,  pIn,
+                                        std::string,  pOut);
+    };
+    typedef Correlator<Metadata, SpinColourSpinColourMatrix> Result;
     template<typename P1, typename P2, typename V = void> struct Traits {};
     template<typename P1, typename P2>
     struct Traits<P1, P2, typename std::enable_if<getPrecision<P1>::value == 1 && getPrecision<P2>::value == 1>::type>
@@ -95,7 +95,7 @@ TFourQuarkFullyConnected<FImpl1, FImpl2>::TFourQuarkFullyConnected(const std::st
 template <typename FImpl1, typename FImpl2>
 std::vector<std::string> TFourQuarkFullyConnected<FImpl1, FImpl2>::getInput()
 {
-    std::vector<std::string> in = { par().Sin, par().Sout };
+    std::vector<std::string> in = { par().qIn, par().qOut };
 
     return in;
 }
@@ -126,23 +126,23 @@ template <typename FImpl1, typename FImpl2>
 void TFourQuarkFullyConnected<FImpl1, FImpl2>::execute()
 {
     LOG(Message) << "Computing contractions '" << getName()
-        << "' using source propagators '" << par().Sin << "' and '" << par().Sout << "'"
+        << "' using source propagators '" << par().qIn << "' and '" << par().qOut << "'"
         << std::endl;
 
-    PropagatorField1 &Sin = envGet(PropagatorField1, par().Sin);
-    PropagatorField2 &Sout = envGet(PropagatorField2, par().Sout);
+    PropagatorField1 &qIn = envGet(PropagatorField1, par().qIn);
+    PropagatorField2 &qOut = envGet(PropagatorField2, par().qOut);
 
     envGetTmp(LatticeSpinColourMatrix, bilinear);
     envGetTmp(LatticeSpinColourMatrix, bilinear_tmp);
     envGetTmp(SCSCField, lret);
 
-    std::vector<int> latt_size(env().getGrid()->FullDimensions().toVector());
-    std::vector<Real> pin = strToVec<Real>(par().pin);
-    std::vector<Real> pout = strToVec<Real>(par().pout);
 
-    std::vector<SpinColourSpinColourMatrix> fourq_result;
-    std::vector<SpinColourMatrix> twoq_result;
-    std::vector<Gamma::Algebra> gammaA, gammaB;
+    std::vector<Result>         result;
+    Result                      r;
+    std::vector<int> latt_size(env().getGrid()->FullDimensions().toVector());
+    std::vector<Real> pIn = strToVec<Real>(par().pIn);
+    std::vector<Real> pOut = strToVec<Real>(par().pOut);
+
     Gamma g5 = Gamma(Gamma::Algebra::Gamma5);
 
     envGetTmp(LatticeComplex, bilinear_phase);
@@ -160,7 +160,7 @@ void TFourQuarkFullyConnected<FImpl1, FImpl2>::execute()
         LatticeCoordinate(coordinate, mu);
         coordinate = (2.0 * M_PI / latt_size[mu]) * coordinate;
 
-        bilinear_phase += coordinate * (pin[mu] - pout[mu]);
+        bilinear_phase += coordinate * (pIn[mu] - pOut[mu]);
     }
     Complex imag = Complex(0, 1.0);
     bilinear_phase = exp(-imag * bilinear_phase);
@@ -169,16 +169,12 @@ void TFourQuarkFullyConnected<FImpl1, FImpl2>::execute()
 
     LOG(Message) << "Computing diagrams" << std::endl;
 
-    auto result_reserve = [&](int size) {
-        gammaA.reserve(size);
-        gammaB.reserve(size);
-        fourq_result.reserve(size);
-        twoq_result.reserve(size);
-    };
+    r.info.pIn  = par().pIn; // Redundant to write these into every group
+    r.info.pOut = par().pOut; // Redundant to write these into every group
 
     auto compute_diagrams = [&](Gamma gamma_A, Gamma gamma_B, bool print = true) {
-        gammaA.push_back(gamma_A.g);
-        gammaB.push_back(gamma_B.g);
+        r.info.gammaA = gamma_A.g;
+        r.info.gammaB = gamma_B.g;
 
         if (print) {
             LOG(Message) << "Computing diagrams with GammaA = "
@@ -187,25 +183,23 @@ void TFourQuarkFullyConnected<FImpl1, FImpl2>::execute()
         }
 
         // Fully connected diagram
-        bilinear = bilinear_phase * (g5 * adj(Sout) * g5 * gamma_A * Sin);
-        SpinColourMatrix bilinear_avg = (1.0 / volume) * sum(bilinear);
-        twoq_result.push_back(bilinear_avg);
+        bilinear = bilinear_phase * (g5 * adj(qOut) * g5 * gamma_A * qIn);
 
         if (gamma_A.g == gamma_B.g) {
             tensorprod(lret, bilinear, bilinear);
         }
         else {
-            bilinear_tmp = bilinear_phase * (g5 * adj(Sout) * g5 * gamma_B * Sin);
+            bilinear_tmp = bilinear_phase * (g5 * adj(qOut) * g5 * gamma_B * qIn);
             tensorprod(lret, bilinear, bilinear_tmp);
         }
-        SpinColourSpinColourMatrix amplitude = (1.0 / volume) * sum(lret);
-        fourq_result.push_back(amplitude);
+        r.corr.push_back( (1.0 / volume) * sum(lret) );
+        result.push_back(r);
+        //This is all still quite hacky - we probably want to think about the output format a little more!
+        r.corr.erase(r.corr.begin());
     };
 
-    const int num_gamma = Gamma::gall.size();
     std::string gamma_basis = par().gamma_basis;
     if (gamma_basis == "all") {
-        result_reserve(num_gamma * num_gamma);
         for (Gamma gammaA: Gamma::gall) {
             for (Gamma gammaB: Gamma::gall) {
                 compute_diagrams(gammaA, gammaB);
@@ -213,13 +207,11 @@ void TFourQuarkFullyConnected<FImpl1, FImpl2>::execute()
         }
     }
     else if (gamma_basis == "diagonal") {
-        result_reserve(num_gamma);
         for (Gamma g: Gamma::gall) {
             compute_diagrams(g, g);
         }
     }
     else if (gamma_basis == "diagonal_va" || gamma_basis == "diagonal_va_sp") {
-        result_reserve(4 * 4);
         for (int mu = 0; mu < 4; mu++) {
             Gamma gmu = Gamma::gmu[mu];
             Gamma gmug5 = Gamma::mul[gmu.g][Gamma::Algebra::Gamma5];
@@ -229,7 +221,6 @@ void TFourQuarkFullyConnected<FImpl1, FImpl2>::execute()
             compute_diagrams(gmug5, gmug5);
         }
         if (gamma_basis == "diagonal_va_sp") {
-            result_reserve(4 * 4 + 4);
             Gamma identity = Gamma(Gamma::Algebra::Identity);
 
             compute_diagrams(identity, identity);
@@ -244,10 +235,7 @@ void TFourQuarkFullyConnected<FImpl1, FImpl2>::execute()
     }
 
     LOG(Message) << "Done computing fully-connected diagrams" << std::endl;
-    saveResult(par().output.fourquark, "fully_connected_fourq", fourq_result);
-    saveResult(par().output.bilinear, "fully_connected_twoq", twoq_result);
-    saveResult(par().output.gammaA, "gammaA", gammaA);
-    saveResult(par().output.gammaB, "gammaB", gammaB);
+    saveResult(par().output, "fourquarkfullyconnected", result);
 }
 
 END_MODULE_NAMESPACE
