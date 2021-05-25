@@ -71,7 +71,7 @@ public:
         H5NS::Attribute attr = subgroup.createAttribute(name, vl_type, attrSpace);
         attr.write(vl_type, &vl_data.front());
 #else
-        HADRONS_ERROR(Implementation, "all-to-all matrix I/O needs HDF5 library");
+        HADRONS_ERROR(Implementation, "distillation I/O needs HDF5 library");
 #endif
     }
 };

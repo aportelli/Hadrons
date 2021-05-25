@@ -364,11 +364,11 @@ std::vector<std::string> DistillationNoise<FImpl>::generateHash(void)
     }
 
     // noise hash by hit
-    std::vector<std::string> shash ;
-    for(auto &n : noise_)
+    std::vector<std::string> shash(noise_.size());
+    for(unsigned int i=0 ; i<noise_.size() ; i++)
     {
-        auto hn = GridChecksum::sha256( &n.front() , sizeof(Type)*noiseSize_ );
-        shash.push_back(GridChecksum::sha256_string(hn));
+        auto hn = GridChecksum::sha256( &noise_[i].front() , sizeof(Type)*noiseSize_ );
+        shash[i] = GridChecksum::sha256_string(hn);
     }
     return shash;
 }
@@ -385,11 +385,12 @@ void DistillationNoise<FImpl>::save(const std::string filename, const std::strin
         auto &group = writer.getGroup();
 
         ////metadata write
-        //hash
+        //hash hits
         std::vector<std::string> shash = generateHash();
         hsize_t         hcount=1, hstride=1, hblock=1, hash_dim = shash.size(), hash_memdim = 1;
         H5NS::DataSpace hash_dataspace(1, &hash_dim), hash_memspace(1, &hash_memdim);
-        H5NS::DataType  hash_datatype( H5T_STRING, shash.front().size() );                  //assuming string hash has fixed size
+        //maximum string size assuming each unsigned int is hexed to a maximum of 8 chars
+        H5NS::DataType  hash_datatype( H5T_STRING, 8*SHA256_DIGEST_LENGTH );                  
         H5NS::DataSet   hash_dataset = group.createDataSet("NoiseHitHashes", hash_datatype, hash_dataspace);
         for(hsize_t hoffset=0 ; hoffset<shash.size() ; hoffset++)
         {
@@ -404,7 +405,7 @@ void DistillationNoise<FImpl>::save(const std::string filename, const std::strin
         H5NS::Attribute attr_dil = group.createAttribute("DilutionSizes",  Hdf5Type<int>::type(), dil_dataspace);
         attr_dil.write(Hdf5Type<int>::type(), dil_sizes.data());
 
-        //noise write
+        //noise hits
         std::vector<hsize_t>    noffset={0,0}, ncount={1,static_cast<hsize_t>(noiseSize_)}, nstride={1,1}, nblock={1,1};
         std::vector<hsize_t>    noise_dim = {static_cast<hsize_t>(noise_.size()), static_cast<hsize_t>(noiseSize_)},
                                     noise_memdim = {1, static_cast<hsize_t>(noiseSize_)};
