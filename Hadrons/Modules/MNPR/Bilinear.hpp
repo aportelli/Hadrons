@@ -153,7 +153,7 @@ void TBilinear<FImpl>::execute(void)
     // momentum on legs
     //TODO: Do we want to check the momentum input format? Not done in MSink::Point, so probably ok like this.
     std::vector<Real>           pIn  = strToVec<Real>(par().pIn), 
-	                            pOut = strToVec<Real>(par().pOut);
+	                            pOut = strToVec<Real>(par().pOut); // Should this be Int instead of Real?
     Coordinate                  latt_size = GridDefaultLatt(); 
     Gamma                       g5(Gamma::Algebra::Gamma5);
     Complex                     Ci(0.0,1.0);
