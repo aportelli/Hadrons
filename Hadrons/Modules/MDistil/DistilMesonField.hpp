@@ -266,8 +266,8 @@ void TDistilMesonField<FImpl>::execute(void)
         md.MesonFieldType   = dmf_type_.at("left") + "-" + dmf_type_.at("right");
         if(isExact_)
         {
-            md.NoiseHashLeft    = "0";
-            md.NoiseHashRight   = "0";
+            md.NoiseHashLeft    = {};
+            md.NoiseHashRight   = {};
         }
         else
         {

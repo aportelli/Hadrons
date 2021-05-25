@@ -87,7 +87,7 @@ public:
     void generateNoise(GridSerialRNG &rng);
     // generate dummy noise - vector of 1s, used for exact distillation only
     void exactNoisePolicy(void);
-    std::string generateHash(void);
+    std::vector<std::string> generateHash(void);
     void save(const std::string filename, const std::string distilname, const unsigned int traj);
 protected:
     virtual void buildMap(void) = 0;
@@ -356,33 +356,21 @@ bool DistillationNoise<FImpl>::mapEmpty(void) const
 }
 
 template <typename FImpl>
-std::string DistillationNoise<FImpl>::generateHash(void)
+std::vector<std::string> DistillationNoise<FImpl>::generateHash(void)
 {
     if (mapEmpty())
     {
         buildMap();
     }
 
-    //noise hash by component
-    std::string scomb = "";
+    // noise hash by hit
+    std::vector<std::string> shash ;
     for(auto &n : noise_)
     {
-        std::vector<unsigned char> hnoise = GridChecksum::sha256( &noise_.front().front() , sizeof(Type)*noiseSize_*noise_.size() );
-        scomb += GridChecksum::sha256_string(hnoise);
+        auto hn = GridChecksum::sha256( &n.front() , sizeof(Type)*noiseSize_ );
+        shash.push_back(GridChecksum::sha256_string(hn));
     }
-    
-    //dilution map hash
-    std::vector<unsigned int> linmap;
-    for(auto& m : map_)
-    for(auto& p : m)
-    for(auto& t : p)
-        linmap.push_back(t);
-    std::vector<unsigned char> hmap = GridChecksum::sha256( &linmap.front() , sizeof(unsigned int)*linmap.size() );
-    
-    scomb       += GridChecksum::sha256_string(hmap);   //concatenated noise hashes and map hash
-    //hash of concatenation
-    std::vector<unsigned char> hcomb = GridChecksum::sha256( scomb.c_str() , sizeof(char)*scomb.size() ); 
-    return GridChecksum::sha256_string(hcomb);
+    return shash;
 }
 
 template <typename FImpl>
@@ -396,35 +384,40 @@ void DistillationNoise<FImpl>::save(const std::string filename, const std::strin
         push(writer, distilname);
         auto &group = writer.getGroup();
 
-        //metadata write
+        ////metadata write
         //hash
-        hsize_t         hash_dim = 1;
-        std::string shash = generateHash();
-        H5NS::DataSpace hash_dataspace(1, &hash_dim);
-        H5NS::DataType  hash_datatype(H5T_STRING,shash.size());
-        H5NS::Attribute attr_hash = group.createAttribute("NoiseHash", hash_datatype, hash_dataspace);
-        attr_hash.write(hash_datatype, shash.c_str() );
+        std::vector<std::string> shash = generateHash();
+        hsize_t         hcount=1, hstride=1, hblock=1, hash_dim = shash.size(), hash_memdim = 1;
+        H5NS::DataSpace hash_dataspace(1, &hash_dim), hash_memspace(1, &hash_memdim);
+        H5NS::DataType  hash_datatype( H5T_STRING, shash.front().size() );                  //assuming string hash has fixed size
+        H5NS::DataSet   hash_dataset = group.createDataSet("NoiseHitHashes", hash_datatype, hash_dataspace);
+        for(hsize_t hoffset=0 ; hoffset<shash.size() ; hoffset++)
+        {
+            hash_dataspace.selectHyperslab(H5S_SELECT_SET, &hcount, &hoffset, &hstride, &hblock);
+            hash_dataset.write( shash[hoffset].c_str(), hash_datatype, hash_memspace, hash_dataspace);
+        }
+
         //dilution sizes t,l,s
         std::vector<int> dil_sizes = {dilutionSize(Index::t),dilutionSize(Index::l),dilutionSize(Index::s)};
         hsize_t dilsize_dim = dil_sizes.size();
         H5NS::DataSpace dil_dataspace(1, &dilsize_dim);
         H5NS::Attribute attr_dil = group.createAttribute("DilutionSizes",  Hdf5Type<int>::type(), dil_dataspace);
         attr_dil.write(Hdf5Type<int>::type(), dil_sizes.data());
-        //nnoise
-        unsigned int nnoise = noise_.size();
-        hsize_t nnoise_dim = 1;
-        H5NS::DataSpace nnoise_dataspace(1, &nnoise_dim);
-        H5NS::Attribute attr_nnoise = group.createAttribute("Nnoise",  Hdf5Type<unsigned int>::type(), nnoise_dataspace);
-        attr_nnoise.write(Hdf5Type<unsigned int>::type(), &nnoise);
         
         //noise write
-        std::vector<hsize_t>    datadim = {static_cast<hsize_t>(noiseSize_)};
-        H5NS::DataSpace         dataspace(datadim.size(), datadim.data());
+        std::vector<hsize_t>    noffset={0,0}, ncount={1,static_cast<hsize_t>(noiseSize_)}, nstride={1,1}, nblock={1,1};
+        std::vector<hsize_t>    noise_dim = {static_cast<hsize_t>(noise_.size()), static_cast<hsize_t>(noiseSize_)},
+                                    noise_memdim = {1, static_cast<hsize_t>(noiseSize_)};
+        H5NS::DataSpace         noise_dataspace(noise_dim.size(), noise_dim.data()),
+                                    noise_memspace(noise_memdim.size(), noise_memdim.data());
+        H5NS::DataSet           noise_dataset = group.createDataSet("NoiseHits", Hdf5Type<Type>::type(), noise_dataspace);
         for(unsigned int i=0 ; i<noise_.size() ; i++)
         {
-            H5NS::DataSet           dataset = group.createDataSet("Noise_"+std::to_string(i), Hdf5Type<Type>::type(), dataspace);
-            dataset.write(&noise_[i].front() , Hdf5Type<Type>::type(), dataspace, dataspace);
+            noffset.front() = static_cast<hsize_t>(i);
+            noise_dataspace.selectHyperslab(H5S_SELECT_SET, ncount.data(), noffset.data(), nstride.data(), nblock.data());
+            noise_dataset.write(&noise_[i].front() , Hdf5Type<Type>::type(), noise_memspace, noise_dataspace);
         }
+
     }
 #else
     HADRONS_ERROR(Implementation, "all-to-all matrix I/O needs HDF5 library");

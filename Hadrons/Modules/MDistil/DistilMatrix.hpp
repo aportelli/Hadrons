@@ -31,8 +31,8 @@ public:
                                     Gamma::Algebra,             Operator,               // just gamma matrices for now, but could turn into more general operators in the future
                                     std::vector<int>,           NoisePair,
                                     std::string,                MesonFieldType,
-                                    std::string,                NoiseHashLeft,
-                                    std::string,                NoiseHashRight,)
+                                    std::vector<std::string>,   NoiseHashLeft,
+                                    std::vector<std::string>,   NoiseHashRight,)
 };
 
 //metadata io class
