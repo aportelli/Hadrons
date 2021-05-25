@@ -211,7 +211,7 @@ void TFourQuarkFullyConnected<FImpl1, FImpl2>::execute()
             compute_diagrams(g, g);
         }
     }
-    else if (gamma_basis == "diagonal_va" || gamma_basis == "diagonal_va_sp") {
+    else if (gamma_basis == "diagonal_va" || gamma_basis == "diagonal_va_sp" || gamma_basis == "diagonal_va_sp_tt") {
         for (int mu = 0; mu < 4; mu++) {
             Gamma gmu = Gamma::gmu[mu];
             Gamma gmug5 = Gamma::mul[gmu.g][Gamma::Algebra::Gamma5];
@@ -220,13 +220,28 @@ void TFourQuarkFullyConnected<FImpl1, FImpl2>::execute()
             compute_diagrams(gmug5, gmu);
             compute_diagrams(gmug5, gmug5);
         }
-        if (gamma_basis == "diagonal_va_sp") {
+        if (gamma_basis == "diagonal_va_sp" || gamma_basis == "diagonal_va_sp_tt") {
             Gamma identity = Gamma(Gamma::Algebra::Identity);
 
             compute_diagrams(identity, identity);
             compute_diagrams(identity, g5);
             compute_diagrams(g5, identity);
             compute_diagrams(g5, g5);
+        }
+        if (gamma_basis == "diagonal_va_sp_tt") {
+            const std::array<const Gamma, 6> gsigma = {{
+                  Gamma(Gamma::Algebra::SigmaXT),      
+                  Gamma(Gamma::Algebra::SigmaXY),      
+                  Gamma(Gamma::Algebra::SigmaXZ),      
+                  Gamma(Gamma::Algebra::SigmaYT),
+                  Gamma(Gamma::Algebra::SigmaYZ),
+                  Gamma(Gamma::Algebra::SigmaZT)}};
+
+            for (Gamma gammaA: gsigma) {
+                for (Gamma gammaB: gsigma) {
+                    compute_diagrams(gammaA, gammaB);
+                }
+            }
         }
     }
     else {
