@@ -110,7 +110,7 @@ void TInterlacedDistillation<FImpl>::execute(void)
     noise.generateNoise(rngSerial());
     noise.dumpDilutionMap();
     auto hash = noise.generateHash();
-    LOG(Message) << "Noise hash : " << std::endl;
+    LOG(Message) << "Noise hashes : " << std::endl;
     for(auto& h: hash)
     {
         LOG(Message) << h << std::endl;

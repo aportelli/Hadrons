@@ -93,10 +93,8 @@ protected:
     virtual void buildMap(void) = 0;
     DilutionMap  &getMap(const bool createIfEmpty = true);
     bool         mapEmpty(void) const;
-    void loadNoise(const std::string filestem, const std::string distilname);
     template <typename Vec>
-    void loadDilSizes(const std::string filestem, const std::string distilname, Vec& dilsizes);
-    int loadNnoise(const std::string filestem, const std::string distilname);
+    void load(const std::string filestem, const std::string distilname, Vec& dilsizes);
 protected:
     DilutionMap                    map_;
     GridCartesian                  *grid_, *grid3d_;
@@ -426,12 +424,17 @@ void DistillationNoise<FImpl>::save(const std::string filename, const std::strin
 }
 
 template <typename FImpl>
-void DistillationNoise<FImpl>::loadNoise(const std::string filestem, const std::string distilname)
+template <typename Vec>
+void DistillationNoise<FImpl>::load(const std::string filestem, const std::string distilname, Vec& dilsizes)
 {
 #ifdef HAVE_HDF5
     Hdf5Reader reader(filestem);
     push(reader, distilname);
     auto &group = reader.getGroup();
+
+    //metadata dilsizes
+    H5NS::Attribute attr_dil = group.openAttribute("DilutionSizes");
+    attr_dil.read(Hdf5Type<int>::type() , &dilsizes[0]);
 
     //noise
     std::vector<hsize_t>    memdim = {1, static_cast<hsize_t>(noiseSize_)},
@@ -449,23 +452,6 @@ void DistillationNoise<FImpl>::loadNoise(const std::string filestem, const std::
         dataset.read(&noise_[i].front(), Hdf5Type<Type>::type(), memspace, dataspace);
     }
 
-#else
-    HADRONS_ERROR(Implementation, "distillation I/O needs HDF5 library");
-#endif
-}
-
-template <typename FImpl>
-template <typename Vec>
-void DistillationNoise<FImpl>::loadDilSizes(const std::string filestem, const std::string distilname, Vec& dilsizes)
-{
-#ifdef HAVE_HDF5
-    Hdf5Reader reader(filestem);
-    push(reader, distilname);
-    auto &group = reader.getGroup();
-
-    //metadata dilsizes
-    H5NS::Attribute attr_dil = group.openAttribute("DilutionSizes");
-    attr_dil.read(Hdf5Type<int>::type() , &dilsizes[0]);
 #else
     HADRONS_ERROR(Implementation, "distillation I/O needs HDF5 library");
 #endif
@@ -572,8 +558,7 @@ void InterlacedDistillationNoise<FImpl>::load(const std::string filename, const 
     if(this->grid_->IsBoss())
     {
         std::string filestem = filename + "." + std::to_string(traj) + ".h5";
-        this->loadDilSizes(filestem,distilname,interlacing_);
-        this->loadNoise(filestem,distilname);
+        DistillationNoise<FImpl>::load(filestem,distilname,interlacing_);
     }
 #else
     HADRONS_ERROR(Implementation, "distillation I/O needs HDF5 library");
