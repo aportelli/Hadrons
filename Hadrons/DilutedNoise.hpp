@@ -93,7 +93,7 @@ protected:
     virtual void buildMap(void) = 0;
     DilutionMap  &getMap(const bool createIfEmpty = true);
     bool         mapEmpty(void) const;
-    void loadNoise(const std::string filestem, const std::string distilname, const int nnoise);
+    void loadNoise(const std::string filestem, const std::string distilname);
     template <typename Vec>
     void loadDilSizes(const std::string filestem, const std::string distilname, Vec& dilsizes);
     int loadNnoise(const std::string filestem, const std::string distilname);
@@ -403,7 +403,7 @@ void DistillationNoise<FImpl>::save(const std::string filename, const std::strin
         H5NS::DataSpace dil_dataspace(1, &dilsize_dim);
         H5NS::Attribute attr_dil = group.createAttribute("DilutionSizes",  Hdf5Type<int>::type(), dil_dataspace);
         attr_dil.write(Hdf5Type<int>::type(), dil_sizes.data());
-        
+
         //noise write
         std::vector<hsize_t>    noffset={0,0}, ncount={1,static_cast<hsize_t>(noiseSize_)}, nstride={1,1}, nblock={1,1};
         std::vector<hsize_t>    noise_dim = {static_cast<hsize_t>(noise_.size()), static_cast<hsize_t>(noiseSize_)},
@@ -420,12 +420,12 @@ void DistillationNoise<FImpl>::save(const std::string filename, const std::strin
 
     }
 #else
-    HADRONS_ERROR(Implementation, "all-to-all matrix I/O needs HDF5 library");
+    HADRONS_ERROR(Implementation, "distillation I/O needs HDF5 library");
 #endif
 }
 
 template <typename FImpl>
-void DistillationNoise<FImpl>::loadNoise(const std::string filestem, const std::string distilname, const int nnoise)
+void DistillationNoise<FImpl>::loadNoise(const std::string filestem, const std::string distilname)
 {
 #ifdef HAVE_HDF5
     Hdf5Reader reader(filestem);
@@ -433,15 +433,23 @@ void DistillationNoise<FImpl>::loadNoise(const std::string filestem, const std::
     auto &group = reader.getGroup();
 
     //noise
-    resize(nnoise);
+    std::vector<hsize_t>    memdim = {1, static_cast<hsize_t>(noiseSize_)},
+                                offset={0,0}, count={1,static_cast<hsize_t>(noiseSize_)}, stride={1,1}, block={1,1};
+    H5NS::DataSet dataset =  group.openDataSet("NoiseHits");
+    H5NS::DataSpace dataspace = dataset.getSpace(),
+                        memspace(memdim.size(), memdim.data());
+    std::vector<hsize_t> fdim(2); 
+    dataspace.getSimpleExtentDims(fdim.data());
+    resize(static_cast<int>(fdim[0]));                            //resize noise_ to in file dimension
     for(unsigned int i=0 ; i<noise_.size() ; i++)
     {
-        H5NS::DataSet dataset =  group.openDataSet("Noise_"+std::to_string(i));
-        dataset.read(&noise_[i].front(), Hdf5Type<Type>::type());
+        offset.front() = static_cast<hsize_t>(i);
+        dataspace.selectHyperslab(H5S_SELECT_SET, count.data(), offset.data(), stride.data(), block.data());
+        dataset.read(&noise_[i].front(), Hdf5Type<Type>::type(), memspace, dataspace);
     }
 
 #else
-    HADRONS_ERROR(Implementation, "all-to-all matrix I/O needs HDF5 library");
+    HADRONS_ERROR(Implementation, "distillation I/O needs HDF5 library");
 #endif
 }
 
@@ -458,25 +466,7 @@ void DistillationNoise<FImpl>::loadDilSizes(const std::string filestem, const st
     H5NS::Attribute attr_dil = group.openAttribute("DilutionSizes");
     attr_dil.read(Hdf5Type<int>::type() , &dilsizes[0]);
 #else
-    HADRONS_ERROR(Implementation, "all-to-all matrix I/O needs HDF5 library");
-#endif
-}
-
-template <typename FImpl>
-int DistillationNoise<FImpl>::loadNnoise(const std::string filestem, const std::string distilname)
-{
-#ifdef HAVE_HDF5
-    Hdf5Reader reader(filestem);
-    push(reader, distilname);
-    auto &group = reader.getGroup();
-
-    //metadata nnoise
-    int nnoise = 0;
-    H5NS::Attribute attr_nnoise = group.openAttribute("Nnoise");
-    attr_nnoise.read(Hdf5Type<int>::type() , &nnoise);
-    return nnoise;
-#else
-    HADRONS_ERROR(Implementation, "all-to-all matrix I/O needs HDF5 library");
+    HADRONS_ERROR(Implementation, "distillation I/O needs HDF5 library");
 #endif
 }
 
@@ -516,6 +506,7 @@ InterlacedDistillationNoise<FImpl>::InterlacedDistillationNoise(GridCartesian *g
 : interlacing_({ti, li, si}), DistillationNoise<FImpl>(g, g3d, pack, nNoise)
 {}
 
+// for loading purposes
 template <typename FImpl>
 InterlacedDistillationNoise<FImpl>::InterlacedDistillationNoise(GridCartesian *g, 
                                                                 GridCartesian *g3d, 
@@ -580,13 +571,11 @@ void InterlacedDistillationNoise<FImpl>::load(const std::string filename, const 
     if(this->grid_->IsBoss())
     {
         std::string filestem = filename + "." + std::to_string(traj) + ".h5";
-        unsigned int nnoise = this->loadNnoise(filestem,distilname);
-        this->loadNoise(filestem,distilname,nnoise);
         this->loadDilSizes(filestem,distilname,interlacing_);
-        auto& n = this->getNoise();
+        this->loadNoise(filestem,distilname);
     }
 #else
-    HADRONS_ERROR(Implementation, "all-to-all matrix I/O needs HDF5 library");
+    HADRONS_ERROR(Implementation, "distillation I/O needs HDF5 library");
 #endif
 }
 
