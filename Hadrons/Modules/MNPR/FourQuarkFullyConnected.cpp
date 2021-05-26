@@ -4,4 +4,4 @@ using namespace Grid;
 using namespace Hadrons;
 using namespace MNPR;
 
-template class Grid::Hadrons::MNPR::TFourQuarkFullyConnected<FIMPL, FIMPL>;
+template class Grid::Hadrons::MNPR::TFourQuarkFullyConnected<FIMPL>;

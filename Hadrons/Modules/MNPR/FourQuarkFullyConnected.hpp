@@ -24,12 +24,11 @@ public:
 };
 
 
-template <typename FImpl1, typename FImpl2>
+template <typename FImpl>
 class TFourQuarkFullyConnected : public Module<FourQuarkFullyConnectedPar>
 {
 public:
-    FERM_TYPE_ALIASES(FImpl1, 1)
-    FERM_TYPE_ALIASES(FImpl2, 2)
+    FERM_TYPE_ALIASES(FImpl,)
     class Metadata: Serializable
     {
     public:
@@ -40,42 +39,23 @@ public:
                                         std::string,  pOut);
     };
     typedef Correlator<Metadata, SpinColourSpinColourMatrix> Result;
-    // Variable Precision Traits type
-    template<typename P1, typename P2, typename V = void> struct Traits {};
-    template<typename P1, typename P2>
-    struct Traits<P1, P2, typename std::enable_if<getPrecision<P1>::value == 1 && getPrecision<P2>::value == 1>::type>
-    { 
-        using PrecisionTypeC = LatticeComplexF; 
-        using PrecisionTypeSC = LatticeSpinColourMatrixF; 
-        using PrecisionTypeSCSC = LatticeSpinColourSpinColourMatrixF; 
-    };
-    template<typename P1, typename P2>
-    struct Traits<P1, P2, typename std::enable_if<getPrecision<P1>::value != 1 || getPrecision<P2>::value != 1>::type>
-    {
-        using PrecisionTypeC = LatticeComplex; 
-        using PrecisionTypeSC = LatticeSpinColourMatrix; 
-        using PrecisionTypeSCSC = LatticeSpinColourSpinColourMatrix; 
-    };
-    using CField    = typename Traits<PropagatorField1, PropagatorField2>::PrecisionTypeC;
-    using SCField   = typename Traits<PropagatorField1, PropagatorField2>::PrecisionTypeSC;
-    using SCSCField = typename Traits<PropagatorField1, PropagatorField2>::PrecisionTypeSCSC;
 
     TFourQuarkFullyConnected(const std::string name);
     virtual ~TFourQuarkFullyConnected(void) {};
 
     virtual std::vector<std::string> getInput();
     virtual std::vector<std::string> getOutput();
-    virtual void tensorprod(SCSCField &lret, PropagatorField1 &a, PropagatorField2 &b);
+    virtual void tensorprod(SpinColourSpinColourMatrixField &lret, PropagatorField &a, PropagatorField &b);
 
 protected:
     virtual void setup(void);
     virtual void execute(void);
 };
 
-MODULE_REGISTER_TMP(FourQuarkFullyConnected, ARG(TFourQuarkFullyConnected<FIMPL, FIMPL>), MNPR);
+MODULE_REGISTER_TMP(FourQuarkFullyConnected, ARG(TFourQuarkFullyConnected<FIMPL>), MNPR);
 
-template <typename FImpl1, typename FImpl2>
-void TFourQuarkFullyConnected<FImpl1, FImpl2>::tensorprod(SCSCField &lret, PropagatorField1 &a, PropagatorField2 &b)
+template <typename FImpl>
+void TFourQuarkFullyConnected<FImpl>::tensorprod(SpinColourSpinColourMatrixField &lret, PropagatorField &a, PropagatorField &b)
 {
     // Tensor product of 2 Lattice Spin Colour Matrices
     autoView(lret_v, lret, AcceleratorWrite);
@@ -96,54 +76,54 @@ void TFourQuarkFullyConnected<FImpl1, FImpl2>::tensorprod(SCSCField &lret, Propa
 }
 
 
-template <typename FImpl1, typename FImpl2>
-TFourQuarkFullyConnected<FImpl1, FImpl2>::TFourQuarkFullyConnected(const std::string name)
+template <typename FImpl>
+TFourQuarkFullyConnected<FImpl>::TFourQuarkFullyConnected(const std::string name)
     : Module<FourQuarkFullyConnectedPar>(name)
 {}
 
-template <typename FImpl1, typename FImpl2>
-std::vector<std::string> TFourQuarkFullyConnected<FImpl1, FImpl2>::getInput()
+template <typename FImpl>
+std::vector<std::string> TFourQuarkFullyConnected<FImpl>::getInput()
 {
     std::vector<std::string> in = { par().qIn, par().qOut };
 
     return in;
 }
 
-template <typename FImpl1, typename FImpl2>
-std::vector<std::string> TFourQuarkFullyConnected<FImpl1, FImpl2>::getOutput()
+template <typename FImpl>
+std::vector<std::string> TFourQuarkFullyConnected<FImpl>::getOutput()
 {
     std::vector<std::string> out = {getName()};
 
     return out;
 }
 
-template <typename FImpl1, typename FImpl2>
-void TFourQuarkFullyConnected<FImpl1, FImpl2>::setup()
+template <typename FImpl>
+void TFourQuarkFullyConnected<FImpl>::setup()
 {
     LOG(Message) << "Running setup for four-quark diagrams module"
         << std::endl;
 
-    envTmpLat(SCField, "bilinear");
-    envTmpLat(SCField, "bilinear_tmp");
-    envTmpLat(SCSCField, "lret");
+    envTmpLat(PropagatorField, "bilinear");
+    envTmpLat(PropagatorField, "bilinear_tmp");
+    envTmpLat(SpinColourSpinColourMatrixField, "lret");
 
-    envTmpLat(CField, "bilinear_phase");
-    envTmpLat(CField, "coordinate");
+    envTmpLat(ComplexField, "bilinear_phase");
+    envTmpLat(ComplexField, "coordinate");
 }
 
-template <typename FImpl1, typename FImpl2>
-void TFourQuarkFullyConnected<FImpl1, FImpl2>::execute()
+template <typename FImpl>
+void TFourQuarkFullyConnected<FImpl>::execute()
 {
     LOG(Message) << "Computing contractions '" << getName()
         << "' using source propagators '" << par().qIn << "' and '" << par().qOut << "'"
         << std::endl;
 
-    PropagatorField1 &qIn = envGet(PropagatorField1, par().qIn);
-    PropagatorField2 &qOut = envGet(PropagatorField2, par().qOut);
+    PropagatorField &qIn = envGet(PropagatorField, par().qIn);
+    PropagatorField &qOut = envGet(PropagatorField, par().qOut);
 
-    envGetTmp(SCField, bilinear);
-    envGetTmp(SCField, bilinear_tmp);
-    envGetTmp(SCSCField, lret);
+    envGetTmp(PropagatorField, bilinear);
+    envGetTmp(PropagatorField, bilinear_tmp);
+    envGetTmp(SpinColourSpinColourMatrixField, lret);
 
 
     std::vector<Result>         result;
@@ -154,8 +134,8 @@ void TFourQuarkFullyConnected<FImpl1, FImpl2>::execute()
 
     Gamma g5 = Gamma(Gamma::Algebra::Gamma5);
 
-    envGetTmp(CField, bilinear_phase);
-    envGetTmp(CField, coordinate);
+    envGetTmp(ComplexField, bilinear_phase);
+    envGetTmp(ComplexField, coordinate);
 
     Real volume = 1.0;
     for (int mu = 0; mu < Nd; mu++) {

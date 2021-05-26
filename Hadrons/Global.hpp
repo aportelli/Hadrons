@@ -118,7 +118,8 @@ typedef typename FImpl::FermionField               FermionField##suffix;\
 typedef typename FImpl::GaugeField                 GaugeField##suffix;\
 typedef typename FImpl::DoubledGaugeField          DoubledGaugeField##suffix;\
 typedef Lattice<iSpinMatrix<typename FImpl::Simd>> SpinMatrixField##suffix;\
-typedef Lattice<iColourVector<typename FImpl::Simd>> ColourVectorField##suffix;
+typedef Lattice<iColourVector<typename FImpl::Simd>> ColourVectorField##suffix;\
+typedef Lattice<iSpinColourSpinColourMatrix<typename FImpl::Simd>> SpinColourSpinColourMatrixField##suffix;
 
 #define GAUGE_TYPE_ALIASES(GImpl, suffix)\
 typedef typename GImpl::GaugeField GaugeField##suffix;
