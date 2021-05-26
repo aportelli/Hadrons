@@ -63,7 +63,7 @@ public:
                                     std::string, timeSources,
                                     pMode, perambMode,
                                     std::string, nVec,
-                                    std::string, multiFile);
+                                    std::string, multiFileFullSolve);
 };
 
 template <typename FImpl>
@@ -171,7 +171,7 @@ void TPerambulator<FImpl>::setup(void)
     
     // Perambulator dimensions need to use the reduced value for nDL     
     envCreate(PerambTensor, getName(), 1, Nt, nVec, nDL_reduced, nNoise, nSourceT, nDS);
-    envTmp(PerambIndexTensor, "PerambMultiFileTmp",1,Nt,nVec,nDL_reduced,nNoise,nDS);
+    envTmp(PerambIndexTensor, "PerambDT",1,Nt,nVec,nDL_reduced,nNoise,nDS);
     if(perambMode == pMode::outputSolve)
     {
         LOG(Message)<< "setting up output field for full solves" << std::endl;
@@ -346,7 +346,7 @@ void TPerambulator<FImpl>::execute(void)
     // Save the perambulator to disk from the boss node
     if (grid4d->IsBoss() && !par().perambFileName.empty())
     {
-        envGetTmp(PerambIndexTensor, PerambMultiFileTmp);
+        envGetTmp(PerambIndexTensor, PerambDT);
         for (int dt = 0; dt < Nt; dt++)
         {
             std::vector<int>::iterator it = std::find(std::begin(invT), std::end(invT), dt);
@@ -369,10 +369,10 @@ void TPerambulator<FImpl>::execute(void)
             for (int in = 0; in < nNoise; in++)
             for (int ids = 0; ids < nDS; ids++)
 	    {
-	        PerambMultiFileTmp.tensor(t,ivec,idl,in,ids) = perambulator.tensor(t,ivec,idl,in,idt,ids);
+	        PerambDT.tensor(t,ivec,idl,in,ids) = perambulator.tensor(t,ivec,idl,in,idt,ids);
 	    }
-       	    PerambMultiFileTmp.MetaData.timeDilutionIndex = dt;
-            PerambMultiFileTmp.write(sPerambName.c_str());
+       	    PerambDT.MetaData.timeDilutionIndex = dt;
+            PerambDT.write(sPerambName.c_str());
 	}
     }
 
@@ -382,8 +382,8 @@ void TPerambulator<FImpl>::execute(void)
     {
 	//TODO: Add (at least) sourceTimes as metadata.
         auto &solveOut = envGet(std::vector<FermionField>, getName()+"_full_solve");
-	bool multiFile = (par().multiFile == "true" || par().multiFile == "True" || par().multiFile == "1");
-        DistillationVectorsIo::write(sFileName, solveOut, "fullSolve", nNoise, nDL, nDS, nDT, invT, multiFile, vm().getTrajectory());
+	bool multiFileFullSolve = (par().multiFileFullSolve == "true" || par().multiFileFullSolve == "True" || par().multiFileFullSolve == "1");
+        DistillationVectorsIo::write(sFileName, solveOut, "fullSolve", nNoise, nDL, nDS, nDT, invT, multiFileFullSolve, vm().getTrajectory());
     }
 }
 
