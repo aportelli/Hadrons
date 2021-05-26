@@ -9,6 +9,7 @@
 #include <Hadrons/NamedTensor.hpp>
 #include <Hadrons/Modules/MDistil/DistilMatrix.hpp>
 #include <Hadrons/Modules/MDistil/DistilUtils.hpp>
+#include <Hadrons/Modules/MNoise/ExactDistillation.hpp>
 
 #ifndef HADRONS_DISTIL_IO_TYPE
 #define HADRONS_DISTIL_IO_TYPE ComplexF
@@ -204,7 +205,7 @@ void TDistilMesonField<FImpl>::setup(void)
     envCache(std::vector<ComplexField>, "phasename",    1, momenta_.size(), g );
     envTmp(DistilVector,                "dvl",          1, noisel.dilutionSize() , g);
     envTmp(DistilVector,                "dvr",          1, noiser.dilutionSize() , g);
-    envTmp(Computation,                 "computation",  1, dmf_type_, g, g3d, blockSize_ , cacheSize_, env().getDim(g->Nd() - 1), momenta_.size(), gamma_.size());
+    envTmp(Computation,                 "computation",  1, dmf_type_, g, g3d, blockSize_ , cacheSize_, env().getDim(g->Nd() - 1), momenta_.size(), gamma_.size(), isExact_);
     envTmp(Helper,                      "helper"   ,    1, g->Nd() , dmf_type_);
 }
 
@@ -255,31 +256,29 @@ void TDistilMesonField<FImpl>::execute(void)
     auto metadataDmfFn = [this, &nt, &nVec, &noisel, &noiser](const unsigned int m, const unsigned int o, const int nl, const int nr)
     {
         DistilMesonFieldMetadata<FImpl> md;
-
         for (auto pmu: momenta_[m])
         {
             md.Momentum.push_back(pmu);
         }
         md.Operator = gamma_[o];
-        
         md.Nt               = nt;   
         md.Nvec             = nVec;     //nvec is the same for both sides
         md.NoisePair        = {nl,nr};
         md.MesonFieldType   = dmf_type_.at("left") + "-" + dmf_type_.at("right");
         if(isExact_)
         {
-            md.NoiseHashes    = {{}};
+            md.NoiseHashesLeft     = {"0"}; // exact distil convention
+            md.NoiseHashesRight    = {"0"};
         }
         else
         {
-            md.NoiseHashes  = {noisel.generateHash(),noiser.generateHash()};
+            md.NoiseHashesLeft   = noisel.generateHash();
+            md.NoiseHashesRight  = noiser.generateHash();
         }
-
         return md;
     };
 
     std::map<std::string, DistillationNoise & > noises = {{"left",noisel},{"right",noiser}};
-    
     if((noisel.getNl() != nVec) || (noiser.getNl() != nVec))
     {
         HADRONS_ERROR(Size, "Incompatibility between number of Laplacian eigenvectors and Laplacian subspace size in noises.");
@@ -311,7 +310,7 @@ void TDistilMesonField<FImpl>::execute(void)
             if( !std::includes(peramb_st.at(s).begin(), peramb_st.at(s).end(),
                              timeDilSource.at(s).begin(), timeDilSource.at(s).end()) )  //check if input time source is compatible with peramb's (subset of it)
             {
-                HADRONS_ERROR(Argument,"Time sources are not available on " +s+ " perambulator");
+                HADRONS_ERROR(Argument,"Time sources are not available on " + s + " perambulator");
             }
         }
     }

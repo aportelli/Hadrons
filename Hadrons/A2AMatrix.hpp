@@ -111,7 +111,7 @@ public:
     void initFile(const MetadataType &d, const unsigned int chunkSize);
     // block I/O
     void saveBlock(const T *data, const unsigned int i, const unsigned int j,
-                   const unsigned int blockSizei, const unsigned int blockSizej, std::string datasetName="");   //distillation update: option to pass custom dataset name
+                   const unsigned int blockSizei, const unsigned int blockSizej, std::string datasetName="");
     void saveBlock(const A2AMatrixSet<T> &m, const unsigned int ext, const unsigned int str,
                    const unsigned int i, const unsigned int j);
     //distillation overloads and new methods
@@ -566,7 +566,6 @@ void A2AMatrixIo<T>::createDilutionBlock(std::string datasetName, const unsigned
     plist.setChunk(chunk.size(), chunk.data());
     plist.setFletcher32();
     dataset = group.createDataSet(datasetName, Hdf5Type<T>::type(), dataspace, plist);
-
 
     //save timeslice metadata
     hsize_t         attrDim = timeSlices.size();
