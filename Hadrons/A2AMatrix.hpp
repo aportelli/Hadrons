@@ -48,8 +48,8 @@
 #endif
 
 //to be removed
-#ifndef NT_CHUNK_SIZE
-#define NT_CHUNK_SIZE 1
+#ifndef DISTIL_NT_CHUNK_SIZE
+#define DISTIL_NT_CHUNK_SIZE 1
 #endif
 
 #define HADRONS_A2AM_PARALLEL_IO
@@ -558,7 +558,7 @@ void A2AMatrixIo<T>::createDilutionBlock(std::string datasetName, const unsigned
     std::vector<hsize_t>    dim = {static_cast<hsize_t>(nt_), 
                                 static_cast<hsize_t>(ni_), 
                                 static_cast<hsize_t>(nj_)},
-                            chunk = {static_cast<hsize_t>(NT_CHUNK_SIZE),
+                            chunk = {static_cast<hsize_t>(DISTIL_NT_CHUNK_SIZE),
                                 static_cast<hsize_t>(chunkSize), 
                                 static_cast<hsize_t>(chunkSize)};
     dataspace.setExtentSimple(dim.size(), dim.data());
@@ -566,6 +566,7 @@ void A2AMatrixIo<T>::createDilutionBlock(std::string datasetName, const unsigned
     plist.setChunk(chunk.size(), chunk.data());
     plist.setFletcher32();
     dataset = group.createDataSet(datasetName, Hdf5Type<T>::type(), dataspace, plist);
+
 
     //save timeslice metadata
     hsize_t         attrDim = timeSlices.size();

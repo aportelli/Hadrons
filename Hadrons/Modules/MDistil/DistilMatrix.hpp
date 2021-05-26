@@ -31,8 +31,15 @@ public:
                                     Gamma::Algebra,             Operator,               // just gamma matrices for now, but could turn into more general operators in the future
                                     std::vector<int>,           NoisePair,
                                     std::string,                MesonFieldType,
-                                    std::vector<std::string>,   NoiseHashLeft,
-                                    std::vector<std::string>,   NoiseHashRight,)
+                                    std::vector<std::vector<std::string>>,   NoiseHashes)
+};
+
+auto timeslicesFn = [](const std::vector<unsigned int> ts)
+{
+    std::stringstream ss;
+    for (auto& t : ts)
+        ss << t << " ";
+    return ss.str();
 };
 
 //metadata io class
@@ -288,10 +295,9 @@ void DmfComputation<FImpl,T,Tio>
         if( !stInter.empty() ) // only execute case when partitions have at least one time slice in common
         {
             timeDilutionPairList.push_back({dtL,dtR});
-            LOG(Message) << "################### " << dtL << "-" << dtR << " ################### " << std::endl; 
-            LOG(Message) << "At least one rho found. Time slices to be saved=" << stInter << "..." << std::endl;
-            LOG(Message) << "Time extension in file = " << nt_sparse << std::endl;
-            LOG(Message) << "NT_CHUNK_SIZE=" << NT_CHUNK_SIZE << std::endl;                                             //remove this message
+            LOG(Message) << "------------------------ " << dtL << "-" << dtR << " ------------------------" << std::endl; 
+            LOG(Message) << "Saving time slices : " << timeslicesFn(stInter) << std::endl;
+            LOG(Message) << "Time extension in file : " << nt_sparse << std::endl;
             std::string datasetName = std::to_string(dtL)+"-"+std::to_string(dtR);
 
             unsigned int nblocki = dil_size_ls.at("left")/bSize_ + (((dil_size_ls.at("left") % bSize_) != 0) ? 1 : 0);
@@ -311,8 +317,8 @@ void DmfComputation<FImpl,T,Tio>
                 << iblock+iblockSize-1 << ", " << jblock << " .. " << jblock+jblockSize-1 << "]" 
                 << std::endl;
 
-                LOG(Message) << "Block size = "         << nt_sparse*iblockSize*jblockSize*sizeof(Tio)/1024. << "KB/momentum/gamma" << std::endl;
-                LOG(Message) << "Cache block size = "   << NT_CHUNK_SIZE*cSize_*cSize_*sizeof(T) << "B/momentum/gamma" << std::endl;  //remember to change this in case I change chunk size from nt_ to something else
+                LOG(Message) << "Block size : "         << nt_sparse*iblockSize*jblockSize*sizeof(Tio)/1024. << "KB/momentum/gamma" << std::endl;
+                LOG(Message) << "Cache block size : "   << DISTIL_NT_CHUNK_SIZE*cSize_*cSize_*sizeof(T) << "B/momentum/gamma" << std::endl;  //remember to change this in case I change chunk size from nt_ to something else
 
                 double flops        = 0.0;
                 double bytes        = 0.0;
@@ -364,7 +370,6 @@ void DmfComputation<FImpl,T,Tio>
                 global_bytes += bytes/time_kernel*0.000931322574615478515625/nodes ; // 1.0e6/1024/1024/1024/nodes
 
                 // saving current block to disk
-                LOG(Message) << "Writing block to disk" << std::endl;
                 double ioTime = (tarray!=nullptr) ? -tarray->getDTimer("IO: write block") : 0.0;
                 tarray->startTimer("IO: total");
 #ifdef HADRONS_A2AM_PARALLEL_IO

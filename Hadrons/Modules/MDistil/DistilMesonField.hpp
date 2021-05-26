@@ -221,6 +221,8 @@ void TDistilMesonField<FImpl>::execute(void)
     const unsigned int nVec = epack.evec.size();
     const unsigned int nd   = g->Nd();
     const unsigned int nt   = env().getDim(nd - 1);
+    typedef std::function<std::string(const unsigned int, const unsigned int, const int, const int)>  FilenameFn;
+    typedef std::function<DistilMesonFieldMetadata<FImpl>(const unsigned int, const unsigned int, const int, const int)>  MetadataFn;
 
     // temps
     envGetTmp(DistilVector,     dvl);
@@ -266,13 +268,11 @@ void TDistilMesonField<FImpl>::execute(void)
         md.MesonFieldType   = dmf_type_.at("left") + "-" + dmf_type_.at("right");
         if(isExact_)
         {
-            md.NoiseHashLeft    = {};
-            md.NoiseHashRight   = {};
+            md.NoiseHashes    = {{}};
         }
         else
         {
-            md.NoiseHashLeft    = noisel.generateHash();
-            md.NoiseHashRight   = noiser.generateHash();
+            md.NoiseHashes  = {noisel.generateHash(),noiser.generateHash()};
         }
 
         return md;
@@ -335,20 +335,28 @@ void TDistilMesonField<FImpl>::execute(void)
         stopTimer("momentum phases");
     }
     
-    LOG(Message) << "Selected time-dilution partitions:"         << std::endl;
-    LOG(Message) << "Left:" << timeDilSource.at("left") << std::endl;
-    LOG(Message) << "Right:" << timeDilSource.at("right") << std::endl;
-    LOG(Message) << "Meson field type: "    << par().mesonFieldType << std::endl;
-    LOG(Message) << "Selected block size: " << par().blockSize << std::endl;
-    LOG(Message) << "Selected cache size: " << par().cacheSize << std::endl;
-    LOG(Message) << "Lap-spin dilution size (left x right): " << dilutionSize_ls_.at("left") << " x " << dilutionSize_ls_.at("right") << std::endl;
+    LOG(Message) << "Selected time-dilution partitions :"         << std::endl;
+    LOG(Message) << " Left : " << timeslicesFn(timeDilSource.at("left")) << std::endl;
+    LOG(Message) << " Right : " << timeslicesFn(timeDilSource.at("right")) << std::endl;
+    LOG(Message) << "Left/right Laplacian-spin dilution sizes : " 
+        << dilutionSize_ls_.at("left") << "/" << dilutionSize_ls_.at("right") << std::endl;
+    LOG(Message) << "Meson field type : " << par().mesonFieldType << std::endl;
+    LOG(Message) << "Momenta :" << std::endl;
+    for (auto &p: momenta_)
+    {
+        LOG(Message) << "  " << p << std::endl;
+    }
+    LOG(Message) << "Spin bilinears :" << std::endl;
+    for (auto &g: gamma_)
+    {
+        LOG(Message) << "  " << g << std::endl;
+    }
+    LOG(Message) << "Block size : " << par().blockSize << std::endl;
+    LOG(Message) << "Cache block size : " << par().cacheSize << std::endl;
 
     for(auto &inoise : noisePairs_)
     {
-        LOG(Message) << "Noise pair: " << inoise << std::endl;
-        LOG(Message) << "Gamma:" << gamma_ << std::endl;
-        LOG(Message) << "Momenta:" << momenta_ << std::endl;
-
+        LOG(Message) << "Noise pair : " << inoise[0] << " " << inoise[1] << std::endl;
         //computation of distvectors
         if(dmf_type_.at("left")=="phi" || dmf_type_.at("right")=="phi")
         {
@@ -368,7 +376,6 @@ void TDistilMesonField<FImpl>::execute(void)
         }
 
         // computing mesonfield blocks and saving to disk
-        LOG(Message) << "Time-dilution blocks computation starting..." << std::endl;
         DilutionMap lmap = helper.getMap(noises.at("left"));
         DilutionMap rmap = helper.getMap(noises.at("right"));
         computation.execute(filenameDmfFn, metadataDmfFn, gamma_, distVectors, noises, inoise, phase, dilutionSize_ls_, timeDilSource, lmap, rmap, this);
@@ -376,9 +383,9 @@ void TDistilMesonField<FImpl>::execute(void)
         LOG(Message) << "Meson fields saved at " << outputMFPath_ << std::endl;
     }
     LOG(Message) << "A2AUtils::MesonField kernel executed " << computation.global_counter << " times over " << cacheSize_ << "^2 cache blocks" << std::endl;
-    LOG(Message) << "Average kernel perf (flops) "          << computation.global_flops/computation.global_counter        << " Gflop/s/node " << std::endl;
-    LOG(Message) << "Average kernel perf (read) "           << computation.global_bytes/computation.global_counter        << " GB/s/node "    << std::endl;
-    LOG(Message) << "Average IO speed (write) "             << computation.global_iospeed/computation.global_counter      << " MB/s "    << std::endl;
+    LOG(Message) << "Average kernel perf (flops) : "          << computation.global_flops/computation.global_counter        << " Gflop/s/node " << std::endl;
+    LOG(Message) << "Average kernel perf (read) : "           << computation.global_bytes/computation.global_counter        << " GB/s/node "    << std::endl;
+    LOG(Message) << "Average IO speed (write) : "             << computation.global_iospeed/computation.global_counter      << " MB/s "    << std::endl;
 }
 
 
