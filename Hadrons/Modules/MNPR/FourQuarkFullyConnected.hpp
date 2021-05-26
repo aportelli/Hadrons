@@ -78,11 +78,11 @@ template <typename FImpl1, typename FImpl2>
 void TFourQuarkFullyConnected<FImpl1, FImpl2>::tensorprod(SCSCField &lret, PropagatorField1 &a, PropagatorField2 &b)
 {
     // Tensor product of 2 Lattice Spin Colour Matrices
-    autoView(lret_v, lret, AcceleratorRead);
+    autoView(lret_v, lret, AcceleratorWrite);
     autoView(a_v, a, AcceleratorRead);
     autoView(b_v, b, AcceleratorRead);
 
-    thread_foreach( site, lret_v, {
+    accelerator_for( site, lret_v.size(), grid->Nsimd(), {
         vTComplex left;
         for(int si=0; si < Ns; ++si){
         for(int sj=0; sj < Ns; ++sj){
@@ -220,7 +220,7 @@ void TFourQuarkFullyConnected<FImpl1, FImpl2>::execute()
             compute_diagrams(g, g);
         }
     }
-    else if (gamma_basis == "diagonal_va" || gamma_basis == "diagonal_va_sp") {
+    else if (gamma_basis == "diagonal_va" || gamma_basis == "diagonal_va_sp" || gamma_basis == "diagonal_va_sp_tt") {
         for (int mu = 0; mu < 4; mu++) {
             Gamma gmu = Gamma::gmu[mu];
             Gamma gmug5 = Gamma::mul[gmu.g][Gamma::Algebra::Gamma5];
@@ -229,13 +229,33 @@ void TFourQuarkFullyConnected<FImpl1, FImpl2>::execute()
             compute_diagrams(gmug5, gmu);
             compute_diagrams(gmug5, gmug5);
         }
-        if (gamma_basis == "diagonal_va_sp") {
+        if (gamma_basis == "diagonal_va_sp" || gamma_basis == "diagonal_va_sp_tt") {
             Gamma identity = Gamma(Gamma::Algebra::Identity);
 
             compute_diagrams(identity, identity);
             compute_diagrams(identity, g5);
             compute_diagrams(g5, identity);
             compute_diagrams(g5, g5);
+        }
+        if (gamma_basis == "diagonal_va_sp_tt") {
+            const std::array<const Gamma, 6> gsigma = {{
+                  Gamma(Gamma::Algebra::SigmaXT),      
+                  Gamma(Gamma::Algebra::SigmaXY),      
+                  Gamma(Gamma::Algebra::SigmaXZ),      
+                  Gamma(Gamma::Algebra::SigmaYT),
+                  Gamma(Gamma::Algebra::SigmaYZ),
+                  Gamma(Gamma::Algebra::SigmaZT)}};
+
+            for (Gamma gammaA: gsigma) {
+                    compute_diagrams(gammaA, gammaA);
+            }
+
+            compute_diagrams(Gamma(Gamma::Algebra::SigmaXT), Gamma(Gamma::Algebra::SigmaYZ));
+            compute_diagrams(Gamma(Gamma::Algebra::SigmaXY), Gamma(Gamma::Algebra::SigmaZT));
+            compute_diagrams(Gamma(Gamma::Algebra::SigmaXZ), Gamma(Gamma::Algebra::SigmaYT));
+            compute_diagrams(Gamma(Gamma::Algebra::SigmaYT), Gamma(Gamma::Algebra::SigmaXZ));
+            compute_diagrams(Gamma(Gamma::Algebra::SigmaYZ), Gamma(Gamma::Algebra::SigmaXT));
+            compute_diagrams(Gamma(Gamma::Algebra::SigmaZT), Gamma(Gamma::Algebra::SigmaXY));
         }
     }
     else {
