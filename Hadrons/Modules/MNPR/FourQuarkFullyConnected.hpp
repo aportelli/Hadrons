@@ -40,14 +40,25 @@ public:
                                         std::string,  pOut);
     };
     typedef Correlator<Metadata, SpinColourSpinColourMatrix> Result;
+    // Variable Precision Traits type
     template<typename P1, typename P2, typename V = void> struct Traits {};
     template<typename P1, typename P2>
     struct Traits<P1, P2, typename std::enable_if<getPrecision<P1>::value == 1 && getPrecision<P2>::value == 1>::type>
-      { using PrecisionType = LatticeSpinColourSpinColourMatrixF; };
+    { 
+        using PrecisionTypeC = LatticeComplexF; 
+        using PrecisionTypeSC = LatticeSpinColourMatrixF; 
+        using PrecisionTypeSCSC = LatticeSpinColourSpinColourMatrixF; 
+    };
     template<typename P1, typename P2>
     struct Traits<P1, P2, typename std::enable_if<getPrecision<P1>::value != 1 || getPrecision<P2>::value != 1>::type>
-      { using PrecisionType = LatticeSpinColourSpinColourMatrix; };
-    using SCSCField = typename Traits<PropagatorField1, PropagatorField2>::PrecisionType;
+    {
+        using PrecisionTypeC = LatticeComplex; 
+        using PrecisionTypeSC = LatticeSpinColourMatrix; 
+        using PrecisionTypeSCSC = LatticeSpinColourSpinColourMatrix; 
+    };
+    using CField    = typename Traits<PropagatorField1, PropagatorField2>::PrecisionTypeC;
+    using SCField   = typename Traits<PropagatorField1, PropagatorField2>::PrecisionTypeSC;
+    using SCSCField = typename Traits<PropagatorField1, PropagatorField2>::PrecisionTypeSCSC;
 
     TFourQuarkFullyConnected(const std::string name);
     virtual ~TFourQuarkFullyConnected(void) {};
@@ -63,8 +74,6 @@ protected:
 
 MODULE_REGISTER_TMP(FourQuarkFullyConnected, ARG(TFourQuarkFullyConnected<FIMPL, FIMPL>), MNPR);
 
-// Copied from Julia Kettle's FourQuark/Bilinear code:
-// https://github.com/Julia-Kettle/Grid/blob/1ac5498c3d5ad1dc3ba8c4ce08ec6f1f102d10e0/Hadrons/Modules/MNPR/Bilinear.hpp#L120
 template <typename FImpl1, typename FImpl2>
 void TFourQuarkFullyConnected<FImpl1, FImpl2>::tensorprod(SCSCField &lret, PropagatorField1 &a, PropagatorField2 &b)
 {
@@ -114,12 +123,12 @@ void TFourQuarkFullyConnected<FImpl1, FImpl2>::setup()
     LOG(Message) << "Running setup for four-quark diagrams module"
         << std::endl;
 
-    envTmpLat(LatticeSpinColourMatrix, "bilinear");
-    envTmpLat(LatticeSpinColourMatrix, "bilinear_tmp");
+    envTmpLat(SCField, "bilinear");
+    envTmpLat(SCField, "bilinear_tmp");
     envTmpLat(SCSCField, "lret");
 
-    envTmpLat(LatticeComplex, "bilinear_phase");
-    envTmpLat(LatticeComplex, "coordinate");
+    envTmpLat(CField, "bilinear_phase");
+    envTmpLat(CField, "coordinate");
 }
 
 template <typename FImpl1, typename FImpl2>
@@ -132,8 +141,8 @@ void TFourQuarkFullyConnected<FImpl1, FImpl2>::execute()
     PropagatorField1 &qIn = envGet(PropagatorField1, par().qIn);
     PropagatorField2 &qOut = envGet(PropagatorField2, par().qOut);
 
-    envGetTmp(LatticeSpinColourMatrix, bilinear);
-    envGetTmp(LatticeSpinColourMatrix, bilinear_tmp);
+    envGetTmp(SCField, bilinear);
+    envGetTmp(SCField, bilinear_tmp);
     envGetTmp(SCSCField, lret);
 
 
@@ -145,8 +154,8 @@ void TFourQuarkFullyConnected<FImpl1, FImpl2>::execute()
 
     Gamma g5 = Gamma(Gamma::Algebra::Gamma5);
 
-    envGetTmp(LatticeComplex, bilinear_phase);
-    envGetTmp(LatticeComplex, coordinate);
+    envGetTmp(CField, bilinear_phase);
+    envGetTmp(CField, coordinate);
 
     Real volume = 1.0;
     for (int mu = 0; mu < Nd; mu++) {
