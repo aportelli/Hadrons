@@ -35,7 +35,7 @@
 BEGIN_HADRONS_NAMESPACE
 BEGIN_MODULE_NAMESPACE(MDistil)
 
-inline int verifyTimeSourcesInput(std::string & sourceT, int nDT)
+inline int verifyTimeSourcesInput(std::string sourceT, int nDT)
 {
     int nSourceT=0;
     if(sourceT.empty())
