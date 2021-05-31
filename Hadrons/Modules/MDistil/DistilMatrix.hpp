@@ -23,6 +23,7 @@ BEGIN_HADRONS_NAMESPACE
 BEGIN_MODULE_NAMESPACE(MDistil)
 
 using DilutionMap  = std::array<std::vector<std::vector<unsigned int>>,3>;
+enum Side {left = 0, right = 1};
 
 // metadata serialiser class
 template <typename FImpl>
@@ -40,6 +41,7 @@ public:
                                     std::vector<std::string>,   NoiseHashesRight)
 };
 
+// auxiliar lambda to print time source logs
 auto timeslicesFn = [](const std::vector<unsigned int> ts)
 {
     std::stringstream ss;
@@ -113,8 +115,8 @@ public:
     long    global_counter = 0;
     double  global_flops = 0.0, global_bytes = 0.0, global_iospeed = 0.0;
 private:
-    const std::vector<std::string>      sides_ = {"left","right"};
-    std::map<std::string,std::string>   dmfType_;
+    const std::vector<Side>             sides_ = {Side::left,Side::right};
+    std::map<Side,std::string>          dmfType_;
     GridCartesian*                      g_;
     GridCartesian*                      g3d_;
     ColourVectorField                   evec3d_;
@@ -128,10 +130,10 @@ private:
     const unsigned int                  next_;
     const unsigned int                  nstr_;
     const bool                          is_exact_;
-    std::map<std::string, unsigned int> dil_size_ls_;
-    std::map<std::string, DistillationNoise&> noises_;
+    std::map<Side, unsigned int> dil_size_ls_;
+    std::map<Side, DistillationNoise&> noises_;
 public:
-    DmfComputation(std::map<std::string,std::string>    c,
+    DmfComputation(std::map<Side,std::string>    c,
                    GridCartesian*                       g,
                    GridCartesian*                       g3d,
                    DistillationNoise&                   nl,
@@ -142,8 +144,8 @@ public:
                    const unsigned int                   next,
                    const unsigned int                   nstr,
                    const bool                           is_exact);
-    bool isPhi(std::string side);
-    bool isRho(std::string side);
+    bool isPhi(Side s);
+    bool isRho(Side s);
 public:
     void makePhiComponent(FermionField&         phiComponent,
                           DistillationNoise&    n,
@@ -155,18 +157,18 @@ public:
                           DistillationNoise&    n,
                           const int             n_idx,
                           const unsigned int    iD);
-    void makeDistVecs(std::map<std::string, DistilVector&>               dv,
+    void makeDistVecs(std::map<Side, DistilVector&>               dv,
                       std::vector<int>                                   n_idx,
                       LapPack&                                           epack,
-                      std::map<std::string, std::vector<unsigned int>>   timeDilSource,
-                      std::map<std::string, PerambTensor&>               peramb={});
+                      std::map<Side, std::vector<unsigned int>>   timeDilSource,
+                      std::map<Side, PerambTensor&>               peramb={});
     void execute(const FilenameFn                                   &filenameDmfFn,
                  const MetadataFn                                   &metadataDmfFn,
                  std::vector<Gamma::Algebra>                        gamma_,
-                 std::map<std::string, DistilVector&>               dv,
+                 std::map<Side, DistilVector&>               dv,
                  std::vector<int>                                   n_idx,
                  std::vector<ComplexField>                          ph,
-                 std::map<std::string, std::vector<unsigned int>>   timeDilSource,
+                 std::map<Side, std::vector<unsigned int>>   timeDilSource,
                  DilutionMap                                        leftMap,
                  DilutionMap                                        rightMap,
                  TimerArray*                                        tarray);
@@ -178,7 +180,7 @@ public:
 
 template <typename FImpl, typename T, typename Tio>
 DmfComputation<FImpl,T,Tio>
-::DmfComputation(std::map<std::string,std::string>  c,
+::DmfComputation(std::map<Side,std::string>  c,
                  GridCartesian*                     g,
                  GridCartesian*                     g3d,
                  DistillationNoise&                 nl,
@@ -196,9 +198,9 @@ DmfComputation<FImpl,T,Tio>
     cBuf_.resize(next_*nstr_*nt_*cSize_*cSize_);
     bBuf_.resize(next_*nstr_*nt_*bSize_*bSize_); //maximum size
 
-    noises_ = std::map<std::string, DistillationNoise&> ({{"left",nl},{"right",nr}});
-    dil_size_ls_ = { {"left",nl.dilutionSize(Index::l)*nl.dilutionSize(Index::s)} ,
-                             {"right",nr.dilutionSize(Index::l)*nr.dilutionSize(Index::s)} };
+    noises_ = std::map<Side, DistillationNoise&> ({{Side::left,nl},{Side::right,nr}});
+    dil_size_ls_ = { {Side::left,nl.dilutionSize(Index::l)*nl.dilutionSize(Index::s)} ,
+                             {Side::right,nr.dilutionSize(Index::l)*nr.dilutionSize(Index::s)} };
 }
 
 template <typename FImpl, typename T, typename Tio>
@@ -231,15 +233,15 @@ void DmfComputation<FImpl,T,Tio>
 }
 
 template <typename FImpl, typename T, typename Tio>
-bool DmfComputation<FImpl,T,Tio>::isPhi(std::string side)
+bool DmfComputation<FImpl,T,Tio>::isPhi(Side s)
 {
-    return (dmfType_.at(side)=="phi" ? true : false);
+    return (dmfType_.at(s)=="phi" ? true : false);
 }
 
 template <typename FImpl, typename T, typename Tio>
-bool DmfComputation<FImpl,T,Tio>::isRho(std::string side)
+bool DmfComputation<FImpl,T,Tio>::isRho(Side s)
 {
-    return (dmfType_.at(side)=="rho" ? true : false);
+    return (dmfType_.at(s)=="rho" ? true : false);
 }
 
 template <typename FImpl, typename T, typename Tio>
@@ -254,14 +256,14 @@ void DmfComputation<FImpl,T,Tio>
 
 template <typename FImpl, typename T, typename Tio>
 void DmfComputation<FImpl,T,Tio>
-::makeDistVecs(std::map<std::string, DistilVector&>              dv,
+::makeDistVecs(std::map<Side, DistilVector&>              dv,
           std::vector<int>                                  n_idx,
           LapPack&                                          epack,
-          std::map<std::string, std::vector<unsigned int>>  timeDilSource,
-          std::map<std::string, PerambTensor&>              peramb)
+          std::map<Side, std::vector<unsigned int>>  timeDilSource,
+          std::map<Side, PerambTensor&>              peramb)
 {
-    std::map<std::string,int> noise_pair = {{"left",n_idx[0]},{"right",n_idx[1]}};
-    for(std::string s : sides_)    // computation of phi or rho
+    std::map<Side,int> noise_pair = {{Side::left,n_idx[0]},{Side::right,n_idx[1]}};
+    for(auto s : sides_)    // computation of phi or rho
     for(unsigned int iD=0 ; iD<noises_.at(s).dilutionSize() ; iD++)
     {
         dv.at(s)[iD] = Zero();
@@ -286,24 +288,22 @@ void DmfComputation<FImpl,T,Tio>
 ::execute(const FilenameFn                                  &filenameDmfFn,
           const MetadataFn                                  &metadataDmfFn,
           std::vector<Gamma::Algebra>                       gamma_,
-          std::map<std::string, DistilVector&>              dv,
+          std::map<Side, DistilVector&>              dv,
           std::vector<int>                                  n_idx,
           std::vector<ComplexField>                         ph,
-          std::map<std::string, std::vector<unsigned int>>  timeDilSource,
+          std::map<Side, std::vector<unsigned int>>  timeDilSource,
           DilutionMap                                       leftMap,
           DilutionMap                                       rightMap,
           TimerArray*                                       tarray)
 {
     std::vector<std::vector<unsigned int>> timeDilutionPairList;
     bool fileIsInit = false;
-    
     const unsigned int vol = g_->_gsites;
-    std::string dmfType = dmfType_.at("left") + " " + dmfType_.at("right");
     // computing mesonfield blocks and saving to disk
-    for (unsigned int dtL : timeDilSource.at("left"))
-    for (unsigned int dtR : timeDilSource.at("right"))
+    for (unsigned int dtL : timeDilSource.at(Side::left))
+    for (unsigned int dtR : timeDilSource.at(Side::right))
     {
-        std::map<std::string,std::vector<unsigned int>> p = { {"left",{}} , {"right",{}}};
+        std::map<Side,std::vector<unsigned int>> p = { {Side::left,{}} , {Side::right,{}}};
         for(auto s : sides_)
         {
             if(isPhi(s))
@@ -313,13 +313,13 @@ void DmfComputation<FImpl,T,Tio>
             }
             else
             {
-                p.at(s) =  noises_.at(s).timeSlices(s=="left" ? dtL : dtR);
+                p.at(s) =  noises_.at(s).timeSlices(s==Side::left ? dtL : dtR);
             }
         }
 
         std::vector<unsigned int> stInter;
-        std::set_intersection(p.at("left").begin(), p.at("left").end(), 
-                              p.at("right").begin(), p.at("right").end(),
+        std::set_intersection(p.at(Side::left).begin(), p.at(Side::left).end(), 
+                              p.at(Side::right).begin(), p.at(Side::right).end(),
                               std::back_inserter(stInter));
 
         const int nt_sparse = stInter.size();
@@ -333,15 +333,15 @@ void DmfComputation<FImpl,T,Tio>
             LOG(Message) << "Time extension in file : " << nt_sparse << std::endl;
             std::string datasetName = std::to_string(dtL)+"-"+std::to_string(dtR);
 
-            unsigned int nblocki = dil_size_ls_.at("left")/bSize_ + (((dil_size_ls_.at("left") % bSize_) != 0) ? 1 : 0);
-            unsigned int nblockj = dil_size_ls_.at("right")/bSize_ + (((dil_size_ls_.at("right") % bSize_) != 0) ? 1 : 0);
+            unsigned int nblocki = dil_size_ls_.at(Side::left)/bSize_ + (((dil_size_ls_.at(Side::left) % bSize_) != 0) ? 1 : 0);
+            unsigned int nblockj = dil_size_ls_.at(Side::right)/bSize_ + (((dil_size_ls_.at(Side::right) % bSize_) != 0) ? 1 : 0);
 
             // loop over blocks in the current time-dilution block
-            for(unsigned int iblock=0 ; iblock<dil_size_ls_.at("left") ; iblock+=bSize_) //set according to memory size
-            for(unsigned int jblock=0 ; jblock<dil_size_ls_.at("right") ; jblock+=bSize_)
+            for(unsigned int iblock=0 ; iblock<dil_size_ls_.at(Side::left) ; iblock+=bSize_) //set according to memory size
+            for(unsigned int jblock=0 ; jblock<dil_size_ls_.at(Side::right) ; jblock+=bSize_)
             {
-                unsigned int iblockSize = MIN(dil_size_ls_.at("left")-iblock,bSize_);    // iblockSize is the size of the current block (indexed by i); N_i-i is the size of the eventual remainder block
-                unsigned int jblockSize = MIN(dil_size_ls_.at("right")-jblock,bSize_);
+                unsigned int iblockSize = MIN(dil_size_ls_.at(Side::left)-iblock,bSize_);    // iblockSize is the size of the current block (indexed by i); N_i-i is the size of the eventual remainder block
+                unsigned int jblockSize = MIN(dil_size_ls_.at(Side::right)-jblock,bSize_);
                 A2AMatrixSet<Tio> block(bBuf_.data(), next_ , nstr_ , nt_sparse, iblockSize, jblockSize);
 
                 LOG(Message) << "Distil matrix block " 
@@ -351,7 +351,7 @@ void DmfComputation<FImpl,T,Tio>
                 << std::endl;
 
                 LOG(Message) << "Block size : "         << nt_sparse*iblockSize*jblockSize*sizeof(Tio)/1024. << "KB/momentum/gamma" << std::endl;
-                LOG(Message) << "Cache block size : "   << DISTIL_NT_CHUNK_SIZE*cSize_*cSize_*sizeof(T) << "B/momentum/gamma" << std::endl;  //remember to change this in case I change chunk size from nt_ to something else
+                LOG(Message) << "Cache block size : "   << DISTIL_NT_CHUNK_SIZE*cSize_*cSize_*sizeof(T) << "B/momentum/gamma" << std::endl;
 
                 double flops        = 0.0;
                 double bytes        = 0.0;
@@ -368,9 +368,9 @@ void DmfComputation<FImpl,T,Tio>
 
                     double timer = 0.0;
                     START_TIMER("kernel");
-                    // assuming certain indexation here! (dt must be the slowest index for this to work; otherwise will have to compute l/r block at each contraction)
-                    unsigned int iDl = noises_.at("left").dilutionIndex(dtL,0,0) , iDr = noises_.at("right").dilutionIndex(dtR,0,0);
-                    A2Autils<FImpl>::MesonField(blockCache, &dv.at("left")[iDl+iblock+icache], &dv.at("right")[iDr+jblock+jcache], gamma_, ph, nd_ - 1, &timer);
+                    // as dictated by DistillationNoise, dt must be the slowest index for this to work; otherwise will have to compute l/r block at each contraction)
+                    unsigned int iDl = noises_.at(Side::left).dilutionIndex(dtL,0,0) , iDr = noises_.at(Side::right).dilutionIndex(dtR,0,0);
+                    A2Autils<FImpl>::MesonField(blockCache, &dv.at(Side::left)[iDl+iblock+icache], &dv.at(Side::right)[iDr+jblock+jcache], gamma_, ph, nd_ - 1, &timer);
                     STOP_TIMER("kernel");
                     time_kernel += timer;
 
@@ -417,11 +417,11 @@ void DmfComputation<FImpl,T,Tio>
                     
                     // metadata;
                     DistilMesonFieldMetadata<FImpl> md = metadataDmfFn(iext,istr,n_idx[0],n_idx[1]);                    
-                    A2AMatrixIo<HADRONS_DISTIL_IO_TYPE> matrixIo(filenameDmfFn(iext,istr,n_idx[0],n_idx[1]), DISTIL_MATRIX_NAME, nt_sparse, dil_size_ls_.at("left"), dil_size_ls_.at("right"));
+                    A2AMatrixIo<HADRONS_DISTIL_IO_TYPE> matrixIo(filenameDmfFn(iext,istr,n_idx[0],n_idx[1]), DISTIL_MATRIX_NAME, nt_sparse, dil_size_ls_.at(Side::left), dil_size_ls_.at(Side::right));
 
                     START_TIMER("IO: write block");
                     if(iblock==0 && jblock==0){              // creates dataset only if it's the first block of the dataset
-                        if( (dtL==timeDilSource.at("left")[0]) && (dtR==timeDilSource.at("right")[0]) )     //execute this once per block
+                        if( (dtL==timeDilSource.at(Side::left)[0]) && (dtR==timeDilSource.at(Side::right)[0]) )     //execute this once per block
                         {
                             START_TIMER("IO: file creation");
                             matrixIo.initFile(md);
@@ -482,10 +482,10 @@ public:
     typedef typename DistillationNoise::LapPack LapPack;
 private:
     unsigned int nd_;
-    std::map<std::string,std::string> dmfType_;
-    const std::vector<std::string> sides = {"left","right"};
+    std::map<Side,std::string> dmfType_;
+    const std::vector<Side> sides = {Side::left,Side::right};
 public:
-    DmfHelper(const unsigned int nd, std::map<std::string,std::string> c);
+    DmfHelper(const unsigned int nd, std::map<Side,std::string> c);
     std::vector<std::vector<int>> parseNoisePairs(std::vector<std::string> inputN);
     void computePhase(std::vector<std::vector<RealF>> momenta, ComplexField &coor, std::vector<int> dim, std::vector<ComplexField> &phase);
     DilutionMap getMap(DistillationNoise & n);
@@ -495,7 +495,7 @@ public:
 //# helper class implementation #
 //############################
 template <typename FImpl>
-DmfHelper<FImpl>::DmfHelper(const unsigned int nd, std::map<std::string,std::string>   c)
+DmfHelper<FImpl>::DmfHelper(const unsigned int nd, std::map<Side,std::string>   c)
 : dmfType_(c) , nd_(nd)
 {
 }
@@ -508,7 +508,7 @@ std::vector<std::vector<int>> DmfHelper<FImpl>::parseNoisePairs(std::vector<std:
     for(auto &npair : inputN)
     {
         nPairs.push_back(strToVec<int>(npair));
-        std::map<std::string, int>  noiseMapTemp = { {"left", nPairs.back()[0]} , {"right",nPairs.back()[1]} };
+        std::map<Side, int>  noiseMapTemp = { {Side::left, nPairs.back()[0]} , {Side::right,nPairs.back()[1]} };
     }
     return(nPairs);
 }
