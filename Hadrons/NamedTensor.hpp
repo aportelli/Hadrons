@@ -130,7 +130,7 @@ public:
         {
             dims.push_back(tensor.dimension(i));
         }
-	// These are the dimensions of the Grid datatype - for vectrs and matrices, we do not write dimensions of size 1
+	// These are the dimensions of the Grid datatype - for vectors and matrices, we do not write dimensions of size 1
         for (int i = 0; i < ContainerRank; i++)
         {
             if(Traits::Dimension(i) > 1)
@@ -138,7 +138,12 @@ public:
                 dims.push_back(Traits::Dimension(i));
             }
             gridDims.push_back(Traits::Dimension(i));
-        }   
+        }  
+        //Convention for scalar containers - without this the writing of gridDims fails 
+        if(gridDims.empty())
+	{
+            gridDims.push_back(1);
+	}	
     
         Hdf5Writer writer( FileName_ );
 	Grid::write (writer, "MetaData", MetaData);
