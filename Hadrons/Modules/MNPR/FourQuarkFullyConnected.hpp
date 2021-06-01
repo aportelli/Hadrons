@@ -4,8 +4,6 @@
 #include <Hadrons/Global.hpp>
 #include <Hadrons/Module.hpp>
 #include <Hadrons/ModuleFactory.hpp>
-#include <Hadrons/Modules/MNPR/FourQuark.hpp>
-
 
 BEGIN_HADRONS_NAMESPACE
 

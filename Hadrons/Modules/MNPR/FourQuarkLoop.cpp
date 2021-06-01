@@ -2,4 +2,4 @@
 
 using namespace Grid;
 
-template class Grid::Hadrons::MNPR::TFourQuarkLoop<FIMPL, FIMPL>;
+template class Grid::Hadrons::MNPR::TFourQuarkLoop<FIMPL>;

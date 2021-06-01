@@ -16,10 +16,10 @@ class G1Par: Serializable
 {
 public:
     GRID_SERIALIZABLE_CLASS_MEMBERS(G1Par,
-                                    std::string, Sin,
-                                    std::string, Sout,
-                                    std::string, pin,
-                                    std::string, pout,
+                                    std::string, qIn,
+                                    std::string, qOut,
+                                    std::string, pIn,
+                                    std::string, pOut,
                                     std::string, gauge,
                                     std::string, output);
 };
@@ -67,7 +67,7 @@ TG1<FImpl>::TG1(const std::string name)
 template <typename FImpl>
 std::vector<std::string> TG1<FImpl>::getInput(void)
 {
-    std::vector<std::string> in = { par().Sout, par().Sin, par().gauge };
+    std::vector<std::string> in = { par().qOut, par().qIn, par().gauge };
 
     return in;
 }
@@ -86,13 +86,13 @@ void TG1<FImpl>::setup(void)
 {
     LOG(Message) << "Running setup for G1" << std::endl;
 
-    envTmpLat(LatticeSpinColourMatrix, "bilinear");
+    envTmpLat(PropagatorField, "bilinear");
 
-    envTmpLat(LatticeComplex, "bilinear_phase");
-    envTmpLat(LatticeComplex, "coordinate");
+    envTmpLat(ComplexField, "bilinear_phase");
+    envTmpLat(ComplexField, "coordinate");
 
     envTmpLat(GaugeField, "dSdU");
-    envTmpLat(LatticeColourMatrix, "div_field_strength");
+    envTmpLat(ColourMatrixField, "div_field_strength");
 }
 
 // execution ///////////////////////////////////////////////////////////////////
@@ -101,38 +101,40 @@ void TG1<FImpl>::execute(void)
 {
     auto &Umu = envGet(GaugeField, par().gauge);
 
-    PropagatorField Sin = envGet(PropagatorField, par().Sin);
-    PropagatorField Sout = envGet(PropagatorField, par().Sout);
+    PropagatorField qIn = envGet(PropagatorField, par().qIn);
+    PropagatorField qOut = envGet(PropagatorField, par().qOut);
 
-    envGetTmp(LatticeSpinColourMatrix, bilinear);
+    envGetTmp(PropagatorField, bilinear);
 
     std::vector<int> latt_size(env().getGrid()->FullDimensions().toVector());
-    std::vector<Real> pin = strToVec<Real>(par().pin);
-    std::vector<Real> pout = strToVec<Real>(par().pout);
+    std::vector<Real> pIn = strToVec<Real>(par().pIn);
+    std::vector<Real> pOut = strToVec<Real>(par().pOut);
 
-    envGetTmp(LatticeComplex, bilinear_phase);
-    envGetTmp(LatticeComplex, coordinate);
+    envGetTmp(ComplexField, bilinear_phase);
+    envGetTmp(ComplexField, coordinate);
 
     envGetTmp(GaugeField, dSdU);
-    envGetTmp(LatticeColourMatrix, div_field_strength);
+    envGetTmp(ColourMatrixField, div_field_strength);
 
     Result result;
     Gamma g5(Gamma::Algebra::Gamma5);
 
     //// Compute volume
     Real volume = 1.0;
-    for (int mu = 0; mu < Nd; mu++) {
+    for (int mu = 0; mu < Nd; mu++) 
+    {
         volume *= latt_size[mu];
     }
 
     //// Compute phases for phasing propagators
-    // bilinear_phase = exp(-i (pin - pout) \cdot x)
+    // bilinear_phase = exp(-i (pIn - pOut) \cdot x)
     bilinear_phase = Zero();
-    for (int mu = 0; mu < Nd; mu++) {
+    for (int mu = 0; mu < Nd; mu++) 
+    {
         LatticeCoordinate(coordinate, mu);
         coordinate = (2 * M_PI / latt_size[mu]) * coordinate;
 
-        bilinear_phase += coordinate * (pin[mu] - pout[mu]);
+        bilinear_phase += coordinate * (pIn[mu] - pOut[mu]);
     }
     Complex imag = Complex(0.0, 1.0);
     bilinear_phase = exp(-imag * bilinear_phase);
@@ -145,13 +147,15 @@ void TG1<FImpl>::execute(void)
     // factor here
     dSdU = 2.0 * RealD(Nc) * dSdU;
 
-    for (int mu = 0; mu < Nd; mu++) {
+    for (int mu = 0; mu < Nd; mu++) 
+    {
         Gamma gmu = Gamma::gmu[mu];
 
         // The computation of div_field_strength here is taken from Greg's
         // code; the exact discretization is motivated by the Lattice equations
         // of motion (see Greg's thesis for more detail)
-        LatticeColourMatrix U = peekLorentz(Umu, mu);
+	// Greg McGlynn's thesis: https://doi.org/10.7916/D8T72HD7
+        ColourMatrixField U = peekLorentz(Umu, mu);
         // From the implementation of IwasakiGaugeAction::deriv(Umu, dSdU) we
         // have div_field_strength(x) = [U_\mu(x) L_\mu(x)]_{Traceless Antihermetian}
         div_field_strength = peekLorentz(dSdU, mu);
@@ -164,7 +168,7 @@ void TG1<FImpl>::execute(void)
         //div_field_strength = Ta(div_field_strength);
 
         // Scalar G1
-        bilinear = g5 * adj(Sout) * g5 * div_field_strength * gmu * Sin;
+        bilinear = g5 * adj(qOut) * g5 * div_field_strength * gmu * qIn;
         bilinear = bilinear_phase * bilinear;
         result.twoq_scalar += (1.0 / volume) * sum(bilinear);
 
@@ -172,7 +176,7 @@ void TG1<FImpl>::execute(void)
         result.fourq_scalar += (1.0 / volume) * sum(bilinear);
 
         // Pseudoscalar G1
-        bilinear = g5 * adj(Sout) * g5 * div_field_strength * gmu * g5 * Sin;
+        bilinear = g5 * adj(qOut) * g5 * div_field_strength * gmu * g5 * qIn;
         bilinear = bilinear_phase * bilinear;
         result.twoq_gamma5 += (1.0 / volume) * sum(bilinear);
 
