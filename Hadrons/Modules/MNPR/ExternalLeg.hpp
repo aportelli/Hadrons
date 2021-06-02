@@ -7,6 +7,8 @@
  * Author: Julia Kettle J.R.Kettle-2@sms.ed.ac.uk
  * Author: Michael Marshall <43034299+mmphys@users.noreply.github.com>
  * Author: Peter Boyle <paboyle@ph.ed.ac.uk>
+ * Author: Fabian Joswig <fabian.joswig@wwu.de>
+ * Author: Felix Erben <felix.erben@ed.ac.uk>
  *
  * Hadrons is free software: you can redistribute it and/or modify
  * it under the terms of the GNU General Public License as published by
@@ -33,6 +35,8 @@
 #include <Hadrons/Global.hpp>
 #include <Hadrons/Module.hpp>
 #include <Hadrons/ModuleFactory.hpp>
+#include <Hadrons/Modules/MNPR/NPRUtils.hpp>
+
 BEGIN_HADRONS_NAMESPACE
 
 /******************************************************************************
@@ -137,13 +141,7 @@ void TExternalLeg<FImpl>::execute(void)
         volume *= latt_size[mu];
     }
 
-    pDotXIn=Zero();
-    for (unsigned int mu = 0; mu < 4; ++mu)
-    {
-        Real TwoPiL =  M_PI * 2.0 / latt_size[mu];
-        LatticeCoordinate(xMu,mu);
-        pDotXIn = pDotXIn + (TwoPiL * pIn[mu]) * xMu;
-    }
+    NPRUtils<FImpl>::dot(pDotXIn,pIn);
     qIn_phased = qIn * exp(-Ci * pDotXIn); // phase corrections
 
     r.info.pIn  = par().pIn;

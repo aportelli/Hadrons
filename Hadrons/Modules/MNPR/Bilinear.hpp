@@ -6,6 +6,8 @@
  * Author: Antonin Portelli <antonin.portelli@me.com>
  * Author: Julia Kettle J.R.Kettle-2@sms.ed.ac.uk
  * Author: Peter Boyle <paboyle@ph.ed.ac.uk>
+ * Author: Fabian Joswig <fabian.joswig@wwu.de>
+ * Author: Felix Erben <felix.erben@ed.ac.uk>
  *
  * Hadrons is free software: you can redistribute it and/or modify
  * it under the terms of the GNU General Public License as published by
@@ -32,6 +34,7 @@
 #include <Hadrons/Global.hpp>
 #include <Hadrons/Module.hpp>
 #include <Hadrons/ModuleFactory.hpp>
+#include <Hadrons/Modules/MNPR/NPRUtils.hpp>
 
 BEGIN_HADRONS_NAMESPACE
 
@@ -156,7 +159,7 @@ void TBilinear<FImpl>::execute(void)
     // momentum on legs
     //TODO: Do we want to check the momentum input format? Not done in MSink::Point, so probably ok like this.
     std::vector<Real>           pIn  = strToVec<Real>(par().pIn), 
-	                            pOut = strToVec<Real>(par().pOut);
+	                        pOut = strToVec<Real>(par().pOut);
     Coordinate                  latt_size = GridDefaultLatt(); 
     Gamma                       g5(Gamma::Algebra::Gamma5);
     Complex                     Ci(0.0,1.0);
@@ -168,26 +171,18 @@ void TBilinear<FImpl>::execute(void)
         volume *= latt_size[mu];
     }
 
-    pDotXIn=Zero();
-    pDotXOut=Zero();
-    for (unsigned int mu = 0; mu < 4; ++mu)
-    {
-        Real TwoPiL =  M_PI * 2.0 / latt_size[mu];
-        LatticeCoordinate(xMu,mu);
-        pDotXIn  = pDotXIn  + (TwoPiL * pIn[mu])  * xMu;
-        pDotXOut = pDotXOut + (TwoPiL * pOut[mu]) * xMu;
-    }
-    qIn_phased  = qIn  * exp(-Ci * pDotXIn); //phase corrections
+    NPRUtils<FImpl>::dot(pDotXIn,pIn);
+    qIn_phased  = qIn  * exp(-Ci * pDotXIn);
+    NPRUtils<FImpl>::dot(pDotXOut,pOut);
     qOut_phased = qOut * exp(-Ci * pDotXOut);
     
-    r.info.pIn  = par().pIn; // Redundant to write these into every group
-    r.info.pOut = par().pOut; // Redundant to write these into every group
+    r.info.pIn  = par().pIn; 
+    r.info.pOut = par().pOut; 
     for (auto &G: Gamma::gall)
     {
     	r.info.gamma = G.g;
     	r.corr.push_back( (1.0 / volume) * sum(g5 * adj(qOut_phased) * g5 * G * qIn_phased) );
         result.push_back(r);
-    	//This is all still quite hacky - we probably want to think about the output format a little more!
     	r.corr.erase(r.corr.begin());
     }
 

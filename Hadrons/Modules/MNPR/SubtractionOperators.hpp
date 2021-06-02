@@ -1,9 +1,38 @@
+/*
+ * SubtractionOperators.hpp, part of Hadrons (https://github.com/aportelli/Hadrons)
+ *
+ * Copyright (C) 2015 - 2020
+ *
+ * Author: Antonin Portelli <antonin.portelli@me.com>
+ * Author: Ryan Abbott <rabbott@mit.edu>
+ * Author: Fabian Joswig <fabian.joswig@wwu.de>
+ * Author: Felix Erben <felix.erben@ed.ac.uk>
+ *
+ * Hadrons is free software: you can redistribute it and/or modify
+ * it under the terms of the GNU General Public License as published by
+ * the Free Software Foundation, either version 2 of the License, or
+ * (at your option) any later version.
+ *
+ * Hadrons is distributed in the hope that it will be useful,
+ * but WITHOUT ANY WARRANTY; without even the implied warranty of
+ * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+ * GNU General Public License for more details.
+ *
+ * You should have received a copy of the GNU General Public License
+ * along with Hadrons.  If not, see <http://www.gnu.org/licenses/>.
+ *
+ * See the full license in the file "LICENSE" in the top level distribution 
+ * directory.
+ */
+
+/*  END LEGAL */
 #ifndef Hadrons_MNPR_SubtractionOperators_hpp_
 #define Hadrons_MNPR_SubtractionOperators_hpp_
 
 #include <Hadrons/Global.hpp>
 #include <Hadrons/Module.hpp>
 #include <Hadrons/ModuleFactory.hpp>
+#include <Hadrons/Modules/MNPR/NPRUtils.hpp>
 
 BEGIN_HADRONS_NAMESPACE
 
@@ -56,11 +85,6 @@ public:
     virtual std::vector<std::string> getInput(void);
     virtual std::vector<std::string> getOutput(void);
 
-    // covariant derivative
-    virtual void dslash(PropagatorField &in, const PropagatorField &out,
-        const GaugeField &Umu);
-    virtual void tensorSiteProd(SpinColourSpinColourMatrix &lret, SpinColourMatrixScalar &a, SpinColourMatrixScalar &b);
-
     // setup
     virtual void setup(void);
     // execution
@@ -95,49 +119,6 @@ std::vector<std::string> TSubtractionOperators<FImpl>::getOutput(void)
     return out;
 }
 
-template <typename FImpl>
-void TSubtractionOperators<FImpl>::tensorSiteProd(SpinColourSpinColourMatrix &lret,
-        SpinColourMatrixScalar &a, SpinColourMatrixScalar &b)
-{
-    for(int si=0; si < Ns; ++si)
-    {
-    for(int sj=0; sj < Ns; ++sj)
-    {
-        for (int ci=0; ci < Nc; ++ci)
-	{
-        for (int cj=0; cj < Nc; ++cj)
-	{
-            const ComplexD val = TensorRemove(a()(si,sj)(ci,cj));
-            lret()(si,sj)(ci,cj) = val * b();
-        }}
-    }}
-}
-
-
-// Computes gamma^mu D_mu for the given input field. Currently uses the
-// symmetric derivative to match Greg's code, though this could change in the
-// future.
-template <typename FImpl>
-void TSubtractionOperators<FImpl>::dslash(PropagatorField &out, const PropagatorField &in,
-        const GaugeField &Umu)
-{
-    assert(&out != &in);
-    out = Zero();
-    envGetTmp(PropagatorField, tmp);
-    typename FImpl::GaugeLinkField U(env().getGrid());
-    for (int mu = 0; mu < Nd; mu++) 
-    {
-        // Overall formula:
-        // tmp(x) = U_\mu(x) in(x + \hat{\mu}) - U_\mu^\dag(x - \hat{\mu}) in(x - \hat{\mu})
-        U = peekLorentz(Umu, mu);
-        tmp = FImpl::CovShiftForward(U, mu, in);
-        tmp = tmp - FImpl::CovShiftBackward(U, mu, in);
-
-        Gamma gamma_mu = Gamma::gmu[mu];
-        out += gamma_mu * tmp;
-    }
-    out = 0.5 * out;
-}
 
 // setup ///////////////////////////////////////////////////////////////////////
 template <typename FImpl>
@@ -151,7 +132,7 @@ void TSubtractionOperators<FImpl>::setup(void)
     envTmpLat(PropagatorField, "bilinear");
 
     envTmpLat(ComplexField, "bilinear_phase");
-    envTmpLat(ComplexField, "pdotxout");
+    envTmpLat(ComplexField, "pDotXOut");
     envTmpLat(ComplexField, "coordinate");
 
     envTmpLat(PropagatorField, "tmp");
@@ -176,7 +157,7 @@ void TSubtractionOperators<FImpl>::execute(void)
     std::vector<Real> pOut = strToVec<Real>(par().pOut);
 
     envGetTmp(ComplexField, bilinear_phase);
-    envGetTmp(ComplexField, pdotxout);
+    envGetTmp(ComplexField, pDotXOut);
     envGetTmp(ComplexField, coordinate);
 
     Result result;
@@ -189,27 +170,16 @@ void TSubtractionOperators<FImpl>::execute(void)
         volume *= latt_size[mu];
     }
 
-    //// Compute phases for phasing propagators
-    // bilinear_phase = exp(-i (pIn - pOut) \cdot x)
-    bilinear_phase = Zero();
-    pdotxout = Zero();
-    for (int mu = 0; mu < Nd; mu++) 
-    {
-        LatticeCoordinate(coordinate, mu);
-        coordinate = (2 * M_PI / latt_size[mu]) * coordinate;
-
-        bilinear_phase += coordinate * (pIn[mu] - pOut[mu]);
-        pdotxout += coordinate * pOut[mu];
-    }
-    Complex imag = Complex(0.0, 1.0);
-    bilinear_phase = exp(-imag * bilinear_phase);
+    NPRUtils<FImpl>::phase(bilinear_phase,pIn,pOut);
+    NPRUtils<FImpl>::dot(pDotXOut,pOut);
 
     //// Compute Dslash for both propagators
-    dslash(Dslash_qIn, qIn, Umu);
-    dslash(Dslash_qOut, qOut, Umu);
+    NPRUtils<FImpl>::dslash(Dslash_qIn, qIn, Umu);
+    NPRUtils<FImpl>::dslash(Dslash_qOut, qOut, Umu);
 
     //// Compute spectator quark for 4-quark diagrams
-    bilinear = qIn * exp(-imag * pdotxout);
+    Complex Ci = Complex(0.0, 1.0);
+    bilinear = qIn * exp(-Ci * pDotXOut);
     SpinColourMatrixScalar spectator = sum(bilinear);
 
     //// Compute results
@@ -219,7 +189,7 @@ void TSubtractionOperators<FImpl>::execute(void)
         res.twoq = (1.0 / volume) * sum(bilinear);
         bilinear = bilinear_phase * bilinear;
         SpinColourMatrixScalar bilinear_avg = (1.0 / volume) * sum(bilinear);
-        tensorSiteProd(res.fourq, bilinear_avg, spectator);
+        NPRUtils<FImpl>::tensorSiteProd(res.fourq, bilinear_avg, spectator);
     };
 
     // The expression we want to compute here is
@@ -251,7 +221,7 @@ void TSubtractionOperators<FImpl>::execute(void)
     compute_result(result.psuedoscalar);
 
     if (par().output != "") {
-        saveResult(par().output, "subtraction_ops", result);
+        saveResult(par().output, "SubtractionOps", result);
     }
 }
 

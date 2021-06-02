@@ -1,9 +1,41 @@
+/*
+ * FourQuarkFullyConnected.hpp, part of Hadrons (https://github.com/aportelli/Hadrons)
+ *
+ * Copyright (C) 2015 - 2020
+ *
+ * Author: Antonin Portelli <antonin.portelli@me.com>
+ * Author: Julia Kettle <J.R.Kettle-2@sms.ed.ac.uk>
+ * Author: Peter Boyle <paboyle@ph.ed.ac.uk>
+ * Author: Ryan Abbott <rabbott@mit.edu>
+ * Author: Fabian Joswig <fabian.joswig@wwu.de>
+ * Author: Felix Erben <felix.erben@ed.ac.uk>
+ *
+ * Hadrons is free software: you can redistribute it and/or modify
+ * it under the terms of the GNU General Public License as published by
+ * the Free Software Foundation, either version 2 of the License, or
+ * (at your option) any later version.
+ *
+ * Hadrons is distributed in the hope that it will be useful,
+ * but WITHOUT ANY WARRANTY; without even the implied warranty of
+ * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+ * GNU General Public License for more details.
+ *
+ * You should have received a copy of the GNU General Public License
+ * along with Hadrons.  If not, see <http://www.gnu.org/licenses/>.
+ *
+ * See the full license in the file "LICENSE" in the top level distribution 
+ * directory.
+ */
+
+/*  END LEGAL */
+
 #ifndef Hadrons_MNPR_FourQuarkFullyConnected_hpp_
 #define Hadrons_MNPR_FourQuarkFullyConnected_hpp_
 
 #include <Hadrons/Global.hpp>
 #include <Hadrons/Module.hpp>
 #include <Hadrons/ModuleFactory.hpp>
+#include <Hadrons/Modules/MNPR/NPRUtils.hpp>
 
 BEGIN_HADRONS_NAMESPACE
 
@@ -43,7 +75,6 @@ public:
 
     virtual std::vector<std::string> getInput();
     virtual std::vector<std::string> getOutput();
-    virtual void tensorprod(SpinColourSpinColourMatrixField &lret, PropagatorField &a, PropagatorField &b);
 
 protected:
     virtual void setup(void);
@@ -51,28 +82,6 @@ protected:
 };
 
 MODULE_REGISTER_TMP(FourQuarkFullyConnected, ARG(TFourQuarkFullyConnected<FIMPL>), MNPR);
-
-template <typename FImpl>
-void TFourQuarkFullyConnected<FImpl>::tensorprod(SpinColourSpinColourMatrixField &lret, PropagatorField &a, PropagatorField &b)
-{
-    // Tensor product of 2 Lattice Spin Colour Matrices
-    autoView(lret_v, lret, AcceleratorWrite);
-    autoView(a_v, a, AcceleratorRead);
-    autoView(b_v, b, AcceleratorRead);
-
-    accelerator_for( site, lret_v.size(), grid->Nsimd(), {
-        vTComplex left;
-        for(int si=0; si < Ns; ++si){
-        for(int sj=0; sj < Ns; ++sj){
-            for (int ci=0; ci < Nc; ++ci){
-            for (int cj=0; cj < Nc; ++cj){
-                left()()() = a_v[site]()(si,sj)(ci,cj);
-                lret_v[site]()(si,sj)(ci,cj)=left()*b_v[site]();
-            }}
-        }}
-    });
-}
-
 
 template <typename FImpl>
 TFourQuarkFullyConnected<FImpl>::TFourQuarkFullyConnected(const std::string name)
@@ -106,7 +115,6 @@ void TFourQuarkFullyConnected<FImpl>::setup()
     envTmpLat(SpinColourSpinColourMatrixField, "lret");
 
     envTmpLat(ComplexField, "bilinear_phase");
-    envTmpLat(ComplexField, "coordinate");
 }
 
 template <typename FImpl>
@@ -133,7 +141,6 @@ void TFourQuarkFullyConnected<FImpl>::execute()
     Gamma g5 = Gamma(Gamma::Algebra::Gamma5);
 
     envGetTmp(ComplexField, bilinear_phase);
-    envGetTmp(ComplexField, coordinate);
 
     Real volume = 1.0;
     for (int mu = 0; mu < Nd; mu++) {
@@ -142,15 +149,7 @@ void TFourQuarkFullyConnected<FImpl>::execute()
 
     LOG(Message) << "Calculating phases" << std::endl;
 
-    bilinear_phase = Zero();
-    for (int mu = 0; mu < Nd; mu++) {
-        LatticeCoordinate(coordinate, mu);
-        coordinate = (2.0 * M_PI / latt_size[mu]) * coordinate;
-
-        bilinear_phase += coordinate * (pIn[mu] - pOut[mu]);
-    }
-    Complex imag = Complex(0, 1.0);
-    bilinear_phase = exp(-imag * bilinear_phase);
+    NPRUtils<FImpl>::phase(bilinear_phase,pIn,pOut);
 
     LOG(Message) << "Done calculating phases" << std::endl;
 
@@ -173,11 +172,11 @@ void TFourQuarkFullyConnected<FImpl>::execute()
         bilinear = bilinear_phase * (g5 * adj(qOut) * g5 * gamma_A * qIn);
 
         if (gamma_A.g == gamma_B.g) {
-            tensorprod(lret, bilinear, bilinear);
+            NPRUtils<FImpl>::tensorProd(lret, bilinear, bilinear);
         }
         else {
             bilinear_tmp = bilinear_phase * (g5 * adj(qOut) * g5 * gamma_B * qIn);
-            tensorprod(lret, bilinear, bilinear_tmp);
+            NPRUtils<FImpl>::tensorProd(lret, bilinear, bilinear_tmp);
         }
         r.corr.push_back( (1.0 / volume) * sum(lret) );
         result.push_back(r);
@@ -242,7 +241,7 @@ void TFourQuarkFullyConnected<FImpl>::execute()
     }
 
     LOG(Message) << "Done computing fully-connected diagrams" << std::endl;
-    saveResult(par().output, "fourquarkfullyconnected", result);
+    saveResult(par().output, "FourQuarkFullyConnected", result);
 }
 
 END_MODULE_NAMESPACE

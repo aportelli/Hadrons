@@ -1,9 +1,38 @@
+/*
+ * G1.hpp, part of Hadrons (https://github.com/aportelli/Hadrons)
+ *
+ * Copyright (C) 2015 - 2020
+ *
+ * Author: Antonin Portelli <antonin.portelli@me.com>
+ * Author: Ryan Abbott <rabbott@mit.edu>
+ * Author: Fabian Joswig <fabian.joswig@wwu.de>
+ * Author: Felix Erben <felix.erben@ed.ac.uk>
+ *
+ * Hadrons is free software: you can redistribute it and/or modify
+ * it under the terms of the GNU General Public License as published by
+ * the Free Software Foundation, either version 2 of the License, or
+ * (at your option) any later version.
+ *
+ * Hadrons is distributed in the hope that it will be useful,
+ * but WITHOUT ANY WARRANTY; without even the implied warranty of
+ * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+ * GNU General Public License for more details.
+ *
+ * You should have received a copy of the GNU General Public License
+ * along with Hadrons.  If not, see <http://www.gnu.org/licenses/>.
+ *
+ * See the full license in the file "LICENSE" in the top level distribution 
+ * directory.
+ */
+
+/*  END LEGAL */
 #ifndef Hadrons_MNPR_G1_hpp_
 #define Hadrons_MNPR_G1_hpp_
 
 #include <Hadrons/Global.hpp>
 #include <Hadrons/Module.hpp>
 #include <Hadrons/ModuleFactory.hpp>
+#include <Hadrons/Modules/MNPR/NPRUtils.hpp>
 
 BEGIN_HADRONS_NAMESPACE
 
@@ -89,7 +118,6 @@ void TG1<FImpl>::setup(void)
     envTmpLat(PropagatorField, "bilinear");
 
     envTmpLat(ComplexField, "bilinear_phase");
-    envTmpLat(ComplexField, "coordinate");
 
     envTmpLat(GaugeField, "dSdU");
     envTmpLat(ColourMatrixField, "div_field_strength");
@@ -111,7 +139,6 @@ void TG1<FImpl>::execute(void)
     std::vector<Real> pOut = strToVec<Real>(par().pOut);
 
     envGetTmp(ComplexField, bilinear_phase);
-    envGetTmp(ComplexField, coordinate);
 
     envGetTmp(GaugeField, dSdU);
     envGetTmp(ColourMatrixField, div_field_strength);
@@ -126,26 +153,10 @@ void TG1<FImpl>::execute(void)
         volume *= latt_size[mu];
     }
 
-    //// Compute phases for phasing propagators
-    // bilinear_phase = exp(-i (pIn - pOut) \cdot x)
-    bilinear_phase = Zero();
-    for (int mu = 0; mu < Nd; mu++) 
-    {
-        LatticeCoordinate(coordinate, mu);
-        coordinate = (2 * M_PI / latt_size[mu]) * coordinate;
-
-        bilinear_phase += coordinate * (pIn[mu] - pOut[mu]);
-    }
-    Complex imag = Complex(0.0, 1.0);
-    bilinear_phase = exp(-imag * bilinear_phase);
+    NPRUtils<FImpl>::phase(bilinear_phase,pIn,pOut);
 
     IwasakiGaugeAction<FImpl> action(1.0);
     action.deriv(Umu, dSdU);
-    // The implementation of IwasakiGaugeAction::deriv has an overall
-    // normalization factor of 1 / (2 Nc) which is not present in Greg's code.
-    // In the interest of matching Greg's code we undo this normalization
-    // factor here
-    dSdU = 2.0 * RealD(Nc) * dSdU;
 
     for (int mu = 0; mu < Nd; mu++) 
     {
