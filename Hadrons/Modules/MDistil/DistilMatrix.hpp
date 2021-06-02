@@ -20,6 +20,15 @@
 #define STOP_TIMER(name)  if (tarray) tarray->stopTimer(name)
 #define GET_TIMER(name)   ((tarray != nullptr) ? tarray->getDTimer(name) : 0.)
 
+// auxiliar lambda to print time source logs
+auto timeslicesFn = [](const std::vector<unsigned int> ts)
+{
+    std::stringstream ss;
+    for (auto& t : ts)
+        ss << t << " ";
+    return ss.str();
+};
+
 BEGIN_HADRONS_NAMESPACE
 BEGIN_MODULE_NAMESPACE(MDistil)
 
