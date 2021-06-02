@@ -57,7 +57,7 @@ void NPRUtils<FImpl>::tensorProd(SpinColourSpinColourMatrixField &lret, Propagat
     autoView(a_v, a, AcceleratorRead);
     autoView(b_v, b, AcceleratorRead);
 
-    accelerator_for( site, lret_v.size(), grid->Nsimd(), {
+    accelerator_for( site, lret_v.size(), a.Grid()->Nsimd(), {
         vTComplex left;
         for(int si=0; si < Ns; ++si)
 	{
