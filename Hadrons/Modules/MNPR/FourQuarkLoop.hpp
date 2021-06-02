@@ -343,7 +343,6 @@ void TFourQuarkLoop<FImpl>::execute()
      *                    tensor strctures
      */
 
-    const int num_gamma = Gamma::gall.size();
     std::string gamma_basis = par().gamma_basis;
     if (gamma_basis == "all") 
     {
