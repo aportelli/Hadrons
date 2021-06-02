@@ -165,6 +165,7 @@ void TG1<FImpl>::execute(void)
 
         // This next line is not necessary since div_field_strength should
         // already be traceless and anti-hermetian
+	// TODO: Delete this or assert / enforce it?
         //div_field_strength = Ta(div_field_strength);
 
         // Scalar G1

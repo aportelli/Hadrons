@@ -99,6 +99,8 @@ BEGIN_MODULE_NAMESPACE(MNPR)
  *            FourQuarkLoopOutputPar below)
  *
  */
+
+
 class FourQuarkLoopPar : Serializable
 {
 public:
@@ -124,11 +126,12 @@ public:
     {
     public:
         GRID_SERIALIZABLE_CLASS_MEMBERS(Metadata,
-                                        Gamma::Algebra, gammaA,
-                                        Gamma::Algebra, gammaB,
+                                        std::vector<Gamma::Algebra>, gammaA,
+                                        std::vector<Gamma::Algebra>, gammaB,
                                         std::string,  pIn,
                                         std::string,  pOut);
     };
+    //TODO: I use correlator here, but the result is a SpinColourMatrix per gamma matrix, not per timeslice. Do we want another struct?
     typedef Correlator<Metadata, SpinColourMatrix> Result;
 
     TFourQuarkLoop(const std::string name);
@@ -172,8 +175,7 @@ void TFourQuarkLoop<FImpl>::setup()
         << std::endl;
     if (par().loop_type != "connected" && par().loop_type != "disconnected") 
     {
-        LOG(Error) << "Unkown loop type '" << par().loop_type << "'";
-        assert(0);
+        HADRONS_ERROR(Definition, "Unkown loop type");
     }
 
     envTmpLat(PropagatorField, "loop");
@@ -220,7 +222,6 @@ void TFourQuarkLoop<FImpl>::execute()
     twoq_result.info.pIn  = par().pIn;
     twoq_result.info.pOut = par().pOut;
 
-    std::vector<Gamma::Algebra> gammaA, gammaB;
     Gamma g5 = Gamma(Gamma::Algebra::Gamma5);
 
     envGetTmp(ComplexField, bilinear_phase);
@@ -252,10 +253,11 @@ void TFourQuarkLoop<FImpl>::execute()
     const bool loop_disconnected = par().loop_type == "disconnected";
 
     auto compute_diagrams = [&](Gamma gamma_A, Gamma gamma_B, bool print = true) {
-        twoq_result.info.gammaA = gamma_A.g;
-        twoq_result.info.gammaB = gamma_B.g;
-        fourq_result.info.gammaA = gamma_A.g;
-        fourq_result.info.gammaB = gamma_B.g;
+	
+        twoq_result.info.gammaA.push_back(gamma_A.g);
+        twoq_result.info.gammaB.push_back(gamma_B.g);
+        fourq_result.info.gammaA.push_back(gamma_A.g);
+        fourq_result.info.gammaB.push_back(gamma_B.g);
 
         if (print) 
 	{
@@ -291,6 +293,8 @@ void TFourQuarkLoop<FImpl>::execute()
          *
          * and we can take the tensor product later.          *
          *
+	 * TODO: Do we want to do this tensor product as part of the module? 
+	 *
          * Note that at this point bilinear already has a factor of
          * bilinear_phase = exp(-i (pIn - pOut) \cdot x), so we only need one
          * more factor of bilinear_phase */
@@ -317,6 +321,8 @@ void TFourQuarkLoop<FImpl>::execute()
      *                 form (qbar \Gamma q') (qbar'' \Gamma q''') where \Gamma
      *                 = 1 or \gamma^5
      *
+     * diagona_va_sp_tt - Computes everything in 'diagonal_va_sp' plus diagrams with
+     *                    tensor strctures
      */
 
     const int num_gamma = Gamma::gall.size();
@@ -387,7 +393,6 @@ void TFourQuarkLoop<FImpl>::execute()
 
     LOG(Message) << "Done computing loop diagrams" << std::endl;
     saveResult(par().output + "_fourQuark", "fourQuarkLoop", fourq_result);
-    //TODO: Is this a good name? Do we want 2 files?
     saveResult(par().output + "_twoQuark", "twoQuarkLoop", twoq_result); 
 }
 

@@ -59,6 +59,7 @@ public:
     // covariant derivative
     virtual void dslash(PropagatorField &in, const PropagatorField &out,
         const GaugeField &Umu);
+    virtual void tensorSiteProd(SpinColourSpinColourMatrix &lret, SpinColourMatrixScalar &a, SpinColourMatrixScalar &b);
 
     // setup
     virtual void setup(void);
@@ -94,8 +95,9 @@ std::vector<std::string> TSubtractionOperators<FImpl>::getOutput(void)
     return out;
 }
 
-static inline void tensor_prod(SpinColourSpinColourMatrix &lret,
-        SpinColourMatrix &a, SpinColourMatrix &b)
+template <typename FImpl>
+void TSubtractionOperators<FImpl>::tensorSiteProd(SpinColourSpinColourMatrix &lret,
+        SpinColourMatrixScalar &a, SpinColourMatrixScalar &b)
 {
     for(int si=0; si < Ns; ++si)
     {
@@ -208,7 +210,7 @@ void TSubtractionOperators<FImpl>::execute(void)
 
     //// Compute spectator quark for 4-quark diagrams
     bilinear = qIn * exp(-imag * pdotxout);
-    SpinColourMatrix spectator = sum(bilinear);
+    SpinColourMatrixScalar spectator = sum(bilinear);
 
     //// Compute results
     auto compute_result = [&] (typename Result::OperatorResult &res) 
@@ -216,8 +218,8 @@ void TSubtractionOperators<FImpl>::execute(void)
         bilinear = bilinear_phase * bilinear;
         res.twoq = (1.0 / volume) * sum(bilinear);
         bilinear = bilinear_phase * bilinear;
-        SpinColourMatrix bilinear_avg = (1.0 / volume) * sum(bilinear);
-        tensor_prod(res.fourq, bilinear_avg, spectator);
+        SpinColourMatrixScalar bilinear_avg = (1.0 / volume) * sum(bilinear);
+        tensorSiteProd(res.fourq, bilinear_avg, spectator);
     };
 
     // The expression we want to compute here is
@@ -229,9 +231,6 @@ void TSubtractionOperators<FImpl>::execute(void)
     //  -gamma^5 * adj(Dslash qOut) gamma^5 qIn
     //
     // Which is what we actually compute
-    //
-    // dslash_left here corresponds with 'Backward covariant dslash' in Greg's
-    // code.
     bilinear = g5 * adj(-Dslash_qOut) * g5 * qIn;
     compute_result(result.dslash_left);
 
