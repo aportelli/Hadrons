@@ -110,6 +110,15 @@ inline int getSourceTimesFromInput(std::string & sourceT,
     return nSourceT;
 }
 
+// auxiliar function to print time source logs
+inline std::string timeslicesDump(const std::vector<unsigned int> ts)
+{
+    std::stringstream ss;
+    for (auto& t : ts)
+        ss << t << " ";
+    return ss.str();
+};
+
 END_MODULE_NAMESPACE
 END_HADRONS_NAMESPACE
 #endif
