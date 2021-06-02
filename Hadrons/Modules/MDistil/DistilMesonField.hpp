@@ -9,7 +9,6 @@
 #include <Hadrons/NamedTensor.hpp>
 #include <Hadrons/Modules/MDistil/DistilMatrix.hpp>
 #include <Hadrons/Modules/MDistil/DistilUtils.hpp>
-#include <Hadrons/Modules/MNoise/ExactDistillation.hpp>
 
 #ifndef HADRONS_DISTIL_IO_TYPE
 #define HADRONS_DISTIL_IO_TYPE ComplexF
@@ -337,8 +336,8 @@ void TDistilMesonField<FImpl>::execute(void)
     }
     
     LOG(Message) << "Selected time-dilution partitions :"         << std::endl;
-    LOG(Message) << " Left : " << timeslicesFn(timeDilSource.at(Side::left)) << std::endl;
-    LOG(Message) << " Right : " << timeslicesFn(timeDilSource.at(Side::right)) << std::endl;
+    LOG(Message) << " Left : " << MDistil::timeslicesDump(timeDilSource.at(Side::left)) << std::endl;
+    LOG(Message) << " Right : " << MDistil::timeslicesDump(timeDilSource.at(Side::right)) << std::endl;
     LOG(Message) << "Left/right Laplacian-spin dilution sizes : " 
         << dilutionSize_ls_.at(Side::left) << "/" << dilutionSize_ls_.at(Side::right) << std::endl;
     LOG(Message) << "Meson field type : " << par().mesonFieldType << std::endl;

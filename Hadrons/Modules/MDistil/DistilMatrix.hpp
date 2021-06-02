@@ -6,6 +6,7 @@
 #include <Hadrons/DilutedNoise.hpp>
 #include <Hadrons/NamedTensor.hpp>
 #include <Hadrons/TimerArray.hpp>
+#include <Hadrons/Modules/MDistil/DistilUtils.hpp>
 
 #ifndef HADRONS_DISTIL_IO_TYPE
 #define HADRONS_DISTIL_IO_TYPE ComplexF
@@ -24,7 +25,7 @@ BEGIN_MODULE_NAMESPACE(MDistil)
 
 using DilutionMap  = std::array<std::vector<std::vector<unsigned int>>,3>;
 enum Side {left = 0, right = 1};
-const std::vector<Side> sides =  {Side::left,Side::right};  //to facilitate iterating
+const std::vector<Side> sides =  {Side::left,Side::right};  //to facilitate iteration
 
 // metadata serialiser class
 template <typename FImpl>
@@ -40,15 +41,6 @@ public:
                                     std::string,                MesonFieldType,
                                     std::vector<std::string>,   NoiseHashesLeft,
                                     std::vector<std::string>,   NoiseHashesRight)
-};
-
-// auxiliar lambda to print time source logs
-auto timeslicesFn = [](const std::vector<unsigned int> ts)
-{
-    std::stringstream ss;
-    for (auto& t : ts)
-        ss << t << " ";
-    return ss.str();
 };
 
 //metadata io class
@@ -339,7 +331,7 @@ void DmfComputation<FImpl,T,Tio>
         {
             timeDilutionPairList.push_back({dtL,dtR});
             LOG(Message) << "------------------------ " << dtL << "-" << dtR << " ------------------------" << std::endl; 
-            LOG(Message) << "Saving time slices : " << timeslicesFn(stInter) << std::endl;
+            LOG(Message) << "Saving time slices : " << MDistil::timeslicesDump(stInter) << std::endl;
             LOG(Message) << "Time extension in file : " << nt_sparse << std::endl;
             std::string datasetName = std::to_string(dtL)+"-"+std::to_string(dtR);
 
