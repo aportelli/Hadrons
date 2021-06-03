@@ -134,7 +134,7 @@ void TFourQuarkFullyConnected<FImpl>::execute()
 
     std::vector<Result>         result;
     Result                      r;
-    std::vector<int> latt_size(env().getGrid()->FullDimensions().toVector());
+    Coordinate                  latt_size = GridDefaultLatt();
     std::vector<Real> pIn = strToVec<Real>(par().pIn);
     std::vector<Real> pOut = strToVec<Real>(par().pOut);
 
