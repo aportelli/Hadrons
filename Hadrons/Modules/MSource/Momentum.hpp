@@ -47,7 +47,6 @@ BEGIN_MODULE_NAMESPACE(MSource)
 class MomentumPar: Serializable
 {
     public:
-    //What is meant by serializable in this context
     GRID_SERIALIZABLE_CLASS_MEMBERS(MomentumPar,
                                     std::string, mom);
 };
@@ -72,7 +71,6 @@ class TMomentum: public Module<MomentumPar>
 };
 
 MODULE_REGISTER_TMP(Momentum, TMomentum<FIMPL>, MSource);
-//MODULE_REGISTER_NS(Momentum, TMomentum, MSource);
 
 /******************************************************************************
 *                       TMomentum template implementation                     *
@@ -114,7 +112,7 @@ void TMomentum<FImpl>::execute(void)
     LOG(Message) << "Generating planewave momentum source with momentum " << par().mom << std::endl;
     PropagatorField        &src = envGet(PropagatorField, getName());
     std::vector<Real>      p = strToVec<Real>(par().mom);;
-    std::vector<Real>      latt_size(GridDefaultLatt().begin(), GridDefaultLatt().end()); 
+    Coordinate                  latt_size = GridDefaultLatt();
     Complex                Ci(0.0,1.0);
     envGetTmp(ComplexField, C);
     envGetTmp(ComplexField, xMu);
@@ -122,7 +120,7 @@ void TMomentum<FImpl>::execute(void)
     src = Zero();
     C = Zero();
 
-    for(int mu = 0; mu < 4; mu++){
+    for(int mu = 0; mu < Nd; mu++){
         Real TwoPiL =  M_PI * 2.0 / latt_size[mu];
         LatticeCoordinate(xMu,mu);
         C = C + (TwoPiL * p[mu]) * xMu;
