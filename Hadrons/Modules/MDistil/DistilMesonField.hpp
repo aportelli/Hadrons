@@ -218,7 +218,7 @@ void TDistilMesonField<FImpl>::execute(void)
     std::map<Side, DistilVector & > dist_vecs = {{Side::left,dvl}  ,{Side::right,dvr}};
     DistillationNoise &noisel = envGet( DistillationNoise , par().leftNoise);
     DistillationNoise &noiser = envGet( DistillationNoise , par().rightNoise);
-    std::vector<std::vector<int>>       noise_pairs;
+    std::vector<std::vector<unsigned int>>       noise_pairs;
 
     // nvec check (assume nvec cant be different on different sides)
     std::map<Side, DistillationNoise & > noises = {{Side::left,noisel},{Side::right,noiser}};
@@ -227,32 +227,39 @@ void TDistilMesonField<FImpl>::execute(void)
         HADRONS_ERROR(Size, "Incompatibility between number of Laplacian eigenvectors and Laplacian subspace size in noises.");
     }
 
-    // fetch time sources 
+    // fetch time sources input
     std::vector<unsigned int> tsourcel = strToVec<unsigned int>(par().leftTimeSources);
     std::vector<unsigned int> tsourcer = strToVec<unsigned int>(par().rightTimeSources);
-    std::map<Side, std::vector<unsigned int>> timeDilSource = {{Side::left,tsourcel},{Side::right,tsourcer}};
-    for(Side s : sides)     //in case it's empty, include all possible time sources
-    {
-        if(timeDilSource.at(s).empty()){
-            timeDilSource.at(s).resize(noises.at(s).dilutionSize(Index::t));
-            std::iota( timeDilSource.at(s).begin() , timeDilSource.at(s).end() , 0);    //creates sequence from 0 to TI-1
-        }
-    }
-
-    // parse timeSource from perambulators and validate input against that
-    std::map<Side, std::string> peramb_input = {{Side::left,par().leftPeramb},{Side::right,par().rightPeramb}};
+    std::map<Side, std::vector<unsigned int>> time_sources = {{Side::left,tsourcel},{Side::right,tsourcer}};
+    std::map<Side, std::string> peramb_input = {{Side::left,par().leftPeramb},{Side::right,par().rightPeramb}}; // perambulators time sources
     std::map<Side, std::vector<int>> ts_peramb;
-    for(Side s : sides)
+    for(Side s : sides)     
     {
         if(computation.isPhi(s))
         {
             auto & inPeramb = envGet(PerambTensor , peramb_input.at(s));
             ts_peramb.emplace(s , inPeramb.MetaData.timeSources);
-            if( !std::includes(ts_peramb.at(s).begin(), ts_peramb.at(s).end(),
-                             timeDilSource.at(s).begin(), timeDilSource.at(s).end()) )  //check if input time source is compatible with peramb's (subset of it)
+            if(time_sources.at(s).empty())  //in case it's empty and it's a phi, include all peramb time sources
             {
-                std::string errside = (s==Side::left) ? "left" : "right";
-                HADRONS_ERROR(Argument,"Time sources are not available on " + errside + " perambulator");
+                for(auto tperamb : ts_peramb.at(s))
+                    time_sources.at(s).push_back(static_cast<unsigned int>(tperamb));
+            }
+            else    // if it's not empty, validate it against peamb time sources (if it is subset of it)
+            {
+                if( !std::includes(ts_peramb.at(s).begin(), ts_peramb.at(s).end(),
+                                time_sources.at(s).begin(), time_sources.at(s).end()) )
+                {
+                    std::string errside = (s==Side::left) ? "left" : "right";
+                    HADRONS_ERROR(Argument,"Time sources are not available on " + errside + " perambulator");
+                }
+            }
+        }
+        else
+        {
+            if(time_sources.at(s).empty())   //in case it's empty and it's a rho, include all time sources
+            {
+                time_sources.at(s).resize(noises.at(s).dilutionSize(Index::t));
+                std::iota( time_sources.at(s).begin() , time_sources.at(s).end() , 0);    //creates sequence from 0 to TI-1
             }
         }
     }
@@ -261,7 +268,7 @@ void TDistilMesonField<FImpl>::execute(void)
     Hadrons::mkdir(filepath);
 
     //auxiliar lambda functions for names and metadata
-    auto filenameDmfFn = [this, filepath](const unsigned int m, const unsigned int o, const int nl, const int nr)
+    auto filenameDmfFn = [this, filepath](const unsigned int m, const unsigned int o, const unsigned int nl, const unsigned int nr)
     {
         std::stringstream ss;
         ss << gamma_[o] << "_p";
@@ -277,7 +284,7 @@ void TDistilMesonField<FImpl>::execute(void)
         return filename;
     };
 
-    auto metadataDmfFn = [this, &nt, &nVec, &noisel, &noiser](const unsigned int m, const unsigned int o, const int nl, const int nr)
+    auto metadataDmfFn = [this, &nt, &nVec, &noisel, &noiser](const unsigned int m, const unsigned int o, const unsigned int nl, const unsigned int nr)
     {
         DistilMesonFieldMetadata<FImpl> md;
         for (auto pmu: momenta_[m])
@@ -311,7 +318,7 @@ void TDistilMesonField<FImpl>::execute(void)
     {
         for(auto &npair : par().noisePairs)
         {
-            noise_pairs.push_back(strToVec<int>(npair));
+            noise_pairs.push_back(strToVec<unsigned int>(npair));
         }
     }
 
@@ -336,8 +343,8 @@ void TDistilMesonField<FImpl>::execute(void)
     }
     
     LOG(Message) << "Selected time-dilution partitions :"         << std::endl;
-    LOG(Message) << " Left : " << MDistil::timeslicesDump(timeDilSource.at(Side::left)) << std::endl;
-    LOG(Message) << " Right : " << MDistil::timeslicesDump(timeDilSource.at(Side::right)) << std::endl;
+    LOG(Message) << " Left : " << MDistil::timeslicesDump(time_sources.at(Side::left)) << std::endl;
+    LOG(Message) << " Right : " << MDistil::timeslicesDump(time_sources.at(Side::right)) << std::endl;
     LOG(Message) << "Left/right Laplacian-spin dilution sizes : " 
         << dilutionSize_ls_.at(Side::left) << "/" << dilutionSize_ls_.at(Side::right) << std::endl;
     LOG(Message) << "Meson field type : " << par().mesonFieldType << std::endl;
@@ -369,15 +376,15 @@ void TDistilMesonField<FImpl>::execute(void)
                     peramb.emplace(s , perambtemp);
                 }
             }
-            computation.makeDistVecs(dist_vecs, npair, epack, timeDilSource, peramb);
+            computation.makeDistVecs(dist_vecs, npair, epack, time_sources, peramb);
         }
         else
         {
-            computation.makeDistVecs(dist_vecs, npair, epack, timeDilSource);
+            computation.makeDistVecs(dist_vecs, npair, epack, time_sources);
         }
 
         // computing mesonfield blocks and saving to disk
-        computation.execute(filenameDmfFn, metadataDmfFn, gamma_, dist_vecs, npair, phase, timeDilSource, this);
+        computation.execute(filenameDmfFn, metadataDmfFn, gamma_, dist_vecs, npair, phase, time_sources, this);
 
         LOG(Message) << "Meson fields saved at " << outputMFPath_ << std::endl;
     }

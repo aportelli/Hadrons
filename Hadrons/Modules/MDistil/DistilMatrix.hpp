@@ -37,7 +37,7 @@ public:
                                     unsigned int,               Nvec,
                                     std::vector<RealF>,         Momentum,
                                     Gamma::Algebra,             Operator,               // just gamma matrices for now, but could turn into more general operators in the future
-                                    std::vector<int>,           NoisePair,
+                                    std::vector<unsigned int>,  NoisePair,
                                     std::string,                MesonFieldType,
                                     std::vector<std::string>,   NoiseHashesLeft,
                                     std::vector<std::string>,   NoiseHashesRight)
@@ -142,16 +142,16 @@ public:
 public:
     void makePhiComponent(FermionField&         phiComponent,
                           DistillationNoise&    n,
-                          const int             n_idx,
+                          const unsigned int             n_idx,
                           const unsigned int    iD,
                           PerambTensor&         peramb,
                           LapPack&              epack);
     void makeRhoComponent(FermionField&         rhoComponent,
                           DistillationNoise&    n,
-                          const int             n_idx,
+                          const unsigned int             n_idx,
                           const unsigned int    iD);
     void makeDistVecs(std::map<Side, DistilVector&>                 dv,
-                      std::vector<int>                              n_idx,
+                      std::vector<unsigned int>                              n_idx,
                       LapPack&                                      epack,
                       std::map<Side, std::vector<unsigned int>>     timeDilSource,
                       std::map<Side, PerambTensor&>                 peramb={});
@@ -159,7 +159,7 @@ public:
                  const MetadataFn                               &metadataDmfFn,
                  std::vector<Gamma::Algebra>                    gamma_,
                  std::map<Side, DistilVector&>                  dv,
-                 std::vector<int>                               n_idx,
+                 std::vector<unsigned int>                               n_idx,
                  std::vector<ComplexField>                      ph,
                  std::map<Side, std::vector<unsigned int>>      timeDilSource,
                  TimerArray*                                    tarray);
@@ -211,7 +211,7 @@ template <typename FImpl, typename T, typename Tio>
 void DmfComputation<FImpl,T,Tio>
 ::makePhiComponent(FermionField&            phiComponent,
                    DistillationNoise&       n,
-                   const int                n_idx,
+                   const unsigned int                n_idx,
                    const unsigned int       iD,
                    PerambTensor&            peramb,
                    LapPack&                 epack)
@@ -252,7 +252,7 @@ template <typename FImpl, typename T, typename Tio>
 void DmfComputation<FImpl,T,Tio>
 ::makeRhoComponent(FermionField&        rhoComponent,
                    DistillationNoise&   n,
-                   const int            n_idx,
+                   const unsigned int            n_idx,
                    const unsigned int   iD)   
 {
     rhoComponent = n.makeSource(iD, n_idx);
@@ -261,12 +261,12 @@ void DmfComputation<FImpl,T,Tio>
 template <typename FImpl, typename T, typename Tio>
 void DmfComputation<FImpl,T,Tio>
 ::makeDistVecs(std::map<Side, DistilVector&>            dv,
-          std::vector<int>                              n_idx,
+          std::vector<unsigned int>                              n_idx,
           LapPack&                                      epack,
           std::map<Side, std::vector<unsigned int>>     timeDilSource,
           std::map<Side, PerambTensor&>                 peramb)
 {
-    std::map<Side,int> noise_pair = {{Side::left,n_idx[0]},{Side::right,n_idx[1]}};
+    std::map<Side,unsigned int> noise_pair = {{Side::left,n_idx[0]},{Side::right,n_idx[1]}};
     for(auto s : sides)    // computation of phi or rho
     for(unsigned int iD=0 ; iD<noises_.at(s).dilutionSize() ; iD++)
     {
@@ -293,7 +293,7 @@ void DmfComputation<FImpl,T,Tio>
           const MetadataFn                              &metadataDmfFn,
           std::vector<Gamma::Algebra>                   gamma_,
           std::map<Side, DistilVector&>                 dv,
-          std::vector<int>                              n_idx,
+          std::vector<unsigned int>                              n_idx,
           std::vector<ComplexField>                     ph,
           std::map<Side, std::vector<unsigned int>>     timeDilSource,
           TimerArray*                                   tarray)

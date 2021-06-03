@@ -366,13 +366,6 @@ void TLapEvec<FImpl>::execute(void)
         // Communicate eig[t].evec to boss-node, save into new object evecs
         gridHD->GlobalSumVector(EigenIO::getFirstScalar(Evals.tensor),
                                 static_cast<int>(EigenIO::getScalarCount(Evals.tensor)));
-        for (int t = 0; t < NtFull; t++)
-        {
-            for (int v = 0; v < LPar.nVec; v++)
-            {
-                    std::cout << t << " " << v << " " << Evals.tensor( t, v ) << std::endl;
-            }
-        }
         if(gridHD->IsBoss())
         {
             sEigenPackName.resize(NameLen);
