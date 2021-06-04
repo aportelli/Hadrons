@@ -74,7 +74,7 @@ std::vector<std::string> TLoadInterlacedNoise<FImpl>::getReference(void)
 template <typename FImpl>
 std::vector<std::string> TLoadInterlacedNoise<FImpl>::getOutput(void)
 {
-    std::vector<std::string> out = {};
+    std::vector<std::string> out = {getName()};
     
     return out;
 }

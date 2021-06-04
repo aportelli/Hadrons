@@ -316,15 +316,22 @@ void DistillationNoise<FImpl>::dumpDilutionMap(void)
 template <typename FImpl>
 void DistillationNoise<FImpl>::generateNoise(GridSerialRNG &rng)
 {
-    const Type shift(1., 1.);
-    const double invSqrt2 = 0.7071067812;
-    Type      eta;
+    // const Type shift(1., 1.);
+    // const double invSqrt2 = 0.7071067812;
+    // Type      eta;
+
+    // for (auto &n: noise_)
+    // for (unsigned int i = 0; i < n.size(); ++i)
+    // {
+    //     bernoulli(rng, eta);
+    //     n[i] = (2.*eta - shift)*invSqrt2;
+    // }
+    const Type shift(1., 0.);
 
     for (auto &n: noise_)
     for (unsigned int i = 0; i < n.size(); ++i)
     {
-        bernoulli(rng, eta);
-        n[i] = (2.*eta - shift)*invSqrt2;
+        n[i] = shift;
     }
 }
 
