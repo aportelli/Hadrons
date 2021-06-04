@@ -125,33 +125,33 @@ private:
     std::map<Side, unsigned int>        dil_size_ls_;
     std::map<Side, DistillationNoise&>  noises_;
 public:
-    DmfComputation(std::map<Side,std::string>           c,
-                   GridCartesian*                       g,
-                   GridCartesian*                       g3d,
-                   DistillationNoise&                   nl,
-                   DistillationNoise&                   nr,
-                   const unsigned int                   blockSize,
-                   const unsigned int                   cacheSize,
-                   const unsigned int                   nt,
-                   const unsigned int                   next,
-                   const unsigned int                   nstr,
-                   const bool                           is_exact);
+    DmfComputation(std::map<Side,std::string>   mftype,
+                   GridCartesian*               g,
+                   GridCartesian*               g3d,
+                   DistillationNoise&           nl,
+                   DistillationNoise&           nr,
+                   const unsigned int           blockSize,
+                   const unsigned int           cacheSize,
+                   const unsigned int           nt,
+                   const unsigned int           next,
+                   const unsigned int           nstr,
+                   const bool                   is_exact);
     bool isPhi(Side s);
     bool isRho(Side s);
     DilutionMap getMap(Side s);
 public:
     void makePhiComponent(FermionField&         phiComponent,
                           DistillationNoise&    n,
-                          const unsigned int             n_idx,
+                          const unsigned int    n_idx,
                           const unsigned int    iD,
                           PerambTensor&         peramb,
                           LapPack&              epack);
     void makeRhoComponent(FermionField&         rhoComponent,
                           DistillationNoise&    n,
-                          const unsigned int             n_idx,
+                          const unsigned int    n_idx,
                           const unsigned int    iD);
     void makeDistVecs(std::map<Side, DistilVector&>                 dv,
-                      std::vector<unsigned int>                              n_idx,
+                      std::vector<unsigned int>                     n_idx,
                       LapPack&                                      epack,
                       std::map<Side, std::vector<unsigned int>>     timeDilSource,
                       std::map<Side, PerambTensor&>                 peramb={});
@@ -159,7 +159,7 @@ public:
                  const MetadataFn                               &metadataDmfFn,
                  std::vector<Gamma::Algebra>                    gamma_,
                  std::map<Side, DistilVector&>                  dv,
-                 std::vector<unsigned int>                               n_idx,
+                 std::vector<unsigned int>                      n_idx,
                  std::vector<ComplexField>                      ph,
                  std::map<Side, std::vector<unsigned int>>      timeDilSource,
                  TimerArray*                                    tarray);
@@ -171,7 +171,7 @@ public:
 
 template <typename FImpl, typename T, typename Tio>
 DmfComputation<FImpl,T,Tio>
-::DmfComputation(std::map<Side,std::string>  c,
+::DmfComputation(std::map<Side,std::string>  mftype,
                  GridCartesian*         g,
                  GridCartesian*         g3d,
                  DistillationNoise&     nl,
@@ -182,7 +182,7 @@ DmfComputation<FImpl,T,Tio>
                  const unsigned int     next,
                  const unsigned int     nstr,
                  const bool             is_exact)
-: dmfType_(c), g_(g), g3d_(g3d), evec3d_(g3d), tmp3d_(g3d)
+: dmfType_(mftype), g_(g), g3d_(g3d), evec3d_(g3d), tmp3d_(g3d)
 , nt_(nt) , nd_(g->Nd()), bSize_(blockSize) , cSize_(cacheSize)
 , next_(next) , nstr_(nstr) , is_exact_(is_exact)
 {
@@ -216,8 +216,8 @@ void DmfComputation<FImpl,T,Tio>
                    PerambTensor&            peramb,
                    LapPack&                 epack)
 {
-    std::array<unsigned int,3> c = n.dilutionCoordinates(iD);
-    unsigned int dt = c[Index::t] , dl = c[Index::l] , ds = c[Index::s];
+    std::array<unsigned int,3> mftype = n.dilutionCoordinates(iD);
+    unsigned int dt = mftype[Index::t] , dl = mftype[Index::l] , ds = mftype[Index::s];
     std::vector<int> p_ts = peramb.MetaData.timeSources;
     std::vector<int>::iterator itr_dt = std::find(p_ts.begin(), p_ts.end(), dt);
     unsigned int idt = std::distance(p_ts.begin(), itr_dt); //gets correspondent index of dt in the tensor obj
@@ -261,7 +261,7 @@ void DmfComputation<FImpl,T,Tio>
 template <typename FImpl, typename T, typename Tio>
 void DmfComputation<FImpl,T,Tio>
 ::makeDistVecs(std::map<Side, DistilVector&>            dv,
-          std::vector<unsigned int>                              n_idx,
+          std::vector<unsigned int>                     n_idx,
           LapPack&                                      epack,
           std::map<Side, std::vector<unsigned int>>     timeDilSource,
           std::map<Side, PerambTensor&>                 peramb)
@@ -293,7 +293,7 @@ void DmfComputation<FImpl,T,Tio>
           const MetadataFn                              &metadataDmfFn,
           std::vector<Gamma::Algebra>                   gamma_,
           std::map<Side, DistilVector&>                 dv,
-          std::vector<unsigned int>                              n_idx,
+          std::vector<unsigned int>                     n_idx,
           std::vector<ComplexField>                     ph,
           std::map<Side, std::vector<unsigned int>>     timeDilSource,
           TimerArray*                                   tarray)
