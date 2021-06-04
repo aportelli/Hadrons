@@ -387,7 +387,7 @@ void DistillationNoise<FImpl>::save(const std::string filename, const std::strin
         std::vector<std::string> shash = generateHash();
         hsize_t         hcount=1, hstride=1, hblock=1, hash_dim = shash.size(), hash_memdim = 1;
         H5NS::DataSpace hash_dataspace(1, &hash_dim), hash_memspace(1, &hash_memdim);
-        //maximum string size assuming each unsigned int is hexed to a maximum of 8 chars (ffffffff); better way?
+        //maximum string size assuming each unsigned int is hexed to a maximum of 8 chars (ffffffff)
         H5NS::DataType  hash_datatype( H5T_STRING, 8*SHA256_DIGEST_LENGTH );                  
         H5NS::DataSet   hash_dataset = group.createDataSet("NoiseHitHashes", hash_datatype, hash_dataspace);
         for(hsize_t hoffset=0 ; hoffset<shash.size() ; hoffset++)

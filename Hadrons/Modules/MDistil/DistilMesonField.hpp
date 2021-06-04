@@ -113,13 +113,6 @@ std::vector<std::string> TDistilMesonField<FImpl>::getInput(void)
             in.push_back( s==Side::left ? par().leftPeramb : par().rightPeramb);
         }
     }
-
-    if( ( vm().getModuleType(par().leftNoise) =="Grid::Hadrons::MNoise::ExactDistillation" ) &&
-        ( vm().getModuleType(par().rightNoise)=="Grid::Hadrons::MNoise::ExactDistillation" ) )
-    {
-        isExact_=true;
-    }
-
     return in;
 }
 
@@ -141,7 +134,18 @@ void TDistilMesonField<FImpl>::setup(void)
     outputMFPath_       = par().outPath;
     dilutionSize_ls_    = { {Side::left,noisel.dilutionSize(Index::l)*noisel.dilutionSize(Index::s)},
                             {Side::right,noiser.dilutionSize(Index::l)*noiser.dilutionSize(Index::s)} };
-    
+
+    if( ( vm().getModuleType(par().leftNoise) =="Grid::Hadrons::MNoise::ExactDistillation" ) &&
+        ( vm().getModuleType(par().rightNoise)=="Grid::Hadrons::MNoise::ExactDistillation" ) )
+    {
+        isExact_=true;
+    }
+
+    if(par().noisePairs.empty() and !isExact_)
+    {
+        HADRONS_ERROR(Size, "Missing noise pairs input for stochastic distillation.");
+    }
+
     // time source input validation
     MDistil::verifyTimeSourcesInput(par().leftTimeSources,noisel.dilutionSize(Index::t));
     MDistil::verifyTimeSourcesInput(par().rightTimeSources,noiser.dilutionSize(Index::t));
