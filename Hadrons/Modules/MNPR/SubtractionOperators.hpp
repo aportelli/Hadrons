@@ -124,7 +124,7 @@ std::vector<std::string> TSubtractionOperators<FImpl>::getOutput(void)
 template <typename FImpl>
 void TSubtractionOperators<FImpl>::setup(void)
 {
-    LOG(Message) << "Running setup for subtraction operators" << std::endl;
+    LOG(Message) << "Running setup for SubtractionOperators" << std::endl;
 
     envTmpLat(PropagatorField, "Dslash_qIn");
     envTmpLat(PropagatorField, "Dslash_qOut");
@@ -142,6 +142,10 @@ void TSubtractionOperators<FImpl>::setup(void)
 template <typename FImpl>
 void TSubtractionOperators<FImpl>::execute(void)
 {
+    LOG(Message) << "Computing subtraction operators '"
+        << "' using source propagators '" << par().qIn << "' and '" << par().qOut << "'"
+        << std::endl;
+
     auto &Umu = envGet(GaugeField, par().gauge);
 
     PropagatorField qIn = envGet(PropagatorField, par().qIn);
@@ -169,6 +173,8 @@ void TSubtractionOperators<FImpl>::execute(void)
     {
         volume *= latt_size[mu];
     }
+
+    LOG(Message) << "Calculating phases" << std::endl;
 
     NPRUtils<FImpl>::phase(bilinear_phase,pIn,pOut);
     NPRUtils<FImpl>::dot(pDotXOut,pOut);
@@ -221,7 +227,8 @@ void TSubtractionOperators<FImpl>::execute(void)
     compute_result(result.psuedoscalar);
 
     if (par().output != "") {
-        saveResult(par().output, "SubtractionOps", result);
+        saveResult(par().output, "SubtractionOperators", result);
+        LOG(Message) << "Complete. Writing results to " << par().output << std::endl;
     }
 }
 

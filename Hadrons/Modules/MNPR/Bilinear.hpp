@@ -115,6 +115,8 @@ TBilinear<FImpl>::TBilinear(const std::string name)
 template <typename FImpl>
 void TBilinear<FImpl>::setup(void)
 {
+    LOG(Message) << "Running setup for Bilinear" << std::endl;
+
     envTmpLat(PropagatorField, "qIn_phased");
     envTmpLat(PropagatorField, "qOut_phased");
     envTmpLat(ComplexField, "pDotXIn");
@@ -187,8 +189,8 @@ void TBilinear<FImpl>::execute(void)
     }
 
     //////////////////////////////////////////////////
-    saveResult(par().output, "bilinear", result);
-    LOG(Message) << "Complete. Writing results to " << par().output << std:: endl;
+    saveResult(par().output, "Bilinear", result);
+    LOG(Message) << "Complete. Writing results to " << par().output << std::endl;
 }
 
 END_MODULE_NAMESPACE

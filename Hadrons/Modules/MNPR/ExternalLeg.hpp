@@ -96,6 +96,8 @@ TExternalLeg<FImpl>::TExternalLeg(const std::string name)
 template <typename FImpl>
 void TExternalLeg<FImpl>::setup(void)
 {
+    LOG(Message) << "Running setup for ExternalLeg" << std::endl;
+
     envTmpLat(PropagatorField, "qIn_phased");
     envTmpLat(ComplexField, "pDotXIn");
     envTmpLat(ComplexField, "xMu");
