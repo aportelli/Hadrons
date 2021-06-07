@@ -127,6 +127,10 @@ void TG1<FImpl>::setup(void)
 template <typename FImpl>
 void TG1<FImpl>::execute(void)
 {
+    LOG(Message) << "Computing G1 operators '"
+        << "' using source propagators '" << par().qIn << "' and '" << par().qOut << "'"
+        << std::endl;
+
     auto &Umu = envGet(GaugeField, par().gauge);
 
     PropagatorField qIn = envGet(PropagatorField, par().qIn);
@@ -153,9 +157,11 @@ void TG1<FImpl>::execute(void)
         volume *= latt_size[mu];
     }
 
+    LOG(Message) << "Calculating phases" << std::endl;
+
     NPRUtils<FImpl>::phase(bilinear_phase,pIn,pOut);
 
-    IwasakiGaugeAction<FImpl> action(1.0);
+    IwasakiGaugeAction<FImpl> action(1.0); // Include freedom to choose the gauge action?
     action.deriv(Umu, dSdU);
 
     for (int mu = 0; mu < Nd; mu++) 
@@ -196,6 +202,7 @@ void TG1<FImpl>::execute(void)
         result.fourq_gamma5 += (1.0 / volume) * sum(bilinear);
     }
     saveResult(par().output, "G1", result);
+    LOG(Message) << "Complete. Writing results to " << par().output << std::endl;
 }
 
 END_MODULE_NAMESPACE

@@ -97,9 +97,6 @@ BEGIN_MODULE_NAMESPACE(MNPR)
  *   obtained by taking a tensor product with the independently obtained
  *   spectator diagram.
  *
- *   The outputs gammaA and gammaB serve as a record of which insertions where
- *   taken for \Gamma_A and \Gamma_B in the diagrams above.
- *
  * Inputs:
  *   loop_type - should be either "connected" or "disconnected". Determines
  *               whether the module computes the connected or disconnected loop
@@ -124,8 +121,7 @@ BEGIN_MODULE_NAMESPACE(MNPR)
  *   gamma_basis - determines the insertions \Gamma_A and \Gamma_B; see above
  *                 for more detail and see below for what options are available
  *
- *   output - struct which determines where the outputs are placed (See
- *            FourQuarkLoopOutputPar below)
+ *   output - string which determines where the outputs are placed
  *
  */
 
@@ -200,7 +196,7 @@ std::vector<std::string> TFourQuarkLoop<FImpl>::getOutput()
 template <typename FImpl>
 void TFourQuarkLoop<FImpl>::setup()
 {
-    LOG(Message) << "Running setup for four-quark diagrams module"
+    LOG(Message) << "Running setup for FourQuarkLoop"
         << std::endl;
     if (par().loop_type != "connected" && par().loop_type != "disconnected") 
     {
@@ -263,8 +259,6 @@ void TFourQuarkLoop<FImpl>::execute()
     LOG(Message) << "Calculating phases" << std::endl;
 
     NPRUtils<FImpl>::phase(bilinear_phase,pIn,pOut);
-
-    LOG(Message) << "Done calculating phases" << std::endl;
 
     LOG(Message) << "Computing diagrams" << std::endl;
 
@@ -410,7 +404,7 @@ void TFourQuarkLoop<FImpl>::execute()
 
     LOG(Message) << "Done computing loop diagrams" << std::endl;
     saveResult(par().output + "_fourQuark", "FourQuarkLoop", fourq_result);
-    saveResult(par().output + "_twoQuark", "TwoQuarkLoop", twoq_result); 
+    saveResult(par().output + "_twoQuark", "TwoQuarkLoop", twoq_result);
 }
 
 END_MODULE_NAMESPACE

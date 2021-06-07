@@ -107,7 +107,7 @@ std::vector<std::string> TFourQuarkFullyConnected<FImpl>::getOutput()
 template <typename FImpl>
 void TFourQuarkFullyConnected<FImpl>::setup()
 {
-    LOG(Message) << "Running setup for four-quark diagrams module"
+    LOG(Message) << "Running setup for FourQuarkFullyConnected"
         << std::endl;
 
     envTmpLat(PropagatorField, "bilinear");
@@ -150,8 +150,6 @@ void TFourQuarkFullyConnected<FImpl>::execute()
     LOG(Message) << "Calculating phases" << std::endl;
 
     NPRUtils<FImpl>::phase(bilinear_phase,pIn,pOut);
-
-    LOG(Message) << "Done calculating phases" << std::endl;
 
     LOG(Message) << "Computing diagrams" << std::endl;
 
@@ -240,8 +238,8 @@ void TFourQuarkFullyConnected<FImpl>::execute()
             << std::endl;
     }
 
-    LOG(Message) << "Done computing fully-connected diagrams" << std::endl;
     saveResult(par().output, "FourQuarkFullyConnected", result);
+    LOG(Message) << "Complete. Writing results to " << par().output << std::endl;
 }
 
 END_MODULE_NAMESPACE
