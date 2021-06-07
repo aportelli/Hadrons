@@ -39,11 +39,11 @@ public:
                                     Gamma::Algebra,             Operator,               // just gamma matrices for now, but could turn into more general operators in the future
                                     std::vector<unsigned int>,  NoisePair,
                                     std::string,                MesonFieldType,
-                                    std::vector<std::string>,   NoiseHashesLeft,
-                                    std::vector<std::string>,   NoiseHashesRight)
+                                    std::vector<std::string>,   NoiseHashLeft,
+                                    std::vector<std::string>,   NoiseHashRight)
 };
 
-//metadata io class
+//metadata io class to deal with 2d ragged arrays (possibly remove after Mike's serialisation rewrite)
 class DistilMetadataIo
 {
 private:

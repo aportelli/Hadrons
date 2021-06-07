@@ -302,13 +302,13 @@ void TDistilMesonField<FImpl>::execute(void)
         md.MesonFieldType   = par().mesonFieldType;
         if(isExact_)
         {
-            md.NoiseHashesLeft     = {"0"}; // exact distil convention
-            md.NoiseHashesRight    = {"0"};
+            md.NoiseHashLeft     = {"0"}; // exact distil convention
+            md.NoiseHashRight    = {"0"};
         }
         else
         {
-            md.NoiseHashesLeft   = noisel.generateHash();
-            md.NoiseHashesRight  = noiser.generateHash();
+            md.NoiseHashLeft   = noisel.generateHash();
+            md.NoiseHashRight  = noiser.generateHash();
         }
         return md;
     };
