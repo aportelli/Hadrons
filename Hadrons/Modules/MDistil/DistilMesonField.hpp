@@ -248,7 +248,7 @@ void TDistilMesonField<FImpl>::execute(void)
                 for(auto tperamb : ts_peramb.at(s))
                     time_sources.at(s).push_back(static_cast<unsigned int>(tperamb));
             }
-            else    // if it's not empty, validate it against peamb time sources (if it is subset of it)
+            else    // if it's not empty, validate it against peamb time sources (check if is subset of it)
             {
                 if( !std::includes(ts_peramb.at(s).begin(), ts_peramb.at(s).end(),
                                 time_sources.at(s).begin(), time_sources.at(s).end()) )
@@ -301,11 +301,6 @@ void TDistilMesonField<FImpl>::execute(void)
         md.NoisePair        = {nl,nr};
         md.MesonFieldType   = par().mesonFieldType;
         if(isExact_)
-        {
-            md.NoiseHashLeft     = {"0"}; // exact distil convention
-            md.NoiseHashRight    = {"0"};
-        }
-        else
         {
             md.NoiseHashLeft   = noisel.generateHash();
             md.NoiseHashRight  = noiser.generateHash();

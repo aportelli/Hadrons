@@ -87,23 +87,19 @@ void TExactDistillation<FImpl>::setup(void)
     GridCartesian *g     = envGetGrid(FermionField);
     GridCartesian *g3d   = envGetSliceGrid(FermionField, g->Nd() - 1);
 
-    envCreateDerived(DistillationNoise<FImpl>, InterlacedDistillationNoise<FImpl>,
-                     getName(), 1, g, g3d, epack, env().getDim(Tdir), par().nVec, Ns, 
-                     1);
+    envCreateDerived(DistillationNoise<FImpl>, ExactDistillationPolicy<FImpl>,
+                     getName(), 1, g, g3d, epack);
 }
 
 // execution ///////////////////////////////////////////////////////////////////
 template <typename FImpl>
 void TExactDistillation<FImpl>::execute(void)
 {
-    LOG(Message) << "Generating exact distillation dummy-noise with (Nt, Nvec, Ns) = (" 
-                 << env().getDim(Tdir) << ", " << par().nVec << ", " << Ns << ")"
-                 << std::endl;
+    LOG(Message) << "Generating exact distillation policy" << std::endl;
 
     auto &noise = envGetDerived(DistillationNoise<FImpl>,
-                                InterlacedDistillationNoise<FImpl>, getName());
+                                ExactDistillationPolicy<FImpl>, getName());
 
-    noise.exactNoisePolicy();
     noise.dumpDilutionMap();
 }
 

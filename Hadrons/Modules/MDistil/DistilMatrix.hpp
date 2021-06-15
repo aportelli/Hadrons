@@ -201,7 +201,7 @@ DilutionMap DmfComputation<FImpl,T,Tio>::getMap(Side s)
     for(auto dil_idx : { Index::t, Index::l, Index::s })
     for(unsigned int it=0 ; it<noises_.at(s).dilutionSize(dil_idx) ; it++)
     {
-        std::vector<unsigned int> temp = noises_.at(s).getDilutionPartition(dil_idx,it);
+        std::vector<unsigned int> temp = noises_.at(s).dilutionPartition(dil_idx,it);
         m[dil_idx].push_back(temp);
     }
     return m;
@@ -315,7 +315,7 @@ void DmfComputation<FImpl,T,Tio>
             }
             else
             {
-                p.at(s) =  noises_.at(s).timeSlices(s==Side::left ? dtL : dtR);
+                p.at(s) =  noises_.at(s).dilutionPartition(Index::t, s==Side::left ? dtL : dtR);
             }
         }
 

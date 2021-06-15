@@ -34,7 +34,6 @@
 #include <Hadrons/Global.hpp>
 #include <Hadrons/EigenPack.hpp>
 #include <Grid/util/Sha.h>
-#include <Hadrons/DistillationVectors.hpp>
 
 BEGIN_HADRONS_NAMESPACE
 
@@ -69,8 +68,7 @@ public:
     const std::vector<Vector<Type>> & getNoise(void) const;
     unsigned int dilutionIndex(const unsigned t, const unsigned l, const unsigned s) const;
     std::array<unsigned int, 3> dilutionCoordinates(const unsigned int d) const;
-    std::vector<unsigned int> timeSlices(const unsigned it);
-    std::vector<unsigned int> getDilutionPartition(const Index p, const unsigned i);
+    std::vector<unsigned int> dilutionPartition(const Index p, const unsigned i);
     const FermionField & makeSource(const unsigned int d, const unsigned int i);
     // access
     virtual void resize(const int nNoise);
@@ -85,9 +83,7 @@ public:
     void dumpDilutionMap(void);
     // generate noise
     void generateNoise(GridSerialRNG &rng);
-    // generate dummy noise - vector of 1s, used for exact distillation only
-    void exactNoisePolicy(void);
-    std::vector<std::string> generateHash(void);
+    virtual std::vector<std::string> generateHash(void);
     void save(const std::string filename, const std::string distilname, const unsigned int traj);
 protected:
     virtual void buildMap(void) = 0;
@@ -170,25 +166,10 @@ typename DistillationNoise<FImpl>::DilutionMap & DistillationNoise<FImpl>::getMa
 }
 
 template <typename FImpl>
-std::vector<unsigned int> DistillationNoise<FImpl>::timeSlices(const unsigned int it)
-{
-    std::vector<unsigned int> ts;
-    DilutionMap               &map = getMap();
-
-    for (auto t: map[Index::t][it])
-    {
-        ts.push_back(t);
-    }
-
-    return ts;
-}
-
-template <typename FImpl>
-std::vector<unsigned int> DistillationNoise<FImpl>::getDilutionPartition(const Index p, const unsigned ip)
+std::vector<unsigned int> DistillationNoise<FImpl>::dilutionPartition(const Index p, const unsigned ip)
 {
     std::vector<unsigned int> s;
     DilutionMap               &map = getMap();
-
     for (auto i: map[p][ip])
     {
         s.push_back(i);
@@ -329,18 +310,6 @@ void DistillationNoise<FImpl>::generateNoise(GridSerialRNG &rng)
 }
 
 template <typename FImpl>
-void DistillationNoise<FImpl>::exactNoisePolicy(void)
-{
-    const Type shift(1., 0.);
-
-    for (auto &n: noise_)
-    for (unsigned int i = 0; i < n.size(); ++i)
-    {
-        n[i] = shift;
-    }
-}
-
-template <typename FImpl>
 bool DistillationNoise<FImpl>::mapEmpty(void) const
 {
     bool empty = false;
@@ -472,9 +441,9 @@ public:
                                 const unsigned int li, const unsigned int si, 
                                 const unsigned nNoise);
     InterlacedDistillationNoise(GridCartesian *g, GridCartesian *g3d,
-                                const LapPack &pack);
+                                const LapPack &pack);   // for io purposes
     unsigned int getInterlacing(const Index ind) const;
-    virtual int  dilutionSize(const Index ind) const;
+    virtual int dilutionSize(const Index ind) const;
     void load(const std::string filename, const std::string distilname, const unsigned int traj);
 protected:
     virtual void buildMap(void);
@@ -493,7 +462,6 @@ InterlacedDistillationNoise<FImpl>::InterlacedDistillationNoise(GridCartesian *g
 : interlacing_({ti, li, si}), DistillationNoise<FImpl>(g, g3d, pack, nNoise)
 {}
 
-// for loading purposes
 template <typename FImpl>
 InterlacedDistillationNoise<FImpl>::InterlacedDistillationNoise(GridCartesian *g, 
                                                                 GridCartesian *g3d, 
@@ -563,6 +531,88 @@ void InterlacedDistillationNoise<FImpl>::load(const std::string filename, const 
 #else
     HADRONS_ERROR(Implementation, "distillation I/O needs HDF5 library");
 #endif
+}
+
+/******************************************************************************
+ *                 Container for exact distillation                           *
+ ******************************************************************************/
+template <typename FImpl>
+class ExactDistillationPolicy: public DistillationNoise<FImpl>
+{
+public:
+    typedef typename DistillationNoise<FImpl>::Index Index;
+    typedef typename DistillationNoise<FImpl>::LapPack LapPack;
+    typedef typename DistillationNoise<FImpl>::Type Type;
+public:
+    ExactDistillationPolicy(GridCartesian *g, GridCartesian *g3d,
+                                const LapPack &pack);
+    virtual int dilutionSize(const Index ind) const;
+    virtual std::vector<std::string> generateHash(void);
+protected:
+    virtual void buildMap(void);
+};
+
+template <typename FImpl>
+ExactDistillationPolicy<FImpl>::ExactDistillationPolicy(GridCartesian *g, 
+                                                                GridCartesian *g3d, 
+                                                                const LapPack &pack)
+: DistillationNoise<FImpl>(g, g3d, pack)
+{
+    const Type shift(1., 0.);
+    for (auto &n: this->getNoise())
+    for (unsigned int i = 0; i < n.size(); ++i)
+    {
+        n[i] = shift;
+    }
+}
+
+template <typename FImpl>
+int ExactDistillationPolicy<FImpl>::dilutionSize(const Index ind) const
+{
+    switch(ind) {
+        case Index::t :
+            return this->getNt();
+        case Index::l :
+            return this->getNl();
+        case Index::s :
+            return this->getNs();
+    }
+}
+
+template <typename FImpl>
+void ExactDistillationPolicy<FImpl>::buildMap(void)
+{
+    auto                   &map = this->getMap(false);
+
+    map[Index::t].clear();
+    for (unsigned int it = 0; it < dilutionSize(Index::t); ++it)
+    {
+        map[Index::t].push_back({it});
+    }
+    map[Index::l].clear();
+    for (unsigned int il = 0; il < dilutionSize(Index::l); ++il)
+    {
+        map[Index::l].push_back({il});
+    }
+    map[Index::s].clear();
+    for (unsigned int is = 0; is < dilutionSize(Index::s); ++is)
+    {
+        map[Index::s].push_back({is});
+    }
+}
+
+template <typename FImpl>
+std::vector<std::string> ExactDistillationPolicy<FImpl>::generateHash(void)
+{
+    if (this->mapEmpty())
+    {
+        this->buildMap();
+    }
+    
+    // exact distillation convention
+    std::vector<std::string> shash(1);
+    shash.front() = "0";    
+    return shash;
 }
 
 /******************************************************************************

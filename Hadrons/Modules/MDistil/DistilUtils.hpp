@@ -78,6 +78,7 @@ inline int getSourceTimesFromInput(std::string & sourceT,
 				   DistillationNoise<FImpl> & dilNoise,
 				   std::vector<int> & invT)
 {
+	typedef typename DistillationNoise<FImpl>::Index Index;
     int nSourceT=0;
     std::vector<std::vector<unsigned int>> sourceTimes;
     if(sourceT.empty())
@@ -86,7 +87,7 @@ inline int getSourceTimesFromInput(std::string & sourceT,
 	nSourceT=nDT;
         for (int dt = 0; dt < nDT; dt++)
 	{
-	    std::vector<unsigned int> sT = dilNoise.timeSlices(dt);
+	    std::vector<unsigned int> sT = dilNoise.dilutionPartition(Index::t, dt);
 	    sourceTimes.push_back(sT);
 	    invT.push_back(dt);
 	}
@@ -100,7 +101,7 @@ inline int getSourceTimesFromInput(std::string & sourceT,
 	// create sourceTimes from the chosen subset of time-dilution indices
         for (int dt = 0; dt < nSourceT; dt++)
 	{
-	    std::vector<unsigned int> sT = dilNoise.timeSlices(iT[dt]);
+	    std::vector<unsigned int> sT = dilNoise.dilutionPartition(Index::t, iT[dt]);
 	    sourceTimes.push_back(sT);
 	    invT.push_back(iT[dt]);
 	}
