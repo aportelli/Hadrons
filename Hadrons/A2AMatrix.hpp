@@ -29,8 +29,6 @@
 #ifndef A2A_Matrix_hpp_
 #define A2A_Matrix_hpp_
 
-#include <H5Ipublic.h> //temporary
-
 #include <Hadrons/Global.hpp>
 #include <Hadrons/TimerArray.hpp>
 #include <Grid/Eigen/unsupported/CXX11/Tensor>
@@ -115,7 +113,6 @@ public:
     void saveBlock(const A2AMatrixSet<T> &m, const unsigned int ext, const unsigned int str,
                    const unsigned int i, const unsigned int j);
     //distillation overloads and new methods
-    // void saveStringMetadata(std::string name, const std::string value);
     template <typename MetadataType>
     void initFile(const MetadataType &d);
     void createDilutionBlock(std::string datasetName, const unsigned int chunkSize, const std::vector<unsigned int> timeSlices);
