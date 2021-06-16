@@ -127,25 +127,6 @@ std::vector<std::string> TMADWFCG<FImplInner, FImplOuter, nBasis>
 }
 
 
-// template <typename FImplInner, typename FImplOuter, int nBasis>
-// struct TMADWFCG<FImplInner, FImplOuter, nBasis>
-// ::CGincreaseTol : public MADWFinnerIterCallbackBase {
-//     ConjugateGradient<FermionFieldInner> &cg_inner;  
-//     RealD outer_resid;
-
-//     CGincreaseTol(ConjugateGradient<FermionFieldInner> &cg_inner,
-//     RealD outer_resid): cg_inner(cg_inner), outer_resid(outer_resid){}
-
-//     void operator()(const RealD current_resid){
-//         LOG(Message) << "CGincreaseTol with current residual " << current_resid << " changing inner tolerance " << cg_inner.Tolerance << " -> ";
-//         while(cg_inner.Tolerance < current_resid) cg_inner.Tolerance *= 2;
-
-//         //cg_inner.Tolerance = outer_resid/current_resid;
-//         LOG(Message) << cg_inner.Tolerance << std::endl;
-//     }
-// };
-
-
 // setup ///////////////////////////////////////////////////////////////////////
 template <typename FImplInner, typename FImplOuter, int nBasis>
 void TMADWFCG<FImplInner, FImplOuter, nBasis>
@@ -181,8 +162,6 @@ void TMADWFCG<FImplInner, FImplOuter, nBasis>
 
             ConjugateGradient<FermionFieldInner> CG_inner(par().innerResidual, par().maxInnerIteration, 0);
             HADRONS_DEFAULT_SCHUR_SOLVE<FermionFieldInner> SchurSolver_inner(CG_inner);
-
-            // CGincreaseTol update(CG_inner, par().outerResidual);
 
             MADWF<CayleyFermion5D<FImplOuter>, CayleyFermion5D<FImplInner>,
                   PVtype, HADRONS_DEFAULT_SCHUR_SOLVE<FermionFieldInner>, 
