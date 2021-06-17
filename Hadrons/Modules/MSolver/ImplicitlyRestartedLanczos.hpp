@@ -9,7 +9,7 @@
 BEGIN_HADRONS_NAMESPACE
 
 /******************************************************************************
- *                         ImplicitlyRestartedLanczos                         *
+ *                    Implicitly Restarted Lanczos module                     *
  ******************************************************************************/
 BEGIN_MODULE_NAMESPACE(MSolver)
 
@@ -20,7 +20,7 @@ public:
                                     LanczosParams, lanczosParams,
                                     std::string,   op,
                                     std::string,   output,
-                                    bool,          cb,
+                                    bool,          redBlack,
                                     bool,          multiFile);
 };
 
@@ -51,7 +51,7 @@ private:
 MODULE_REGISTER_TMP(FermionImplicitlyRestartedLanczos, TImplicitlyRestartedLanczos<FIMPL::FermionField>, MSolver);
 
 /******************************************************************************
- *                 TImplicitlyRestartedLanczos implementation                             *
+ *                 TImplicitlyRestartedLanczos implementation                 *
  ******************************************************************************/
 // constructor /////////////////////////////////////////////////////////////////
 template <typename Field, typename FieldIo>
@@ -103,7 +103,8 @@ void TImplicitlyRestartedLanczos<Field, FieldIo>::setup(void)
     envGetTmp(PlainHermOp<Field>, hermOp);
     envTmp(ImplicitlyRestartedLanczos<Field>, "irl", Ls, chebyOp, hermOp, 
         par().lanczosParams.Nstop, par().lanczosParams.Nk, par().lanczosParams.Nm,
-        par().lanczosParams.resid, par().lanczosParams.MaxIt, par().lanczosParams.betastp, par().lanczosParams.MinRes);
+        par().lanczosParams.resid, par().lanczosParams.MaxIt, par().lanczosParams.betastp, 
+        par().lanczosParams.MinRes);
     envTmp(Field, "src", Ls, grid);
 }
 
@@ -124,13 +125,19 @@ void TImplicitlyRestartedLanczos<Field, FieldIo>::execute(void)
         gridIo = getGrid<FieldIo>();
     }
     src = 1.0;
-    if (par().cb)
+    if (par().redBlack)
     {
         src.Checkerboard() = Odd;
     }
     irl.calc(epack.eval, epack.evec, src, nconv, false);
     epack.eval.resize(par().lanczosParams.Nstop);
     epack.evec.resize(par().lanczosParams.Nstop, grid);
+    epack.record.operatorXml = vm().getModule(env().getObjectModule(par().op))->parString();
+    epack.record.solverXml   = parString();
+    if (!par().output.empty())
+    {
+        epack.write(par().output, par().multiFile, vm().getTrajectory());
+    }
 }
 
 template <typename Field, typename FieldIo>
@@ -142,7 +149,7 @@ GridBase * TImplicitlyRestartedLanczos<Field, FieldIo>::getGrid(void)
 
     if (Ls == 1)
     {
-        if (par().cb)
+        if (par().redBlack)
         {
             grid = envGetRbGrid(Field);
         }
@@ -153,7 +160,7 @@ GridBase * TImplicitlyRestartedLanczos<Field, FieldIo>::getGrid(void)
     }
     else
     {
-        if (par().cb)
+        if (par().redBlack)
         {
             grid = envGetRbGrid(Field, Ls);
         }
