@@ -124,7 +124,7 @@ void TImplicitlyRestartedLanczos<Field, FieldIo>::execute(void)
     {
         gridIo = getGrid<FieldIo>();
     }
-    src = 1.0;
+    gaussian(rng4d(), src);
     if (par().redBlack)
     {
         src.Checkerboard() = Odd;
