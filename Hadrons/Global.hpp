@@ -125,7 +125,8 @@ typedef Lattice<iSpinMatrix<typename FImpl::Simd>> SpinMatrixField##suffix;\
 typedef Lattice<iColourVector<typename FImpl::Simd>> ColourVectorField##suffix;
 
 #define GAUGE_TYPE_ALIASES(GImpl, suffix)\
-typedef typename GImpl::GaugeField GaugeField##suffix;
+typedef typename GImpl::GaugeField GaugeField##suffix;\
+typedef typename GImpl::GaugeLinkField GaugeLinkField##suffix;
 
 #define SOLVER_TYPE_ALIASES(FImpl, suffix)\
 typedef Solver<FImpl> Solver##suffix;
