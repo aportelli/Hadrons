@@ -76,6 +76,8 @@ private:
     std::vector<Gamma::Algebra>         gamma_;  
     bool                                isExact_=false;
     std::map<Side,std::string>          dmf_type_;
+    std::vector<unsigned int>           tsourcel_;
+    std::vector<unsigned int>           tsourcer_;
 };
 
 MODULE_REGISTER_TMP(DistilMesonField, TDistilMesonField<FIMPL>, MDistil);
@@ -149,6 +151,8 @@ void TDistilMesonField<FImpl>::setup(void)
     // time source input validation
     MDistil::verifyTimeSourcesInput(par().leftTimeSources,noisel.dilutionSize(Index::t));
     MDistil::verifyTimeSourcesInput(par().rightTimeSources,noiser.dilutionSize(Index::t));
+    tsourcel_ = strToVec<unsigned int>(par().leftTimeSources);
+    tsourcer_ = strToVec<unsigned int>(par().rightTimeSources);
 
     // parse momenta
     momenta_.clear();
@@ -192,10 +196,14 @@ void TDistilMesonField<FImpl>::setup(void)
         gamma_ = strToVec<Gamma::Algebra>(par().gamma);
     }
 
+    // still don't know which time sources perambulators contains (setup phase), so if empty allocate all to make sure distil vectors are big enough 
+    // unsigned int tsl_size = tsourcel_.empty() ? env().getDim(g->Nd() - 1) : tsourcel_.size();
+    // unsigned int tsr_size = tsourcer_.empty() ? env().getDim(g->Nd() - 1) : tsourcer_.size();
+
     envTmpLat(ComplexField,             "coor");
     envCache(std::vector<ComplexField>, "phasename",    1, momenta_.size(), g );
-    envTmp(DistilVector,                "dvl",          1, noisel.dilutionSize() , g);
-    envTmp(DistilVector,                "dvr",          1, noiser.dilutionSize() , g);
+    envTmp(DistilVector,                "dvl",          1, dilutionSize_ls_.at(Side::left), g);
+    envTmp(DistilVector,                "dvr",          1, dilutionSize_ls_.at(Side::right), g);
     envTmp(Computation,                 "computation",  1, dmf_type_, g, g3d, noisel, noiser, par().blockSize, 
                 par().cacheSize, env().getDim(g->Nd() - 1), momenta_.size(), gamma_.size(), isExact_);
 }
@@ -232,9 +240,7 @@ void TDistilMesonField<FImpl>::execute(void)
     }
 
     // fetch time sources input
-    std::vector<unsigned int> tsourcel = strToVec<unsigned int>(par().leftTimeSources);
-    std::vector<unsigned int> tsourcer = strToVec<unsigned int>(par().rightTimeSources);
-    std::map<Side, std::vector<unsigned int>> time_sources = {{Side::left,tsourcel},{Side::right,tsourcer}};
+    std::map<Side, std::vector<unsigned int>> time_sources = {{Side::left,tsourcel_},{Side::right,tsourcer_}};
     std::map<Side, std::string> peramb_input = {{Side::left,par().leftPeramb},{Side::right,par().rightPeramb}}; // perambulators time sources
     std::map<Side, std::vector<int>> ts_peramb;
     for(Side s : sides)     
@@ -375,15 +381,16 @@ void TDistilMesonField<FImpl>::execute(void)
                     peramb.emplace(s , perambtemp);
                 }
             }
-            computation.makeDistVecs(dist_vecs, npair, epack, time_sources, peramb);
+            // computation.makeDistVecs(dist_vecs, npair, epack, time_sources, peramb);
+            computation.execute(filenameDmfFn, metadataDmfFn, gamma_, dist_vecs, npair, phase, time_sources, epack, this, peramb);
         }
         else
         {
-            computation.makeDistVecs(dist_vecs, npair, epack, time_sources);
+            // computation.makeDistVecs(dist_vecs, npair, epack, time_sources);
+            computation.execute(filenameDmfFn, metadataDmfFn, gamma_, dist_vecs, npair, phase, time_sources, epack, this);
         }
 
         // computing mesonfield blocks and saving to disk
-        computation.execute(filenameDmfFn, metadataDmfFn, gamma_, dist_vecs, npair, phase, time_sources, this);
 
         LOG(Message) << "Meson fields saved at " << outputMFPath_ << std::endl;
     }
