@@ -195,8 +195,8 @@ DistillationNoise<FImpl>::makeSource(const unsigned int d, const unsigned int i)
         cstr += std::to_string(j) + " ";
     }
     cstr.pop_back();
-    LOG(Message) << "Making distillation source for dilution index " << d
-                 << " ~ (" << cstr << ")" << std::endl;
+    // LOG(Message) << "Making distillation source for dilution index " << d    //do we want to keep these messages?
+                //  << " ~ (" << cstr << ")" << std::endl;
     src_ = Zero();
     for (int it: map[Index::t][c[Index::t]])
     { 
@@ -206,9 +206,9 @@ DistillationNoise<FImpl>::makeSource(const unsigned int d, const unsigned int i)
             {
                 for (int is: map[Index::s][c[Index::s]])
                 {
-                    LOG(Message) << it << " " << ik << " " << is << std::endl;
+                    // LOG(Message) << it << " " << ik << " " << is << std::endl;
                     ExtractSliceLocal(evec3d_, pack_.evec[ik], 0, it - tFirst, tDir);
-                    LOG(Message) << noise(it, ik, is) << std::endl;
+                    // LOG(Message) << noise(it, ik, is) << std::endl;
                     evec3d_ = evec3d_*noise(it, ik, is);
                     tmp3d_  = Zero();
                     pokeSpin(tmp3d_, evec3d_, is);

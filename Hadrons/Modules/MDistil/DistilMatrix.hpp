@@ -36,14 +36,14 @@ public:
                                     unsigned int,               Nt,
                                     unsigned int,               Nvec,
                                     std::vector<RealF>,         Momentum,
-                                    Gamma::Algebra,             Operator,               // just gamma matrices for now, but could turn into more general operators in the future
+                                    Gamma::Algebra,             Operator,               // can turn into more general operators in the future
                                     std::vector<unsigned int>,  NoisePair,
                                     std::string,                MesonFieldType,
                                     std::vector<std::string>,   NoiseHashLeft,
                                     std::vector<std::string>,   NoiseHashRight)
 };
 
-//metadata io class to deal with 2d ragged arrays (possibly remove after Mike's serialisation rewrite)
+//metadata io class to deal with 2d ragged arrays (possibly remove after Mike's serialisation revision)
 class DistilMetadataIo
 {
 private:
@@ -270,7 +270,7 @@ void DmfComputation<FImpl,T,Tio>
                         unsigned int                      dt,
                         std::map<Side, PerambTensor&>     peramb)
 {
-    unsigned int iD_offset = noises_.at(s).dilutionIndex(dt,0,0);    //assuming t is the slowest index
+    unsigned int iD_offset = noises_.at(s).dilutionIndex(dt,0,0);    // t is the slowest index
     for(unsigned int iiD=0 ; iiD<dil_size_ls_.at(s) ; iiD++)
     {
         unsigned int iD = iiD + iD_offset;
@@ -306,7 +306,7 @@ void DmfComputation<FImpl,T,Tio>
         makeDistilVectorBlock(dv, n_pair[0], epack, Side::left, dtL, peramb);
         for (unsigned int dtR : timeDilSource.at(Side::right))
         {
-            // fetch necessary time slices for this block
+            // fetch necessary time slices for this time-dilution block
             std::map<Side,std::vector<unsigned int>> part = { {Side::left,{}} , {Side::right,{}}};
             for(auto s : sides)
             {
@@ -341,10 +341,11 @@ void DmfComputation<FImpl,T,Tio>
                 unsigned int nblocki = dil_size_ls_.at(Side::left)/blockSize_ + (((dil_size_ls_.at(Side::left) % blockSize_) != 0) ? 1 : 0);
                 unsigned int nblockj = dil_size_ls_.at(Side::right)/blockSize_ + (((dil_size_ls_.at(Side::right) % blockSize_) != 0) ? 1 : 0);
 
-                // loop over blocks in the current time-dilution block
+                // loop over blocks within the current time-dilution block
                 for(unsigned int i=0 ; i<dil_size_ls_.at(Side::left) ; i+=blockSize_) //set according to memory size
                 for(unsigned int j=0 ; j<dil_size_ls_.at(Side::right) ; j+=blockSize_)
                 {
+                    double flops=0.0, bytes=0.0, time_kernel=0.0, nodes=g_->NodeCount();
                     unsigned int iblockSize = MIN(dil_size_ls_.at(Side::left)-i,blockSize_);    // iblockSize is the size of the current block (indexed by i); N_i-i is the size of the eventual remainder block
                     unsigned int jblockSize = MIN(dil_size_ls_.at(Side::right)-j,blockSize_);
                     A2AMatrixSet<Tio> block(bBuf_.data(), next_ , nstr_ , nt_sparse, iblockSize, jblockSize);
@@ -355,32 +356,25 @@ void DmfComputation<FImpl,T,Tio>
                     << i+iblockSize-1 << ", " << j << " .. " << j+jblockSize-1 << "]" 
                     << std::endl;
 
-                    double flops        = 0.0;
-                    double bytes        = 0.0;
-                    double time_kernel  = 0.0;
-                    double nodes        = g_->NodeCount();
-
-                    // loop over cache_ blocks in the current block
-                    for(unsigned int ii=0 ; ii<iblockSize ; ii+=cacheSize_)   //set according to cache_ size
+                    // loop over cache blocks within the current block
+                    for(unsigned int ii=0 ; ii<iblockSize ; ii+=cacheSize_)
                     for(unsigned int jj=0 ; jj<jblockSize ; jj+=cacheSize_)
                     {
-                        unsigned int icacheSize = MIN(iblockSize-ii,cacheSize_);      // icacheSize is the size of the current cache_ block (indexed by ii); N_ii-ii is the size of the remainder cache_ block
+                        unsigned int icacheSize = MIN(iblockSize-ii,cacheSize_);      
                         unsigned int jcacheSize = MIN(jblockSize-jj,cacheSize_);
-                        A2AMatrixSet<T> blockCache(cBuf_.data(), next_, nstr_, nt_, icacheSize, jcacheSize);
+                        A2AMatrixSet<T> cache(cBuf_.data(), next_, nstr_, nt_, icacheSize, jcacheSize);
 
                         double timer = 0.0;
                         START_TIMER("kernel");
-                        // as dictated by DistillationNoise, dt must be the slowest index for this to work; otherwise will have to compute l/r block at each contraction)
-                        A2Autils<FImpl>::MesonField(blockCache, &dv.at(Side::left)[i+ii], &dv.at(Side::right)[j+jj], gamma_, ph, nd_ - 1, &timer);
+                        A2Autils<FImpl>::MesonField(cache, &dv.at(Side::left)[i+ii], &dv.at(Side::right)[j+jj], gamma_, ph, nd_ - 1, &timer);
                         STOP_TIMER("kernel");
                         time_kernel += timer;
 
-                        // nExt is currently # of momenta , nStr is # of gamma matrices
                         flops += vol*(2*8.0+6.0+8.0*next_)*icacheSize*jcacheSize*nstr_;
                         bytes += vol*(12.0*sizeof(T))*icacheSize*jcacheSize
                                 +  vol*(2.0*sizeof(T)*next_)*icacheSize*jcacheSize*nstr_;
 
-                        // loop through the cacheblock (inside them) and point blockCache to block
+                        // copy cache to block
                         START_TIMER("cache copy");
                         unsigned int stSize = ts_intersection.size();
                         thread_for_collapse(5,iext,next_,{
@@ -389,7 +383,7 @@ void DmfComputation<FImpl,T,Tio>
                         for(unsigned int iii=0;iii<icacheSize;iii++)
                         for(unsigned int jjj=0;jjj<jcacheSize;jjj++)
                         {
-                            block(iext,istr,it,ii+iii,jj+jjj)=blockCache(iext,istr,ts_intersection[it],iii,jjj);
+                            block(iext,istr,it,ii+iii,jj+jjj)=cache(iext,istr,ts_intersection[it],iii,jjj);
                         }
                         });
                         STOP_TIMER("cache copy");

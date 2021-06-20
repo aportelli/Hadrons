@@ -70,7 +70,6 @@ public:
     virtual void execute(void);
 private:
     std::string                         outputMFPath_;
-    bool                                hasPhase_{false};
     std::map<Side, unsigned int>        dilutionSize_ls_;
     std::vector<std::vector<RealF>>     momenta_;
     std::vector<Gamma::Algebra>         gamma_;  
@@ -130,7 +129,7 @@ template <typename FImpl>
 void TDistilMesonField<FImpl>::setup(void)
 {
     GridCartesian *g    = envGetGrid(FermionField);
-    GridCartesian *g3d  = envGetSliceGrid(FermionField, g->Nd() - 1);  // 3d grid (as a 4d one with collapsed time dimension)
+    GridCartesian *g3d  = envGetSliceGrid(FermionField, g->Nd() - 1);
     DistillationNoise &noisel = envGet( DistillationNoise , par().leftNoise);
     DistillationNoise &noiser = envGet( DistillationNoise , par().rightNoise);
     outputMFPath_       = par().outPath;
@@ -196,12 +195,8 @@ void TDistilMesonField<FImpl>::setup(void)
         gamma_ = strToVec<Gamma::Algebra>(par().gamma);
     }
 
-    // still don't know which time sources perambulators contains (setup phase), so if empty allocate all to make sure distil vectors are big enough 
-    // unsigned int tsl_size = tsourcel_.empty() ? env().getDim(g->Nd() - 1) : tsourcel_.size();
-    // unsigned int tsr_size = tsourcer_.empty() ? env().getDim(g->Nd() - 1) : tsourcer_.size();
-
     envTmpLat(ComplexField,             "coor");
-    envCache(std::vector<ComplexField>, "phasename",    1, momenta_.size(), g );
+    envTmp(std::vector<ComplexField>,   "phase",        1, momenta_.size(), g );
     envTmp(DistilVector,                "dvl",          1, dilutionSize_ls_.at(Side::left), g);
     envTmp(DistilVector,                "dvr",          1, dilutionSize_ls_.at(Side::right), g);
     envTmp(Computation,                 "computation",  1, dmf_type_, g, g3d, noisel, noiser, par().blockSize, 
@@ -216,11 +211,11 @@ void TDistilMesonField<FImpl>::execute(void)
     envGetTmp(DistilVector,     dvl);
     envGetTmp(DistilVector,     dvr);
     envGetTmp(Computation,      computation);
+    envGetTmp(std::vector<ComplexField>, phase);
 
     //start
     GridCartesian *g        = envGetGrid(FermionField);
     auto &epack             = envGet(typename DistillationNoise::LapPack, par().lapEigenPack);
-    auto &phase = envGet(std::vector<ComplexField>, "phasename");
     const unsigned int nVec = epack.evec.size();
     const unsigned int nd   = g->Nd();
     const unsigned int nt   = env().getDim(nd - 1);
@@ -327,25 +322,20 @@ void TDistilMesonField<FImpl>::execute(void)
         }
     }
 
-    //compute momentum phases
-    if (!hasPhase_)
+    startTimer("momentum phases");
+    envGetTmp(ComplexField, coor);
+    Complex           i(0.0,1.0);
+    for (unsigned int j = 0; j < momenta_.size(); ++j)
     {
-        startTimer("momentum phases");
-        envGetTmp(ComplexField, coor);
-        Complex           i(0.0,1.0);
-        for (unsigned int j = 0; j < momenta_.size(); ++j)
+        phase[j] = Zero();
+        for(unsigned int mu = 0; mu < momenta_[j].size(); mu++)
         {
-            phase[j] = Zero();
-            for(unsigned int mu = 0; mu < momenta_[j].size(); mu++)
-            {
-                LatticeCoordinate(coor, mu);
-                phase[j] = phase[j] + (momenta_[j][mu]/env().getDim()[mu])*coor;
-            }
-            phase[j] = exp((Real)(2*M_PI)*i*phase[j]);
+            LatticeCoordinate(coor, mu);
+            phase[j] = phase[j] + (momenta_[j][mu]/env().getDim()[mu])*coor;
         }
-        hasPhase_ = true;
-        stopTimer("momentum phases");
+        phase[j] = exp((Real)(2*M_PI)*i*phase[j]);
     }
+    stopTimer("momentum phases");
     
     LOG(Message) << "Selected time-dilution partitions :"         << std::endl;
     LOG(Message) << " Left : " << MDistil::timeslicesDump(time_sources.at(Side::left)) << std::endl;
@@ -381,18 +371,13 @@ void TDistilMesonField<FImpl>::execute(void)
                     peramb.emplace(s , perambtemp);
                 }
             }
-            // computation.makeDistVecs(dist_vecs, npair, epack, time_sources, peramb);
             computation.execute(filenameDmfFn, metadataDmfFn, gamma_, dist_vecs, npair, phase, time_sources, epack, this, peramb);
         }
         else
         {
-            // computation.makeDistVecs(dist_vecs, npair, epack, time_sources);
             computation.execute(filenameDmfFn, metadataDmfFn, gamma_, dist_vecs, npair, phase, time_sources, epack, this);
         }
-
-        // computing mesonfield blocks and saving to disk
-
-        LOG(Message) << "Meson fields saved at " << outputMFPath_ << std::endl;
+        LOG(Message) << "Meson fields saved to " << outputMFPath_ << std::endl;
     }
     LOG(Message) << "A2AUtils::MesonField kernel executed " << computation.global_counter << " times over " << par().cacheSize << "^2 cache blocks" << std::endl;
     LOG(Message) << "Average kernel perf (flops) : "          << computation.global_flops/computation.global_counter        << " Gflop/s/node " << std::endl;
