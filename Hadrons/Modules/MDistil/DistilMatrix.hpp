@@ -303,7 +303,9 @@ void DmfComputation<FImpl,T,Tio>
     // computing time-dillution blocks and saving to disk
     for (unsigned int dtL : timeDilSource.at(Side::left))
     {
+        START_TIMER("distil vectors");
         makeDistilVectorBlock(dv, n_pair[0], epack, Side::left, dtL, peramb);
+        STOP_TIMER("distil vectors");
         for (unsigned int dtR : timeDilSource.at(Side::right))
         {
             // fetch necessary time slices for this time-dilution block
@@ -332,7 +334,9 @@ void DmfComputation<FImpl,T,Tio>
             if( !ts_intersection.empty() ) // only execute case when partitions have at least one time slice in common
             {
                 timeDilutionPairList.push_back({dtL,dtR});
+                START_TIMER("distil vectors");
                 makeDistilVectorBlock(dv, n_pair[1], epack, Side::right, dtR, peramb);
+                STOP_TIMER("distil vectors");
                 LOG(Message) << "------------------------ " << dtL << "-" << dtR << " ------------------------" << std::endl; 
                 LOG(Message) << "Saving time slices : " << MDistil::timeslicesDump(ts_intersection) << std::endl;
                 LOG(Message) << "Time extension in file : " << nt_sparse << std::endl;
