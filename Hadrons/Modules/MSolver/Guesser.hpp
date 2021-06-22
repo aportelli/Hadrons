@@ -32,7 +32,7 @@
 BEGIN_HADRONS_NAMESPACE
 BEGIN_MODULE_NAMESPACE(MSolver)
 
-template <typename FImpl, int nBasis>
+template <typename FImpl, int nBasis = HADRONS_DEFAULT_LANCZOS_NBASIS>
 std::shared_ptr<LinearFunction<typename FImpl::FermionField>> 
 makeGuesser(const std::string epackName)
 {
