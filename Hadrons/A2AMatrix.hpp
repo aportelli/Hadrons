@@ -45,7 +45,6 @@
 #define HADRONS_A2AM_IO_TYPE ComplexF
 #endif
 
-//to be removed
 #ifndef DISTIL_NT_CHUNK_SIZE
 #define DISTIL_NT_CHUNK_SIZE 1
 #endif
