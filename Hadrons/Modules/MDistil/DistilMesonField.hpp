@@ -4,10 +4,9 @@
 #include <Hadrons/Global.hpp>
 #include <Hadrons/Module.hpp>
 #include <Hadrons/ModuleFactory.hpp>
-#include <Hadrons/A2AMatrix.hpp>
 #include <Hadrons/DilutedNoise.hpp>
 #include <Hadrons/NamedTensor.hpp>
-#include <Hadrons/Modules/MDistil/DistilMatrix.hpp>
+#include <Hadrons/DistilMatrix.hpp>
 #include <Hadrons/Modules/MDistil/DistilUtils.hpp>
 
 #ifndef HADRONS_DISTIL_IO_TYPE

@@ -139,7 +139,7 @@ public:
     bool isPhi(Side s);
     bool isRho(Side s);
     DilutionMap getMap(Side s);
-public:
+private:
     void makePhiComponent(FermionField&         phiComponent,
                           DistillationNoise&    n,
                           const unsigned int    n_idx,
@@ -150,12 +150,13 @@ public:
                           DistillationNoise&    n,
                           const unsigned int    n_idx,
                           const unsigned int    iD);
-    void makeDistilVectorBlock(std::map<Side, DistilVector&>  dv,
-                      unsigned int                  n_idx,
-                      LapPack&                      epack,
-                      Side                          s,
-                      unsigned int                  dt,
-                      std::map<Side, PerambTensor&> peramb={});
+    void makeDistilVectorBlock(std::map<Side, DistilVector&>    dv,
+                      unsigned int                              n_idx,
+                      LapPack&                                  epack,
+                      Side                                      s,
+                      unsigned int                              dt,
+                      std::map<Side, PerambTensor&>             peramb={});
+public:
     void execute(const FilenameFn                               &filenameDmfFn,
                  const MetadataFn                               &metadataDmfFn,
                  std::vector<Gamma::Algebra>                    gamma_,
