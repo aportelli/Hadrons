@@ -25,6 +25,8 @@ nobase_libHadrons_a_HEADERS = \
 	Database.hpp              \
 	DilutedNoise.hpp          \
 	DiskVector.hpp            \
+	DistilMatrix.hpp		  \
+	DistillationVectors.hpp   \
 	EigenPack.hpp             \
 	Environment.hpp           \
 	Exceptions.hpp            \

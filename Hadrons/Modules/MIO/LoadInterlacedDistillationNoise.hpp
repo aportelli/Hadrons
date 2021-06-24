@@ -9,7 +9,7 @@
 BEGIN_HADRONS_NAMESPACE
 
 /******************************************************************************
- *                         LoadInterlacedDistillationNoise                                 *
+ *                         LoadInterlacedDistillationNoise                    *
  ******************************************************************************/
 BEGIN_MODULE_NAMESPACE(MIO)
 
