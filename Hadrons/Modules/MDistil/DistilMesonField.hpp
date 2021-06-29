@@ -135,6 +135,11 @@ void TDistilMesonField<FImpl>::setup(void)
     dilutionSize_ls_    = { {Side::left,noisel.dilutionSize(Index::l)*noisel.dilutionSize(Index::s)},
                             {Side::right,noiser.dilutionSize(Index::l)*noiser.dilutionSize(Index::s)} };
 
+    if(par().blockSize > dilutionSize_ls_.at(Side::left) or par().blockSize > dilutionSize_ls_.at(Side::right))
+    {
+         HADRONS_ERROR(Size, "blockSize needs to be <= Laplacian-spin space dimensions.");
+    }
+
     if( ( vm().getModuleType(par().leftNoise) =="Grid::Hadrons::MNoise::ExactDistillation" ) &&
         ( vm().getModuleType(par().rightNoise)=="Grid::Hadrons::MNoise::ExactDistillation" ) )
     {
