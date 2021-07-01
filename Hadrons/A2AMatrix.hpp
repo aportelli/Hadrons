@@ -549,12 +549,13 @@ void A2AMatrixIo<T>::createDilutionBlock(std::string datasetName, const unsigned
 
     push(reader, dataname_);
     auto &group = reader.getGroup();
+    unsigned int ntchunk = (nt_ > DISTIL_NT_CHUNK_SIZE) ? DISTIL_NT_CHUNK_SIZE : nt_;
     
     //creates new dataset with custom name and certain chunk
     std::vector<hsize_t>    dim = {static_cast<hsize_t>(nt_), 
                                 static_cast<hsize_t>(ni_), 
                                 static_cast<hsize_t>(nj_)},
-                            chunk = {static_cast<hsize_t>(DISTIL_NT_CHUNK_SIZE),
+                            chunk = {static_cast<hsize_t>(ntchunk),
                                 static_cast<hsize_t>(chunkSize), 
                                 static_cast<hsize_t>(chunkSize)};
     dataspace.setExtentSimple(dim.size(), dim.data());
