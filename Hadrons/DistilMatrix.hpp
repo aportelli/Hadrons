@@ -351,7 +351,8 @@ void DmfComputation<FImpl,T,Tio>
                 for(unsigned int j=0 ; j<dil_size_ls_.at(Side::right) ; j+=blockSize_)
                 {
                     double flops=0.0, bytes=0.0, time_kernel=0.0, nodes=g_->NodeCount();
-                    unsigned int iblockSize = MIN(dil_size_ls_.at(Side::left)-i,blockSize_);    // iblockSize is the size of the current block (indexed by i); N_i-i is the size of the eventual remainder block
+                    // iblockSize is the size of the current block (indexed by i); N_i-i is the size of the possible remainder block
+                    unsigned int iblockSize = MIN(dil_size_ls_.at(Side::left)-i,blockSize_);
                     unsigned int jblockSize = MIN(dil_size_ls_.at(Side::right)-j,blockSize_);
                     A2AMatrixSet<Tio> block(bBuf_.data(), next_ , nstr_ , nt_sparse, iblockSize, jblockSize);
 
@@ -439,8 +440,10 @@ void DmfComputation<FImpl,T,Tio>
                     ioTime    += GET_TIMER("IO: write block");
                     unsigned int bytesBlockSize  = static_cast<double>(next_*nstr_*nt_sparse*iblockSize*jblockSize*sizeof(Tio));
                     double iospeed = bytesBlockSize/ioTime*0.95367431640625;     // 1.0e6/1024/1024
+                    unsigned int ntchunk = (nt_ > DISTIL_NT_CHUNK_SIZE) ? DISTIL_NT_CHUNK_SIZE : nt_; // for message purposes; set accordingly to A2AMatrix.hpp
                     LOG(Message)    << "HDF5 IO done " << sizeString(bytesBlockSize) << " in "
-                                    << ioTime  << " us (" << iospeed << " MB/s)" << std::endl;
+                                    << ioTime  << " us (" << iospeed << " MB/s) (chunks=)" 
+                                    << ntchunk << "x" << par().cacheSize << "x" << par().cacheSize << ")" << std::endl;
                     global_iospeed += iospeed;
                 }
             }
