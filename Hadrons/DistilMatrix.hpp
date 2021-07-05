@@ -115,7 +115,7 @@ private:
     FermionField                        tmp3d_;
     Vector<Tio>                         bBuf_;
     Vector<T>                           cBuf_;
-    const unsigned int                  blockSize_;
+    const unsigned int                  blockSize_; //eventually turns into chunk size
     const unsigned int                  cacheSize_;
     const unsigned int                  nt_;
     const unsigned int                  nd_;
@@ -426,7 +426,7 @@ void DmfComputation<FImpl,T,Tio>
                                 matrixIo.initFile(md);
                                 STOP_TIMER("IO: file creation");
                             }
-                            matrixIo.saveBlock(block, iext , istr , i, j, datasetName, ts_intersection, cacheSize_);   //sets 2D chunk size and creates dataset
+                            matrixIo.saveBlock(block, iext , istr , i, j, datasetName, ts_intersection, blockSize_);   //sets 2D chunk size and creates dataset
                         }
                         else{
                             matrixIo.saveBlock(block, iext , istr , i, j, datasetName);
