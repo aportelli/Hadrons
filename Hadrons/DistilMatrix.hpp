@@ -443,7 +443,7 @@ void DmfComputation<FImpl,T,Tio>
                     unsigned int ntchunk = (nt_ > DISTIL_NT_CHUNK_SIZE) ? DISTIL_NT_CHUNK_SIZE : nt_; // for message purposes; set accordingly to A2AMatrix.hpp
                     LOG(Message)    << "HDF5 IO done " << sizeString(bytesBlockSize) << " in "
                                     << ioTime  << " us (" << iospeed << " MB/s) (chunks=)" 
-                                    << ntchunk << "x" << par().cacheSize << "x" << par().cacheSize << ")" << std::endl;
+                                    << ntchunk << "x" << blockSize_ << "x" << blockSize_ << ")" << std::endl;
                     global_iospeed += iospeed;
                 }
             }
