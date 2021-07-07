@@ -17,7 +17,6 @@ class ExactDistillationPar: Serializable
 {
 public:
     GRID_SERIALIZABLE_CLASS_MEMBERS(ExactDistillationPar,
-                                    unsigned int, nVec,
                                     std::string, lapEigenPack);
 };
 
