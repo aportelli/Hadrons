@@ -169,6 +169,10 @@ public:
     bool                    isObjectOfType(const unsigned int address) const;
     template <typename T>
     bool                    isObjectOfType(const std::string name) const;
+    template <typename B, typename T>
+    bool                    isObjectOfDerivedType(const unsigned int address) const;
+    template <typename B, typename T>
+    bool                    isObjectOfDerivedType(const std::string name) const;
     Environment::Size       getTotalSize(void) const;
     void                    freeObject(const unsigned int address);
     void                    freeObject(const std::string name);
@@ -643,6 +647,26 @@ template <typename T>
 bool Environment::isObjectOfType(const std::string name) const
 {
     return isObjectOfType<T>(getObjectAddress(name));
+}
+
+template <typename B, typename T>
+bool Environment::isObjectOfDerivedType(const unsigned int address) const
+{
+    try
+    {
+        auto o = getDerivedObject<B,T>(address);
+    }
+    catch(...)
+    {
+        return false;
+    }
+    return true;
+}
+
+template <typename B, typename T>
+bool Environment::isObjectOfDerivedType(const std::string name) const
+{
+    return isObjectOfDerivedType<B, T>(getObjectAddress(name));
 }
 
 END_HADRONS_NAMESPACE
