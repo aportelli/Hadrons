@@ -105,8 +105,8 @@ public:
     typedef std::function<std::string(const unsigned int, const unsigned int, const int, const int)>  FilenameFn;
     typedef std::function<DistilMesonFieldMetadata<FImpl>(const unsigned int, const unsigned int, const int, const int)>  MetadataFn;
 public:
-    long    global_counter = 0;
-    double  global_flops = 0.0, global_bytes = 0.0, global_iospeed = 0.0;
+    long    blockCounter_ = 0;
+    double  blockFlops_ = 0.0, blockBytes_ = 0.0, blockIoSpeed_ = 0.0;
 private:
     std::map<Side,std::string>          dmfType_;
     GridCartesian*                      g_;
@@ -115,38 +115,38 @@ private:
     FermionField                        tmp3d_;
     Vector<Tio>                         bBuf_;
     Vector<T>                           cBuf_;
-    const unsigned int                  blockSize_; //eventually turns into chunk size
+    const unsigned int                  blockSize_; //eventually turns into io chunk size
     const unsigned int                  cacheSize_;
     const unsigned int                  nt_;
     const unsigned int                  nd_;
-    const unsigned int                  next_;
-    const unsigned int                  nstr_;
-    const bool                          is_exact_;
-    std::map<Side, unsigned int>        dil_size_ls_;
+    const unsigned int                  nExt_;
+    const unsigned int                  nStr_;
+    const bool                          isExact_;
+    std::map<Side, unsigned int>        dilSizeLS_;
     std::map<Side, DistillationNoise&>  noises_;
 public:
-    DmfComputation(std::map<Side,std::string>   mftype,
+    DmfComputation(std::map<Side,std::string>   mf_type,
                    GridCartesian*               g,
                    GridCartesian*               g3d,
                    DistillationNoise&           nl,
                    DistillationNoise&           nr,
-                   const unsigned int           blockSize,
-                   const unsigned int           cacheSize,
+                   const unsigned int           block_size,
+                   const unsigned int           cache_size,
                    const unsigned int           nt,
-                   const unsigned int           next,
-                   const unsigned int           nstr,
+                   const unsigned int           n_ext,
+                   const unsigned int           n_str,
                    const bool                   is_exact);
     bool isPhi(Side s);
     bool isRho(Side s);
     DilutionMap getMap(Side s);
 private:
-    void makePhiComponent(FermionField&         phiComponent,
+    void makePhiComponent(FermionField&         phi_component,
                           DistillationNoise&    n,
                           const unsigned int    n_idx,
                           const unsigned int    iD,
                           PerambTensor&         peramb,
                           LapPack&              epack);
-    void makeRhoComponent(FermionField&         rhoComponent,
+    void makeRhoComponent(FermionField&         rho_component,
                           DistillationNoise&    n,
                           const unsigned int    n_idx,
                           const unsigned int    iD);
@@ -163,7 +163,7 @@ public:
                  std::map<Side, DistilVector&>                  dv,
                  std::vector<unsigned int>                      n_pair,
                  std::vector<ComplexField>                      ph,
-                 std::map<Side, std::vector<unsigned int>>      timeDilSource,
+                 std::map<Side, std::vector<unsigned int>>      time_dil_source,
                  LapPack&                                       epack,
                  TimerArray*                                    tarray,
                  std::map<Side, PerambTensor&>                  peramb={});
@@ -175,26 +175,26 @@ public:
 
 template <typename FImpl, typename T, typename Tio>
 DmfComputation<FImpl,T,Tio>
-::DmfComputation(std::map<Side,std::string>  mftype,
-                 GridCartesian*         g,
-                 GridCartesian*         g3d,
-                 DistillationNoise&     nl,
-                 DistillationNoise&     nr,
-                 const unsigned int     blockSize,
-                 const unsigned int     cacheSize,
-                 const unsigned int     nt,
-                 const unsigned int     next,
-                 const unsigned int     nstr,
-                 const bool             is_exact)
-: dmfType_(mftype), g_(g), g3d_(g3d), evec3d_(g3d), tmp3d_(g3d)
-, nt_(nt) , nd_(g->Nd()), blockSize_(blockSize) , cacheSize_(cacheSize)
-, next_(next) , nstr_(nstr) , is_exact_(is_exact)
+::DmfComputation(std::map<Side,std::string>     mf_type,
+                 GridCartesian*                 g,
+                 GridCartesian*                 g3d,
+                 DistillationNoise&             nl,
+                 DistillationNoise&             nr,
+                 const unsigned int             block_size,
+                 const unsigned int             cache_size,
+                 const unsigned int             nt,
+                 const unsigned int             n_ext,
+                 const unsigned int             n_str,
+                 const bool                     is_exact)
+: dmfType_(mf_type), g_(g), g3d_(g3d), evec3d_(g3d), tmp3d_(g3d)
+, nt_(nt) , nd_(g->Nd()), blockSize_(block_size) , cacheSize_(cache_size)
+, nExt_(n_ext) , nStr_(n_str) , isExact_(is_exact)
 {
-    cBuf_.resize(next_*nstr_*nt_*cacheSize_*cacheSize_);
-    bBuf_.resize(next_*nstr_*nt_*blockSize_*blockSize_); //maximum size
+    cBuf_.resize(nExt_*nStr_*nt_*cacheSize_*cacheSize_);
+    bBuf_.resize(nExt_*nStr_*nt_*blockSize_*blockSize_); //maximum size
 
     noises_ = std::map<Side, DistillationNoise&> ({{Side::left,nl},{Side::right,nr}});
-    dil_size_ls_ = { {Side::left,nl.dilutionSize(Index::l)*nl.dilutionSize(Index::s)} ,
+    dilSizeLS_ = { {Side::left,nl.dilutionSize(Index::l)*nl.dilutionSize(Index::s)} ,
                              {Side::right,nr.dilutionSize(Index::l)*nr.dilutionSize(Index::s)} };
 }
 
@@ -225,7 +225,7 @@ bool DmfComputation<FImpl,T,Tio>::isRho(Side s)
 
 template <typename FImpl, typename T, typename Tio>
 void DmfComputation<FImpl,T,Tio>
-::makePhiComponent(FermionField&            phiComponent,
+::makePhiComponent(FermionField&            phi_component,
                    DistillationNoise&       n,
                    const unsigned int       n_idx,
                    const unsigned int       iD,
@@ -238,28 +238,28 @@ void DmfComputation<FImpl,T,Tio>
     std::vector<int>::iterator itr_dt = std::find(peramb_ts.begin(), peramb_ts.end(), dt);
     unsigned int idt = std::distance(peramb_ts.begin(), itr_dt); //gets correspondent index of dt in the tensor obj 
     const unsigned int nVec = epack.evec.size();
-    const unsigned int Ntfirst = g_->LocalStarts()[nd_ - 1];
-    const unsigned int Ntlocal = g_->LocalDimensions()[nd_ - 1];
-    for (unsigned int t = Ntfirst; t < Ntfirst + Ntlocal; t++)
+    const unsigned int Nt_first = g_->LocalStarts()[nd_ - 1];
+    const unsigned int Nt_local = g_->LocalDimensions()[nd_ - 1];
+    for (unsigned int t = Nt_first; t < Nt_first + Nt_local; t++)
     {
         tmp3d_ = Zero();
         for (unsigned int k = 0; k < nVec; k++)
         {
-            ExtractSliceLocal(evec3d_,epack.evec[k],0,t-Ntfirst,nd_ - 1);
+            ExtractSliceLocal(evec3d_,epack.evec[k],0,t-Nt_first,nd_ - 1);
             tmp3d_ += evec3d_ * peramb.tensor(t, k, dl, n_idx, idt, ds);
         }
-        InsertSliceLocal(tmp3d_,phiComponent,0,t-Ntfirst,nd_ - 1);
+        InsertSliceLocal(tmp3d_,phi_component,0,t-Nt_first,nd_ - 1);
     }
 }
 
 template <typename FImpl, typename T, typename Tio>
 void DmfComputation<FImpl,T,Tio>
-::makeRhoComponent(FermionField&        rhoComponent,
+::makeRhoComponent(FermionField&        rho_component,
                    DistillationNoise&   n,
                    const unsigned int   n_idx,
                    const unsigned int   iD)   
 {
-    rhoComponent = n.makeSource(iD, n_idx);
+    rho_component = n.makeSource(iD, n_idx);
 }
 
 template <typename FImpl, typename T, typename Tio>
@@ -272,7 +272,7 @@ void DmfComputation<FImpl,T,Tio>
                         std::map<Side, PerambTensor&>     peramb)
 {
     unsigned int iD_offset = noises_.at(s).dilutionIndex(dt,0,0);    // t is the slowest index
-    for(unsigned int iiD=0 ; iiD<dil_size_ls_.at(s) ; iiD++)
+    for(unsigned int iiD=0 ; iiD<dilSizeLS_.at(s) ; iiD++)
     {
         unsigned int iD = iiD + iD_offset;
         if(isPhi(s))
@@ -294,20 +294,20 @@ void DmfComputation<FImpl,T,Tio>
           std::map<Side, DistilVector&>                 dv,
           std::vector<unsigned int>                     n_pair,
           std::vector<ComplexField>                     ph,
-          std::map<Side, std::vector<unsigned int>>     timeDilSource,
+          std::map<Side, std::vector<unsigned int>>     time_dil_source,
           LapPack&                                      epack,
           TimerArray*                                   tarray,
           std::map<Side, PerambTensor&>                 peramb)
 {
-    std::vector<std::vector<unsigned int>> timeDilutionPairList;
+    std::vector<std::vector<unsigned int>> time_dil_pair_list;
     const unsigned int vol = g_->_gsites;
     // computing time-dillution blocks and saving to disk
-    for (unsigned int dtL : timeDilSource.at(Side::left))
+    for (unsigned int dtL : time_dil_source.at(Side::left))
     {
         START_TIMER("distil vectors");
         makeDistilVectorBlock(dv, n_pair[0], epack, Side::left, dtL, peramb);
         STOP_TIMER("distil vectors");
-        for (unsigned int dtR : timeDilSource.at(Side::right))
+        for (unsigned int dtR : time_dil_source.at(Side::right))
         {
             // fetch necessary time slices for this time-dilution block
             std::map<Side,std::vector<unsigned int>> part = { {Side::left,{}} , {Side::right,{}}};
@@ -330,45 +330,45 @@ void DmfComputation<FImpl,T,Tio>
                                 std::back_inserter(ts_intersection));
 
             const int nt_sparse = ts_intersection.size();
-            bBuf_.resize(next_*nstr_*nt_sparse*blockSize_*blockSize_);
+            bBuf_.resize(nExt_*nStr_*nt_sparse*blockSize_*blockSize_);
 
             if( !ts_intersection.empty() ) // only execute case when partitions have at least one time slice in common
             {
-                timeDilutionPairList.push_back({dtL,dtR});
+                time_dil_pair_list.push_back({dtL,dtR});
                 START_TIMER("distil vectors");
                 makeDistilVectorBlock(dv, n_pair[1], epack, Side::right, dtR, peramb);
                 STOP_TIMER("distil vectors");
                 LOG(Message) << "------------------------ " << dtL << "-" << dtR << " ------------------------" << std::endl; 
                 LOG(Message) << "Saving time slices : " << MDistil::timeslicesDump(ts_intersection) << std::endl;
                 LOG(Message) << "Time extension in file : " << nt_sparse << std::endl;
-                std::string datasetName = std::to_string(dtL)+"-"+std::to_string(dtR);
+                std::string dataset_name = std::to_string(dtL)+"-"+std::to_string(dtR);
 
-                unsigned int nblocki = dil_size_ls_.at(Side::left)/blockSize_ + (((dil_size_ls_.at(Side::left) % blockSize_) != 0) ? 1 : 0);
-                unsigned int nblockj = dil_size_ls_.at(Side::right)/blockSize_ + (((dil_size_ls_.at(Side::right) % blockSize_) != 0) ? 1 : 0);
+                unsigned int nblocki = dilSizeLS_.at(Side::left)/blockSize_ + (((dilSizeLS_.at(Side::left) % blockSize_) != 0) ? 1 : 0);
+                unsigned int nblockj = dilSizeLS_.at(Side::right)/blockSize_ + (((dilSizeLS_.at(Side::right) % blockSize_) != 0) ? 1 : 0);
 
                 // loop over blocks within the current time-dilution block
-                for(unsigned int i=0 ; i<dil_size_ls_.at(Side::left) ; i+=blockSize_) //set according to memory size
-                for(unsigned int j=0 ; j<dil_size_ls_.at(Side::right) ; j+=blockSize_)
+                for(unsigned int i=0 ; i<dilSizeLS_.at(Side::left) ; i+=blockSize_) //set according to memory size
+                for(unsigned int j=0 ; j<dilSizeLS_.at(Side::right) ; j+=blockSize_)
                 {
                     double flops=0.0, bytes=0.0, time_kernel=0.0, nodes=g_->NodeCount();
-                    // iblockSize is the size of the current block (indexed by i); N_i-i is the size of the possible remainder block
-                    unsigned int iblockSize = MIN(dil_size_ls_.at(Side::left)-i,blockSize_);
-                    unsigned int jblockSize = MIN(dil_size_ls_.at(Side::right)-j,blockSize_);
-                    A2AMatrixSet<Tio> block(bBuf_.data(), next_ , nstr_ , nt_sparse, iblockSize, jblockSize);
+                    // iblock_size is the size of the current block (indexed by i); N_i-i is the size of the possible remainder block
+                    unsigned int iblock_size = MIN(dilSizeLS_.at(Side::left)-i,blockSize_);
+                    unsigned int jblock_size = MIN(dilSizeLS_.at(Side::right)-j,blockSize_);
+                    A2AMatrixSet<Tio> block(bBuf_.data(), nExt_ , nStr_ , nt_sparse, iblock_size, jblock_size);
 
                     LOG(Message) << "Distil matrix block " 
                     << j/blockSize_ + nblocki*i/blockSize_ + 1 
                     << "/" << nblocki*nblockj << " [" << i << " .. " 
-                    << i+iblockSize-1 << ", " << j << " .. " << j+jblockSize-1 << "]" 
+                    << i+iblock_size-1 << ", " << j << " .. " << j+jblock_size-1 << "]" 
                     << std::endl;
 
                     // loop over cache blocks within the current block
-                    for(unsigned int ii=0 ; ii<iblockSize ; ii+=cacheSize_)
-                    for(unsigned int jj=0 ; jj<jblockSize ; jj+=cacheSize_)
+                    for(unsigned int ii=0 ; ii<iblock_size ; ii+=cacheSize_)
+                    for(unsigned int jj=0 ; jj<jblock_size ; jj+=cacheSize_)
                     {
-                        unsigned int icacheSize = MIN(iblockSize-ii,cacheSize_);      
-                        unsigned int jcacheSize = MIN(jblockSize-jj,cacheSize_);
-                        A2AMatrixSet<T> cache(cBuf_.data(), next_, nstr_, nt_, icacheSize, jcacheSize);
+                        unsigned int icache_size = MIN(iblock_size-ii,cacheSize_);      
+                        unsigned int jcache_size = MIN(jblock_size-jj,cacheSize_);
+                        A2AMatrixSet<T> cache(cBuf_.data(), nExt_, nStr_, nt_, icache_size, jcache_size);
 
                         double timer = 0.0;
                         START_TIMER("kernel");
@@ -376,18 +376,18 @@ void DmfComputation<FImpl,T,Tio>
                         STOP_TIMER("kernel");
                         time_kernel += timer;
 
-                        flops += vol*(2*8.0+6.0+8.0*next_)*icacheSize*jcacheSize*nstr_;
-                        bytes += vol*(12.0*sizeof(T))*icacheSize*jcacheSize
-                                +  vol*(2.0*sizeof(T)*next_)*icacheSize*jcacheSize*nstr_;
+                        flops += vol*(2*8.0+6.0+8.0*nExt_)*icache_size*jcache_size*nStr_;
+                        bytes += vol*(12.0*sizeof(T))*icache_size*jcache_size
+                                +  vol*(2.0*sizeof(T)*nExt_)*icache_size*jcache_size*nStr_;
 
                         // copy cache to block
                         START_TIMER("cache copy");
-                        unsigned int stSize = ts_intersection.size();
-                        thread_for_collapse(5,iext,next_,{
-                        for(unsigned int istr=0;istr<nstr_;istr++)
-                        for(unsigned int it=0;it<stSize;it++)
-                        for(unsigned int iii=0;iii<icacheSize;iii++)
-                        for(unsigned int jjj=0;jjj<jcacheSize;jjj++)
+                        unsigned int ts_size = ts_intersection.size();
+                        thread_for_collapse(5,iext,nExt_,{
+                        for(unsigned int istr=0;istr<nStr_;istr++)
+                        for(unsigned int it=0;it<ts_size;it++)
+                        for(unsigned int iii=0;iii<icache_size;iii++)
+                        for(unsigned int jjj=0;jjj<jcache_size;jjj++)
                         {
                             block(iext,istr,it,ii+iii,jj+jjj)=cache(iext,istr,ts_intersection[it],iii,jjj);
                         }
@@ -399,9 +399,9 @@ void DmfComputation<FImpl,T,Tio>
                                 << " Gflop/s/node " << std::endl;
                     LOG(Message) << "Kernel perf (read) " << bytes/time_kernel*0.000931322574615478515625/nodes //  *1.0e6/1024/1024/1024/nodes
                                 << " GB/s/node "  << std::endl;
-                    global_counter++;
-                    global_flops += flops/time_kernel/1.0e3/nodes ;
-                    global_bytes += bytes/time_kernel*0.000931322574615478515625/nodes ; // 1.0e6/1024/1024/1024/nodes
+                    blockCounter_++;
+                    blockFlops_ += flops/time_kernel/1.0e3/nodes ;
+                    blockBytes_ += bytes/time_kernel*0.000931322574615478515625/nodes ; // 1.0e6/1024/1024/1024/nodes
 
                     // saving current block to disk
                     double ioTime = -GET_TIMER("IO: write block");
@@ -412,25 +412,25 @@ void DmfComputation<FImpl,T,Tio>
                     unsigned int nnode = g_->RankCount(); 
                     LOG(Message) << "Starting parallel IO. Rank count=" << nnode  << std::endl;
                     g_->Barrier();
-                    for(unsigned int ies=inode ; ies<next_*nstr_ ; ies+=nnode){
-                        unsigned int iext = ies/nstr_;
-                        unsigned int istr = ies%nstr_;
+                    for(unsigned int k=inode ; k<nExt_*nStr_ ; k+=nnode){
+                        unsigned int iext = k/nStr_;
+                        unsigned int istr = k%nStr_;
                         // metadata;
                         DistilMesonFieldMetadata<FImpl> md = metadataDmfFn(iext,istr,n_pair[0],n_pair[1]);                    
-                        A2AMatrixIo<HADRONS_DISTIL_IO_TYPE> matrixIo(filenameDmfFn(iext,istr,n_pair[0],n_pair[1]), DISTIL_MATRIX_NAME, nt_sparse, dil_size_ls_.at(Side::left), dil_size_ls_.at(Side::right));
+                        A2AMatrixIo<HADRONS_DISTIL_IO_TYPE> matrixIo(filenameDmfFn(iext,istr,n_pair[0],n_pair[1]), DISTIL_MATRIX_NAME, nt_sparse, dilSizeLS_.at(Side::left), dilSizeLS_.at(Side::right));
                         START_TIMER("IO: write block");
                         if(i==0 && j==0)  
                         {             
-                            if( (dtL==timeDilSource.at(Side::left)[0]) && (dtR==timeDilSource.at(Side::right)[0]) )     //execute this once per block
+                            if( (dtL==time_dil_source.at(Side::left)[0]) && (dtR==time_dil_source.at(Side::right)[0]) )     //execute this once per block
                             {
                                 START_TIMER("IO: file creation");
                                 matrixIo.initFile(md);
                                 STOP_TIMER("IO: file creation");
                             }
-                            matrixIo.saveBlock(block, iext , istr , i, j, datasetName, ts_intersection, blockSize_);   //sets 2D chunk size and creates dataset
+                            matrixIo.saveBlock(block, iext , istr , i, j, dataset_name, ts_intersection, blockSize_);   //sets 2D chunk size and creates dataset
                         }
                         else{
-                            matrixIo.saveBlock(block, iext , istr , i, j, datasetName);
+                            matrixIo.saveBlock(block, iext , istr , i, j, dataset_name);
                         }
                         STOP_TIMER("IO: write block");
                     }
@@ -438,27 +438,27 @@ void DmfComputation<FImpl,T,Tio>
     #endif
                     STOP_TIMER("IO: total");
                     ioTime    += GET_TIMER("IO: write block");
-                    unsigned int bytesBlockSize  = static_cast<double>(next_*nstr_*nt_sparse*iblockSize*jblockSize*sizeof(Tio));
+                    unsigned int bytesBlockSize  = static_cast<double>(nExt_*nStr_*nt_sparse*iblock_size*jblock_size*sizeof(Tio));
                     double iospeed = bytesBlockSize/ioTime*0.95367431640625;     // 1.0e6/1024/1024
                     unsigned int ntchunk = (nt_ > DISTIL_NT_CHUNK_SIZE) ? DISTIL_NT_CHUNK_SIZE : nt_; // for message purposes; set accordingly to A2AMatrix.hpp
                     LOG(Message)    << "HDF5 IO done " << sizeString(bytesBlockSize) << " in "
-                                    << ioTime  << " us (" << iospeed << " MB/s) (chunks=)" 
+                                    << ioTime  << " us (" << iospeed << " MB/s) (chunks=" 
                                     << ntchunk << "x" << blockSize_ << "x" << blockSize_ << ")" << std::endl;
-                    global_iospeed += iospeed;
+                    blockIoSpeed_ += iospeed;
                 }
             }
         }
     }
-    //saving dilution schemes and time source pairs
+    //write dilution schemes and time source pairs
     if(g_->IsBoss())
     {
         START_TIMER("IO: total");
-        for(unsigned int iext=0 ; iext<next_ ; iext++)
-        for(unsigned int istr=0 ; istr<nstr_ ; istr++)
+        for(unsigned int iext=0 ; iext<nExt_ ; iext++)
+        for(unsigned int istr=0 ; istr<nStr_ ; istr++)
         {
             DistilMetadataIo mdIo(filenameDmfFn(iext,istr,n_pair[0],n_pair[1]),
                     std::string(DISTIL_MATRIX_NAME) + "/" + std::string(METADATA_NAME) );
-            mdIo.write2dMetadata("TimeSourcePairs", timeDilutionPairList);
+            mdIo.write2dMetadata("TimeSourcePairs", time_dil_pair_list);
             //  dilution schemes (2d ragged metadata)
             DilutionMap lmap = getMap(Side::left);
             DilutionMap rmap = getMap(Side::right);
