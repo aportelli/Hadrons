@@ -30,8 +30,9 @@ See the full license in the file "LICENSE" in the top level distribution directo
 
 using namespace Grid;
 
-const int TSRC = 0;  //timeslice where rho is nonzero
-const int VDIM = 5; //length of each vector
+const int VDIM = 20; // length of each vector
+const int NMOM = 27; // number of momenta
+const int NGAM = 16; // number of gamma matrices
 
 typedef typename DomainWallFermionR::ComplexField ComplexField;
 typedef typename DomainWallFermionR::FermionField FermionField;
@@ -48,40 +49,31 @@ int main(int argc, char *argv[])
   Coordinate mpi_layout  = GridDefaultMpi();
   GridCartesian    grid(latt_size,simd_layout,mpi_layout);
   int Nt = GridDefaultLatt()[Tp];
-  Lattice<iScalar<vInteger>> t(&grid);
-  LatticeCoordinate(t, Tp);
   std::vector<int> seeds({1,2,3,4});
   GridParallelRNG          pRNG(&grid);
   pRNG.SeedFixedIntegers(seeds);
 
   // MesonField lhs and rhs vectors
   std::vector<FermionField> phi(VDIM,&grid);
-  std::vector<FermionField> rho(VDIM,&grid);
-  FermionField rho_tmp(&grid);
-  std::cout << GridLogMessage << "Initialising random meson fields" << std::endl;
+  std::cout << GridLogMessage << "Initialising random meson field" << std::endl;
   for (unsigned int i = 0; i < VDIM; ++i){
     random(pRNG,phi[i]);
-    random(pRNG,rho_tmp); //ideally only nonzero on t=0
-    rho[i] = where((t==TSRC), rho_tmp, 0.*rho_tmp); //ideally only nonzero on t=0
   }
-  std::cout << GridLogMessage << "Meson fields initialised, rho non-zero only for t = " << TSRC << std::endl;
+  std::cout << GridLogMessage << "Meson field initialised" << std::endl;
 
   // Gamma matrices used in the contraction
-  std::vector<Gamma::Algebra> Gmu = {
-    Gamma::Algebra::GammaX,
-    Gamma::Algebra::GammaY,
-    Gamma::Algebra::GammaZ,
-    Gamma::Algebra::GammaT
-  };
+  std::vector<Gamma::Algebra> Gmu(NGAM); 
+  for (unsigned int j = 0; j < NGAM; ++j)
+  {
+    Gmu[j]=Gamma::Algebra::GammaT;
+  }
 
   // momentum phases e^{ipx}
-  std::vector<std::vector<double>> momenta = {
-	  {0.,0.,0.},
-	  {1.,0.,0.},
-	  {1.,1.,0.},
-	  {1.,1.,1.},
-	  {2.,0.,0.}
-  };
+  std::vector<std::vector<double>> momenta (NMOM);
+  for (unsigned int j = 0; j < NMOM; ++j)
+  {
+    momenta[j]= {1.,1.,1.};
+  }
 
   std::cout << GridLogMessage << "Meson fields will be created for " << Gmu.size() << " Gamma matrices and " << momenta.size() << " momenta." << std::endl;
 
@@ -102,8 +94,6 @@ int main(int argc, char *argv[])
   std::cout << GridLogMessage << "Computing complex phases done." << std::endl;
 
   Eigen::Tensor<ComplexD,5, Eigen::RowMajor> Mpp(momenta.size(),Gmu.size(),Nt,VDIM,VDIM);
-  Eigen::Tensor<ComplexD,5, Eigen::RowMajor> Mpr(momenta.size(),Gmu.size(),Nt,VDIM,VDIM);
-  Eigen::Tensor<ComplexD,5, Eigen::RowMajor> Mrr(momenta.size(),Gmu.size(),Nt,VDIM,VDIM);
 
   // timer
   double start,stop;
@@ -114,17 +104,8 @@ int main(int argc, char *argv[])
   stop = usecond();
   std::cout << GridLogMessage << "M(phi,phi) created, execution time " << stop-start << " us" << std::endl;
   start = usecond();
-  /* Ideally, for this meson field we could pass TSRC (even better a list of timeslices)
-   * to the routine so that all the compnents which are predictably equal to zero are not computed. */
-  A2Autils<WilsonImplR>::MesonField(Mpr,&phi[0],&rho[0],Gmu,phases,Tp);
-  stop = usecond();
-  std::cout << GridLogMessage << "M(phi,rho) created, execution time " << stop-start << " us" << std::endl;
-  start = usecond();
-  A2Autils<WilsonImplR>::MesonField(Mrr,&rho[0],&rho[0],Gmu,phases,Tp);
-  stop = usecond();
-  std::cout << GridLogMessage << "M(rho,rho) created, execution time " << stop-start << " us" << std::endl;
 
-  std::string FileName = "Meson_Fields";
+  std::string FileName = "Meson_Field";
 #ifdef HAVE_HDF5
   using Default_Reader = Grid::Hdf5Reader;
   using Default_Writer = Grid::Hdf5Writer;
@@ -137,8 +118,6 @@ int main(int argc, char *argv[])
 
   Default_Writer w(FileName);
   write(w,"phi_phi",Mpp);
-  write(w,"phi_rho",Mpr);
-  write(w,"rho_rho",Mrr);
 
   // epilogue
   std::cout << GridLogMessage << "Grid is finalizing now" << std::endl;
