@@ -656,7 +656,7 @@ bool Environment::isObjectOfDerivedType(const unsigned int address) const
     {
         auto o = getDerivedObject<B,T>(address);
     }
-    catch(...)
+    catch(Exceptions::ObjectType)
     {
         return false;
     }
