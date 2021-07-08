@@ -8,6 +8,6 @@ CLEANFILES = $(EXTRA_PROGRAMS)
 
 benchmarks-local: $(EXTRA_PROGRAMS)
 
-Benchmark_meson_field_SOURCES=Test_QED_LOCAL.cc
+Benchmark_meson_field_SOURCES=Benchmark_meson_field.cc
 Benchmark_meson_field_LDADD=-lHadrons -lGrid
 
