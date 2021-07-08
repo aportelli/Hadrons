@@ -17,12 +17,12 @@ class InterlacedDistillationPar: Serializable
 {
 public:
     GRID_SERIALIZABLE_CLASS_MEMBERS(InterlacedDistillationPar,
-                                    unsigned int, ti,
-                                    unsigned int, li,
-                                    unsigned int, si,
-                                    unsigned int, nNoise,
-                                    std::string, lapEigenPack,
-                                    std::string, fileName);
+                                    unsigned int,   ti,
+                                    unsigned int,   li,
+                                    unsigned int,   si,
+                                    unsigned int,   nNoise,
+                                    std::string,    lapEigenPack,
+                                    std::string,    fileName);
 };
 
 template <typename FImpl>

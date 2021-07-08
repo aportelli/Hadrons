@@ -42,7 +42,8 @@ public:
                                     unsigned int,               blockSize,
                                     unsigned int,               cacheSize,
                                     std::string,                gamma,
-                                    std::vector<std::string>,   momenta)
+                                    std::vector<std::string>,   momenta,
+                                    std::string,                onlyDiagonal)
 };
 
 template <typename FImpl>
@@ -69,13 +70,14 @@ public:
     virtual void execute(void);
 private:
     std::string                         outputMFPath_;
-    std::map<Side, unsigned int>        dilutionSize_ls_;
+    std::map<Side, unsigned int>        dilSizeLS_;
     std::vector<std::vector<RealF>>     momenta_;
     std::vector<Gamma::Algebra>         gamma_;  
     bool                                isExact_=false;
-    std::map<Side,std::string>          dmf_type_;
-    std::vector<unsigned int>           tsourcel_;
-    std::vector<unsigned int>           tsourcer_;
+    bool                                onlyDiag_=false;
+    std::map<Side,std::string>          dmfType_;
+    std::vector<unsigned int>           tSourceL_;
+    std::vector<unsigned int>           tSourceR_;
 };
 
 MODULE_REGISTER_TMP(DistilMesonField, TDistilMesonField<FIMPL>, MDistil);
@@ -101,14 +103,13 @@ std::vector<std::string> TDistilMesonField<FImpl>::getInput(void)
     {
         HADRONS_ERROR(Argument,"Bad meson field type");
     }
-
-    dmf_type_.emplace(Side::left  , c.substr(0,3));
-    dmf_type_.emplace(Side::right , c.substr(4,7));
+    dmfType_.emplace(Side::left  , c.substr(0,3));
+    dmfType_.emplace(Side::right , c.substr(4,7));
 
     //require peramb dependency if phi case
     for(Side s : sides)
     {
-        if(dmf_type_.at(s)=="phi")
+        if(dmfType_.at(s)=="phi")
         {
             in.push_back( s==Side::left ? par().leftPeramb : par().rightPeramb);
         }
@@ -127,18 +128,23 @@ std::vector<std::string> TDistilMesonField<FImpl>::getOutput(void)
 template <typename FImpl>
 void TDistilMesonField<FImpl>::setup(void)
 {
-    GridCartesian *g    = envGetGrid(FermionField);
-    GridCartesian *g3d  = envGetSliceGrid(FermionField, g->Nd() - 1);
-    DistillationNoise &noisel = envGet( DistillationNoise , par().leftNoise);
-    DistillationNoise &noiser = envGet( DistillationNoise , par().rightNoise);
-    outputMFPath_       = par().outPath;
-    dilutionSize_ls_    = { {Side::left,noisel.dilutionSize(Index::l)*noisel.dilutionSize(Index::s)},
-                            {Side::right,noiser.dilutionSize(Index::l)*noiser.dilutionSize(Index::s)} };
-
-    if( ( vm().getModuleType(par().leftNoise) =="Grid::Hadrons::MNoise::ExactDistillation" ) &&
-        ( vm().getModuleType(par().rightNoise)=="Grid::Hadrons::MNoise::ExactDistillation" ) )
+    if( envHasDerivedType(DistillationNoise, ExactDistillationPolicy<FImpl>, par().leftNoise)
+        && envHasDerivedType(DistillationNoise, ExactDistillationPolicy<FImpl>, par().rightNoise) )
     {
-        isExact_=true;
+        isExact_ = true;
+    }
+
+    GridCartesian *g            = envGetGrid(FermionField);
+    GridCartesian *g3d          = envGetSliceGrid(FermionField, g->Nd() - 1);
+    DistillationNoise &noisel   = envGet( DistillationNoise , par().leftNoise);
+    DistillationNoise &noiser   = envGet( DistillationNoise , par().rightNoise);
+    outputMFPath_   = par().outPath;
+    dilSizeLS_      = { {Side::left,noisel.dilutionSize(Index::l)*noisel.dilutionSize(Index::s)},
+                        {Side::right,noiser.dilutionSize(Index::l)*noiser.dilutionSize(Index::s)} };
+
+    if(par().blockSize > dilSizeLS_.at(Side::left) or par().blockSize > dilSizeLS_.at(Side::right))
+    {
+         HADRONS_ERROR(Size, "blockSize needs to be <= Laplacian-spin space dimensions.");
     }
 
     if(par().noisePairs.empty() and !isExact_)
@@ -149,8 +155,13 @@ void TDistilMesonField<FImpl>::setup(void)
     // time source input validation
     MDistil::verifyTimeSourcesInput(par().leftTimeSources,noisel.dilutionSize(Index::t));
     MDistil::verifyTimeSourcesInput(par().rightTimeSources,noiser.dilutionSize(Index::t));
-    tsourcel_ = strToVec<unsigned int>(par().leftTimeSources);
-    tsourcer_ = strToVec<unsigned int>(par().rightTimeSources);
+    tSourceL_ = strToVec<unsigned int>(par().leftTimeSources);
+    tSourceR_ = strToVec<unsigned int>(par().rightTimeSources);
+
+    if(par().onlyDiagonal == "true" || par().onlyDiagonal == "True" || par().onlyDiagonal == "1")
+    {
+        onlyDiag_ = true;
+    }
 
     // parse momenta
     momenta_.clear();
@@ -196,10 +207,10 @@ void TDistilMesonField<FImpl>::setup(void)
 
     envTmpLat(ComplexField,             "coor");
     envTmp(std::vector<ComplexField>,   "phase",        1, momenta_.size(), g );
-    envTmp(DistilVector,                "dvl",          1, dilutionSize_ls_.at(Side::left), g);
-    envTmp(DistilVector,                "dvr",          1, dilutionSize_ls_.at(Side::right), g);
-    envTmp(Computation,                 "computation",  1, dmf_type_, g, g3d, noisel, noiser, par().blockSize, 
-                par().cacheSize, env().getDim(g->Nd() - 1), momenta_.size(), gamma_.size(), isExact_);
+    envTmp(DistilVector,                "dvl",          1, dilSizeLS_.at(Side::left), g);
+    envTmp(DistilVector,                "dvr",          1, dilSizeLS_.at(Side::right), g);
+    envTmp(Computation,                 "computation",  1, dmfType_, g, g3d, noisel, noiser, par().blockSize, 
+                par().cacheSize, env().getDim(g->Nd() - 1), momenta_.size(), gamma_.size(), isExact_, onlyDiag_);
 }
 
 // execution ///////////////////////////////////////////////////////////////////
@@ -207,9 +218,9 @@ template <typename FImpl>
 void TDistilMesonField<FImpl>::execute(void)
 {
     // temps
-    envGetTmp(DistilVector,     dvl);
-    envGetTmp(DistilVector,     dvr);
-    envGetTmp(Computation,      computation);
+    envGetTmp(DistilVector, dvl);
+    envGetTmp(DistilVector, dvr);
+    envGetTmp(Computation,  computation);
     envGetTmp(std::vector<ComplexField>, phase);
 
     //start
@@ -226,7 +237,7 @@ void TDistilMesonField<FImpl>::execute(void)
     DistillationNoise &noiser = envGet( DistillationNoise , par().rightNoise);
     std::vector<std::vector<unsigned int>>       noise_pairs;
 
-    // nvec check (assume nvec cant be different on different sides)
+    // nvec check (assuming nvec cant be different on different sides)
     std::map<Side, DistillationNoise & > noises = {{Side::left,noisel},{Side::right,noiser}};
     if((noisel.getNl() != nVec) || (noiser.getNl() != nVec))
     {
@@ -234,7 +245,7 @@ void TDistilMesonField<FImpl>::execute(void)
     }
 
     // fetch time sources input
-    std::map<Side, std::vector<unsigned int>> time_sources = {{Side::left,tsourcel_},{Side::right,tsourcer_}};
+    std::map<Side, std::vector<unsigned int>> time_sources = {{Side::left,tSourceL_},{Side::right,tSourceR_}};
     std::map<Side, std::string> peramb_input = {{Side::left,par().leftPeramb},{Side::right,par().rightPeramb}}; // perambulators time sources
     std::map<Side, std::vector<int>> ts_peramb;
     for(Side s : sides)     
@@ -246,7 +257,9 @@ void TDistilMesonField<FImpl>::execute(void)
             if(time_sources.at(s).empty())  //in case it's empty and it's a phi, include all peramb time sources
             {
                 for(auto tperamb : ts_peramb.at(s))
+                {
                     time_sources.at(s).push_back(static_cast<unsigned int>(tperamb));
+                }
             }
             else    // if it's not empty, validate it against peamb time sources (check if is subset of it)
             {
@@ -336,11 +349,13 @@ void TDistilMesonField<FImpl>::execute(void)
     }
     stopTimer("momentum phases");
     
-    LOG(Message) << "Selected time-dilution partitions :"         << std::endl;
+    if(isExact_)
+        LOG(Message) << "Exact distillation" << std::endl;
+    LOG(Message) << "Selected time-dilution partitions :"   << std::endl;
     LOG(Message) << " Left : " << MDistil::timeslicesDump(time_sources.at(Side::left)) << std::endl;
     LOG(Message) << " Right : " << MDistil::timeslicesDump(time_sources.at(Side::right)) << std::endl;
     LOG(Message) << "Left/right Laplacian-spin dilution sizes : " 
-        << dilutionSize_ls_.at(Side::left) << "/" << dilutionSize_ls_.at(Side::right) << std::endl;
+        << dilSizeLS_.at(Side::left) << "/" << dilSizeLS_.at(Side::right) << std::endl;
     LOG(Message) << "Meson field type : " << par().mesonFieldType << std::endl;
     LOG(Message) << "Momenta :" << std::endl;
     for (auto &p: momenta_)
@@ -378,10 +393,11 @@ void TDistilMesonField<FImpl>::execute(void)
         }
         LOG(Message) << "Meson fields saved to " << outputMFPath_ << std::endl;
     }
-    LOG(Message) << "A2AUtils::MesonField kernel executed " << computation.global_counter << " times over " << par().cacheSize << "^2 cache blocks" << std::endl;
-    LOG(Message) << "Average kernel perf (flops) : "          << computation.global_flops/computation.global_counter        << " Gflop/s/node " << std::endl;
-    LOG(Message) << "Average kernel perf (read) : "           << computation.global_bytes/computation.global_counter        << " GB/s/node "    << std::endl;
-    LOG(Message) << "Average IO speed (write) : "             << computation.global_iospeed/computation.global_counter      << " MB/s "    << std::endl;
+    LOG(Message) << "A2AUtils::MesonField kernel executed " << computation.blockCounter_ << " times over "
+        << nt  << "x" << par().cacheSize << "x" << par().cacheSize << " cache blocks" << std::endl;
+    LOG(Message) << "Average kernel perf (flops) : "    << computation.blockFlops_/computation.blockCounter_    << " Gflop/s/node " << std::endl;
+    LOG(Message) << "Average kernel perf (read) : "     << computation.blockBytes_/computation.blockCounter_    << " GB/s/node "    << std::endl;
+    LOG(Message) << "Average IO speed (write) : "       << computation.blockIoSpeed_/computation.blockCounter_  << " MB/s "    << std::endl;
 }
 
 END_MODULE_NAMESPACE
