@@ -122,6 +122,7 @@ private:
     const unsigned int                  nExt_;
     const unsigned int                  nStr_;
     const bool                          isExact_;
+    const bool                          onlyDiag_;
     std::map<Side, unsigned int>        dilSizeLS_;
     std::map<Side, DistillationNoise&>  noises_;
 public:
@@ -135,7 +136,8 @@ public:
                    const unsigned int           nt,
                    const unsigned int           n_ext,
                    const unsigned int           n_str,
-                   const bool                   is_exact);
+                   const bool                   is_exact,
+                   const bool                   only_diag);
     bool isPhi(Side s);
     bool isRho(Side s);
     DilutionMap getMap(Side s);
@@ -185,10 +187,11 @@ DmfComputation<FImpl,T,Tio>
                  const unsigned int             nt,
                  const unsigned int             n_ext,
                  const unsigned int             n_str,
-                 const bool                     is_exact)
+                 const bool                     is_exact,
+                 const bool                     only_diag)
 : dmfType_(mf_type), g_(g), g3d_(g3d), evec3d_(g3d), tmp3d_(g3d)
 , nt_(nt) , nd_(g->Nd()), blockSize_(block_size) , cacheSize_(cache_size)
-, nExt_(n_ext) , nStr_(n_str) , isExact_(is_exact)
+, nExt_(n_ext) , nStr_(n_str) , isExact_(is_exact) , onlyDiag_(only_diag)
 {
     cBuf_.resize(nExt_*nStr_*nt_*cacheSize_*cacheSize_);
     bBuf_.resize(nExt_*nStr_*nt_*blockSize_*blockSize_); //maximum size
@@ -310,29 +313,31 @@ void DmfComputation<FImpl,T,Tio>
         for (unsigned int dtR : time_dil_source.at(Side::right))
         {
             // fetch necessary time slices for this time-dilution block
-            std::map<Side,std::vector<unsigned int>> part = { {Side::left,{}} , {Side::right,{}}};
+            std::map<Side,std::vector<unsigned int>> tpartition = { {Side::left,{}} , {Side::right,{}}};
             for(auto s : sides)
             {
                 if(isPhi(s))
                 {
-                    part.at(s).resize(nt_);
-                    //phi: filling with all time slices -> intersects with non-empty
-                    std::iota(std::begin(part.at(s)), std::end(part.at(s)), 0); 
+                    tpartition.at(s).resize(nt_);
+                    //phi: filling with all time slices so intersects with any non-empty vector
+                    std::iota(std::begin(tpartition.at(s)), std::end(tpartition.at(s)), 0); 
                 }
                 else
                 {
-                    part.at(s) =  noises_.at(s).dilutionPartition(Index::t, s==Side::left ? dtL : dtR);
+                    tpartition.at(s) = noises_.at(s).dilutionPartition(Index::t, s==Side::left ? dtL : dtR);
                 }
             }
             std::vector<unsigned int> ts_intersection;
-            std::set_intersection(part.at(Side::left).begin(), part.at(Side::left).end(), 
-                                part.at(Side::right).begin(), part.at(Side::right).end(),
+            std::set_intersection(tpartition.at(Side::left).begin(), tpartition.at(Side::left).end(), 
+                                tpartition.at(Side::right).begin(), tpartition.at(Side::right).end(),
                                 std::back_inserter(ts_intersection));
 
             const int nt_sparse = ts_intersection.size();
             bBuf_.resize(nExt_*nStr_*nt_sparse*blockSize_*blockSize_);
 
-            if( !ts_intersection.empty() ) // only execute case when partitions have at least one time slice in common
+            // only execute case when partitions have at least one time slice in common; only computes diagonal when onlydiag
+            if( !ts_intersection.empty() 
+                && (!onlyDiag_ || dtL==dtR) ) // ensures only diagonal blocks are computed when onlyDiag_
             {
                 time_dil_pair_list.push_back({dtL,dtR});
                 START_TIMER("distil vectors");
