@@ -5,3 +5,4 @@ using namespace Hadrons;
 using namespace MSolver;
 
 template class Grid::Hadrons::MSolver::TImplicitlyRestartedLanczos<FIMPL::FermionField>;
+template class Grid::Hadrons::MSolver::TImplicitlyRestartedLanczos<ColourVectorField<FIMPL>>;

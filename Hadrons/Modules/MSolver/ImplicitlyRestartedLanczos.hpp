@@ -46,6 +46,7 @@ public:
 };
 
 MODULE_REGISTER_TMP(FermionImplicitlyRestartedLanczos, TImplicitlyRestartedLanczos<FIMPL::FermionField>, MSolver);
+MODULE_REGISTER_TMP(ColourVectorImplicitlyRestartedLanczos, TImplicitlyRestartedLanczos<ColourVectorField<FIMPL>>, MSolver);
 
 /******************************************************************************
  *                 TImplicitlyRestartedLanczos implementation                 *
