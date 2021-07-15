@@ -17,6 +17,8 @@ class LaplacianPar: Serializable
 public:
     GRID_SERIALIZABLE_CLASS_MEMBERS(LaplacianPar,
                                     std::string, gauge,
+                                    std::string, boundary,
+                                    std::string, twist,
                                     double,      m2);
 };
 
@@ -25,13 +27,33 @@ class Laplacian: public LinearOperatorBase<Field>
 {
 public:
     GAUGE_TYPE_ALIASES(GImpl,);
+    typedef typename GImpl::scalar_type Scalar;
 public:
-    Laplacian(const GaugeField &U, const double m2)
-    : grid_(U.Grid()), tmp_(U.Grid()), m2_(m2)
+    Laplacian(const GaugeField &U, const double m2, 
+              const std::vector<Complex> &boundary, const std::vector<Real> &twist)
+    : grid_(U.Grid()), nd_(U.Grid()->Nd())
+    , Umu_(U.Grid()), tmp_(U.Grid()), m2_(m2)
+    , boundary_(boundary), twist_(twist)
     {
+        Lattice<iScalar<vInteger>> coor(grid_);
+
+        assert(boundary.size() == nd_);
+        assert(twist.size() == nd_);
+        U_.resize(2*nd_, grid_);
         for (unsigned int mu = 0; mu < grid_->Nd(); ++mu)
         {
-            U_.push_back(PeekIndex<LorentzIndex>(U, mu)); 
+            unsigned int lmu = grid_->GlobalDimensions()[mu];
+            Scalar       ph(real(boundary_[mu]), imag(boundary_[mu]));
+            Scalar       tw(cos(twist_[mu]*2.*M_PI/lmu), sin(twist_[mu]*2.*M_PI/lmu));
+
+            LatticeCoordinate(coor, mu);
+            Umu_         = PeekIndex<LorentzIndex>(U, mu);
+            Umu_         = tw*Umu_;
+            tmp_         = where(coor == lmu - 1, ph*Umu_, Umu_);
+            U_[mu]       = tmp_;
+            Umu_         = adj(Cshift(Umu_, mu, -1));
+            Umu_         = where(coor == 0, conjugate(ph)*Umu_, Umu_);
+            U_[mu + nd_] = Umu_; 
         }
     }
 
@@ -57,9 +79,8 @@ public:
         out = (m2_ + 2.*nd)*in;
         for (unsigned int mu = 0; mu < nd; ++mu)
         {
-            out  -= U_[mu]*Cshift(in, mu, 1);
-            tmp_  = adj(U_[mu])*in;
-            out  -= Cshift(tmp_, mu, -1);
+            out -= U_[mu]*Cshift(in, mu, 1);
+            out -= U_[mu + nd_]*Cshift(in, mu, -1);
         }
     }
 
@@ -79,9 +100,12 @@ public:
     }
 private:
     std::vector<GaugeLinkField> U_;
-    Field                       tmp_;
+    GaugeLinkField              Umu_, tmp_;
     GridBase                    *grid_;
+    const unsigned int          nd_;
     double                      m2_;
+    std::vector<Complex>        boundary_;
+    std::vector<Real>           twist_;
 };
 
 template <typename Field, typename GImpl>
@@ -103,8 +127,8 @@ public:
     virtual void execute(void);
 };
 
-MODULE_REGISTER_TMP(FermionLaplacian, 
-                    ARG(TLaplacian<FIMPL::FermionField, GIMPL>), MAction);
+MODULE_REGISTER_TMP(CovariantLaplacian, 
+                    ARG(TLaplacian<ColourVectorField<FIMPL>, GIMPL>), MAction);
 
 /******************************************************************************
  *                      TLaplacian implementation                             *
@@ -138,9 +162,21 @@ void TLaplacian<Field, GImpl>::setup(void)
 {
     LOG(Message) << "Setting up covariant Laplacian operator with gauge field '"
                  << par().gauge << "' and m^2= " << par().m2 << std::endl;
-    auto &U = envGet(GaugeField, par().gauge);
+    auto                 &U = envGet(GaugeField, par().gauge);
+    unsigned int         nd = U.Grid()->Nd();
+    std::vector<Complex> boundary(nd, 1.);
+    std::vector<Real>    twist(nd, 0.);
+    
+    if (!par().boundary.empty())
+    {
+        boundary = strToVec<Complex>(par().boundary);
+    }
+    if (!par().twist.empty())
+    {
+        twist = strToVec<Real>(par().twist);
+    }
     envCreateDerived(LinearOperatorBase<Field>, ARG(Laplacian<Field, GImpl>), 
-                     getName(), 1, U, par().m2);
+                     getName(), 1, U, par().m2, boundary, twist);
 }
 
 // execution ///////////////////////////////////////////////////////////////////
