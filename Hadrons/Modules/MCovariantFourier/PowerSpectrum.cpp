@@ -4,4 +4,4 @@ using namespace Grid;
 using namespace Hadrons;
 using namespace MCovariantFourier;
 
-template class Grid::Hadrons::MCovariantFourier::TPowerSpectrum<FIMPL::FermionField>;
+template class Grid::Hadrons::MCovariantFourier::TPowerSpectrum<FIMPL>;

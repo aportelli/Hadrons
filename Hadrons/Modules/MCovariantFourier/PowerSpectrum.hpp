@@ -18,12 +18,25 @@ class PowerSpectrumPar: Serializable
 public:
     GRID_SERIALIZABLE_CLASS_MEMBERS(PowerSpectrumPar,
                                     std::string, basis,
-                                    std::string, field);
+                                    std::string, field,
+                                    std::string, output);
 };
 
-template <typename Field>
+class PowerSpectrumResult: Serializable
+{
+public:
+    GRID_SERIALIZABLE_CLASS_MEMBERS(PowerSpectrumResult,
+                                    unsigned int, basisSize,
+                                    unsigned int, vectorSize,
+                                    std::vector<double>, eval,
+                                    std::vector<std::vector<double>>, spectrum);
+};
+
+template <typename FImpl>
 class TPowerSpectrum: public Module<PowerSpectrumPar>
 {
+public:
+    FERM_TYPE_ALIASES(FImpl,);
 public:
     // constructor
     TPowerSpectrum(const std::string name);
@@ -38,29 +51,28 @@ public:
     virtual void execute(void);
 };
 
-MODULE_REGISTER_TMP(FermionPowerSpectrum, 
-                    TPowerSpectrum<FIMPL::FermionField>, MCovariantFourier);
+MODULE_REGISTER_TMP(FermionPowerSpectrum, TPowerSpectrum<FIMPL>, MCovariantFourier);
 
 /******************************************************************************
  *                 TPowerSpectrum implementation                             *
  ******************************************************************************/
 // constructor /////////////////////////////////////////////////////////////////
-template <typename Field>
-TPowerSpectrum<Field>::TPowerSpectrum(const std::string name)
+template <typename FImpl>
+TPowerSpectrum<FImpl>::TPowerSpectrum(const std::string name)
 : Module<PowerSpectrumPar>(name)
 {}
 
 // dependencies/products ///////////////////////////////////////////////////////
-template <typename Field>
-std::vector<std::string> TPowerSpectrum<Field>::getInput(void)
+template <typename FImpl>
+std::vector<std::string> TPowerSpectrum<FImpl>::getInput(void)
 {
     std::vector<std::string> in = {par().basis, par().field};
     
     return in;
 }
 
-template <typename Field>
-std::vector<std::string> TPowerSpectrum<Field>::getOutput(void)
+template <typename FImpl>
+std::vector<std::string> TPowerSpectrum<FImpl>::getOutput(void)
 {
     std::vector<std::string> out = {};
     
@@ -68,43 +80,72 @@ std::vector<std::string> TPowerSpectrum<Field>::getOutput(void)
 }
 
 // setup ///////////////////////////////////////////////////////////////////////
-template <typename Field>
-void TPowerSpectrum<Field>::setup(void)
+template <typename FImpl>
+void TPowerSpectrum<FImpl>::setup(void)
 {
     unsigned int Ls = env().getObjectLs(par().field);
+    auto &field = envGet(BaseEigenPack<FermionField>, par().field);
     
     if (Ls > 1)
     {
-        auto &field = envGet(BaseEigenPack<Field>, par().field);
-        envTmp(Field, "vec5", Ls, field.evec[0].Grid());
+        envTmp(ColourVectorField, "vec5", Ls, field.evec[0].Grid());
     }
+    envTmp(ColourVectorField, "tmp", Ls, field.evec[0].Grid());
 }
 
 // execution ///////////////////////////////////////////////////////////////////
-template <typename Field>
-void TPowerSpectrum<Field>::execute(void)
+template <typename FImpl>
+void TPowerSpectrum<FImpl>::execute(void)
 {
-    auto    &epack = envGet(BaseEigenPack<Field>, par().basis);
-    auto    &field = envGet(BaseEigenPack<Field>, par().field);
-    unsigned int Ls = env().getObjectLs(par().field);
-    Complex coeff;
+    auto                &basis = envGet(BaseEigenPack<ColourVectorField>, par().basis);
+    auto                &field = envGet(BaseEigenPack<FermionField>, par().field);
+    unsigned int        Ls     = env().getObjectLs(par().field);
+    Real                coeff;
+    PowerSpectrumResult res;
+    envGetTmp(ColourVectorField, tmp);
 
+    res.basisSize  = basis.evec.size();
+    res.vectorSize = field.evec.size();
+    res.eval.resize(res.basisSize);
+    res.spectrum.resize(res.vectorSize, std::vector<double>(res.basisSize));
     for (unsigned int i = 0; i < field.evec.size(); ++i)
     {
-        for (unsigned int j = 0; j < epack.evec.size(); ++j)
+        LOG(Message) << "vector " << i << " spectrum calculation" << std::endl;
+        for (unsigned int j = 0; j < basis.evec.size(); ++j)
         {
-            envGetTmp(Field, vec5);
-
-            for (unsigned int s = 0; s < Ls; ++s)
+            coeff = 0.;
+            if (Ls == 1)
             {
-                InsertSlice(epack.evec[j], vec5, s, 0);
+                for (unsigned int s = 0; s < Ns; ++s)
+                {
+                    tmp = peekSpin(field.evec[i], s);
+                    conformable(tmp, basis.evec[j]);
+                    coeff += std::norm(innerProduct(tmp, basis.evec[j]));
+                }
             }
-            conformable(vec5, field.evec[i]);
-            coeff = innerProduct(vec5, field.evec[i]);
-            LOG(Message) << "vector " << i << " mode " << j << " -- lambda= " 
-                         << epack.eval[j] << " -- coeff= " << norm(coeff) << std::endl;
+            else
+            {
+                envGetTmp(ColourVectorField, vec5);
+
+                for (unsigned int s = 0; s < Ls; ++s)
+                {
+                    InsertSlice(basis.evec[j], vec5, s, 0);
+                }
+                for (unsigned int s = 0; s < Ns; ++s)
+                {
+                    tmp = peekSpin(field.evec[i], s);
+                    conformable(tmp, vec5);
+                    coeff += std::norm(innerProduct(tmp, vec5));
+                }
+            }
+            if (i == 0)
+            {
+                res.eval[j] = basis.eval[j];
+            }
+            res.spectrum[i][j] = coeff;
         }
     }
+    saveResult(par().output, "spectrum", res);
 }
 
 END_MODULE_NAMESPACE
