@@ -111,6 +111,12 @@ typedef typename Impl::ComplexField                  ComplexField##suffix;\
 typedef std::vector<SitePropagator##suffix>          SlicedPropagator##suffix;\
 typedef std::vector<typename ComplexField##suffix::vector_object::scalar_object> SlicedComplex##suffix;
 
+template <typename FImpl>
+using SpinMatrixField = Lattice<iSpinMatrix<typename FImpl::Simd>>;
+
+template <typename FImpl>
+using ColourVectorField = Lattice<iColourVector<typename FImpl::Simd>>;
+
 #define FERM_TYPE_ALIASES(FImpl, suffix)\
 BASIC_TYPE_ALIASES(FImpl, suffix);\
 typedef FermionOperator<FImpl>                     FMat##suffix;\
@@ -121,8 +127,8 @@ typedef LinearOperatorBase<FermionField##suffix>   FBaseOp##suffix;\
 typedef NonHermitianLinearOperator<FMat##suffix, FermionField##suffix>   FOp##suffix;\
 typedef MdagMLinearOperator<FMat##suffix, FermionField##suffix>   FHermOp##suffix;\
 typedef HADRONS_DEFAULT_SCHUR_OP<FMat##suffix, FermionField##suffix> FSchurOp##suffix;\
-typedef Lattice<iSpinMatrix<typename FImpl::Simd>> SpinMatrixField##suffix;\
-typedef Lattice<iColourVector<typename FImpl::Simd>> ColourVectorField##suffix;
+typedef SpinMatrixField<FImpl> SpinMatrixField##suffix;\
+typedef ColourVectorField<FImpl> ColourVectorField##suffix;
 
 #define GAUGE_TYPE_ALIASES(GImpl, suffix)\
 typedef typename GImpl::GaugeField GaugeField##suffix;\
