@@ -106,52 +106,60 @@ void TPowerSpectrum<FImpl>::execute(void)
     auto                &field = envGet(BaseEigenPack<FermionField>, par().field);
     unsigned int        Ls     = env().getObjectLs(par().field);
     PowerSpectrumResult res;
-    Real                energy, bandEnergy;
+    Real                energy, bandEnergy, n2;
     envGetTmp(ColourVectorField, tmp);
 
     res.basisSize  = basis.evec.size();
     res.vectorSize = field.evec.size();
     res.eval.resize(res.basisSize);
     res.power.resize(res.vectorSize, res.basisSize);
+    res.power.setZero();
     res.spectrum.resize(res.vectorSize, res.basisSize, Ns, Ls);
     for (unsigned int i = 0; i < field.evec.size(); ++i)
     {
         LOG(Message) << "vector " << i << " spectrum calculation" << std::endl;
         energy     = norm2(field.evec[i]);
         bandEnergy = 0.;
-        for (unsigned int j = 0; j < basis.evec.size(); ++j)
+        if (i == 0)
         {
-            res.power(i, j) = 0.;
-            if (Ls == 1)
+            res.eval = basis.eval;
+        }
+        if (Ls == 1)
+        {
+            for (unsigned int s = 0; s < Ns; ++s)
             {
-                for (unsigned int s = 0; s < Ns; ++s)
+                tmp = peekSpin(field.evec[i], s);
+                LOG(Message) << "spin= " << s << " / norm2= " << norm2(tmp) << std::endl;
+                for (unsigned int j = 0; j < basis.evec.size(); ++j)
                 {
-                    tmp = peekSpin(field.evec[i], s);
                     conformable(tmp, basis.evec[j]);
                     res.spectrum(i, j, s, 0)  = innerProduct(tmp, basis.evec[j]);
-                    res.power(i, j)          += std::norm(res.spectrum(i, j, s, 0));
-                    bandEnergy               += res.power(i, j) ;
+                    n2                        = std::norm(res.spectrum(i, j, s, 0));
+                    res.power(i, j)          += n2;
+                    bandEnergy               += n2;
                 }
             }
-            else
+        }
+        else
+        {
+            envGetTmp(ColourVectorField, vec4);
+            for (unsigned int s = 0; s < Ns; ++s)
             {
-                envGetTmp(ColourVectorField, vec4);
-                for (unsigned int s = 0; s < Ns; ++s)
+                tmp = peekSpin(field.evec[i], s);
+                for (unsigned int t = 0; t < Ls; ++t)
                 {
-                    tmp = peekSpin(field.evec[i], s);
-                    for (unsigned int t = 0; t < Ls; ++t)
+                    ExtractSlice(vec4, tmp, t, 0);
+                    LOG(Message) << "spin= " << s << " / s= " << t 
+                                 << " / norm2= " << norm2(vec4) << std::endl;
+                    for (unsigned int j = 0; j < basis.evec.size(); ++j)
                     {
-                        ExtractSlice(vec4, tmp, t, 0);
                         conformable(vec4, basis.evec[j]);
                         res.spectrum(i, j, s, t)  = innerProduct(vec4, basis.evec[j]);
-                        res.power(i, j)          += std::norm(res.spectrum(i, j, s, t));
-                        bandEnergy               += res.power(i, j) ;
-                    }  
-                }
-            }
-            if (i == 0)
-            {
-                res.eval[j] = basis.eval[j];
+                        n2                        = std::norm(res.spectrum(i, j, s, t));
+                        res.power(i, j)          += n2;
+                        bandEnergy               += n2;
+                    }
+                }  
             }
         }
         LOG(Message) << "energy= " << energy << " / band energy= " << bandEnergy << " / lossyness= " << 1. - sqrt(bandEnergy/energy) << std::endl;
