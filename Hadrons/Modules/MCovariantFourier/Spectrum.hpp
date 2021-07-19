@@ -1,5 +1,5 @@
-#ifndef Hadrons_MCovariantFourier_PowerSpectrum_hpp_
-#define Hadrons_MCovariantFourier_PowerSpectrum_hpp_
+#ifndef Hadrons_MCovariantFourier_Spectrum_hpp_
+#define Hadrons_MCovariantFourier_Spectrum_hpp_
 
 #include <Hadrons/Global.hpp>
 #include <Hadrons/Module.hpp>
@@ -9,26 +9,26 @@
 BEGIN_HADRONS_NAMESPACE
 
 /******************************************************************************
- *                         PowerSpectrum                                 *
+ *                         Spectrum                                 *
  ******************************************************************************/
 BEGIN_MODULE_NAMESPACE(MCovariantFourier)
 
-class PowerSpectrumPar: Serializable
+class SpectrumPar: Serializable
 {
 public:
-    GRID_SERIALIZABLE_CLASS_MEMBERS(PowerSpectrumPar,
+    GRID_SERIALIZABLE_CLASS_MEMBERS(SpectrumPar,
                                     std::string, basis,
                                     std::string, field,
                                     std::string, output);
 };
 
-class PowerSpectrumResult: Serializable
+class SpectrumResult: Serializable
 {
 public:
     typedef Eigen::Tensor<Real, 2>    Tensor2;
     typedef Eigen::Tensor<Complex, 4> Tensor4;
 public:
-    GRID_SERIALIZABLE_CLASS_MEMBERS(PowerSpectrumResult,
+    GRID_SERIALIZABLE_CLASS_MEMBERS(SpectrumResult,
                                     unsigned int, basisSize,
                                     unsigned int, vectorSize,
                                     std::vector<double>, eval,
@@ -37,15 +37,15 @@ public:
 };
 
 template <typename FImpl>
-class TPowerSpectrum: public Module<PowerSpectrumPar>
+class TSpectrum: public Module<SpectrumPar>
 {
 public:
     FERM_TYPE_ALIASES(FImpl,);
 public:
     // constructor
-    TPowerSpectrum(const std::string name);
+    TSpectrum(const std::string name);
     // destructor
-    virtual ~TPowerSpectrum(void) {};
+    virtual ~TSpectrum(void) {};
     // dependency relation
     virtual std::vector<std::string> getInput(void);
     virtual std::vector<std::string> getOutput(void);
@@ -55,20 +55,20 @@ public:
     virtual void execute(void);
 };
 
-MODULE_REGISTER_TMP(FermionPowerSpectrum, TPowerSpectrum<FIMPL>, MCovariantFourier);
+MODULE_REGISTER_TMP(FermionSpectrum, TSpectrum<FIMPL>, MCovariantFourier);
 
 /******************************************************************************
- *                 TPowerSpectrum implementation                             *
+ *                 TSpectrum implementation                             *
  ******************************************************************************/
 // constructor /////////////////////////////////////////////////////////////////
 template <typename FImpl>
-TPowerSpectrum<FImpl>::TPowerSpectrum(const std::string name)
-: Module<PowerSpectrumPar>(name)
+TSpectrum<FImpl>::TSpectrum(const std::string name)
+: Module<SpectrumPar>(name)
 {}
 
 // dependencies/products ///////////////////////////////////////////////////////
 template <typename FImpl>
-std::vector<std::string> TPowerSpectrum<FImpl>::getInput(void)
+std::vector<std::string> TSpectrum<FImpl>::getInput(void)
 {
     std::vector<std::string> in = {par().basis, par().field};
     
@@ -76,7 +76,7 @@ std::vector<std::string> TPowerSpectrum<FImpl>::getInput(void)
 }
 
 template <typename FImpl>
-std::vector<std::string> TPowerSpectrum<FImpl>::getOutput(void)
+std::vector<std::string> TSpectrum<FImpl>::getOutput(void)
 {
     std::vector<std::string> out = {};
     
@@ -85,7 +85,7 @@ std::vector<std::string> TPowerSpectrum<FImpl>::getOutput(void)
 
 // setup ///////////////////////////////////////////////////////////////////////
 template <typename FImpl>
-void TPowerSpectrum<FImpl>::setup(void)
+void TSpectrum<FImpl>::setup(void)
 {
     unsigned int Ls = env().getObjectLs(par().field);
     auto &field = envGet(BaseEigenPack<FermionField>, par().field);
@@ -100,12 +100,12 @@ void TPowerSpectrum<FImpl>::setup(void)
 
 // execution ///////////////////////////////////////////////////////////////////
 template <typename FImpl>
-void TPowerSpectrum<FImpl>::execute(void)
+void TSpectrum<FImpl>::execute(void)
 {
     auto                &basis = envGet(BaseEigenPack<ColourVectorField>, par().basis);
     auto                &field = envGet(BaseEigenPack<FermionField>, par().field);
     unsigned int        Ls     = env().getObjectLs(par().field);
-    PowerSpectrumResult res;
+    SpectrumResult res;
     Real                energy, bandEnergy, n2;
     envGetTmp(ColourVectorField, tmp);
 
@@ -171,4 +171,4 @@ END_MODULE_NAMESPACE
 
 END_HADRONS_NAMESPACE
 
-#endif // Hadrons_MCovariantFourier_PowerSpectrum_hpp_
+#endif // Hadrons_MCovariantFourier_Spectrum_hpp_
