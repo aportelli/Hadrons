@@ -152,22 +152,22 @@ GridBase * TImplicitlyRestartedLanczos<Field, FieldIo>::getGrid(void)
     {
         if (par().redBlack)
         {
-            grid = envGetRbGrid(Field);
+            grid = envGetRbGrid(F);
         }
         else
         {
-            grid = envGetGrid(Field);
+            grid = envGetGrid(F);
         }
     }
     else
     {
         if (par().redBlack)
         {
-            grid = envGetRbGrid(Field, Ls);
+            grid = envGetRbGrid(F, Ls);
         }
         else
         {
-            grid = envGetGrid(Field, Ls);
+            grid = envGetGrid(F, Ls);
         }
     }
 
