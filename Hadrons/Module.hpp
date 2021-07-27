@@ -364,7 +364,7 @@ GridBase *ModuleBase::getGrid(const bool redBlack, const unsigned int Ls)
 template <typename Field>
 GridBase *ModuleBase::getGrid(const unsigned int Ls)
 {
-    return getGrid<Field>(true, Ls);
+    return getGrid<Field>(false, Ls);
 }
 
 template <typename P>
