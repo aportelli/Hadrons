@@ -8,6 +8,7 @@ libHadrons_a_SOURCES = \
 	sqlite/sqlite3.c    \
   Application.cpp     \
 	Database.cpp        \
+	DWT_filters.cpp     \
   Environment.cpp     \
 	Exceptions.cpp      \
   Global.cpp          \
@@ -25,6 +26,8 @@ nobase_libHadrons_a_HEADERS = \
 	Database.hpp              \
 	DilutedNoise.hpp          \
 	DiskVector.hpp            \
+	DWT.hpp                   \
+	DWT_filters.hpp           \
 	EigenPack.hpp             \
 	Environment.hpp           \
 	Exceptions.hpp            \
