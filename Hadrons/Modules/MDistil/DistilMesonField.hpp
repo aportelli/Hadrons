@@ -15,13 +15,12 @@
 
 BEGIN_HADRONS_NAMESPACE
 
-/******************************************************************************
- *                         DistilMesonField                                 *
- * Eliminates DistilVectors module. Receives LapH eigenvectors and 
- * perambulator/noise (as left/right objs). Computes MesonFields by 
- * block (and chunking it) and save them to H5 files.
- * 
- ******************************************************************************/
+/****************************************************************
+ *                         DistilMesonField                     *
+ * Receives LapH eigenvectors and receives perambulator/noise   *
+ * (as left/right vectors). Computes MesonFields by             *
+ * block (of spin-lap dilution size) and save them to H5 files. *
+ ****************************************************************/
 
 BEGIN_MODULE_NAMESPACE(MDistil)
 
@@ -207,8 +206,8 @@ void TDistilMesonField<FImpl>::setup(void)
 
     envTmpLat(ComplexField,             "coor");
     envTmp(std::vector<ComplexField>,   "phase",        1, momenta_.size(), g );
-    envTmp(DistilVector,                "dvl",          1, dilSizeLS_.at(Side::left), g);
-    envTmp(DistilVector,                "dvr",          1, dilSizeLS_.at(Side::right), g);
+    envTmp(DistilVector,                "dvl",          1, DISTILVECTOR_BATCH_SIZE*dilSizeLS_.at(Side::left), g);
+    envTmp(DistilVector,                "dvr",          1, DISTILVECTOR_BATCH_SIZE*dilSizeLS_.at(Side::right), g);
     envTmp(Computation,                 "computation",  1, dmfType_, g, g3d, noisel, noiser, par().blockSize, 
                 par().cacheSize, env().getDim(g->Nd() - 1), momenta_.size(), gamma_.size(), isExact_, onlyDiag_);
 }
@@ -278,6 +277,10 @@ void TDistilMesonField<FImpl>::execute(void)
                 time_sources.at(s).resize(noises.at(s).dilutionSize(Index::t));
                 std::iota( time_sources.at(s).begin() , time_sources.at(s).end() , 0);    //creates sequence from 0 to TI-1
             }
+        }
+        if(time_sources.at(s).size()%DISTILVECTOR_BATCH_SIZE != 0){
+            std::string errside = (s==Side::left) ? "left" : "right";
+            HADRONS_ERROR(Range, "Number of time sources (" + errside + ") not divisible by distil vector batch size.");
         }
     }
 
