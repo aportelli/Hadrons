@@ -376,7 +376,8 @@ void TDistilMesonField<FImpl>::execute(void)
     //execution
     for(auto &npair : noise_pairs)
     {
-        LOG(Message) << "Noise pair : " << npair[0] << " " << npair[1] << std::endl;
+        std::map<Side, unsigned int> noise_idx = {{Side::left,npair[0]},{Side::right,npair[1]}};
+        LOG(Message) << "Noise pair : " << noise_idx.at(Side::left) << " " << noise_idx.at(Side::right) << std::endl;
         //computation of distillation vectors (phi or rho)
         if(computation.isPhi(Side::left) || computation.isPhi(Side::right)) //if theres at least one phi, populate peramb
         {
@@ -388,11 +389,11 @@ void TDistilMesonField<FImpl>::execute(void)
                     peramb.emplace(s , perambtemp);
                 }
             }
-            computation.execute(filenameDmfFn, metadataDmfFn, gamma_, dist_vecs, npair, phase, time_sources, epack, this, peramb);
+            computation.execute(filenameDmfFn, metadataDmfFn, gamma_, dist_vecs, noise_idx, phase, time_sources, epack, this, peramb);
         }
         else
         {
-            computation.execute(filenameDmfFn, metadataDmfFn, gamma_, dist_vecs, npair, phase, time_sources, epack, this);
+            computation.execute(filenameDmfFn, metadataDmfFn, gamma_, dist_vecs, noise_idx, phase, time_sources, epack, this);
         }
         LOG(Message) << "Meson fields saved to " << outputMFPath_ << std::endl;
     }
