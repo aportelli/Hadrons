@@ -45,7 +45,7 @@ BEGIN_MODULE_NAMESPACE(MDistil)
  *                             Perambulator                                    *
  ******************************************************************************/
 
-GRID_SERIALIZABLE_ENUM(pMode, undef, perambOnly, 0, inputSolve, 1, outputSolve, 2);
+GRID_SERIALIZABLE_ENUM(pMode, undef, perambOnly, 0, inputSolve, 1, outputSolve, 2, saveSolve, 3);
 
 
 
@@ -298,6 +298,13 @@ void TPerambulator<FImpl>::execute(void)
    	            dIndexSolve = ds + nDS * dk + nDL * nDS * idt;
                     auto &solveOut = envGet(std::vector<FermionField>, getName()+"_full_solve");
                     solveOut[inoise+nNoise*dIndexSolve] = fermion4dtmp;
+		}
+                if(perambMode == pMode::saveSolve)
+                {
+   	            // index of the solve just has the reduced time dimension 
+   	            dIndexSolve = ds + nDS * dk + nDL * nDS * idt;
+                    std::string sFileName(par().fullSolveFileName);
+                    DistillationVectorsIo::writeComponent(sFileName, fermion4dtmp, "fullSolve", nNoise, nDL, nDS, nDT, invT, inoise+nNoise*dIndexSolve, vm().getTrajectory());
                 }
    	    }
             for (int is = 0; is < Ns; is++)

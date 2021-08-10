@@ -73,6 +73,27 @@ public:
 			 std::vector<int> timeSources,
                          const bool multiFile, 
 			 const int trajectory = -1);
+    template <typename Field>
+    static void writeComponent(const std::string fileStem, 
+		         Field &vec, 
+		         const std::string vecType, 
+		         const int nNoise, 
+			 const int nDL,
+			 const int nDS, 
+			 const int nDT, 
+			 std::vector<int> timeSources,
+                         const int componentIndex, 
+			 const int trajectory = -1);
+    template <typename Field>
+    static void readComponent(Field &vec, 
+		         const std::string fileStem,
+		         const int nNoise, 
+			 const int nDL,
+			 const int nDS, 
+			 const int nDT, 
+			 std::vector<int> timeSources,
+                         const int componentIndex, 
+			 const int trajectory = -1);
 private:
     static inline std::string vecFilename(const std::string stem, 
 		                          const int traj, 
@@ -209,6 +230,82 @@ void DistillationVectorsIo::read(std::vector<Field> &vec,
     }
 }
 
+
+/******************************************************************************
+ *               distillation vectors I/O template implementation             *
+ *               version for single component                                 *
+ ******************************************************************************/
+template <typename Field>
+void DistillationVectorsIo::writeComponent(const std::string fileStem, 
+		                    Field &vec, 
+		                    const std::string vecType, 
+				    const int nNoise, 
+				    const int nDL,
+			            const int nDS, 
+				    const int nDT, 
+			            std::vector<int> timeSources,
+                                    const int componentIndex, 
+				    const int trajectory)
+{
+    Record       record;
+    GridBase     *grid = vec.Grid();
+    ScidacWriter binWriter(grid->IsBoss());
+    std::string  filename = vecFilename(fileStem, trajectory, 1);
+
+    record.vecType = vecType;
+    record.nNoise = nNoise;
+    record.nDL = nDL;
+    record.nDS = nDS;
+    record.nDT = nDT;
+    record.timeSources = timeSources;
+    std::string fullFilename;
+
+    fullFilename = filename + "/elem" + std::to_string(componentIndex) + ".bin";
+
+    LOG(Message) << "Writing vector " << componentIndex << std::endl;
+    makeFileDir(fullFilename, grid);
+    binWriter.open(fullFilename);
+    record.index = componentIndex;
+    binWriter.writeScidacFieldRecord(vec, record);
+    binWriter.close();
+}
+
+template <typename Field>
+void DistillationVectorsIo::readComponent(Field &vec, 
+		                    const std::string fileStem, 
+		                    const int nNoise, 
+				    const int nDL,
+			            const int nDS, 
+				    const int nDT, 
+			            std::vector<int> timeSources,
+                                    const int componentIndex, 
+				    const int trajectory)
+{
+    Record       record;
+    ScidacReader binReader;
+    std::string  filename = vecFilename(fileStem, trajectory, 1);
+
+    std::string fullFilename;
+
+    fullFilename = filename + "/elem" + std::to_string(componentIndex) + ".bin";
+
+    LOG(Message) << "Reading vector " << componentIndex << std::endl;
+    binReader.open(fullFilename);
+    binReader.readScidacFieldRecord(vec, record);
+    binReader.close();
+    if (record.index != componentIndex)
+    {
+        HADRONS_ERROR(Io, "vector index mismatch");
+    }
+    if (record.timeSources != timeSources)
+    {
+        HADRONS_ERROR(Io, "source times mismatch");
+    }
+    if (record.nNoise != nNoise || record.nDL != nDL || record.nDS != nDS || record.nDT != nDT )
+    {
+        HADRONS_ERROR(Io, "dilution parameter mismatch");
+    }
+}
 END_HADRONS_NAMESPACE
 
 #endif // Distillation_Vectors_hpp_
