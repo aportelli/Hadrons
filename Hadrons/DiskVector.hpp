@@ -461,8 +461,15 @@ void DiskVectorBase<T>::cacheInsert(const unsigned int i, const T &obj) const
     auto &loads    = *loadsPtr_;
 
     evict();
-    index[i] = freeInd.top();
-    freeInd.pop();
+    if (index.find(i) == index.end()) {
+	index[i] = freeInd.top();
+	freeInd.pop();
+    }
+    else {
+	auto pos = std::find(loads.begin(), loads.end(), i);
+	assert(pos != loads.end());
+	loads.erase(pos);
+    }
     cache[index.at(i)] = obj;
     loads.push_back(i);
     modified[index.at(i)] = false;

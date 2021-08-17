@@ -96,6 +96,7 @@ int main(int argc, char *argv[])
 
     w[2] = EigenDiskVectorMat<ComplexD>::Random(2000, 2000);
     m    = w[2];
+    w[2] = m;
     w[3] = EigenDiskVectorMat<ComplexD>::Random(2000, 2000);
     w[4] = EigenDiskVectorMat<ComplexD>::Random(2000, 2000);
     w[5] = EigenDiskVectorMat<ComplexD>::Random(2000, 2000);
