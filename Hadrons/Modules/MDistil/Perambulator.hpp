@@ -302,8 +302,10 @@ void TPerambulator<FImpl>::execute(void)
                 if(perambMode == pMode::saveSolve)
                 {
    	            // index of the solve just has the reduced time dimension 
-   	            dIndexSolve = ds + nDS * dk + nDL * nDS * idt;
+   	            dIndexSolve = dilNoise.dilutionIndex(dt,dk,ds);
                     std::string sFileName(par().fullSolveFileName);
+                    sFileName.append("_noise");
+                    sFileName.append(std::to_string(inoise));
                     DistillationVectorsIo::writeComponent(sFileName, fermion4dtmp, "fullSolve", nNoise, nDL, nDS, nDT, invT, inoise+nNoise*dIndexSolve, vm().getTrajectory());
                 }
    	    }
