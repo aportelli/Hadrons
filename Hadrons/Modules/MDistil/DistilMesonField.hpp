@@ -206,8 +206,8 @@ void TDistilMesonField<FImpl>::setup(void)
 
     envTmpLat(ComplexField,             "coor");
     envTmp(std::vector<ComplexField>,   "phase",        1, momenta_.size(), g );
-    envTmp(DistilVector,                "dvl",          1, DISTILVECTOR_BATCH_SIZE*dilSizeLS_.at(Side::left), g);
-    envTmp(DistilVector,                "dvr",          1, DISTILVECTOR_BATCH_SIZE*dilSizeLS_.at(Side::right), g);
+    envTmp(DistilVector,                "dvl",          1, DISTILVECTOR_TIME_BATCH_SIZE*dilSizeLS_.at(Side::left), g);
+    envTmp(DistilVector,                "dvr",          1, DISTILVECTOR_TIME_BATCH_SIZE*dilSizeLS_.at(Side::right), g);
     envTmp(Computation,                 "computation",  1, dmfType_, g, g3d, noisel, noiser, par().blockSize, 
                 par().cacheSize, env().getDim(g->Nd() - 1), momenta_.size(), gamma_.size(), isExact_, onlyDiag_);
 }
@@ -278,7 +278,7 @@ void TDistilMesonField<FImpl>::execute(void)
                 std::iota( time_sources.at(s).begin() , time_sources.at(s).end() , 0);    //creates sequence from 0 to TI-1
             }
         }
-        if(time_sources.at(s).size()%DISTILVECTOR_BATCH_SIZE != 0){
+        if(time_sources.at(s).size()%DISTILVECTOR_TIME_BATCH_SIZE != 0){ //batch size should be a divisor of the number of time sources
             std::string errside = (s==Side::left) ? "left" : "right";
             HADRONS_ERROR(Range, "Number of time sources (" + errside + ") not divisible by distil vector batch size.");
         }
@@ -354,6 +354,7 @@ void TDistilMesonField<FImpl>::execute(void)
     
     if(isExact_)
         LOG(Message) << "Exact distillation" << std::endl;
+    LOG(Message) << "Distil batch size (time-dilution direction): " << DISTILVECTOR_TIME_BATCH_SIZE << std::endl;
     LOG(Message) << "Selected time-dilution partitions :"   << std::endl;
     LOG(Message) << " Left : " << MDistil::timeslicesDump(time_sources.at(Side::left)) << std::endl;
     LOG(Message) << " Right : " << MDistil::timeslicesDump(time_sources.at(Side::right)) << std::endl;

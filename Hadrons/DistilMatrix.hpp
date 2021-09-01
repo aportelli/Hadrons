@@ -13,8 +13,8 @@
 #endif
 
 // make this an input?
-#ifndef DISTILVECTOR_BATCH_SIZE
-#define DISTILVECTOR_BATCH_SIZE 2
+#ifndef DISTILVECTOR_TIME_BATCH_SIZE
+#define DISTILVECTOR_TIME_BATCH_SIZE 2
 #endif
 
 #define DISTIL_MATRIX_NAME      "DistilMesonField"
@@ -130,7 +130,7 @@ private:
     const bool                          onlyDiag_;
     std::map<Side, unsigned int>        dilSizeLS_;
     std::map<Side, DistillationNoise&>  distilNoise_;
-    const unsigned int                  dvBatchSize_ = DISTILVECTOR_BATCH_SIZE;
+    const unsigned int                  dvBatchSize_ = DISTILVECTOR_TIME_BATCH_SIZE;
 public:
     DmfComputation(std::map<Side,std::string>   mf_type,
                    GridCartesian*               g,
