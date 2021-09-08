@@ -14,7 +14,7 @@
 
 // make this an input?
 #ifndef DISTILVECTOR_TIME_BATCH_SIZE
-#define DISTILVECTOR_TIME_BATCH_SIZE 2
+#define DISTILVECTOR_TIME_BATCH_SIZE 1
 #endif
 
 #define DISTIL_MATRIX_NAME      "DistilMesonField"
@@ -171,7 +171,7 @@ private:
                                       Side                              s,
                                       std::vector<unsigned int>         dt_list,
                                       std::map<Side, PerambTensor&>     peramb);
-    std::vector<unsigned int> fetchDvBatchComponents(unsigned int               ibatch,
+    std::vector<unsigned int> fetchDvBatchIdxs(unsigned int               ibatch,
                                                    std::vector<unsigned int>  time_dil_sources);
 public:
     void execute(const FilenameFn                               &filenameDmfFn,
@@ -328,7 +328,7 @@ void DmfComputation<FImpl,T,Tio>
 // fetch time dilution indices (sources) in dv batch ibatch
 template <typename FImpl, typename T, typename Tio>
 std::vector<unsigned int> DmfComputation<FImpl,T,Tio>
-::fetchDvBatchComponents(unsigned int ibatch, std::vector<unsigned int> time_dil_sources)
+::fetchDvBatchIdxs(unsigned int ibatch, std::vector<unsigned int> time_dil_sources)
 {
     std::vector<unsigned int> batch_dt;
     for(unsigned int dt=ibatch*dvBatchSize_; dt<(ibatch+1)*dvBatchSize_; dt++){
@@ -353,21 +353,55 @@ void DmfComputation<FImpl,T,Tio>
     std::vector<std::vector<unsigned int>> time_dil_pair_list;
     const unsigned int vol = g_->_gsites;
 
+    //make these input parameters
+    std::string sumTargetSide="right";
+    std::vector<unsigned int> sumTargetTimeSources={0,4};
+    bool hasDvSummed=false;
+    bool doneSumModeIo, doneSumModeCompute=true;
+
     for (unsigned int ibatchL=0 ; ibatchL<time_dil_source.at(Side::left).size()/dvBatchSize_ ; ibatchL++)   //loop over left dv batches
     {
-        std::vector<unsigned int> batch_dtL = fetchDvBatchComponents(ibatchL,time_dil_source.at(Side::left));
+        if(sumTargetSide=="right")
+        {
+            doneSumModeIo=false;
+            doneSumModeCompute=false;
+        }
         START_TIMER("distil vectors");
-        makeDvLapSpinBatch(dv, n_idx, epack, Side::left, batch_dtL, peramb);
+        std::vector<unsigned int> batch_dtL = fetchDvBatchIdxs(ibatchL,time_dil_source.at(Side::left));
+        if(sumTargetSide=="left")
+        {
+            ;
+        }
+        else //regular computation
+        {
+            makeDvLapSpinBatch(dv, n_idx, epack, Side::left, batch_dtL, peramb);
+        }
         STOP_TIMER("distil vectors");
         for (unsigned int idtL=0 ; idtL<batch_dtL.size() ; idtL++)
         {
             unsigned int dtL = batch_dtL[idtL];
             for (unsigned int ibatchR=0 ; ibatchR<time_dil_source.at(Side::right).size()/dvBatchSize_ ; ibatchR++)  //loop over right dv batches
             {
-                std::vector<unsigned int> batch_dtR = fetchDvBatchComponents(ibatchR,time_dil_source.at(Side::right));
                 START_TIMER("distil vectors");
-                makeDvLapSpinBatch(dv, n_idx, epack, Side::right, batch_dtR, peramb);
+                std::vector<unsigned int> batch_dtR = fetchDvBatchIdxs(ibatchR,time_dil_source.at(Side::right));
+                if(sumTargetSide=="right" && !hasDvSummed)
+                {
+                    for(auto& t : sumTargetTimeSources)
+                    {
+                        // makePhiComponent(at t);
+                        // ExtractSlices from Phi above 
+                        // Insert slices into dvr
+                        ;
+                    }
+                    makeDvLapSpinBatch(dv, n_idx, epack, Side::right, batch_dtR, peramb);
+                    hasDvSummed=true;
+                }
+                else //regular computation
+                {
+                    makeDvLapSpinBatch(dv, n_idx, epack, Side::right, batch_dtR, peramb);
+                }
                 STOP_TIMER("distil vectors");
+
                 for (unsigned int idtR=0 ; idtR<batch_dtR.size() ; idtR++)
                 {
                     unsigned int dtR = batch_dtR[idtR];
@@ -391,18 +425,29 @@ void DmfComputation<FImpl,T,Tio>
                                         time_partition.at(Side::right).begin(), time_partition.at(Side::right).end(),
                                         std::back_inserter(ts_intersection));
 
-                    const int nt_sparse = ts_intersection.size();
-                    bBuf_.resize(nExt_*nStr_*nt_sparse*blockSize_*blockSize_);
+                    int nt_intersection = ts_intersection.size();
+                    const int nt_sparse = 1; //full time dilution (replace by size of current time-dilution partition)
+                    if(sumTargetSide=="right" || sumTargetSide=="left")
+                    {
+                        nt_intersection = nt_;
+                    }
+                    bBuf_.resize(nExt_*nStr_*nt_intersection*blockSize_*blockSize_);
 
                     // only execute when partitions have at least one time slice in common; only computes diagonal when onlydiag true
                     if( !ts_intersection.empty() 
-                        && (!onlyDiag_ || dtL==dtR) ) // ensures only diagonal blocks are computed when onlyDiag_
-                    {
+                        && (!onlyDiag_ || dtL==dtR) && !doneSumModeCompute) // ensures only diagonal blocks are computed when onlyDiag_
+                    {   //add flag to check if this was already done for current dLnotSummed 
                         time_dil_pair_list.push_back({dtL,dtR});
-                        LOG(Message) << "------------------------ " << dtL << "-" << dtR << " ------------------------" << std::endl; 
-                        LOG(Message) << "Saving time slices : " << MDistil::timeslicesDump(ts_intersection) << std::endl;
-                        LOG(Message) << "Time extension in file : " << nt_sparse << std::endl;
-                        std::string dataset_name = std::to_string(dtL)+"-"+std::to_string(dtR);
+
+                        if(sumTargetSide!="right" && sumTargetSide!="left")
+                        {
+                            LOG(Message) << "------------------------ " << dtL << "-" << dtR << " ------------------------" << std::endl; 
+                            LOG(Message) << "Saving time slices : " << MDistil::timeslicesDump(ts_intersection) << std::endl;
+                            LOG(Message) << "Time extension in file : " << nt_intersection << std::endl;
+                        }
+                        else{
+                            LOG(Message) << "------------------------ Summed-Target Mode " << dtL << "-" << MDistil::timeslicesDump(sumTargetTimeSources) << " ------------------------" << std::endl; 
+                        }
 
                         unsigned int nblocki = dilSizeLS_.at(Side::left)/blockSize_ + (((dilSizeLS_.at(Side::left) % blockSize_) != 0) ? 1 : 0);
                         unsigned int nblockj = dilSizeLS_.at(Side::right)/blockSize_ + (((dilSizeLS_.at(Side::right) % blockSize_) != 0) ? 1 : 0);
@@ -415,7 +460,7 @@ void DmfComputation<FImpl,T,Tio>
                             // iblock_size is the size of the current block (indexed by i); N_i-i is the size of the possible remainder block
                             unsigned int iblock_size = MIN(dilSizeLS_.at(Side::left)-i,blockSize_);
                             unsigned int jblock_size = MIN(dilSizeLS_.at(Side::right)-j,blockSize_);
-                            A2AMatrixSet<Tio> block(bBuf_.data(), nExt_ , nStr_ , nt_sparse, iblock_size, jblock_size);
+                            A2AMatrixSet<Tio> block(bBuf_.data(), nExt_ , nStr_ , nt_intersection, iblock_size, jblock_size);
 
                             LOG(Message) << "Distil matrix block " 
                             << j/blockSize_ + nblocki*i/blockSize_ + 1 
@@ -467,50 +512,119 @@ void DmfComputation<FImpl,T,Tio>
                             blockBytes_ += bytes/time_kernel*0.000931322574615478515625/nodes ; // 1.0e6/1024/1024/1024/nodes
 
                             // saving current block to disk
-                            double ioTime = -GET_TIMER("IO: write block");
-                            START_TIMER("IO: total");
 #ifdef HADRONS_A2AM_PARALLEL_IO
                             //parallel io
                             unsigned int inode = g_->ThisRank();
                             unsigned int nnode = g_->RankCount(); 
                             LOG(Message) << "Starting parallel IO. Rank count=" << nnode  << std::endl;
-                            g_->Barrier();
-                            for(unsigned int k=inode ; k<nExt_*nStr_ ; k+=nnode){
-                                unsigned int iext = k/nStr_;
-                                unsigned int istr = k%nStr_;
-                                // metadata;
-                                DistilMesonFieldMetadata<FImpl> md = metadataDmfFn(iext,istr,n_idx.at(Side::left),n_idx.at(Side::right));                    
-                                A2AMatrixIo<HADRONS_DISTIL_IO_TYPE> matrixIo(filenameDmfFn(iext,istr,n_idx.at(Side::left),n_idx.at(Side::right)), 
-                                        DISTIL_MATRIX_NAME, nt_sparse, dilSizeLS_.at(Side::left), dilSizeLS_.at(Side::right));
-                                START_TIMER("IO: write block");
-                                if(i==0 && j==0)  
-                                {             
-                                    if( (dtL==time_dil_source.at(Side::left)[0]) && (dtR==time_dil_source.at(Side::right)[0]) )     //execute this once per block
-                                    {
-                                        START_TIMER("IO: file creation");
-                                        matrixIo.initFile(md);
-                                        STOP_TIMER("IO: file creation");
+
+                            if(sumTargetSide!="right" && sumTargetSide!="left")
+                            {
+                                double ioTime = -GET_TIMER("IO: write block");
+                                START_TIMER("IO: total");
+                                g_->Barrier();
+                                for(unsigned int k=inode ; k<nExt_*nStr_ ; k+=nnode){
+                                    unsigned int iext = k/nStr_;
+                                    unsigned int istr = k%nStr_;
+                                    // metadata;
+                                    std::string dataset_name = std::to_string(dtL)+"-"+std::to_string(dtR);
+                                    DistilMesonFieldMetadata<FImpl> md = metadataDmfFn(iext,istr,n_idx.at(Side::left),n_idx.at(Side::right));                    
+                                    A2AMatrixIo<HADRONS_DISTIL_IO_TYPE> matrixIo(filenameDmfFn(iext,istr,n_idx.at(Side::left),n_idx.at(Side::right)), 
+                                            DISTIL_MATRIX_NAME, nt_intersection, dilSizeLS_.at(Side::left), dilSizeLS_.at(Side::right));
+                                    START_TIMER("IO: write block");
+                                    if(i==0 && j==0)  
+                                    {             
+                                        if( (dtL==time_dil_source.at(Side::left)[0]) && (dtR==time_dil_source.at(Side::right)[0]) )     //execute this once per block
+                                        {
+                                            START_TIMER("IO: file creation");
+                                            matrixIo.initFile(md);
+                                            STOP_TIMER("IO: file creation");
+                                        }
+                                        matrixIo.saveBlock(block, iext , istr , i, j, dataset_name, ts_intersection, blockSize_);   //sets 2D chunk size and creates dataset
                                     }
-                                    matrixIo.saveBlock(block, iext , istr , i, j, dataset_name, ts_intersection, blockSize_);   //sets 2D chunk size and creates dataset
+                                    else{
+                                        matrixIo.saveBlock(block, iext , istr , i, j, dataset_name);
+                                    }
+                                    STOP_TIMER("IO: write block");
                                 }
-                                else{
-                                    matrixIo.saveBlock(block, iext , istr , i, j, dataset_name);
-                                }
-                                STOP_TIMER("IO: write block");
+                                g_->Barrier();
+                                STOP_TIMER("IO: total");
+                                ioTime    += GET_TIMER("IO: write block");
+                                unsigned int bytesBlockSize  = static_cast<double>(nExt_*nStr_*nt_intersection*iblock_size*jblock_size*sizeof(Tio));
+                                double iospeed = bytesBlockSize/ioTime*0.95367431640625;     // 1.0e6/1024/1024
+                                unsigned int ntchunk = (nt_ > DISTIL_NT_CHUNK_SIZE) ? DISTIL_NT_CHUNK_SIZE : nt_; // for message purposes; set accordingly to A2AMatrix.hpp
+                                LOG(Message)    << "HDF5 IO done " << sizeString(bytesBlockSize) << " in "
+                                                << ioTime  << " us (" << iospeed << " MB/s) (chunks=" 
+                                                << ntchunk << "x" << blockSize_ << "x" << blockSize_ << ")" << std::endl;
+                                blockIoSpeed_ += iospeed;
                             }
-                            g_->Barrier();
-#endif
-                            STOP_TIMER("IO: total");
-                            ioTime    += GET_TIMER("IO: write block");
-                            unsigned int bytesBlockSize  = static_cast<double>(nExt_*nStr_*nt_sparse*iblock_size*jblock_size*sizeof(Tio));
-                            double iospeed = bytesBlockSize/ioTime*0.95367431640625;     // 1.0e6/1024/1024
-                            unsigned int ntchunk = (nt_ > DISTIL_NT_CHUNK_SIZE) ? DISTIL_NT_CHUNK_SIZE : nt_; // for message purposes; set accordingly to A2AMatrix.hpp
-                            LOG(Message)    << "HDF5 IO done " << sizeString(bytesBlockSize) << " in "
-                                            << ioTime  << " us (" << iospeed << " MB/s) (chunks=" 
-                                            << ntchunk << "x" << blockSize_ << "x" << blockSize_ << ")" << std::endl;
-                            blockIoSpeed_ += iospeed;
+                            else if(!doneSumModeIo) //sum target mode: save all blocks available, in total sparse mode; do only once per dtLfixed
+                            {
+                                double ioTime = -GET_TIMER("IO: write block");
+                                A2AMatrixSet<Tio> block_summed(bBuf_.data(), nExt_ , nStr_ , nt_sparse , iblock_size, jblock_size);
+                                
+                                for(unsigned int it=0 ; it<sumTargetTimeSources.size() ; it++)
+                                {
+                                    unsigned int t = sumTargetTimeSources[it];
+                                    // for now, assuming sum on right side (dtL fixed)
+                                    const unsigned int dtRSum=t;
+                                    std::vector<unsigned int> ts_sparselist = {t};
+
+                                    START_TIMER("cache copy");
+                                    thread_for_collapse(4,iext,nExt_,{
+                                    for(unsigned int istr=0;istr<nStr_;istr++)
+                                    for(unsigned int ii=0;ii<iblock_size;ii++)
+                                    for(unsigned int jj=0;jj<jblock_size;jj++)
+                                    {
+                                        block_summed(iext,istr,0,i+ii,j+jj)=block(iext,istr,t,ii,jj);
+                                    }
+                                    });
+                                    STOP_TIMER("cache copy");
+
+                                    std::string dataset_name = std::to_string(dtL)+"-"+std::to_string(dtRSum);   
+                                    LOG(Message) << "Saving sparse " << dataset_name << " block" << std::endl; 
+                                    START_TIMER("IO: total");
+                                    g_->Barrier();
+                                    for(unsigned int k=inode ; k<nExt_*nStr_ ; k+=nnode){
+                                        unsigned int iext = k/nStr_;
+                                        unsigned int istr = k%nStr_;
+                                        // metadata;
+                                        DistilMesonFieldMetadata<FImpl> md = metadataDmfFn(iext,istr,n_idx.at(Side::left),n_idx.at(Side::right));
+                                        A2AMatrixIo<HADRONS_DISTIL_IO_TYPE> matrixIo(filenameDmfFn(iext,istr,n_idx.at(Side::left),n_idx.at(Side::right)), 
+                                                DISTIL_MATRIX_NAME, nt_sparse, dilSizeLS_.at(Side::left), dilSizeLS_.at(Side::right));
+                                        START_TIMER("IO: write block");
+                                        if(i==0 && j==0)  
+                                        {             
+                                            if( (dtL==time_dil_source.at(Side::left)[0]) && (dtRSum==time_dil_source.at(Side::right)[0]) )     //execute this once per block
+                                            {
+                                                START_TIMER("IO: file creation");
+                                                matrixIo.initFile(md);
+                                                STOP_TIMER("IO: file creation");
+                                            }
+                                            matrixIo.saveBlock(block, iext , istr , i, j, dataset_name, ts_sparselist, blockSize_);   //sets 2D chunk size and creates dataset
+                                        }
+                                        else{
+                                            matrixIo.saveBlock(block, iext , istr , i, j, dataset_name);
+                                        }
+                                        STOP_TIMER("IO: write block");
+                                    }
+                                    g_->Barrier();
+                                    STOP_TIMER("IO: total");
+                                    ioTime    += GET_TIMER("IO: write block");
+                                    unsigned int bytesBlockSize  = static_cast<double>(nExt_*nStr_*nt_sparse*iblock_size*jblock_size*sizeof(Tio));
+                                    double iospeed = bytesBlockSize/ioTime*0.95367431640625;     // 1.0e6/1024/1024
+                                    unsigned int ntchunk = (nt_ > DISTIL_NT_CHUNK_SIZE) ? DISTIL_NT_CHUNK_SIZE : nt_; // for message purposes; set accordingly to A2AMatrix.hpp
+                                    LOG(Message)    << "HDF5 IO done " << sizeString(bytesBlockSize) << " in "
+                                                    << ioTime  << " us (" << iospeed << " MB/s) (chunks=" 
+                                                    << ntchunk << "x" << blockSize_ << "x" << blockSize_ << ")" << std::endl;
+                                    blockIoSpeed_ += iospeed;
+                                }
+                            }
+#endif              
                         }
+                        if(sumTargetSide=="right" || sumTargetSide=="left") doneSumModeIo=true;
                     }
+                    if(sumTargetSide=="right" || sumTargetSide=="left") doneSumModeCompute=true;
                 }
             }
         }
