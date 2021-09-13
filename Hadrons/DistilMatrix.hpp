@@ -173,6 +173,21 @@ private:
                                       std::map<Side, PerambTensor&>     peramb);
     std::vector<unsigned int> fetchDvBatchIdxs(unsigned int               ibatch,
                                                    std::vector<unsigned int>  time_dil_sources);
+    void makePinnedPhiComponent(FermionField&                phi_component,
+                            DistillationNoise&               n,
+                            const unsigned int               n_idx,
+                            const unsigned int               D,
+                            const unsigned int               t,
+                            PerambTensor&                    peramb,
+                            LapPack&                         epack);
+
+    void makePinnedDvLapSpinBlock(std::map<Side, DistilVector&>         dv,
+                               std::vector<unsigned int>                dt_list,
+                               std::map<Side, unsigned int>             n_idx,
+                               LapPack&                                 epack,
+                               Side                                     s,
+                               std::vector<unsigned int>                sumTargetTimeSources,
+                               std::map<Side, PerambTensor&>            peramb);
 public:
     void execute(const FilenameFn                               &filenameDmfFn,
                  const MetadataFn                               &metadataDmfFn,
@@ -339,6 +354,73 @@ std::vector<unsigned int> DmfComputation<FImpl,T,Tio>
 
 template <typename FImpl, typename T, typename Tio>
 void DmfComputation<FImpl,T,Tio>
+::makePinnedPhiComponent(FermionField&              phi_component,
+                   DistillationNoise&               n,
+                   const unsigned int               n_idx,
+                   const unsigned int               D,
+                   const unsigned int               t,
+                   PerambTensor&                    peramb,
+                   LapPack&                         epack)
+{
+    // assert that number of sumTargetTimeSources == time_sources on this side
+    std::array<unsigned int,3> d_coor = n.dilutionCoordinates(D);
+    unsigned int dt = d_coor[Index::t] , dl = d_coor[Index::l] , ds = d_coor[Index::s];
+
+    std::vector<int> peramb_ts = peramb.MetaData.timeSources;
+    std::vector<int>::iterator itr_dt = std::find(peramb_ts.begin(), peramb_ts.end(), dt);
+    unsigned int idt_peramb = std::distance(peramb_ts.begin(), itr_dt); //gets correspondent index of dt in the tensor obj 
+    const unsigned int nVec = epack.evec.size();
+    const unsigned int Nt_first = g_->LocalStarts()[nd_ - 1];
+    const unsigned int Nt_local = g_->LocalDimensions()[nd_ - 1];
+    if( (t>=Nt_first) && (t<Nt_first+Nt_local) )
+    {
+        tmp3d_ = Zero();
+        for (unsigned int k = 0; k < nVec; k++)
+        {
+            ExtractSliceLocal(evec3d_,epack.evec[k],0,t-Nt_first,nd_ - 1);
+            tmp3d_ += evec3d_ * peramb.tensor(t, k, dl, n_idx, idt_peramb, ds);
+        }
+        InsertSliceLocal(tmp3d_,phi_component,0,t-Nt_first,nd_ - 1);
+        // std::cout << phi_component << std::endl;
+    }
+}
+
+template <typename FImpl, typename T, typename Tio>
+void DmfComputation<FImpl,T,Tio>
+::makePinnedDvLapSpinBlock(std::map<Side, DistilVector&>                dv,
+                               std::vector<unsigned int>                dt_list,
+                               std::map<Side, unsigned int>             n_idx,
+                               LapPack&                                 epack,
+                               Side                                     s,
+                               std::vector<unsigned int>                sumTargetTimeSources,
+                               std::map<Side, PerambTensor&>            peramb)
+{
+    for(unsigned int D=0 ; D<dilSizeLS_.at(s) ; D++)
+        dv.at(s)[D] = Zero();
+
+    for(unsigned int D=0 ; D<distilNoise_.at(s).dilutionSize() ; D++)
+    {
+        std::array<unsigned int,3> d_coor = distilNoise_.at(s).dilutionCoordinates(D);
+        unsigned int dt = d_coor[Index::t] , dl = d_coor[Index::l] , ds = d_coor[Index::s];
+        if( std::count(dt_list.begin(), dt_list.end(), dt) )
+        {
+            const unsigned int Dsummed = distilNoise_.at(s).dilutionIndex(0,dl,ds);
+            std::vector<unsigned int>::iterator itr_dt = std::find(dt_list.begin(), dt_list.end(), dt);
+            unsigned int idt = std::distance(dt_list.begin(), itr_dt);
+            if(isPhi(s))
+            {
+                makePinnedPhiComponent(dv.at(s)[Dsummed] , distilNoise_.at(s) , n_idx.at(s) , D , sumTargetTimeSources[idt] , peramb.at(s), epack );
+            }
+            else if(isRho(s))
+            {
+                ;
+            }
+        }
+    }
+}
+
+template <typename FImpl, typename T, typename Tio>
+void DmfComputation<FImpl,T,Tio>
 ::execute(const FilenameFn                              &filenameDmfFn,
           const MetadataFn                              &metadataDmfFn,
           std::vector<Gamma::Algebra>                   gamma,
@@ -353,6 +435,7 @@ void DmfComputation<FImpl,T,Tio>
     std::vector<std::vector<unsigned int>> time_dil_pair_list;
     const unsigned int vol = g_->_gsites;
 
+    //assume only right side can be summed for now
     //make these input parameters
     std::string sumTargetSide="right";
     std::vector<unsigned int> sumTargetTimeSources={0,4};
@@ -368,14 +451,7 @@ void DmfComputation<FImpl,T,Tio>
         }
         START_TIMER("distil vectors");
         std::vector<unsigned int> batch_dtL = fetchDvBatchIdxs(ibatchL,time_dil_source.at(Side::left));
-        if(sumTargetSide=="left")
-        {
-            ;
-        }
-        else //regular computation
-        {
-            makeDvLapSpinBatch(dv, n_idx, epack, Side::left, batch_dtL, peramb);
-        }
+        makeDvLapSpinBatch(dv, n_idx, epack, Side::left, batch_dtL, peramb);
         STOP_TIMER("distil vectors");
         for (unsigned int idtL=0 ; idtL<batch_dtL.size() ; idtL++)
         {
@@ -386,14 +462,7 @@ void DmfComputation<FImpl,T,Tio>
                 std::vector<unsigned int> batch_dtR = fetchDvBatchIdxs(ibatchR,time_dil_source.at(Side::right));
                 if(sumTargetSide=="right" && !hasDvSummed)
                 {
-                    for(auto& t : sumTargetTimeSources)
-                    {
-                        // makePhiComponent(at t);
-                        // ExtractSlices from Phi above 
-                        // Insert slices into dvr
-                        ;
-                    }
-                    makeDvLapSpinBatch(dv, n_idx, epack, Side::right, batch_dtR, peramb);
+                    makePinnedDvLapSpinBlock(dv, time_dil_source.at(Side::right), n_idx, epack, Side::right, sumTargetTimeSources, peramb);
                     hasDvSummed=true;
                 }
                 else //regular computation
@@ -480,7 +549,7 @@ void DmfComputation<FImpl,T,Tio>
                                 START_TIMER("kernel");
                                 unsigned int dv_idxL = idtL*dilSizeLS_.at(Side::left) +i+ii;
                                 unsigned int dv_idxR = idtR*dilSizeLS_.at(Side::right) +j+jj;
-                                A2Autils<FImpl>::MesonField(cache, &dv.at(Side::left)[dv_idxL], &dv.at(Side::right)[dv_idxR], gamma, ph, nd_ - 1, &timer);
+                                A2Autils<FImpl>::MesonField(cache, &dv.at(Side::left)[dv_idxL], &dv.at(Side::right)[0], gamma, ph, nd_ - 1, &timer);
                                 STOP_TIMER("kernel");
                                 time_kernel += timer;
 
@@ -561,7 +630,9 @@ void DmfComputation<FImpl,T,Tio>
                             else if(!doneSumModeIo) //sum target mode: save all blocks available, in total sparse mode; do only once per dtLfixed
                             {
                                 double ioTime = -GET_TIMER("IO: write block");
-                                A2AMatrixSet<Tio> block_summed(bBuf_.data(), nExt_ , nStr_ , nt_sparse , iblock_size, jblock_size);
+                                Vector<Tio>     bBufPin_;
+                                bBufPin_.resize(nExt_*nStr_*nt_sparse*iblock_size*jblock_size);
+                                A2AMatrixSet<Tio> block_pinned(bBufPin_.data(), nExt_ , nStr_ , nt_sparse , iblock_size, jblock_size);
                                 
                                 for(unsigned int it=0 ; it<sumTargetTimeSources.size() ; it++)
                                 {
@@ -576,7 +647,7 @@ void DmfComputation<FImpl,T,Tio>
                                     for(unsigned int ii=0;ii<iblock_size;ii++)
                                     for(unsigned int jj=0;jj<jblock_size;jj++)
                                     {
-                                        block_summed(iext,istr,0,i+ii,j+jj)=block(iext,istr,t,ii,jj);
+                                        block_pinned(iext,istr,0,i+ii,j+jj)=block(iext,istr,t,ii,jj);
                                     }
                                     });
                                     STOP_TIMER("cache copy");
@@ -601,10 +672,10 @@ void DmfComputation<FImpl,T,Tio>
                                                 matrixIo.initFile(md);
                                                 STOP_TIMER("IO: file creation");
                                             }
-                                            matrixIo.saveBlock(block, iext , istr , i, j, dataset_name, ts_sparselist, blockSize_);   //sets 2D chunk size and creates dataset
+                                            matrixIo.saveBlock(block_pinned, iext , istr , i, j, dataset_name, ts_sparselist, blockSize_);   //sets 2D chunk size and creates dataset
                                         }
                                         else{
-                                            matrixIo.saveBlock(block, iext , istr , i, j, dataset_name);
+                                            matrixIo.saveBlock(block_pinned, iext , istr , i, j, dataset_name);
                                         }
                                         STOP_TIMER("IO: write block");
                                     }
