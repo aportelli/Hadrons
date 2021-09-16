@@ -55,7 +55,7 @@ public:
                                     std::string , eigenPack);
 };
 
-template <typename FImplInner, typename FImplOuter, int nBasis>
+template <typename FImplInner, typename FImplOuter, int nBasis = HADRONS_DEFAULT_LANCZOS_NBASIS>
 class TMADWFCG: public Module<MADWFCGPar>
 {
 public:
@@ -79,9 +79,9 @@ private:
     struct CGincreaseTol;
 };
 
-MODULE_REGISTER_TMP(ZMADWFCG,          ARG(TMADWFCG<ZFIMPLD, FIMPLD, HADRONS_DEFAULT_LANCZOS_NBASIS>), MSolver);
-MODULE_REGISTER_TMP(ZMADWFMixedPrecCG, ARG(TMADWFCG<ZFIMPLF, FIMPLD, HADRONS_DEFAULT_LANCZOS_NBASIS>), MSolver);
-MODULE_REGISTER_TMP( MADWFCG,          ARG(TMADWFCG< FIMPLD, FIMPLD, HADRONS_DEFAULT_LANCZOS_NBASIS>), MSolver);
+MODULE_REGISTER_TMP(ZMADWFCG,          ARG(TMADWFCG<ZFIMPLD, FIMPLD>), MSolver);
+MODULE_REGISTER_TMP(ZMADWFMixedPrecCG, ARG(TMADWFCG<ZFIMPLF, FIMPLD>), MSolver);
+MODULE_REGISTER_TMP( MADWFCG,          ARG(TMADWFCG< FIMPLD, FIMPLD>), MSolver);
 
 /******************************************************************************
  *                        TMADWFCG implementation                             *

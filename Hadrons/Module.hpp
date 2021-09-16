@@ -202,6 +202,15 @@ protected:
     DEFINE_ENV_ALIAS;
     // virtual machine shortcut
     DEFINE_VM_ALIAS;
+    // shortcuts for grid pointers
+    template <typename Field>
+    GridBase *getGrid4d(const bool redBlack = false);
+    template <typename Field>
+    GridBase *getGrid5d(const bool redBlack = false, const unsigned int Ls = 1);
+    template <typename Field>
+    GridBase *getGrid(const bool redBlack = false, const unsigned int Ls = 1);
+    template <typename Field>
+    GridBase *getGrid(const unsigned int Ls);
     // get RNGs seeded from module string
     GridParallelRNG &rng4d(void);
     GridSerialRNG &rngSerial(void);
@@ -303,6 +312,59 @@ void ModuleBase::saveResult(const std::string stem, const std::string name, cons
             write(writer, name, result);
         }
     }
+}
+
+template <typename Field>
+GridBase *ModuleBase::getGrid4d(const bool redBlack)
+{
+    GridBase *g;
+    
+    if (redBlack)
+    {
+        g = env().template getRbGrid<typename Field::vector_type>();
+    }
+    else
+    {
+        g = env().template getGrid<typename Field::vector_type>();
+    }
+
+    return g;
+}
+
+template <typename Field>
+GridBase *ModuleBase::getGrid5d(const bool redBlack, const unsigned int Ls)
+{
+    GridBase *grid;
+
+    if (redBlack)
+    {
+        grid = env().template getRbGrid<typename Field::vector_type>(Ls);
+    }
+    else
+    {
+        grid = env().template getGrid<typename Field::vector_type>(Ls);
+    }
+
+    return grid;
+}
+
+template <typename Field>
+GridBase *ModuleBase::getGrid(const bool redBlack, const unsigned int Ls)
+{
+    if (Ls == 1)
+    {
+        return getGrid4d<Field>(redBlack);
+    }
+    else
+    {
+        return getGrid5d<Field>(redBlack, Ls);
+    }
+}
+
+template <typename Field>
+GridBase *ModuleBase::getGrid(const unsigned int Ls)
+{
+    return getGrid<Field>(false, Ls);
 }
 
 template <typename P>

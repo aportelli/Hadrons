@@ -46,6 +46,7 @@ public:
     GRID_SERIALIZABLE_CLASS_MEMBERS(LoadEigenPackPar,
                                     std::string, filestem,
                                     bool, multiFile,
+                                    bool, redBlack,
                                     unsigned int, size,
                                     unsigned int, Ls,
                                     std::string, gaugeXform);
@@ -117,30 +118,22 @@ std::vector<std::string> TLoadEigenPack<Pack, GImpl>::getOutput(void)
 template <typename Pack, typename GImpl>
 void TLoadEigenPack<Pack, GImpl>::setup(void)
 {
-    GridBase *gridIo = nullptr;
+    GridBase  *grid, *gridIo = nullptr, *gridRb = nullptr;
 
+    grid   = getGrid<Field>(par().Ls);
+    gridRb = getGrid<Field>(par().redBlack, par().Ls);
     if (typeHash<Field>() != typeHash<FieldIo>())
     {
-        gridIo = envGetRbGrid(FieldIo, par().Ls);
+        gridIo = getGrid<FieldIo>(par().redBlack, par().Ls);
     }
-    envCreateDerived(BasePack, Pack, getName(), par().Ls, par().size, 
-                     envGetRbGrid(Field, par().Ls), gridIo);
-
+    envCreateDerived(BasePack, Pack, getName(), par().Ls, par().size, gridRb, gridIo);
     if (!par().gaugeXform.empty())
     {
-        if (par().Ls > 1)
+        envTmp(GaugeMat,    "tmpXform", par().Ls, grid);
+        if (par().redBlack)
         {
-            LOG(Message) << "Setup 5d GaugeMat for Ls = " << par().Ls << std::endl;
-            envTmp(GaugeMat,    "tmpXform", par().Ls, envGetGrid5(Field, par().Ls));
-            envTmp(GaugeMat, "tmpXformOdd", par().Ls, envGetRbGrid5(Field, par().Ls));
+            envTmp(GaugeMat, "tmpXformOdd", par().Ls, gridRb);
         }
-        else
-        {
-            LOG(Message) << "Setup 4d GaugeMat for Ls = " << par().Ls << std::endl;
-            envTmp(GaugeMat,    "tmpXform", par().Ls, envGetGrid(Field));
-            envTmp(GaugeMat, "tmpXformOdd", par().Ls, envGetRbGrid(Field));
-        }
-        
     }
 }
 
@@ -158,9 +151,9 @@ void TLoadEigenPack<Pack, GImpl>::execute(void)
 
         LOG(Message) << "Applying gauge transformation to eigenvectors " << getName()
                      << " using " << par().gaugeXform << std::endl;
+
         auto &xform = envGet(GaugeMat, par().gaugeXform);
-        envGetTmp(GaugeMat,    tmpXform);
-        envGetTmp(GaugeMat, tmpXformOdd);
+        envGetTmp(GaugeMat, tmpXform);
 
         if (par().Ls > 1) 
         {
@@ -176,16 +169,30 @@ void TLoadEigenPack<Pack, GImpl>::execute(void)
         {
             tmpXform = xform;
         }
-
-        pickCheckerboard(Odd, tmpXformOdd, tmpXform);
-        startTimer("Transform application");
-        for (unsigned int i = 0; i < par().size; i++)
+        if (par().redBlack)
         {
-            LOG(Message) << "Applying gauge transformation to eigenvector i = " << i+1 << "/" << par().size << std::endl;
-            epack.evec[i].Checkerboard() = Odd;
-            epack.evec[i] = tmpXformOdd * epack.evec[i];
+            envGetTmp(GaugeMat, tmpXformOdd);
+
+            pickCheckerboard(Odd, tmpXformOdd, tmpXform);
+            startTimer("Transform application");
+            for (unsigned int i = 0; i < par().size; i++)
+            {
+                LOG(Message) << "Applying gauge transformation to eigenvector i = " << i+1 << "/" << par().size << std::endl;
+                epack.evec[i].Checkerboard() = Odd;
+                epack.evec[i] = tmpXformOdd*epack.evec[i];
+            }
+            stopTimer("Transform application");
         }
-        stopTimer("Transform application");
+        else
+        {
+            startTimer("Transform application");
+            for (unsigned int i = 0; i < par().size; i++)
+            {
+                LOG(Message) << "Applying gauge transformation to eigenvector i = " << i+1 << "/" << par().size << std::endl;
+                epack.evec[i] = tmpXform*epack.evec[i];
+            }
+            stopTimer("Transform application");
+        }
     }
 }
 

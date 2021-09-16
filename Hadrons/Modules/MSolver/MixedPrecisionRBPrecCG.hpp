@@ -53,7 +53,7 @@ public:
                                     std::string , eigenPack);
 };
 
-template <typename FImplInner, typename FImplOuter, int nBasis>
+template <typename FImplInner, typename FImplOuter, int nBasis = HADRONS_DEFAULT_LANCZOS_NBASIS>
 class TMixedPrecisionRBPrecCG: public Module<MixedPrecisionRBPrecCGPar>
 {
 public:
@@ -93,10 +93,8 @@ public:
     virtual void execute(void);
 };
 
-MODULE_REGISTER_TMP(MixedPrecisionRBPrecCG, 
-    ARG(TMixedPrecisionRBPrecCG<FIMPLF, FIMPLD, HADRONS_DEFAULT_LANCZOS_NBASIS>), MSolver);
-MODULE_REGISTER_TMP(ZMixedPrecisionRBPrecCG, 
-    ARG(TMixedPrecisionRBPrecCG<ZFIMPLF, ZFIMPLD, HADRONS_DEFAULT_LANCZOS_NBASIS>), MSolver);
+MODULE_REGISTER_TMP(MixedPrecisionRBPrecCG, ARG(TMixedPrecisionRBPrecCG<FIMPLF, FIMPLD>), MSolver);
+MODULE_REGISTER_TMP(ZMixedPrecisionRBPrecCG, ARG(TMixedPrecisionRBPrecCG<ZFIMPLF, ZFIMPLD>), MSolver);
 
 /******************************************************************************
  *                 TMixedPrecisionRBPrecCG implementation                             *
