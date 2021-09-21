@@ -118,6 +118,7 @@ private:
     GridCartesian*                      g3d_;
     ColourVectorField                   evec3d_;
     FermionField                        tmp3d_;
+    FermionField                        tmp4d_;
     Vector<Tio>                         bBuf_;
     Vector<Tio>                         bufPinnedT_;
     Vector<T>                           cBuf_;
@@ -181,6 +182,12 @@ private:
                             const unsigned int               t,
                             PerambTensor&                    peramb,
                             LapPack&                         epack);
+    void makePinnedRhoComponent(FermionField&            rho_component,
+                            DistillationNoise&           n,
+                            const unsigned int           n_idx,
+                            const unsigned int           t,
+                            const unsigned int           D,
+                            LapPack&                     epack);
 
     void makePinnedDvLapSpinBlock(std::map<Side, DistilVector&>         dv,
                                std::vector<unsigned int>                dt_list,
@@ -220,7 +227,7 @@ DmfComputation<FImpl,T,Tio>
                  const unsigned int             n_str,
                  const bool                     is_exact,
                  const bool                     only_diag)
-: dmfType_(mf_type), g_(g), g3d_(g3d), evec3d_(g3d), tmp3d_(g3d)
+: dmfType_(mf_type), g_(g), g3d_(g3d), evec3d_(g3d), tmp3d_(g3d), tmp4d_(g)
 , nt_(nt) , nd_(g->Nd()), blockSize_(block_size) , cacheSize_(cache_size)
 , nExt_(n_ext) , nStr_(n_str) , isExact_(is_exact) , onlyDiag_(only_diag)
 {
@@ -271,7 +278,7 @@ void DmfComputation<FImpl,T,Tio>
                    LapPack&                 epack)
 {
     std::array<unsigned int,3> d_coor = n.dilutionCoordinates(D);
-    unsigned int dt = d_coor[Index::t] , dl = d_coor[Index::l] , ds = d_coor[Index::s];
+    unsigned int dt = d_coor[Index::t] , dk = d_coor[Index::l] , ds = d_coor[Index::s];
     std::vector<int> peramb_ts = peramb.MetaData.timeSources;
     std::vector<int>::iterator itr_dt = std::find(peramb_ts.begin(), peramb_ts.end(), dt);
     unsigned int idt = std::distance(peramb_ts.begin(), itr_dt); //gets correspondent index of dt in the tensor obj 
@@ -284,7 +291,7 @@ void DmfComputation<FImpl,T,Tio>
         for (unsigned int k = 0; k < nVec; k++)
         {
             ExtractSliceLocal(evec3d_,epack.evec[k],0,t-Nt_first,nd_ - 1);
-            tmp3d_ += evec3d_ * peramb.tensor(t, k, dl, n_idx, idt, ds);
+            tmp3d_ += evec3d_ * peramb.tensor(t, k, dk, n_idx, idt, ds);
         }
         InsertSliceLocal(tmp3d_,phi_component,0,t-Nt_first,nd_ - 1);
     }
@@ -304,7 +311,7 @@ void DmfComputation<FImpl,T,Tio>
 // and each is identified by the starting posision in time dilution space, (T1,dtR)
 template <typename FImpl, typename T, typename Tio>
 void DmfComputation<FImpl,T,Tio>
-::makeDvLapSpinBlock(std::map<Side, DistilVector&>        dv,
+::makeDvLapSpinBlock(std::map<Side, DistilVector&>                  dv,
                                std::map<Side, unsigned int>         n_idx,
                                LapPack&                             epack,
                                Side                                 s,
@@ -331,7 +338,7 @@ void DmfComputation<FImpl,T,Tio>
 // a batch is composed of several lap-spin blocks
 template <typename FImpl, typename T, typename Tio>
 void DmfComputation<FImpl,T,Tio>
-::makeDvLapSpinBatch(std::map<Side, DistilVector&>    dv,
+::makeDvLapSpinBatch(std::map<Side, DistilVector&>              dv,
                                std::map<Side, unsigned int>     n_idx,
                                LapPack&                         epack,
                                Side                             s,
@@ -366,9 +373,9 @@ void DmfComputation<FImpl,T,Tio>
                    PerambTensor&                    peramb,
                    LapPack&                         epack)
 {
-    // assert that number of pinnedTimeSources == time_sources on this side
+    // assert that number of pinnedTimeSources == time_sources on this side?
     std::array<unsigned int,3> d_coor = n.dilutionCoordinates(D);
-    unsigned int dt = d_coor[Index::t] , dl = d_coor[Index::l] , ds = d_coor[Index::s];
+    unsigned int dt = d_coor[Index::t] , dk = d_coor[Index::l] , ds = d_coor[Index::s];
 
     std::vector<int> peramb_ts = peramb.MetaData.timeSources;
     std::vector<int>::iterator itr_dt = std::find(peramb_ts.begin(), peramb_ts.end(), dt);
@@ -382,11 +389,50 @@ void DmfComputation<FImpl,T,Tio>
         for (unsigned int k = 0; k < nVec; k++)
         {
             ExtractSliceLocal(evec3d_,epack.evec[k],0,t-Nt_first,nd_ - 1);
-            tmp3d_ += evec3d_ * peramb.tensor(t, k, dl, n_idx, idt_peramb, ds);
+            tmp3d_ += evec3d_ * peramb.tensor(t, k, dk, n_idx, idt_peramb, ds);
         }
         InsertSliceLocal(tmp3d_,phi_component,0,t-Nt_first,nd_ - 1);
         // std::cout << phi_component << std::endl;
     }
+}
+
+template <typename FImpl, typename T, typename Tio>
+void DmfComputation<FImpl,T,Tio>
+::makePinnedRhoComponent(FermionField&          rho_component,
+                   DistillationNoise&           n,
+                   const unsigned int           n_idx,
+                   const unsigned int           D,
+                   const unsigned int           t,
+                   LapPack&                     epack)
+{
+    // abstract this to makePinnedSource() kind of method in DilutedNoise?
+    std::array<unsigned int,3> d_coor = n.dilutionCoordinates(D);
+    unsigned int dt = d_coor[Index::t] , dk = d_coor[Index::l] , ds = d_coor[Index::s];
+
+    typename DistillationNoise::NoiseType   noise(n.getNoise()[n_idx].data(), nt_, epack.eval.size(), Ns);
+
+    // adapt to dilution! (add an it loop and untrivialise ik and is loops)
+    
+    const unsigned int Nt_first = g_->LocalStarts()[nd_ - 1];
+    const unsigned int Nt_local = g_->LocalDimensions()[nd_ - 1];
+    if( (t>=Nt_first) && (t<Nt_first+Nt_local) )
+    {
+        for (unsigned int ik = dk; ik < dk+1; ik++)
+        {
+            for (unsigned int is = ds; is < ds+1; is++)
+            {
+                ExtractSliceLocal(evec3d_, epack.evec[ik], 0, t - Nt_first, nd_-1);
+                evec3d_ = evec3d_*noise(dt, ik, is);
+                tmp3d_  = Zero();
+                pokeSpin(tmp3d_, evec3d_, is);
+                tmp4d_ = Zero();
+                InsertSliceLocal(tmp3d_, tmp4d_, 0, t - Nt_first, nd_-1);
+                rho_component += tmp4d_;
+            }
+        }
+    }
+    // std::cout << rho_component << std::endl;
+    // std::cin.get();
 }
 
 template <typename FImpl, typename T, typename Tio>
@@ -405,19 +451,19 @@ void DmfComputation<FImpl,T,Tio>
     for(unsigned int D=0 ; D<distilNoise_.at(s).dilutionSize() ; D++)
     {
         std::array<unsigned int,3> d_coor = distilNoise_.at(s).dilutionCoordinates(D);
-        unsigned int dt = d_coor[Index::t] , dl = d_coor[Index::l] , ds = d_coor[Index::s];
+        unsigned int dt = d_coor[Index::t] , dk = d_coor[Index::l] , ds = d_coor[Index::s];
         if( std::count(dt_list.begin(), dt_list.end(), dt) )
         {
-            const unsigned int Dsummed = distilNoise_.at(s).dilutionIndex(0,dl,ds);
+            const unsigned int Dpinned = distilNoise_.at(s).dilutionIndex(0,dk,ds);
             std::vector<unsigned int>::iterator itr_dt = std::find(dt_list.begin(), dt_list.end(), dt);
             unsigned int idt = std::distance(dt_list.begin(), itr_dt);
             if(isPhi(s))
             {
-                makePinnedPhiComponent(dv.at(s)[Dsummed] , distilNoise_.at(s) , n_idx.at(s) , D , pinnedTimeSources[idt] , peramb.at(s), epack );
+                makePinnedPhiComponent(dv.at(s)[Dpinned] , distilNoise_.at(s) , n_idx.at(s) , D , pinnedTimeSources[idt] , peramb.at(s), epack);
             }
             else if(isRho(s))
             {
-                ;
+                makePinnedRhoComponent(dv.at(s)[Dpinned] , distilNoise_.at(s) , n_idx.at(s), D, pinnedTimeSources[idt] , epack);
             }
         }
     }
@@ -442,16 +488,16 @@ void DmfComputation<FImpl,T,Tio>
     //assume only right side can be summed for now
     //make these input parameters
     // std::vector<unsigned int> dt={0}; // M(t+dt)
-    // std::vector<unsigned int> pinnedTimeSources={0,4}; // M(t+dt)
-    std::vector<unsigned int> pinnedTimeSources={0, 2, 4, 6, 8, 10, 12, 14, 16, 18, 20, 22, 24, 26, 28, 30, 32, 34, 
-                                                36, 38, 40, 42, 44, 46, 48, 50, 52, 54, 56, 58, 60, 62, 64, 66, 68, 
-                                                70, 72, 74, 76, 78, 80, 82, 84, 86, 88, 90, 92, 94};
+    std::vector<unsigned int> pinnedTimeSources={0,4}; // M(t+dt)
+    // std::vector<unsigned int> pinnedTimeSources={0, 2, 4, 6, 8, 10, 12, 14, 16, 18, 20, 22, 24, 26, 28, 30, 32, 34, 
+    //                                             36, 38, 40, 42, 44, 46, 48, 50, 52, 54, 56, 58, 60, 62, 64, 66, 68, 
+    //                                             70, 72, 74, 76, 78, 80, 82, 84, 86, 88, 90, 92, 94};
 
-    
+    Side pinnedside = Side::right;
+
     START_TIMER("distil vectors");
     makePinnedDvLapSpinBlock(dv, time_dil_source.at(Side::right), n_idx, epack, Side::right, pinnedTimeSources, peramb);
     STOP_TIMER("distil vectors");
-
 
     for (unsigned int ibatchL=0 ; ibatchL<time_dil_source.at(Side::left).size()/dvBatchSize_ ; ibatchL++)   //loop over left dv batches
     {
@@ -462,18 +508,20 @@ void DmfComputation<FImpl,T,Tio>
         for (unsigned int idtL=0 ; idtL<batch_dtL.size() ; idtL++)
         {
             unsigned int T1 = batch_dtL[idtL];
-
             const int nt_sparse = 1; //full time dilution , todo: adapt to dilution
 
-            // only execute when partitions have at least one time slice in common; only computes diagonal when onlydiag true
-            // if( !ts_intersection.empty() 
-            //     && (!onlyDiag_ || T1==T2)) // ensures only diagonal blocks are computed when onlyDiag_
-            // {   
+            //     && (!onlyDiag_ || T1==T2)) // keep/implement this onlyDiagonal flag?
 
-            LOG(Message) << "------------------------ T1 = " << T1 << " - pinned T2 = " << MDistil::timeslicesDump(pinnedTimeSources) << " ------------------------" << std::endl; 
+            if(isRho(Side::left) && isRho(Side::right))
+            {
+                pinnedTimeSources.clear();
+                pinnedTimeSources.push_back(T1); //only diagonal rhorho blocks don't vanish
+                LOG(Message) << "------------------------ T1 = " << T1 << " - T2 = " << MDistil::timeslicesDump(pinnedTimeSources) << " ------------------------" << std::endl;
+            }
+            else
+                LOG(Message) << "------------------------ T1 = " << T1 << " - pinned T2 = " << MDistil::timeslicesDump(pinnedTimeSources) << " ------------------------" << std::endl; 
+            
             // LOG(Message) << "Saving time slices : " << MDistil::timeslicesDump(ts_intersection) << std::endl;
-            // LOG(Message) << "Time extension in file : " << nt_intersection << std::endl;
-            // LOG(Message) << "------------------------ Summed-Target Mode " << T1 << "-" << MDistil::timeslicesDump(pinnedTimeSources) << " ------------------------" << std::endl; 
 
             unsigned int nblocki = dilSizeLS_.at(Side::left)/blockSize_ + (((dilSizeLS_.at(Side::left) % blockSize_) != 0) ? 1 : 0);
             unsigned int nblockj = dilSizeLS_.at(Side::right)/blockSize_ + (((dilSizeLS_.at(Side::right) % blockSize_) != 0) ? 1 : 0);
@@ -507,6 +555,7 @@ void DmfComputation<FImpl,T,Tio>
                     unsigned int dv_idxL = idtL*dilSizeLS_.at(Side::left) +i+ii;
                     // unsigned int dv_idxR = idtR*dilSizeLS_.at(Side::right) +j+jj;
                     A2Autils<FImpl>::MesonField(cache, &dv.at(Side::left)[dv_idxL], &dv.at(Side::right)[j+jj], gamma, ph, nd_ - 1, &timer);
+
                     STOP_TIMER("kernel");
                     time_kernel += timer;
 
