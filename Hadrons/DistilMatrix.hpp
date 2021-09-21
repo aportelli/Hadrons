@@ -545,10 +545,7 @@ void DmfComputation<FImpl,T,Tio>
                 unsigned int nnode = g_->RankCount(); 
                 LOG(Message) << "Starting parallel IO. Rank count=" << nnode  << std::endl;
 
-                double ioTime = -GET_TIMER("IO: write block");
-            
-                bufPinnedT_.resize(nExt_*nStr_*nt_sparse*iblock_size*jblock_size);
-                
+                bufPinnedT_.resize(nExt_*nStr_*nt_sparse*iblock_size*jblock_size);                
                 A2AMatrixSet<Tio> block_pinned(bufPinnedT_.data(), nExt_ , nStr_ , nt_sparse , blockSize_, blockSize_);
                 
                 for(unsigned int it=0 ; it<pinnedTimeSources.size() ; it++)
@@ -571,6 +568,7 @@ void DmfComputation<FImpl,T,Tio>
                     });
                     STOP_TIMER("cache copy");
 
+                    double ioTime = -GET_TIMER("IO: write block");
                     std::string dataset_name = std::to_string(T1)+"-"+std::to_string(T2);   
                     LOG(Message) << "Saving sparse " << dataset_name << " block" << std::endl; 
                     START_TIMER("IO: total");
