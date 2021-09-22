@@ -35,7 +35,9 @@ BEGIN_HADRONS_NAMESPACE
 /******************************************************************************
  Load an OpenQcd configuration
 
- file    Namestem of the files to read in                     
+ file    Namestem of the files to read in. In contrast to the LoadNersc
+         module, the separator between the namestem and the configuration
+         number is 'n' instead of '.' compliant with the openQCD convention.         
  ******************************************************************************/
 BEGIN_MODULE_NAMESPACE(MIO)
 
@@ -105,7 +107,7 @@ template <typename GImpl>
 void TLoadOpenQcd<GImpl>::execute(void)
 {
     FieldMetaData header;
-    std::string   fileName = par().file + "."
+    std::string   fileName = par().file + "n"
                              + std::to_string(vm().getTrajectory());
     LOG(Message) << "Loading OpenQcd configuration from file '" << fileName
                  << "'" << std::endl;
