@@ -373,6 +373,7 @@ void TDistilMesonField<FImpl>::execute(void)
     }
     LOG(Message) << "Block size : " << par().blockSize << std::endl;
     LOG(Message) << "Cache block size : " << par().cacheSize << std::endl;
+    if(onlyDiag_) LOG(Message) << "Only-diagonal option selected" << std::endl;
 
     //execution
     for(auto &npair : noise_pairs)
