@@ -99,7 +99,7 @@ std::vector<std::string> TFourQuarkFullyConnected<FImpl>::getInput()
 template <typename FImpl>
 std::vector<std::string> TFourQuarkFullyConnected<FImpl>::getOutput()
 {
-    std::vector<std::string> out = {getName()};
+    std::vector<std::string> out = {};
 
     return out;
 }
