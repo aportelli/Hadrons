@@ -487,25 +487,44 @@ void DmfComputation<FImpl,T,Tio>
 
     //assume only right side can be summed for now
     //make these input parameters
-    // std::vector<unsigned int> dt={0}; // M(t+dt)
+    std::vector<unsigned int> dt_list={0}; // M(t+dt)
     // std::vector<unsigned int> pinnedTimeSources={0,4}; // M(t+dt)
-    std::vector<unsigned int> pinnedTimeSources={0, 2, 4, 6, 8, 10, 12, 14, 16, 18, 20, 22, 24, 26, 28, 30, 32, 34, 
-                                                36, 38, 40, 42, 44, 46, 48, 50, 52, 54, 56, 58, 60, 62, 64, 66, 68, 
-                                                70, 72, 74, 76, 78, 80, 82, 84, 86, 88, 90, 92, 94};
+    // std::vector<unsigned int> pinnedTimeSources={0, 2, 4, 6, 8, 10, 12, 14, 16, 18, 20, 22, 24, 26, 28, 30, 32, 34, 
+    //                                             36, 38, 40, 42, 44, 46, 48, 50, 52, 54, 56, 58, 60, 62, 64, 66, 68, 
+    //                                             70, 72, 74, 76, 78, 80, 82, 84, 86, 88, 90, 92, 94};
+    
+    std::vector<unsigned int> pinnedTimeSources={};
+
+
+    for(auto dt : dt_list)
+    {
 
     Side pinned_side;
-    // hadr-coding this for now
+    // hard-coding this for now to not complicate inputs
     if(isRho(Side::left) && isPhi(Side::right))
     {
         pinned_side = Side::left;
+        for(int i=0 ; i<time_dil_source.at(Side::left).size() ; i++)
+        {
+            pinnedTimeSources.push_back(time_dil_source.at(Side::left)[i] + dt);
+        }
     }
     else if(isPhi(Side::left) && isPhi(Side::right))
     {
         pinned_side = Side::right;
+        for(int i=0 ; i<time_dil_source.at(Side::left).size() ; i++)
+        {
+            pinnedTimeSources.push_back(time_dil_source.at(Side::right)[i] + dt);
+        }
     }
     else
     {
         pinned_side = Side::right;
+        for(int i=0 ; i<time_dil_source.at(Side::left).size() ; i++)
+        {
+            //only option that gives non-zero in rhorho fields
+            pinnedTimeSources.push_back(time_dil_source.at(Side::right)[i] + 0);
+        }
     }
 
     START_TIMER("distil vectors");
@@ -706,6 +725,7 @@ void DmfComputation<FImpl,T,Tio>
             }
 #endif              
         }
+    }
     }
     
     // //write dilution schemes and time source pairs
