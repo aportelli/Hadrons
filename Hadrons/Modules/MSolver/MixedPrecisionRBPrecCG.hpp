@@ -140,6 +140,23 @@ std::vector<std::string> TMixedPrecisionRBPrecCG<FImplInner, FImplOuter, nBasis>
 }
 
 // setup ///////////////////////////////////////////////////////////////////////
+// C++11 does not support template lambdas so it is easier
+// to make a macro with the solver body
+#define SOLVER_BODY                                                    \
+typedef typename FermionFieldInner::vector_type VTypeInner;            \
+SchurFMatInner simat(imat);                                            \
+SchurFMatOuter somat(omat);                                            \
+MixedPrecisionConjugateGradient<FermionFieldOuter, FermionFieldInner>  \
+    mpcg(par().residual, par().maxInnerIteration,                      \
+         par().maxOuterIteration,                                      \
+         env().template getRbGrid<VTypeInner>(Ls),                     \
+         simat, somat);                                                \
+mpcg.useGuesser(*guesserPt32);                                         \
+OperatorFunctionWrapper<FermionFieldOuter> wmpcg(mpcg);                \
+HADRONS_DEFAULT_SCHUR_SOLVE<FermionFieldOuter> schurSolver(wmpcg);     \
+schurSolver.subtractGuess(subGuess);                                   \
+schurSolver(omat, source, sol, *guesserPt64);
+
 template <typename FImplInner, typename FImplOuter, int nBasis>
 void TMixedPrecisionRBPrecCG<FImplInner, FImplOuter, nBasis>
 ::setup(void)
@@ -170,29 +187,28 @@ void TMixedPrecisionRBPrecCG<FImplInner, FImplOuter, nBasis>
     auto makeSolver = [&imat, &omat, guesserPt32, guesserPt64, Ls, this](bool subGuess)
     {
         return [&imat, &omat, guesserPt32, guesserPt64, subGuess, Ls, this]
-        (FermionFieldOuter &sol, const FermionFieldOuter &source) 
+            (FermionFieldOuter &sol, const FermionFieldOuter &source) 
         {
-            typedef typename FermionFieldInner::vector_type VTypeInner;
-
-            SchurFMatInner simat(imat);
-            SchurFMatOuter somat(omat);
-            MixedPrecisionConjugateGradient<FermionFieldOuter, FermionFieldInner> 
-                mpcg(par().residual, par().maxInnerIteration, 
-                     par().maxOuterIteration, 
-                     env().template getRbGrid<VTypeInner>(Ls),
-                     simat, somat);
-                mpcg.useGuesser(*guesserPt32);
-            OperatorFunctionWrapper<FermionFieldOuter> wmpcg(mpcg);
-            HADRONS_DEFAULT_SCHUR_SOLVE<FermionFieldOuter> schurSolver(wmpcg);
-            schurSolver.subtractGuess(subGuess);
-            schurSolver(omat, source, sol, *guesserPt64);
+            SOLVER_BODY;
         };
     };
-    auto solver = makeSolver(false);
-    envCreate(Solver, getName(), Ls, solver, omat);
-    auto solver_subtract = makeSolver(true);
-    envCreate(Solver, getName() + "_subtract", Ls, solver_subtract, omat);
+    auto makeVecSolver = [&imat, &omat, guesserPt32, guesserPt64, Ls, this](bool subGuess)
+    {
+        return [&imat, &omat, guesserPt32, guesserPt64, subGuess, Ls, this]
+            (std::vector<FermionFieldOuter> &sol, const std::vector<FermionFieldOuter> &source) 
+        {
+            SOLVER_BODY;
+        };
+    };
+    auto solver    = makeSolver(false);
+    auto vecSolver = makeVecSolver(false);
+    envCreate(Solver, getName(), Ls, solver, vecSolver, omat);
+    auto solver_subtract    = makeSolver(true);
+    auto vecSolver_subtract = makeVecSolver(true);
+    envCreate(Solver, getName() + "_subtract", Ls, solver_subtract, vecSolver_subtract, omat);
 }
+
+#undef SOLVER_BODY
 
 // execution ///////////////////////////////////////////////////////////////////
 template <typename FImplInner, typename FImplOuter, int nBasis>

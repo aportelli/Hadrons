@@ -72,8 +72,9 @@ protected:
     // execution
     virtual void execute(void);
 private:
-    void solvePropagator(PropagatorField &result, PropagatorField &propPhysical,
-                         const PropagatorField &source);
+    void solvePropagator(std::vector<PropagatorField *> &prop, 
+                         std::vector<PropagatorField *> &propPhysical,
+                         const std::vector<PropagatorField *> &fullSrc);
 private:
     unsigned int Ls_;
     Solver       *solver_{nullptr};
@@ -112,19 +113,9 @@ std::vector<std::string> TGaugeProp<FImpl>::getOutput(void)
 template <typename FImpl>
 void TGaugeProp<FImpl>::setup(void)
 {
+    unsigned int sourceSize;
+
     Ls_ = env().getObjectLs(par().solver);
-    
-    envTmpLat(FermionField, "tmp");
-    if (Ls_ > 1)
-    {
-        envTmpLat(FermionField, "source", Ls_);
-        envTmpLat(FermionField, "sol", Ls_);
-    }
-    else
-    {
-        envTmpLat(FermionField, "source");
-        envTmpLat(FermionField, "sol");
-    }
     if (envHasType(PropagatorField, par().source))
     {
         envCreateLat(PropagatorField, getName());
@@ -132,6 +123,7 @@ void TGaugeProp<FImpl>::setup(void)
         {
             envCreateLat(PropagatorField, getName() + "_5d", Ls_);
         }
+        sourceSize = Ns*FImpl::Dimension;
     }
     else if (envHasType(std::vector<PropagatorField>, par().source))
     {
@@ -144,6 +136,7 @@ void TGaugeProp<FImpl>::setup(void)
             envCreate(std::vector<PropagatorField>, getName() + "_5d", Ls_,
                       src.size(), envGetGrid(PropagatorField, Ls_));
         }
+        sourceSize = src.size()*Ns*FImpl::Dimension;
     }
     else
     {
@@ -152,42 +145,57 @@ void TGaugeProp<FImpl>::setup(void)
                           + env().getObjectType(par().source)
                           + ")", env().getObjectAddress(par().source))
     }
+    envTmpLat(FermionField, "tmp");
+    if (Ls_ > 1)
+    {
+        envTmp(std::vector<FermionField>, "source", Ls_, sourceSize,
+               envGetGrid(FermionField, Ls_));
+        envTmp(std::vector<FermionField>, "sol", Ls_, sourceSize,
+               envGetGrid(FermionField, Ls_));
+    }
+    else
+    {
+        envTmp(std::vector<FermionField>, "source", 1, sourceSize,
+               envGetGrid(FermionField));
+        envTmp(std::vector<FermionField>, "sol", 1, sourceSize,
+               envGetGrid(FermionField));
+    }
 }
 
 // execution ///////////////////////////////////////////////////////////////////
 template <typename FImpl>
-void TGaugeProp<FImpl>::solvePropagator(PropagatorField &prop, 
-                                        PropagatorField &propPhysical,
-                                        const PropagatorField &fullSrc)
+void TGaugeProp<FImpl>::solvePropagator(std::vector<PropagatorField *> &prop, 
+                                        std::vector<PropagatorField *> &propPhysical,
+                                        const std::vector<PropagatorField *> &fullSrc)
 {
     auto &solver  = envGet(Solver, par().solver);
     auto &mat     = solver.getFMat();
+    unsigned int j = 0;
     
-    envGetTmp(FermionField, source);
-    envGetTmp(FermionField, sol);
+    envGetTmp(std::vector<FermionField>, source);
+    envGetTmp(std::vector<FermionField>, sol);
     envGetTmp(FermionField, tmp);
-    LOG(Message) << "Inverting using solver '" << par().solver << "'" 
-                 << std::endl;
+
+    LOG(Message) << "Import sources" << std::endl;
+    startTimer("Import sources");
+    for (unsigned int i = 0; i < fullSrc.size(); ++i)
     for (unsigned int s = 0; s < Ns; ++s)
     for (unsigned int c = 0; c < FImpl::Dimension; ++c)
     {
-        LOG(Message) << "Inversion for spin= " << s << ", color= " << c
-                     << std::endl;
-        // source conversion for 4D sources
-        LOG(Message) << "Import source" << std::endl;
+        // 4D sources
         if (!env().isObject5d(par().source))
         {
             if (Ls_ == 1)
             {
-               PropToFerm<FImpl>(source, fullSrc, s, c);
+               PropToFerm<FImpl>(source[j], *(fullSrc[i]), s, c);
             }
             else
             {
-                PropToFerm<FImpl>(tmp, fullSrc, s, c);
-                mat.ImportPhysicalFermionSource(tmp, source);
+                PropToFerm<FImpl>(tmp, *(fullSrc[i]), s, c);
+                mat.ImportPhysicalFermionSource(tmp, source[j]);
             }
         }
-        // source conversion for 5D sources
+        // 5D sources
         else
         {
             if (Ls_ != env().getObjectLs(par().source))
@@ -196,21 +204,37 @@ void TGaugeProp<FImpl>::solvePropagator(PropagatorField &prop,
             }
             else
             {
-                PropToFerm<FImpl>(source, fullSrc, s, c);
+                PropToFerm<FImpl>(source[j], *(fullSrc[i]), s, c);
             }
         }
-        sol = Zero();
-        LOG(Message) << "Solve" << std::endl;
-        solver(sol, source);
-        LOG(Message) << "Export solution" << std::endl;
-        FermToProp<FImpl>(prop, sol, s, c);
+        j++;
+    }
+    stopTimer("Import sources");
+    LOG(Message) << "Solve" << std::endl;
+    startTimer("Solver");
+    for (auto &s: sol)
+    {
+        s = Zero();
+    }
+    solver(sol, source);
+    stopTimer("Solver");
+    LOG(Message) << "Export solutions" << std::endl;
+    startTimer("Export solutions");
+    j = 0;
+    for (unsigned int i = 0; i < fullSrc.size(); ++i)
+    for (unsigned int s = 0; s < Ns; ++s)
+    for (unsigned int c = 0; c < FImpl::Dimension; ++c)
+    {
+        FermToProp<FImpl>(*(prop[i]), sol[j], s, c);
         // create 4D propagators from 5D one if necessary
         if (Ls_ > 1)
         {
-            mat.ExportPhysicalFermionSolution(sol, tmp);
-            FermToProp<FImpl>(propPhysical, tmp, s, c);
+            mat.ExportPhysicalFermionSolution(sol[j], tmp);
+            FermToProp<FImpl>(*(propPhysical[i]), tmp, s, c);
         }
+        j++;
     }
+    stopTimer("Export solutions");
 }
 
 template <typename FImpl>
@@ -220,6 +244,7 @@ void TGaugeProp<FImpl>::execute(void)
                  << std::endl;
     
     std::string propName = (Ls_ == 1) ? getName() : (getName() + "_5d");
+    std::vector<PropagatorField *> propPt, physPropPt, srcPt;
 
     if (envHasType(PropagatorField, par().source))
     {
@@ -228,7 +253,9 @@ void TGaugeProp<FImpl>::execute(void)
         auto &fullSrc      = envGet(PropagatorField, par().source);
 
         LOG(Message) << "Using source '" << par().source << "'" << std::endl;
-        solvePropagator(prop, propPhysical, fullSrc);
+        propPt.push_back(&prop);
+        physPropPt.push_back(&propPhysical);
+        srcPt.push_back(&fullSrc);
     }
     else
     {
@@ -236,13 +263,15 @@ void TGaugeProp<FImpl>::execute(void)
         auto &propPhysical = envGet(std::vector<PropagatorField>, getName());
         auto &fullSrc      = envGet(std::vector<PropagatorField>, par().source);
 
+        LOG(Message) << "Using source vector '" << par().source << "'" << std::endl;
         for (unsigned int i = 0; i < fullSrc.size(); ++i)
         {
-            LOG(Message) << "Using element " << i << " of source vector '" 
-                         << par().source << "'" << std::endl;
-            solvePropagator(prop[i], propPhysical[i], fullSrc[i]);
+            propPt.push_back(&(prop[i]));
+            physPropPt.push_back(&(propPhysical[i]));
+            srcPt.push_back(&(fullSrc[i]));
         }
     }
+    solvePropagator(propPt, physPropPt, srcPt);
 }
 
 END_MODULE_NAMESPACE

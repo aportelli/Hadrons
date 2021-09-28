@@ -117,6 +117,15 @@ std::vector<std::string> TRBPrecCG<FImpl, nBasis>::getOutput(void)
 }
 
 // setup ///////////////////////////////////////////////////////////////////////
+// C++11 does not support template lambdas so it is easier
+// to make a macro with the solver body
+#define SOLVER_BODY                                       \
+ConjugateGradient<FermionField> cg(par().residual,        \
+                                   par().maxIteration);   \
+HADRONS_DEFAULT_SCHUR_SOLVE<FermionField> schurSolver(cg);\
+schurSolver.subtractGuess(subGuess);                      \
+schurSolver(mat, source, sol, *guesserPt);
+
 template <typename FImpl, int nBasis>
 void TRBPrecCG<FImpl, nBasis>::setup(void)
 {
@@ -135,20 +144,28 @@ void TRBPrecCG<FImpl, nBasis>::setup(void)
     auto guesserPt = makeGuesser<FImpl, nBasis>(par().eigenPack);
 
     auto makeSolver = [&mat, guesserPt, this](bool subGuess) {
-        return [&mat, guesserPt, subGuess, this](FermionField &sol,
-                                     const FermionField &source) {
-            ConjugateGradient<FermionField> cg(par().residual,
-                                               par().maxIteration);
-            HADRONS_DEFAULT_SCHUR_SOLVE<FermionField> schurSolver(cg);
-            schurSolver.subtractGuess(subGuess);
-            schurSolver(mat, source, sol, *guesserPt);
+        return [&mat, guesserPt, subGuess, this](
+            FermionField &sol, const FermionField &source) 
+        {
+            SOLVER_BODY;
         };
     };
-    auto solver = makeSolver(false);
-    envCreate(Solver, getName(), Ls, solver, mat);
-    auto solver_subtract = makeSolver(true);
-    envCreate(Solver, getName() + "_subtract", Ls, solver_subtract, mat);
+    auto makeVecSolver = [&mat, guesserPt, this](bool subGuess) {
+        return [&mat, guesserPt, subGuess, this](
+            std::vector<FermionField> &sol, const std::vector<FermionField> &source) 
+        {
+            SOLVER_BODY;
+        };
+    };
+    auto solver    = makeSolver(false);
+    auto vecSolver = makeVecSolver(false);
+    envCreate(Solver, getName(), Ls, solver, vecSolver, mat);
+    auto solver_subtract    = makeSolver(true);
+    auto vecSolver_subtract = makeVecSolver(true);
+    envCreate(Solver, getName() + "_subtract", Ls, solver_subtract, vecSolver_subtract, mat);
 }
+
+#undef SOLVER_BODY
 
 // execution ///////////////////////////////////////////////////////////////////
 template <typename FImpl, int nBasis>
