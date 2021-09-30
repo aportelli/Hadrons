@@ -66,6 +66,7 @@ public:
 };
 
 MODULE_REGISTER_TMP(RandomFermions, TRandomVectors<FIMPL::FermionField>, MUtilities);
+MODULE_REGISTER_TMP(RandomPropagators, TRandomVectors<FIMPL::PropagatorField>, MUtilities);
 
 /******************************************************************************
  *                      TRandomVectors implementation                         *
