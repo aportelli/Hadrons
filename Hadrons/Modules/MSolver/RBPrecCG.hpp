@@ -33,7 +33,6 @@
 #include <Hadrons/ModuleFactory.hpp>
 #include <Hadrons/Solver.hpp>
 #include <Hadrons/EigenPack.hpp>
-#include <Hadrons/Modules/MSolver/Guesser.hpp>
 
 BEGIN_HADRONS_NAMESPACE
 
@@ -49,7 +48,7 @@ public:
                                     std::string , action,
                                     unsigned int, maxIteration,
                                     double      , residual,
-                                    std::string , eigenPack);
+                                    std::string , guesser);
 };
 
 template <typename FImpl, int nBasis = HADRONS_DEFAULT_LANCZOS_NBASIS>
@@ -65,7 +64,7 @@ public:
     virtual ~TRBPrecCG(void) {};
     // dependencies/products
     virtual std::vector<std::string> getInput(void);
-    virtual std::vector<std::string> getReference(void);
+    virtual std::multimap<std::string, std::string> getObjectDependencies(void);
     virtual std::vector<std::string> getOutput(void);
 protected:
     // setup
@@ -90,22 +89,14 @@ TRBPrecCG<FImpl, nBasis>::TRBPrecCG(const std::string name)
 template <typename FImpl, int nBasis>
 std::vector<std::string> TRBPrecCG<FImpl, nBasis>::getInput(void)
 {
-    std::vector<std::string> in = {};
+    std::vector<std::string> in = {par().action};
     
-    return in;
-}
-
-template <typename FImpl, int nBasis>
-std::vector<std::string> TRBPrecCG<FImpl, nBasis>::getReference(void)
-{
-    std::vector<std::string> ref = {par().action};
-    
-    if (!par().eigenPack.empty())
+    if (!par().guesser.empty())
     {
-        ref.push_back(par().eigenPack);
+        in.push_back(par().guesser);
     }
 
-    return ref;
+    return in;
 }
 
 template <typename FImpl, int nBasis>
@@ -116,6 +107,22 @@ std::vector<std::string> TRBPrecCG<FImpl, nBasis>::getOutput(void)
     return out;
 }
 
+template <typename FImpl, int nBasis>
+std::multimap<std::string, std::string> TRBPrecCG<FImpl, nBasis>::getObjectDependencies(void)
+{
+    std::multimap<std::string, std::string> dep;
+
+    dep.insert({par().action, getName()});
+    dep.insert({par().action, getName() + "_subtract"});
+    if (!par().guesser.empty())
+    {
+        dep.insert({par().guesser, getName(),             });
+        dep.insert({par().guesser, getName() + "_subtract"});
+    }
+
+    return dep;
+}
+
 // setup ///////////////////////////////////////////////////////////////////////
 // C++11 does not support template lambdas so it is easier
 // to make a macro with the solver body
@@ -124,7 +131,7 @@ ConjugateGradient<FermionField> cg(par().residual,        \
                                    par().maxIteration);   \
 HADRONS_DEFAULT_SCHUR_SOLVE<FermionField> schurSolver(cg);\
 schurSolver.subtractGuess(subGuess);                      \
-schurSolver(mat, source, sol, *guesserPt);
+schurSolver(mat, source, sol, guesser);
 
 template <typename FImpl, int nBasis>
 void TRBPrecCG<FImpl, nBasis>::setup(void)
@@ -139,20 +146,20 @@ void TRBPrecCG<FImpl, nBasis>::setup(void)
                  << par().residual << ", maximum iteration " 
                  << par().maxIteration << std::endl;
 
-    auto Ls        = env().getObjectLs(par().action);
-    auto &mat      = envGet(FMat, par().action);
-    auto guesserPt = makeGuesser<FImpl, nBasis>(par().eigenPack);
+    auto Ls       = env().getObjectLs(par().action);
+    auto &mat     = envGet(FMat, par().action);
+    auto &guesser = envGet(LinearFunction<FermionField>, par().guesser);
 
-    auto makeSolver = [&mat, guesserPt, this](bool subGuess) {
-        return [&mat, guesserPt, subGuess, this](
-            FermionField &sol, const FermionField &source) 
+    auto makeSolver = [&mat, &guesser, this](bool subGuess) {
+        return [&mat, &guesser, subGuess, this]
+        (FermionField &sol, const FermionField &source) 
         {
             SOLVER_BODY;
         };
     };
-    auto makeVecSolver = [&mat, guesserPt, this](bool subGuess) {
-        return [&mat, guesserPt, subGuess, this](
-            std::vector<FermionField> &sol, const std::vector<FermionField> &source) 
+    auto makeVecSolver = [&mat, &guesser, this](bool subGuess) {
+        return [&mat, &guesser, subGuess, this]
+        (std::vector<FermionField> &sol, const std::vector<FermionField> &source) 
         {
             SOLVER_BODY;
         };
