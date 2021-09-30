@@ -159,6 +159,7 @@ public:
         HADRONS_SQL_FIELDS(SqlNotNull<unsigned int>          , traj,
                            SqlUnique<SqlNotNull<std::string>>, filename);
     };
+    typedef std::vector<std::pair<std::string, std::string>> DependencyMap;
 public:
     // constructor
     ModuleBase(const std::string name);
@@ -178,6 +179,10 @@ public:
     virtual std::vector<std::string> getOutputFiles(void)
     {
         return std::vector<std::string>(0);
+    };
+    virtual std::multimap<std::string, std::string> getObjectDependencies(void)
+    {
+        return std::multimap<std::string, std::string>();
     };
     // parse parameters
     virtual void parseParameters(XmlReader &reader, const std::string name) = 0;

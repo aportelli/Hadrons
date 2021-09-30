@@ -322,67 +322,43 @@ void VirtualMachine::pushModule(VirtualMachine::ModPt &pt)
     std::string name = pt->getName();
     
     if (!hasModule(name))
-    {
-        std::vector<unsigned int> inputAddress;
-        unsigned int              address;
-        ModuleInfo                m;
-        
+    {   
         // module registration -------------------------------------------------
-        m.data = std::move(pt);
-        m.type = typeIdPt(*m.data.get());
-        m.name = name;
-        // input dependencies
-        for (auto &in: m.data->getInput())
+        unsigned int address;
+        ModuleInfo   mtmp;
+        ModuleBase   *m;
+
+        mtmp.data = std::move(pt);
+        mtmp.type = typeIdPt(*mtmp.data.get());
+        mtmp.name = name;
+        module_.push_back(std::move(mtmp));
+        address              = static_cast<unsigned int>(module_.size() - 1);
+        moduleAddress_[name] = address;
+        m                    = getModule(address);
+
+        // input & output scan -------------------------------------------------
+        ModuleInfo &mInfo = module_[address];
+
+        // scan inputs and add objects to the environment if necessary
+        for (auto &in: m->getInput())
         {
             if (!env().hasObject(in))
             {
                 // if object does not exist, add it with no creator module
-                env().addObject(in , -1);
+                env().addObject(in);
                 memoryProfileOutdated_ = true;
             }
-            m.input.push_back(env().getObjectAddress(in));
+            mInfo.input.push_back(env().getObjectAddress(in));
         }
-        // reference dependencies
-        for (auto &ref: m.data->getReference())
-        {
-            if (!env().hasObject(ref))
-            {
-                // if object does not exist, add it with no creator module
-                env().addObject(ref , -1);
-                memoryProfileOutdated_ = true;
-            }
-            m.input.push_back(env().getObjectAddress(ref));
-        }
-        auto inCopy = m.input;
-        // if module has inputs with references, they need to be added as
-        // an input
-        for (auto &in: inCopy)
-        {
-            int inm = env().getObjectModule(in);
 
-            if (inm > 0)
-            {
-                if (getModule(inm)->getReference().size() > 0)
-                {
-                    for (auto &rin: getModule(inm)->getReference())
-                    {
-                        m.input.push_back(env().getObjectAddress(rin));
-                    }
-                }
-            }
-        }
-        module_.push_back(std::move(m));
-        address              = static_cast<unsigned int>(module_.size() - 1);
-        moduleAddress_[name] = address;
-        // connecting outputs to potential inputs ------------------------------
-        for (auto &out: getModule(address)->getOutput())
+        // scan outputs and add objects to the environment if necessary
+        for (auto &out: m->getOutput())
         {
             if (!env().hasObject(out))
             {
                 // output does not exists, add it
                 env().addObject(out, address);
                 memoryProfileOutdated_ = true;
-                module_[address].output.push_back(env().getObjectAddress(out));
             }
             else
             {
@@ -400,31 +376,31 @@ void VirtualMachine::pushModule(VirtualMachine::ModPt &pt)
                                  + "' (while pushing module '" + name + "')",
                                  env().getObjectAddress(out));
                 }
-                if (getModule(address)->getReference().size() > 0)
-                {
-                    // module has references, dependency should be propagated
-                    // to children modules; find module with `out` as an input
-                    // and add references to their input
-                    auto pred = [this, out](const ModuleInfo &n)
-                    {
-                        auto &in = n.input;
-                        auto it  = std::find(in.begin(), in.end(), 
-                                             env().getObjectAddress(out));
-                        
-                        return (it != in.end());
-                    };
-                    auto it = std::find_if(module_.begin(), module_.end(), pred);
-                    while (it != module_.end())
-                    {
-                        for (auto &ref: getModule(address)->getReference())
-                        {
-                            it->input.push_back(env().getObjectAddress(ref));
-                        }
-                        it = std::find_if(++it, module_.end(), pred);
-                    }   
-                }
             }
+            mInfo.output.push_back(env().getObjectAddress(out));
         }
+
+        // extra user-specified dependencies -----------------------------------
+ #define VEC_HAS_ELEMENT(v, x) (std::find(v.begin(), v.end(), x) != v.end())
+
+        for (auto &dep: m->getObjectDependencies())
+        {
+            unsigned int o = env().getObjectAddress(dep.first);
+            unsigned int d = env().getObjectAddress(dep.second);
+
+            if (!VEC_HAS_ELEMENT(mInfo.input, o)
+                and !VEC_HAS_ELEMENT(mInfo.input, d)
+                and !VEC_HAS_ELEMENT(mInfo.output, o)
+                and !VEC_HAS_ELEMENT(mInfo.output, d))
+            {
+                HADRONS_ERROR(Definition, "Module '" + name + "' has a dependency with"
+                              + " an object which is neither an input or an output");
+            }
+            env().addObjectDependency(o, d);
+        }
+
+#undef VEC_HAS_ELEMENT
+
         // creating entry in database ------------------------------------------
         if (hasDatabase() and makeModuleDb_)
         {
@@ -436,7 +412,7 @@ void VirtualMachine::pushModule(VirtualMachine::ModPt &pt)
             e.parameters   = getModule(address)->parString();
             db_->insert("modules", e);
         }
-        graphOutdated_         = true;
+        graphOutdated_ = true;
     }
     else
     {
@@ -610,10 +586,6 @@ void VirtualMachine::dumpModuleGraph(std::ostream &out)
     out << "node [shape=record, fontname=\"Courier\", fontsize=\"11\"];" << std::endl;
     out << "graph [fontname = \"Courier\", fontsize=\"11\"];" << std::endl;
     out << "edge [fontname = \"Courier\", fontsize=\"11\"];"<< std::endl;
-    for (unsigned int m = 0; m < module_.size(); ++m)
-    {
-
-    }
     for (unsigned int m = 0; m < module_.size(); ++m)
     {
         for (auto &in: module_[m].input)
@@ -810,18 +782,12 @@ VirtualMachine::makeGarbageSchedule(const Program &p) const
     GarbageSchedule freeProg;
     
     freeProg.resize(p.size());
-    for (unsigned int a = 0; a < env().getMaxAddress(); ++a)
-    {
-        if (env().getObjectStorage(a) == Environment::Storage::temporary)
-        {
-            auto it = std::find(p.begin(), p.end(), env().getObjectModule(a));
 
-            if (it != p.end())
-            {
-                freeProg[std::distance(p.begin(), it)].insert(a);
-            }
-        }
-        else if (env().getObjectStorage(a) == Environment::Storage::standard)
+    // earliest time to destroy object ignoring dependencies
+    std::function<unsigned int(const unsigned int)> earliestTimeNoDep = 
+    [&](const unsigned int a)
+    {
+        if (env().getObjectStorage(a) == Environment::Storage::standard)
         {
             auto pred = [a, this](const unsigned int b)
             {
@@ -831,10 +797,41 @@ VirtualMachine::makeGarbageSchedule(const Program &p) const
                 return (it != in.end()) or (b == env().getObjectModule(a));
             };
             auto it = std::find_if(p.rbegin(), p.rend(), pred);
-            if (it != p.rend())
-            {
-                freeProg[std::distance(it, p.rend()) - 1].insert(a);
-            }
+            assert(it != p.rend());
+
+            return std::distance(it, p.rend()) - 1;
+        }
+        else // only temporaries
+        {
+            auto it = std::find(p.begin(), p.end(), env().getObjectModule(a));
+
+            assert(it != p.end());
+
+            return std::distance(p.begin(), it);
+        }
+    };
+
+    // earliest time to destroy object (taking dependencies into account)
+    std::function<unsigned int(const unsigned int)> earliestTime = 
+    [&](const unsigned int a)
+    {
+        unsigned int t = 0;
+
+        t = std::max(t, earliestTimeNoDep(a));
+        for (auto &d: env().getObjectDependencies(a))
+        {
+            t = std::max(t, earliestTime(d));
+        }
+
+        return t;
+    };
+
+    for (unsigned int a = 0; a < env().getMaxAddress(); ++a)
+    {
+        if (env().getObjectStorage(a) == Environment::Storage::temporary
+            or env().getObjectStorage(a) == Environment::Storage::standard)
+        {
+            freeProg[earliestTime(a)].insert(a);
         }
     }
 
@@ -1005,10 +1002,7 @@ void VirtualMachine::executeProgram(const Program &p)
         }
         // garbage collection for step i
         LOG(Message) << "Garbage collection..." << std::endl;
-        for (auto &j: freeProg[i])
-        {
-            env().freeObject(j);
-        }
+        env().freeSet(freeProg[i]);
         // print used memory after garbage collection if necessary
         sizeAfter = env().getTotalSize();
         if (sizeBefore != sizeAfter)
