@@ -234,8 +234,8 @@ DmfComputation<FImpl,T,Tio>
     cBuf_.resize(nExt_*nStr_*nt_*cacheSize_*cacheSize_);
     bBuf_.resize(nExt_*nStr_*nt_*blockSize_*blockSize_); //maximum size
 
-    // int nt_sparse = 1; // todo: adapt to non-full dilution
-    // bufPinnedT_.resize(nExt_*nStr_*nt_sparse*blockSize_*blockSize_);
+    const int nt_sparse = 1; //full time dilution , todo: adapt to dilution
+    bufPinnedT_.resize(nExt_*nStr_*nt_sparse*blockSize_*blockSize_);
 
     distilNoise_ = std::map<Side, DistillationNoise&> ({{Side::left,nl},{Side::right,nr}});
     dilSizeLS_ = { {Side::left,nl.dilutionSize(Index::l)*nl.dilutionSize(Index::s)} ,
@@ -555,7 +555,6 @@ void DmfComputation<FImpl,T,Tio>
         for (unsigned int idtFree=0 ; idtFree<batch_dtFree.size() ; idtFree++)
         {
             unsigned int Tfree = batch_dtFree[idtFree];
-            const int nt_sparse = 1; //full time dilution , todo: adapt to dilution
 
             //     && (!onlyDiag_ || T1==T2)) // keep/implement this onlyDiagonal flag?
 
@@ -653,7 +652,8 @@ void DmfComputation<FImpl,T,Tio>
                 unsigned int nnode = g_->RankCount(); 
                 LOG(Message) << "Starting parallel IO. Rank count=" << nnode  << std::endl;
 
-                bufPinnedT_.resize(nExt_*nStr_*nt_sparse*iblock_size*jblock_size);                
+                const int nt_sparse = 1; //full time dilution , todo: adapt to dilution
+                // bufPinnedT_.resize(nExt_*nStr_*nt_sparse*blockSize_*blockSize_);                
                 A2AMatrixSet<Tio> block_pinned(bufPinnedT_.data(), nExt_ , nStr_ , nt_sparse , blockSize_, blockSize_);
                 
                 for(unsigned int it=0 ; it<pinnedTimeSources.size() ; it++)
