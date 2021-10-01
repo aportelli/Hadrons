@@ -101,6 +101,7 @@ namespace EigenPackIo
     static void readPack(std::vector<T> &evec, std::vector<RealD> &eval,
                          PackRecord &record, const std::string filename, 
                          const unsigned int size, bool multiFile, 
+                         const unsigned int ki, const unsigned int kf,
                          GridBase *gridIo = nullptr)
     {
         std::unique_ptr<TIo> ioBuf{nullptr};
@@ -119,12 +120,12 @@ namespace EigenPackIo
         {
             std::string fullFilename;
 
-            for(int k = 0; k < size; ++k) 
+            for(int k = ki; k < kf; ++k) 
             {
                 fullFilename = filename + "/v" + std::to_string(k) + ".bin";
                 binReader.open(fullFilename);
                 readHeader(record, binReader);
-                readElement(evec[k], eval[k], k, binReader, ioBuf.get());
+                readElement(evec[k - ki], eval[k - ki], k, binReader, ioBuf.get());
                 binReader.close();
             }
         }
@@ -132,12 +133,21 @@ namespace EigenPackIo
         {
             binReader.open(filename);
             readHeader(record, binReader);
-            for(int k = 0; k < size; ++k) 
+            for(int k = ki; kf < size; ++k) 
             {
-                readElement(evec[k], eval[k], k, binReader, ioBuf.get());
+                readElement(evec[k - ki], eval[k - ki], k, binReader, ioBuf.get());
             }
             binReader.close();
         }
+    }
+
+    template <typename T, typename TIo = T>
+    static void readPack(std::vector<T> &evec, std::vector<RealD> &eval,
+                         PackRecord &record, const std::string filename, 
+                         const unsigned int size, bool multiFile, 
+                         GridBase *gridIo = nullptr)
+    {
+        readPack<T, TIo>(evec, eval, record, filename, size, multiFile, 0, size, gridIo);
     }
 
     inline void writeHeader(ScidacWriter &binWriter, PackRecord &record)
@@ -275,7 +285,14 @@ public:
         EigenPackIo::readPack<F, FIo>(this->evec, this->eval, this->record, 
                                       evecFilename(fileStem, traj, multiFile), 
                                       this->evec.size(), multiFile, gridIo_);
-        HADRONS_DUMP_EP_METADATA(this->record);
+    }
+
+    virtual void read(const std::string fileStem, const bool multiFile, 
+                      const unsigned int ki, const unsigned kf, const int traj = -1)
+    {
+        EigenPackIo::readPack<F, FIo>(this->evec, this->eval, this->record, 
+                                      evecFilename(fileStem, traj, multiFile), 
+                                      this->evec.size(), multiFile, ki, kf, gridIo_);
     }
 
     virtual void write(const std::string fileStem, const bool multiFile, const int traj = -1)
