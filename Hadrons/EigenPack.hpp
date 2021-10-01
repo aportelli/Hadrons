@@ -267,7 +267,11 @@ public:
     virtual ~EigenPack(void) = default;
 
     EigenPack(const size_t size, GridBase *grid, GridBase *gridIo = nullptr)
-    : BaseEigenPack<F>(size, grid)
+    {
+        init(size, grid, gridIo);
+    }
+
+    void init(const size_t size, GridBase *grid, GridBase *gridIo = nullptr)
     {
         if (typeHash<F>() != typeHash<FIo>())
         {
@@ -277,8 +281,9 @@ public:
                               "I/O type different from vector type but null I/O grid passed");
             }
         }
+        this->resize(size, grid);
         gridIo_ = gridIo;
-    }
+    };
 
     virtual void read(const std::string fileStem, const bool multiFile, const int traj = -1)
     {
