@@ -34,7 +34,7 @@ public:
     // dependency relation
     virtual std::vector<std::string> getInput(void);
     virtual std::vector<std::string> getOutput(void);
-    virtual std::multimap<std::string, std::string> getObjectDependencies(void);
+    virtual DependencyMap getObjectDependencies(void);
     // setup
     virtual void setup(void);
     // execution
@@ -71,9 +71,9 @@ std::vector<std::string> TExactDeflation<EPack>::getOutput(void)
 }
 
 template <typename EPack>
-std::multimap<std::string, std::string> TExactDeflation<EPack>::getObjectDependencies(void)
+DependencyMap TExactDeflation<EPack>::getObjectDependencies(void)
 {
-    std::multimap<std::string, std::string> dep;
+    DependencyMap dep;
     
     dep.insert({par().eigenPack, getName()});
 
