@@ -31,8 +31,8 @@ public:
     virtual ~TOperators(void) {};
     // dependency relation
     virtual std::vector<std::string> getInput(void);
-    virtual std::vector<std::string> getReference(void);
     virtual std::vector<std::string> getOutput(void);
+    virtual DependencyMap getObjectDependencies(void);
     // setup
     virtual void setup(void);
     // execution
@@ -61,19 +61,21 @@ std::vector<std::string> TOperators<FImpl>::getInput(void)
 }
 
 template <typename FImpl>
-std::vector<std::string> TOperators<FImpl>::getReference(void)
-{
-    std::vector<std::string> in = {par().action};
-    
-    return in;
-}
-
-template <typename FImpl>
 std::vector<std::string> TOperators<FImpl>::getOutput(void)
 {
     std::vector<std::string> out = {getName() + "_herm", getName() + "_schur"};
     
     return out;
+}
+
+template <typename FImpl>
+DependencyMap TOperators<FImpl>::getObjectDependencies(void)
+{
+    DependencyMap dep;
+
+    dep.insert({par().action, getName()});
+    dep.insert({par().action, getName() + "_herm"});
+    dep.insert({par().action, getName() + "_schur"});
 }
 
 // setup ///////////////////////////////////////////////////////////////////////

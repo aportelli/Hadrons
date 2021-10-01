@@ -51,7 +51,7 @@ public:
                                     std::string , guesser);
 };
 
-template <typename FImpl, int nBasis = HADRONS_DEFAULT_LANCZOS_NBASIS>
+template <typename FImpl>
 class TRBPrecCG: public Module<RBPrecCGPar>
 {
 public:
@@ -64,8 +64,8 @@ public:
     virtual ~TRBPrecCG(void) {};
     // dependencies/products
     virtual std::vector<std::string> getInput(void);
-    virtual std::multimap<std::string, std::string> getObjectDependencies(void);
     virtual std::vector<std::string> getOutput(void);
+    virtual DependencyMap getObjectDependencies(void);
 protected:
     // setup
     virtual void setup(void);
@@ -80,14 +80,14 @@ MODULE_REGISTER_TMP(ZRBPrecCG, ARG(TRBPrecCG<ZFIMPL>), MSolver);
  *                      TRBPrecCG template implementation                     *
  ******************************************************************************/
 // constructor /////////////////////////////////////////////////////////////////
-template <typename FImpl, int nBasis>
-TRBPrecCG<FImpl, nBasis>::TRBPrecCG(const std::string name)
+template <typename FImpl>
+TRBPrecCG<FImpl>::TRBPrecCG(const std::string name)
 : Module(name)
 {}
 
 // dependencies/products ///////////////////////////////////////////////////////
-template <typename FImpl, int nBasis>
-std::vector<std::string> TRBPrecCG<FImpl, nBasis>::getInput(void)
+template <typename FImpl>
+std::vector<std::string> TRBPrecCG<FImpl>::getInput(void)
 {
     std::vector<std::string> in = {par().action};
     
@@ -99,18 +99,18 @@ std::vector<std::string> TRBPrecCG<FImpl, nBasis>::getInput(void)
     return in;
 }
 
-template <typename FImpl, int nBasis>
-std::vector<std::string> TRBPrecCG<FImpl, nBasis>::getOutput(void)
+template <typename FImpl>
+std::vector<std::string> TRBPrecCG<FImpl>::getOutput(void)
 {
     std::vector<std::string> out = {getName(), getName() + "_subtract"};
     
     return out;
 }
 
-template <typename FImpl, int nBasis>
-std::multimap<std::string, std::string> TRBPrecCG<FImpl, nBasis>::getObjectDependencies(void)
+template <typename FImpl>
+DependencyMap TRBPrecCG<FImpl>::getObjectDependencies(void)
 {
-    std::multimap<std::string, std::string> dep;
+    DependencyMap dep;
 
     dep.insert({par().action, getName()});
     dep.insert({par().action, getName() + "_subtract"});
@@ -126,15 +126,17 @@ std::multimap<std::string, std::string> TRBPrecCG<FImpl, nBasis>::getObjectDepen
 // setup ///////////////////////////////////////////////////////////////////////
 // C++11 does not support template lambdas so it is easier
 // to make a macro with the solver body
-#define SOLVER_BODY                                       \
-ConjugateGradient<FermionField> cg(par().residual,        \
-                                   par().maxIteration);   \
-HADRONS_DEFAULT_SCHUR_SOLVE<FermionField> schurSolver(cg);\
-schurSolver.subtractGuess(subGuess);                      \
+#define SOLVER_BODY                                                                          \
+ZeroGuesser<FermionField>    defaultGuesser;                                                 \
+LinearFunction<FermionField> &guesser = (guesserPt == nullptr) ? defaultGuesser : *guesserPt;\
+ConjugateGradient<FermionField> cg(par().residual,                                           \
+                                   par().maxIteration);                                      \
+HADRONS_DEFAULT_SCHUR_SOLVE<FermionField> schurSolver(cg);                                   \
+schurSolver.subtractGuess(subGuess);                                                         \
 schurSolver(mat, source, sol, guesser);
 
-template <typename FImpl, int nBasis>
-void TRBPrecCG<FImpl, nBasis>::setup(void)
+template <typename FImpl>
+void TRBPrecCG<FImpl>::setup(void)
 {
     if (par().maxIteration == 0)
     {
@@ -146,19 +148,23 @@ void TRBPrecCG<FImpl, nBasis>::setup(void)
                  << par().residual << ", maximum iteration " 
                  << par().maxIteration << std::endl;
 
-    auto Ls       = env().getObjectLs(par().action);
-    auto &mat     = envGet(FMat, par().action);
-    auto &guesser = envGet(LinearFunction<FermionField>, par().guesser);
+    auto                         Ls         = env().getObjectLs(par().action);
+    auto                         &mat       = envGet(FMat, par().action);
+    LinearFunction<FermionField> *guesserPt = nullptr;
 
-    auto makeSolver = [&mat, &guesser, this](bool subGuess) {
-        return [&mat, &guesser, subGuess, this]
+    if (!par().guesser.empty())
+    {
+        guesserPt = &envGet(LinearFunction<FermionField>, par().guesser);
+    }
+    auto makeSolver = [&mat, guesserPt, this](bool subGuess) {
+        return [&mat, guesserPt, subGuess, this]
         (FermionField &sol, const FermionField &source) 
         {
             SOLVER_BODY;
         };
     };
-    auto makeVecSolver = [&mat, &guesser, this](bool subGuess) {
-        return [&mat, &guesser, subGuess, this]
+    auto makeVecSolver = [&mat, guesserPt, this](bool subGuess) {
+        return [&mat, guesserPt, subGuess, this]
         (std::vector<FermionField> &sol, const std::vector<FermionField> &source) 
         {
             SOLVER_BODY;
@@ -175,8 +181,8 @@ void TRBPrecCG<FImpl, nBasis>::setup(void)
 #undef SOLVER_BODY
 
 // execution ///////////////////////////////////////////////////////////////////
-template <typename FImpl, int nBasis>
-void TRBPrecCG<FImpl, nBasis>::execute(void)
+template <typename FImpl>
+void TRBPrecCG<FImpl>::execute(void)
 {}
 
 END_MODULE_NAMESPACE
