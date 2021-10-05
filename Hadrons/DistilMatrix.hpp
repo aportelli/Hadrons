@@ -104,7 +104,7 @@ class DmfComputation
 public:
     FERM_TYPE_ALIASES(FImpl,);
     typedef DistillationNoise<FImpl> DistillationNoise;
-    typedef Vector<FermionField> DistilVector;
+    typedef std::vector<FermionField> DistilVector;
     typedef typename DistillationNoise::Index Index;
     typedef typename DistillationNoise::LapPack LapPack;
     typedef std::function<std::string(const unsigned int, const unsigned int, const int, const int)>  FilenameFn;
@@ -119,9 +119,9 @@ private:
     ColourVectorField                   evec3d_;
     FermionField                        tmp3d_;
     FermionField                        tmp4d_;
-    Vector<Tio>                         bBuf_;
-    Vector<Tio>                         bufPinnedT_;
-    Vector<T>                           cBuf_;
+    std::vector<Tio>                         bBuf_;
+    std::vector<Tio>                         bufPinnedT_;
+    std::vector<T>                           cBuf_;
     const unsigned int                  blockSize_; //eventually turns into io chunk size
     const unsigned int                  cacheSize_;
     const unsigned int                  nt_;
