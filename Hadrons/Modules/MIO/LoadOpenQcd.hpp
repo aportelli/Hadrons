@@ -1,5 +1,5 @@
 /*
- * SaveNersc.hpp, part of Hadrons (https://github.com/aportelli/Hadrons)
+ * LoadOpenQcd.hpp, part of Hadrons (https://github.com/aportelli/Hadrons)
  *
  * Copyright (C) 2015 - 2020
  *
@@ -23,8 +23,8 @@
  */
 
 /*  END LEGAL */
-#ifndef Hadrons_MIO_SaveNersc_hpp_
-#define Hadrons_MIO_SaveNersc_hpp_
+#ifndef Hadrons_MIO_LoadOpenQcd_hpp_
+#define Hadrons_MIO_LoadOpenQcd_hpp_
 
 #include <Hadrons/Global.hpp>
 #include <Hadrons/Module.hpp>
@@ -33,36 +33,31 @@
 BEGIN_HADRONS_NAMESPACE
 
 /******************************************************************************
- Save a NERSC configuration
+ Load an OpenQcd configuration
 
- gauge         Name of the gauge field object to write
- fileStem      Namestem of the file to write the gauge field to
- ensembleLabel Label of the ensemble. Recommended this includes
-               a suffix identifying this as gauge-fixed and which gauge
+ file    Namestem of the files to read in. In contrast to the LoadNersc
+         module, the separator between the namestem and the configuration
+         number is 'n' instead of '.' compliant with the openQCD convention.         
  ******************************************************************************/
-
-
 BEGIN_MODULE_NAMESPACE(MIO)
 
-class SaveNerscPar: Serializable
+class LoadOpenQcdPar: Serializable
 {
 public:
-    GRID_SERIALIZABLE_CLASS_MEMBERS(SaveNerscPar,
-                                    std::string, gauge,
-                                    std::string, fileStem,
-                                    std::string, ensembleLabel);
+    GRID_SERIALIZABLE_CLASS_MEMBERS(LoadOpenQcdPar,
+                                    std::string, file);
 };
 
 template <typename GImpl>
-class TSaveNersc: public Module<SaveNerscPar>
+class TLoadOpenQcd: public Module<LoadOpenQcdPar>
 {
 public:
     GAUGE_TYPE_ALIASES(GImpl,);
 public:
     // constructor
-    TSaveNersc(const std::string name);
+    TLoadOpenQcd(const std::string name);
     // destructor
-    virtual ~TSaveNersc(void) {};
+    virtual ~TLoadOpenQcd(void) {};
     // dependency relation
     virtual std::vector<std::string> getInput(void);
     virtual std::vector<std::string> getOutput(void);
@@ -72,51 +67,57 @@ public:
     virtual void execute(void);
 };
 
-MODULE_REGISTER_TMP(SaveNersc,  TSaveNersc<GIMPL>,  MIO);
+MODULE_REGISTER_TMP(LoadOpenQcd,  TLoadOpenQcd<GIMPL>,  MIO);
 
 /******************************************************************************
-*                       TSaveNersc implementation                             *
+*                       TLoadOpenQcd implementation                             *
 ******************************************************************************/
 // constructor /////////////////////////////////////////////////////////////////
 template <typename GImpl>
-TSaveNersc<GImpl>::TSaveNersc(const std::string name)
-: Module<SaveNerscPar>(name)
+TLoadOpenQcd<GImpl>::TLoadOpenQcd(const std::string name)
+: Module<LoadOpenQcdPar>(name)
 {}
 
 // dependencies/products ///////////////////////////////////////////////////////
 template <typename GImpl>
-std::vector<std::string> TSaveNersc<GImpl>::getInput(void)
+std::vector<std::string> TLoadOpenQcd<GImpl>::getInput(void)
 {
-  return { par().gauge };
+    std::vector<std::string> in;
+    
+    return in;
 }
 
 template <typename GImpl>
-std::vector<std::string> TSaveNersc<GImpl>::getOutput(void)
+std::vector<std::string> TLoadOpenQcd<GImpl>::getOutput(void)
 {
-    return {};
+    std::vector<std::string> out = {getName()};
+    
+    return out;
 }
 
 // setup ///////////////////////////////////////////////////////////////////////
 template <typename GImpl>
-void TSaveNersc<GImpl>::setup(void)
+void TLoadOpenQcd<GImpl>::setup(void)
 {
+    envCreateLat(GaugeField, getName());
 }
 
 // execution ///////////////////////////////////////////////////////////////////
 template <typename GImpl>
-void TSaveNersc<GImpl>::execute(void)
+void TLoadOpenQcd<GImpl>::execute(void)
 {
-    std::string fileName = par().fileStem + "." + std::to_string(vm().getTrajectory());
-    LOG(Message) << "Saving NERSC configuration to file '" << fileName
+    FieldMetaData header;
+    std::string   fileName = par().file + "n"
+                             + std::to_string(vm().getTrajectory());
+    LOG(Message) << "Loading OpenQcd configuration from file '" << fileName
                  << "'" << std::endl;
 
-    auto &U = envGet(GaugeField, par().gauge);
-    makeFileDir(fileName, U.Grid());
-    NerscIO::writeConfiguration(U, fileName, par().ensembleLabel);
+    auto &U = envGet(GaugeField, getName());
+    OpenQcdIO::readConfiguration(U, header, fileName);
 }
 
 END_MODULE_NAMESPACE
 
 END_HADRONS_NAMESPACE
 
-#endif // Hadrons_MIO_SaveNersc_hpp_
+#endif // Hadrons_MIO_LoadOpenQcd_hpp_
