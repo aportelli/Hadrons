@@ -167,7 +167,7 @@ SchurFMatOuter somat(omat);                                                     
 MixedPrecisionConjugateGradient<FermionFieldOuter, FermionFieldInner>                                 \
     mpcg(par().residual, par().maxInnerIteration,                                                     \
          par().maxOuterIteration,                                                                     \
-         env().template getRbGrid<VTypeInner>(Ls),                                                    \
+         getGrid<FermionFieldInner>(true, Ls),                                                        \
          simat, somat);                                                                               \
 mpcg.useGuesser(iguesser);                                                                            \
 OperatorFunctionWrapper<FermionFieldOuter> wmpcg(mpcg);                                               \
