@@ -28,9 +28,17 @@
 BEGIN_HADRONS_NAMESPACE
 BEGIN_MODULE_NAMESPACE(MDistil)
 
+// Dimensions:
+//   0 - ext - external field (momentum phase, etc...)
+//   1 - str - spin-color structure or covariant derivative operators
+//   2 - i   - left  A2A mode index
+//   3 - j   - right A2A mode index
+template <typename T>
+using DistilMatrixSet = Eigen::TensorMap<Eigen::Tensor<T, 4, Eigen::RowMajor>>;
+
 using DilutionMap  = std::array<std::vector<std::vector<unsigned int>>,3>;
 enum Side {left = 0, right = 1};
-const std::vector<Side> sides =  {Side::left,Side::right};  //to facilitate iteration
+const std::vector<Side> sides =  {Side::left,Side::right};
 
 // metadata serialiser class
 template <typename FImpl>
@@ -97,6 +105,162 @@ public:
     }
 };
 
+/******************************************************************************
+ *                  Class to handle Distil matrix block HDF5 I/O                 *
+ ******************************************************************************/
+
+// test purposes
+template <typename FImpl>
+class TestMd: Serializable
+{
+public:
+    GRID_SERIALIZABLE_CLASS_MEMBERS(TestMd,
+                                    std::string,    name)
+};
+
+
+template <typename T>
+class DistilMatrixIo
+{
+public:
+    // constructors
+    DistilMatrixIo(void) = default;
+    DistilMatrixIo(std::string filename, std::string dataname, const unsigned int ni = 0,
+                const unsigned int nj = 0);
+    // destructor
+    ~DistilMatrixIo(void) = default;
+    // access
+    unsigned int getNi(void) const;
+    unsigned int getNj(void) const;
+    unsigned int getNt(void) const;
+    size_t       getSize(void) const;
+
+
+    // block I/O
+    void saveBlock(const T *data, const unsigned int i, const unsigned int j,
+                   const unsigned int blockSizei, const unsigned int blockSizej, std::string t_name, std::string datasetName, const unsigned int chunkSize);
+
+    void saveBlock(const DistilMatrixSet<T> &m, const unsigned int ext, const unsigned int str,
+                               const unsigned int i, const unsigned int j, std::string datasetName,
+                               std::string t_name, const unsigned int chunkSize);
+
+    //distillation overloads and new methods
+    template <typename MetadataType>
+    void initFile(const MetadataType &d);
+
+    // void createDilutionBlock(std::string datasetName, const unsigned int chunkSize, const std::vector<unsigned int> timeSlices);
+
+    // template <template <class> class Vec, typename VecT>
+    // void load(Vec<VecT> &v, double *tRead = nullptr, GridBase *grid = nullptr, std::string datasetName="");
+private:
+    std::string  filename_{""}, dataname_{""};
+    unsigned int nt_{0}, ni_{0}, nj_{0};
+};
+
+// constructor /////////////////////////////////////////////////////////////////
+template <typename T>
+DistilMatrixIo<T>::DistilMatrixIo(std::string filename, std::string dataname, 
+                            const unsigned int ni, const unsigned int nj)
+: filename_(filename), dataname_(dataname), ni_(ni), nj_(nj)
+{}
+
+template <typename T>
+template <typename MetadataType>
+void DistilMatrixIo<T>::initFile(const MetadataType &d)
+{
+#ifdef HAVE_HDF5
+    Hdf5Writer writer(filename_);
+    push(writer, dataname_);    //creates main h5 group
+    write(writer, "Metadata", d);
+#else
+    HADRONS_ERROR(Implementation, "distil matrix I/O needs HDF5 library");
+#endif
+}
+
+template <typename T>
+void DistilMatrixIo<T>::saveBlock(const T *data, 
+                               const unsigned int i, 
+                               const unsigned int j,
+                               const unsigned int blockSizei,
+                               const unsigned int blockSizej,
+                               std::string t_name,
+                               std::string datasetName,
+                               const unsigned int chunkSize)
+{
+#ifdef HAVE_HDF5
+    Hdf5Reader reader(filename_, false);
+    push(reader, DISTIL_MATRIX_NAME);
+
+    H5NS::Group& group = reader.getGroup();
+
+    //create t group ifit doesnt exist, or get it
+    H5NS::Exception::dontPrint();
+    try{
+        group = group.openGroup(t_name);
+    } catch (...) {                         //WHICH EXCEPTION SHOULD IT CATCH??
+        group = group.createGroup(t_name);
+    }
+
+    H5NS::DataSet        dataset;
+    //create zeroed dataset T1,T2, or open it
+    H5NS::Exception::dontPrint();
+    try{
+        dataset = group.openDataSet(datasetName);
+    } catch (...) {                         //WHICH EXCEPTION SHOULD IT CATCH??
+        H5NS::DataSpace      dataspace;
+        std::vector<hsize_t>    dim = {static_cast<hsize_t>(ni_), 
+                                    static_cast<hsize_t>(nj_)},
+                                chunk = {static_cast<hsize_t>(chunkSize), 
+                                    static_cast<hsize_t>(chunkSize)};
+        dataspace.setExtentSimple(dim.size(), dim.data());
+        H5NS::DSetCreatPropList     plist;
+        plist.setChunk(chunk.size(), chunk.data());
+        plist.setFletcher32();
+        dataset = group.createDataSet(datasetName, Hdf5Type<T>::type(), dataspace, plist);
+    }
+
+
+    std::vector<hsize_t> count = {blockSizei, blockSizej},
+                         offset = {static_cast<hsize_t>(i),
+                                   static_cast<hsize_t>(j)},
+                         stride = {1, 1},
+                         block  = {1, 1}; 
+    H5NS::DataSpace      memspace(count.size(), count.data()), dataspace;
+    dataspace   = dataset.getSpace();
+    dataspace.selectHyperslab(H5S_SELECT_SET, count.data(), offset.data(),
+                              stride.data(), block.data());
+    dataset.write(data, Hdf5Type<T>::type(), memspace, dataspace);
+
+
+
+#else
+    HADRONS_ERROR(Implementation, "distil matrix I/O needs HDF5 library");
+#endif
+}
+
+template <typename T>
+void DistilMatrixIo<T>::saveBlock(const DistilMatrixSet<T> &m,
+                               const unsigned int ext, const unsigned int str,
+                               const unsigned int i, const unsigned int j, std::string datasetName,
+                               std::string t_name, const unsigned int chunkSize)
+{
+    unsigned int blockSizei = m.dimension(2);
+    unsigned int blockSizej = m.dimension(3);
+    unsigned int nstr       = m.dimension(1);
+    size_t       offset     = (ext*nstr + str)*blockSizei*blockSizej;
+
+    saveBlock(m.data() + offset, i, j, blockSizei, blockSizej, t_name, datasetName, chunkSize);
+
+    // createDilutionBlock(datasetName, chunkSize, t);
+    // saveBlock(m.data() + offset, i, j, blockSizei, blockSizej, datasetName);
+}
+
+/////////////////////////////////////
+/////////////////////////////////////
+/////////////////////////////////////
+/////////////////////////////////////
+/////////////////////////////////////
+
 //computation class declaration
 template <typename FImpl, typename T, typename Tio>
 class DmfComputation
@@ -119,9 +283,9 @@ private:
     ColourVectorField                   evec3d_;
     FermionField                        tmp3d_;
     FermionField                        tmp4d_;
-    std::vector<Tio>                         bBuf_;
-    std::vector<Tio>                         bufPinnedT_;
-    std::vector<T>                           cBuf_;
+    std::vector<Tio>                    bBuf_;
+    std::vector<Tio>                    bufPinnedT_;
+    std::vector<T>                      cBuf_;
     const unsigned int                  blockSize_; //eventually turns into io chunk size
     const unsigned int                  cacheSize_;
     const unsigned int                  nt_;
@@ -750,6 +914,33 @@ void DmfComputation<FImpl,T,Tio>
     //     }
     //     STOP_TIMER("IO: total");
     // }
+
+    
+
+    TestMd<FImpl> md;
+    md.name = "heyo";
+
+
+    bBuf_.resize(1*1*12*12);
+    DistilMatrixSet<Tio> test_block(bBuf_.data(), 1 , 1 , 6, 6);
+
+    thread_for_collapse(4,iext,1,{
+    // for(unsigned int iext=0;iext<nExt_;iext++)
+    for(unsigned int istr=0;istr<1;istr++)
+    for(unsigned int ii=0;ii<6;ii++)
+    for(unsigned int jj=0;jj<6;jj++)
+    {
+        test_block(iext,istr,ii,jj) = 0;
+    }
+    });
+
+    test_block(0,0,0,0) = 66.6;
+    test_block(0,0,3,3) = 33.3;
+
+    DistilMatrixIo<HADRONS_DISTIL_IO_TYPE> matrix_io("test.h5", DISTIL_MATRIX_NAME, 12, 12);
+    matrix_io.initFile(md);
+    matrix_io.saveBlock(test_block, 0, 0, 5, 5, "0-0", "t666" , 6);
+
 }
 
 END_MODULE_NAMESPACE
