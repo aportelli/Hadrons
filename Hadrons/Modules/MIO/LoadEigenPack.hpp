@@ -137,7 +137,7 @@ void TLoadEigenPack<Pack, GImpl>::setup(void)
     }
 }
 
-// execution ///////////////////////////////////////////////////////////////////
+// execution ////////////////////////////////////////////////////////// /////////
 template <typename Pack, typename GImpl>
 void TLoadEigenPack<Pack, GImpl>::execute(void)
 {
@@ -153,46 +153,8 @@ void TLoadEigenPack<Pack, GImpl>::execute(void)
                      << " using " << par().gaugeXform << std::endl;
 
         auto &xform = envGet(GaugeMat, par().gaugeXform);
-        envGetTmp(GaugeMat, tmpXform);
 
-        if (par().Ls > 1) 
-        {
-            LOG(Message) << "Creating 5d GaugeMat from " << par().gaugeXform << std::endl;
-            startTimer("5-d gauge transform creation");
-            for (unsigned int j = 0; j < par().Ls; j++)
-            {
-                InsertSlice(xform, tmpXform, j, 0);
-            }
-            stopTimer("5-d gauge transform creation");
-        }
-        else
-        {
-            tmpXform = xform;
-        }
-        if (par().redBlack)
-        {
-            envGetTmp(GaugeMat, tmpXformOdd);
-
-            pickCheckerboard(Odd, tmpXformOdd, tmpXform);
-            startTimer("Transform application");
-            for (unsigned int i = 0; i < par().size; i++)
-            {
-                LOG(Message) << "Applying gauge transformation to eigenvector i = " << i+1 << "/" << par().size << std::endl;
-                epack.evec[i].Checkerboard() = Odd;
-                epack.evec[i] = tmpXformOdd*epack.evec[i];
-            }
-            stopTimer("Transform application");
-        }
-        else
-        {
-            startTimer("Transform application");
-            for (unsigned int i = 0; i < par().size; i++)
-            {
-                LOG(Message) << "Applying gauge transformation to eigenvector i = " << i+1 << "/" << par().size << std::endl;
-                epack.evec[i] = tmpXform*epack.evec[i];
-            }
-            stopTimer("Transform application");
-        }
+        epack.gaugeTransform(xform);
     }
 }
 

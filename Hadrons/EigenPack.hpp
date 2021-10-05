@@ -28,6 +28,7 @@
 #define Hadrons_EigenPack_hpp_
 
 #include <Hadrons/Global.hpp>
+#include <Hadrons/LatticeUtilities.hpp>
 #include <Grid/algorithms/iterative/Deflation.h>
 #include <Grid/algorithms/iterative/LocalCoherenceLanczos.h>
 
@@ -77,6 +78,8 @@ namespace EigenPackIo
                      ScidacReader &binReader, TIo *ioBuf = nullptr)
     {
         VecRecord vecRecord;
+        bool      cb = false;
+        GridBase  *g = evec.Grid();
 
         LOG(Message) << "Reading eigenvector " << index << std::endl;
         if (ioBuf == nullptr)
@@ -93,6 +96,14 @@ namespace EigenPackIo
             HADRONS_ERROR(Io, "Eigenvector " + std::to_string(index) + " has a"
                             + " wrong index (expected " + std::to_string(vecRecord.index) 
                             + ")");
+        }
+        for (unsigned int mu = 0; mu < g->Dimensions(); ++mu)
+        {
+            cb = cb or (g->CheckerBoarded(mu) != 0);
+        }
+        if (cb)
+        {
+            evec.Checkerboard() = Odd;
         }
         eval = vecRecord.eval;
     }
@@ -305,6 +316,19 @@ public:
         EigenPackIo::writePack<F, FIo>(evecFilename(fileStem, traj, multiFile), 
                                        this->evec, this->eval, this->record, 
                                        this->evec.size(), multiFile, gridIo_);
+    }
+
+    template <typename ColourMatrixField>
+    void gaugeTransform(const ColourMatrixField &g)
+    {
+        GridBase          *evGrid = this->evec[0].Grid();
+        ColourMatrixField gExt(evGrid);
+
+        sliceFill(gExt, g, 0, Odd);
+        for (auto &v: this->evec)
+        {
+            v = gExt*v;
+        }
     }
 protected:
     std::string evecFilename(const std::string stem, const int traj, const bool multiFile)
