@@ -26,7 +26,7 @@ class TBatchExactDeflation: public Module<BatchExactDeflationPar>
 {
 public:
     typedef typename Pack::Field   Field;
-    typedef typename Pack::FieldIo FieldIo;  
+    typedef typename Pack::FieldIo FieldIo;
     GAUGE_TYPE_ALIASES(GImpl, );
 public:
     // constructor
@@ -96,15 +96,16 @@ public:
                 epack_.gaugeTransform(*transform_);
             }
             LOG(Message) << "project" << std::endl;
-            projAccumulate(in, out);
+            projAccumulate(in, out, size);
         }
         
         LOG(Message) << "=== BATCH DEFLATION GUESSER END" << std::endl;
     }
 private:
-    void projAccumulate(const std::vector<Field> &in, std::vector<Field> &out)
+    void projAccumulate(const std::vector<Field> &in, std::vector<Field> &out,
+                        const unsigned int batchSize)
     {
-        for (unsigned int i = 0; i < epack_.evec.size(); ++i)
+        for (unsigned int i = 0; i < batchSize; ++i)
         for (unsigned int j = 0; j < in.size(); ++j)
         {
             axpy(out[j], 
