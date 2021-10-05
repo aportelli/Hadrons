@@ -27,6 +27,7 @@ class TBatchExactDeflation: public Module<BatchExactDeflationPar>
 public:
     typedef typename Pack::Field   Field;
     typedef typename Pack::FieldIo FieldIo;  
+    GAUGE_TYPE_ALIASES(GImpl, );
 public:
     // constructor
     TBatchExactDeflation(const std::string name);
@@ -53,16 +54,19 @@ class BatchExactDeflationGuesser: public LinearFunction<typename Pack::Field>
 {
 public:
     typedef typename Pack::Field Field;
+    GAUGE_TYPE_ALIASES(GImpl,);
 public:
     BatchExactDeflationGuesser(const MIO::LoadEigenPackPar &epPar, 
                                const unsigned int batchSize,
                                GridBase *grid, GridBase *gridIo,
-                               const int traj)
+                               const int traj, 
+                               const GaugeLinkField *transform = nullptr)
     : epPar_(epPar)
     , batchSize_(batchSize)
     , grid_(grid)
     , gridIo_(gridIo)
     , traj_(traj)
+    , transform_(transform)
     {
         epack_.init(batchSize_, grid_, gridIo_);
     };
@@ -87,6 +91,10 @@ public:
             LOG(Message) << "--- batch " << b/batchSize_ << std::endl;
             LOG(Message) << "I/O" << std::endl;
             epack_.read(epPar_.filestem, epPar_.multiFile, b, b + size, traj_);
+            if (transform_ != nullptr)
+            {
+                epack_.gaugeTransform(*transform_);
+            }
             LOG(Message) << "project" << std::endl;
             projAccumulate(in, out);
         }
@@ -110,6 +118,7 @@ private:
     GridBase              *grid_, *gridIo_;
     int                   traj_;
     Pack                  epack_;
+    const GaugeLinkField  *transform_;
 };
 
 
@@ -131,7 +140,6 @@ std::vector<std::string> TBatchExactDeflation<Pack, GImpl>::getInput(void)
     if (!par().eigenPack.gaugeXform.empty())
     {
         in.push_back(par().eigenPack.gaugeXform);
-        HADRONS_ERROR(Implementation, "batch deflation not supported yet for gauge-fixed eigenvectors");
     }
     
     return in;
@@ -162,7 +170,8 @@ DependencyMap TBatchExactDeflation<Pack, GImpl>::getObjectDependencies(void)
 template <typename Pack, typename GImpl>
 void TBatchExactDeflation<Pack, GImpl>::setup(void)
 {
-    GridBase  *grid, *gridIo = nullptr, *gridRb = nullptr;
+    GridBase       *grid, *gridIo = nullptr, *gridRb = nullptr;
+    GaugeLinkField *transform = nullptr;
 
     LOG(Message) << "Setting batch exact deflation guesser with eigenpack "
                  << "located at '" << par().eigenPack.filestem
@@ -172,6 +181,10 @@ void TBatchExactDeflation<Pack, GImpl>::setup(void)
     {
         HADRONS_ERROR(Implementation, "batch deflation not supported yet for single-file eigenpacks");
     }
+    if (!par().eigenPack.gaugeXform.empty())
+    {
+        transform = &envGet(GaugeLinkField, par().eigenPack.gaugeXform);
+    }
     grid   = getGrid<Field>(par().eigenPack.Ls);
     gridRb = getGrid<Field>(par().eigenPack.redBlack, par().eigenPack.Ls);
     if (typeHash<Field>() != typeHash<FieldIo>())
@@ -180,8 +193,7 @@ void TBatchExactDeflation<Pack, GImpl>::setup(void)
     }
     envCreateDerived(LinearFunction<Field>, ARG(BatchExactDeflationGuesser<Pack, GImpl>),
                      getName(), par().eigenPack.Ls, par().eigenPack, par().batchSize,
-                     gridRb, gridIo, vm().getTrajectory());
-                     
+                     gridRb, gridIo, vm().getTrajectory(), transform);
 }
 
 // execution ///////////////////////////////////////////////////////////////////
