@@ -108,12 +108,19 @@ namespace EigenPackIo
         eval = vecRecord.eval;
     }
 
+    inline void skipElements(ScidacReader &binReader, const unsigned int n)
+    {
+        for (unsigned int i = 0; i < n; ++i)
+        {
+            binReader.skipScidacFieldRecord();
+        }
+    }
+
     template <typename T, typename TIo = T>
     static void readPack(std::vector<T> &evec, std::vector<RealD> &eval,
                          PackRecord &record, const std::string filename, 
-                         const unsigned int size, bool multiFile, 
                          const unsigned int ki, const unsigned int kf,
-                         GridBase *gridIo = nullptr)
+                         bool multiFile, GridBase *gridIo = nullptr)
     {
         std::unique_ptr<TIo> ioBuf{nullptr};
         ScidacReader         binReader;
@@ -144,7 +151,8 @@ namespace EigenPackIo
         {
             binReader.open(filename);
             readHeader(record, binReader);
-            for(int k = ki; kf < size; ++k) 
+            skipElements(binReader, ki);
+            for(int k = ki; k < kf; ++k) 
             {
                 readElement(evec[k - ki], eval[k - ki], k, binReader, ioBuf.get());
             }
@@ -158,7 +166,7 @@ namespace EigenPackIo
                          const unsigned int size, bool multiFile, 
                          GridBase *gridIo = nullptr)
     {
-        readPack<T, TIo>(evec, eval, record, filename, size, multiFile, 0, size, gridIo);
+        readPack<T, TIo>(evec, eval, record, filename, 0, size, multiFile, gridIo);
     }
 
     inline void writeHeader(ScidacWriter &binWriter, PackRecord &record)
@@ -308,7 +316,7 @@ public:
     {
         EigenPackIo::readPack<F, FIo>(this->evec, this->eval, this->record, 
                                       evecFilename(fileStem, traj, multiFile), 
-                                      this->evec.size(), multiFile, ki, kf, gridIo_);
+                                      ki, kf, multiFile, gridIo_);
     }
 
     virtual void write(const std::string fileStem, const bool multiFile, const int traj = -1)

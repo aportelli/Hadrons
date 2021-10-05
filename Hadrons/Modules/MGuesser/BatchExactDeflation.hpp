@@ -178,10 +178,6 @@ void TBatchExactDeflation<Pack, GImpl>::setup(void)
                  << "located at '" << par().eigenPack.filestem
                  << "' (" << par().eigenPack.size << " modes) and batch size " 
                  << par().batchSize << std::endl;
-    if (!par().eigenPack.multiFile)
-    {
-        HADRONS_ERROR(Implementation, "batch deflation not supported yet for single-file eigenpacks");
-    }
     if (!par().eigenPack.gaugeXform.empty())
     {
         transform = &envGet(GaugeLinkField, par().eigenPack.gaugeXform);
