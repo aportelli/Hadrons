@@ -1,5 +1,5 @@
 /*
- * RandomField.cpp, part of Hadrons (https://github.com/aportelli/Hadrons)
+ * LoadOpenQcd.cpp, part of Hadrons (https://github.com/aportelli/Hadrons)
  *
  * Copyright (C) 2015 - 2020
  *
@@ -23,13 +23,10 @@
  */
 
 /*  END LEGAL */
-#include <Hadrons/Modules/MUtilities/RandomField.hpp>
+#include <Hadrons/Modules/MIO/LoadOpenQcd.hpp>
 
 using namespace Grid;
 using namespace Hadrons;
-using namespace MUtilities;
+using namespace MIO;
 
-template class Grid::Hadrons::MUtilities::TRandomField<FIMPL::PropagatorField>;
-template class Grid::Hadrons::MUtilities::TRandomField<FIMPL::FermionField>;
-template class Grid::Hadrons::MUtilities::TRandomField<FIMPL::ComplexField>;
-template class Grid::Hadrons::MUtilities::TRandomField<GIMPL::GaugeLinkField>;
+template class Grid::Hadrons::MIO::TLoadOpenQcd<GIMPL>;

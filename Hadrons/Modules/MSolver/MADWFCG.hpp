@@ -30,7 +30,6 @@
 #include <Hadrons/Module.hpp>
 #include <Hadrons/ModuleFactory.hpp>
 #include <Hadrons/Solver.hpp>
-#include <Hadrons/EigenPack.hpp>
 
 BEGIN_HADRONS_NAMESPACE
 

@@ -31,7 +31,6 @@
 #include <Hadrons/Module.hpp>
 #include <Hadrons/ModuleFactory.hpp>
 #include <Hadrons/Solver.hpp>
-#include <Hadrons/EigenPack.hpp>
 
 BEGIN_HADRONS_NAMESPACE
 
@@ -168,7 +167,7 @@ SchurFMatOuter somat(omat);                                                     
 MixedPrecisionConjugateGradient<FermionFieldOuter, FermionFieldInner>                                 \
     mpcg(par().residual, par().maxInnerIteration,                                                     \
          par().maxOuterIteration,                                                                     \
-         env().template getRbGrid<VTypeInner>(Ls),                                                    \
+         getGrid<FermionFieldInner>(true, Ls),                                                        \
          simat, somat);                                                                               \
 mpcg.useGuesser(iguesser);                                                                            \
 OperatorFunctionWrapper<FermionFieldOuter> wmpcg(mpcg);                                               \

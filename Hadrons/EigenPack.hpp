@@ -28,6 +28,7 @@
 #define Hadrons_EigenPack_hpp_
 
 #include <Hadrons/Global.hpp>
+#include <Hadrons/LatticeUtilities.hpp>
 #include <Grid/algorithms/iterative/Deflation.h>
 #include <Grid/algorithms/iterative/LocalCoherenceLanczos.h>
 
@@ -77,6 +78,8 @@ namespace EigenPackIo
                      ScidacReader &binReader, TIo *ioBuf = nullptr)
     {
         VecRecord vecRecord;
+        bool      cb = false;
+        GridBase  *g = evec.Grid();
 
         LOG(Message) << "Reading eigenvector " << index << std::endl;
         if (ioBuf == nullptr)
@@ -94,15 +97,30 @@ namespace EigenPackIo
                             + " wrong index (expected " + std::to_string(vecRecord.index) 
                             + ")");
         }
+        for (unsigned int mu = 0; mu < g->Dimensions(); ++mu)
+        {
+            cb = cb or (g->CheckerBoarded(mu) != 0);
+        }
+        if (cb)
+        {
+            evec.Checkerboard() = Odd;
+        }
         eval = vecRecord.eval;
+    }
+
+    inline void skipElements(ScidacReader &binReader, const unsigned int n)
+    {
+        for (unsigned int i = 0; i < n; ++i)
+        {
+            binReader.skipScidacFieldRecord();
+        }
     }
 
     template <typename T, typename TIo = T>
     static void readPack(std::vector<T> &evec, std::vector<RealD> &eval,
                          PackRecord &record, const std::string filename, 
-                         const unsigned int size, bool multiFile, 
                          const unsigned int ki, const unsigned int kf,
-                         GridBase *gridIo = nullptr)
+                         bool multiFile, GridBase *gridIo = nullptr)
     {
         std::unique_ptr<TIo> ioBuf{nullptr};
         ScidacReader         binReader;
@@ -133,7 +151,8 @@ namespace EigenPackIo
         {
             binReader.open(filename);
             readHeader(record, binReader);
-            for(int k = ki; kf < size; ++k) 
+            skipElements(binReader, ki);
+            for(int k = ki; k < kf; ++k) 
             {
                 readElement(evec[k - ki], eval[k - ki], k, binReader, ioBuf.get());
             }
@@ -147,7 +166,7 @@ namespace EigenPackIo
                          const unsigned int size, bool multiFile, 
                          GridBase *gridIo = nullptr)
     {
-        readPack<T, TIo>(evec, eval, record, filename, size, multiFile, 0, size, gridIo);
+        readPack<T, TIo>(evec, eval, record, filename, 0, size, multiFile, gridIo);
     }
 
     inline void writeHeader(ScidacWriter &binWriter, PackRecord &record)
@@ -297,7 +316,7 @@ public:
     {
         EigenPackIo::readPack<F, FIo>(this->evec, this->eval, this->record, 
                                       evecFilename(fileStem, traj, multiFile), 
-                                      this->evec.size(), multiFile, ki, kf, gridIo_);
+                                      ki, kf, multiFile, gridIo_);
     }
 
     virtual void write(const std::string fileStem, const bool multiFile, const int traj = -1)
@@ -305,6 +324,19 @@ public:
         EigenPackIo::writePack<F, FIo>(evecFilename(fileStem, traj, multiFile), 
                                        this->evec, this->eval, this->record, 
                                        this->evec.size(), multiFile, gridIo_);
+    }
+
+    template <typename ColourMatrixField>
+    void gaugeTransform(const ColourMatrixField &g)
+    {
+        GridBase          *evGrid = this->evec[0].Grid();
+        ColourMatrixField gExt(evGrid);
+
+        sliceFill(gExt, g, 0, Odd);
+        for (auto &v: this->evec)
+        {
+            v = gExt*v;
+        }
     }
 protected:
     std::string evecFilename(const std::string stem, const int traj, const bool multiFile)

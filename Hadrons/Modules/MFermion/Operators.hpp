@@ -55,7 +55,7 @@ TOperators<FImpl>::TOperators(const std::string name)
 template <typename FImpl>
 std::vector<std::string> TOperators<FImpl>::getInput(void)
 {
-    std::vector<std::string> in = {};
+    std::vector<std::string> in = {par().action};
     
     return in;
 }
@@ -73,9 +73,10 @@ DependencyMap TOperators<FImpl>::getObjectDependencies(void)
 {
     DependencyMap dep;
 
-    dep.insert({par().action, getName()});
     dep.insert({par().action, getName() + "_herm"});
     dep.insert({par().action, getName() + "_schur"});
+
+    return dep;
 }
 
 // setup ///////////////////////////////////////////////////////////////////////

@@ -5,12 +5,11 @@
 #include <Hadrons/Module.hpp>
 #include <Hadrons/ModuleFactory.hpp>
 #include <Hadrons/Solver.hpp>
-#include <Hadrons/EigenPack.hpp>
 
 BEGIN_HADRONS_NAMESPACE
 
 /******************************************************************************
- *                         CGNE                                 *
+ *                        CG on normal equations (CGNE)                       *
  ******************************************************************************/
 BEGIN_MODULE_NAMESPACE(MSolver)
 

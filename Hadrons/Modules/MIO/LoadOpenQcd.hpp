@@ -1,5 +1,5 @@
 /*
- * RandomField.hpp, part of Hadrons (https://github.com/aportelli/Hadrons)
+ * LoadOpenQcd.hpp, part of Hadrons (https://github.com/aportelli/Hadrons)
  *
  * Copyright (C) 2015 - 2020
  *
@@ -23,8 +23,8 @@
  */
 
 /*  END LEGAL */
-#ifndef Hadrons_MUtilities_RandomField_hpp_
-#define Hadrons_MUtilities_RandomField_hpp_
+#ifndef Hadrons_MIO_LoadOpenQcd_hpp_
+#define Hadrons_MIO_LoadOpenQcd_hpp_
 
 #include <Hadrons/Global.hpp>
 #include <Hadrons/Module.hpp>
@@ -33,25 +33,31 @@
 BEGIN_HADRONS_NAMESPACE
 
 /******************************************************************************
- *                    Generate a single random field                          *
- ******************************************************************************/
-BEGIN_MODULE_NAMESPACE(MUtilities)
+ Load an OpenQcd configuration
 
-class RandomFieldPar: Serializable
+ file    Namestem of the files to read in. In contrast to the LoadNersc
+         module, the separator between the namestem and the configuration
+         number is 'n' instead of '.' compliant with the openQCD convention.         
+ ******************************************************************************/
+BEGIN_MODULE_NAMESPACE(MIO)
+
+class LoadOpenQcdPar: Serializable
 {
 public:
-    GRID_SERIALIZABLE_CLASS_MEMBERS(RandomFieldPar,
-                                    unsigned int, Ls);
+    GRID_SERIALIZABLE_CLASS_MEMBERS(LoadOpenQcdPar,
+                                    std::string, file);
 };
 
-template <typename Field>
-class TRandomField: public Module<RandomFieldPar>
+template <typename GImpl>
+class TLoadOpenQcd: public Module<LoadOpenQcdPar>
 {
 public:
+    GAUGE_TYPE_ALIASES(GImpl,);
+public:
     // constructor
-    TRandomField(const std::string name);
+    TLoadOpenQcd(const std::string name);
     // destructor
-    virtual ~TRandomField(void) {};
+    virtual ~TLoadOpenQcd(void) {};
     // dependency relation
     virtual std::vector<std::string> getInput(void);
     virtual std::vector<std::string> getOutput(void);
@@ -61,31 +67,28 @@ public:
     virtual void execute(void);
 };
 
-MODULE_REGISTER_TMP(RandomPropagator, TRandomField<FIMPL::PropagatorField>, MUtilities);
-MODULE_REGISTER_TMP(RandomFermion, TRandomField<FIMPL::FermionField>, MUtilities);
-MODULE_REGISTER_TMP(RandomComplex, TRandomField<FIMPL::ComplexField>, MUtilities);
-MODULE_REGISTER_TMP(RandomColourMatrix, TRandomField<GIMPL::GaugeLinkField>, MUtilities);
+MODULE_REGISTER_TMP(LoadOpenQcd,  TLoadOpenQcd<GIMPL>,  MIO);
 
 /******************************************************************************
- *                    TRandomField implementation                             *
- ******************************************************************************/
+*                       TLoadOpenQcd implementation                             *
+******************************************************************************/
 // constructor /////////////////////////////////////////////////////////////////
-template <typename Field>
-TRandomField<Field>::TRandomField(const std::string name)
-: Module<RandomFieldPar>(name)
+template <typename GImpl>
+TLoadOpenQcd<GImpl>::TLoadOpenQcd(const std::string name)
+: Module<LoadOpenQcdPar>(name)
 {}
 
 // dependencies/products ///////////////////////////////////////////////////////
-template <typename Field>
-std::vector<std::string> TRandomField<Field>::getInput(void)
+template <typename GImpl>
+std::vector<std::string> TLoadOpenQcd<GImpl>::getInput(void)
 {
     std::vector<std::string> in;
     
     return in;
 }
 
-template <typename Field>
-std::vector<std::string> TRandomField<Field>::getOutput(void)
+template <typename GImpl>
+std::vector<std::string> TLoadOpenQcd<GImpl>::getOutput(void)
 {
     std::vector<std::string> out = {getName()};
     
@@ -93,33 +96,28 @@ std::vector<std::string> TRandomField<Field>::getOutput(void)
 }
 
 // setup ///////////////////////////////////////////////////////////////////////
-template <typename Field>
-void TRandomField<Field>::setup(void)
+template <typename GImpl>
+void TLoadOpenQcd<GImpl>::setup(void)
 {
-    if (par().Ls > 1)
-    {
-        envCreateLat(Field, getName(), par().Ls);
-    }
-    else
-    {
-        envCreateLat(Field, getName());
-    }
+    envCreateLat(GaugeField, getName());
 }
 
 // execution ///////////////////////////////////////////////////////////////////
-template <typename Field>
-void TRandomField<Field>::execute(void)
+template <typename GImpl>
+void TLoadOpenQcd<GImpl>::execute(void)
 {
-    LOG(Message) << "Generating random field" << std::endl;
-    LOG(Message) << "Field type: " << typeName<Field>() << std::endl;
-    
-    auto &field = envGet(Field, getName());
+    FieldMetaData header;
+    std::string   fileName = par().file + "n"
+                             + std::to_string(vm().getTrajectory());
+    LOG(Message) << "Loading OpenQcd configuration from file '" << fileName
+                 << "'" << std::endl;
 
-    random(rng4d(), field);
+    auto &U = envGet(GaugeField, getName());
+    OpenQcdIO::readConfiguration(U, header, fileName);
 }
 
 END_MODULE_NAMESPACE
 
 END_HADRONS_NAMESPACE
 
-#endif // Hadrons_MUtilities_RandomField_hpp_
+#endif // Hadrons_MIO_LoadOpenQcd_hpp_
