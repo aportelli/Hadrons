@@ -294,6 +294,7 @@ private:
     const unsigned int                  nStr_;
     const bool                          isExact_;
     const bool                          onlyDiag_;
+    bool                                isInitFile_=false;
     std::map<Side, unsigned int>        dilSizeLS_;
     std::map<Side, DistillationNoise&>  distilNoise_;
     const unsigned int                  dvBatchSize_ = DISTILVECTOR_TIME_BATCH_SIZE;
@@ -542,7 +543,7 @@ void DmfComputation<FImpl,T,Tio>
     
     //compute at pin_time, insert at t
     const unsigned int pin_time = (dt + delta_t)%nt_;     //TODO: generalise to dilution
-    const unsigned int t        = dt;               //TODO: generalise to dilution
+    const unsigned int t        = pin_time;               //TODO: generalise to dilution
 
     std::vector<int> peramb_ts = peramb.MetaData.timeSources;
     std::vector<int>::iterator itr_dt = std::find(peramb_ts.begin(), peramb_ts.end(), dt);
@@ -658,7 +659,7 @@ void DmfComputation<FImpl,T,Tio>
 
     //assume only right side can be summed for now
     //make these input parameters
-    std::vector<unsigned int> delta_t_list={0}; // M(t+dt)
+    std::vector<unsigned int> delta_t_list={0,1,2,3,4,5,6,7}; // M(t+dt)
     // std::vector<unsigned int> pinned_times={0,4}; // M(t+dt)
     // std::vector<unsigned int> pinned_times={0, 2, 4, 6, 8, 10, 12, 14, 16, 18, 20, 22, 24, 26, 28, 30, 32, 34, 
     //                                             36, 38, 40, 42, 44, 46, 48, 50, 52, 54, 56, 58, 60, 62, 64, 66, 68, 
@@ -683,7 +684,6 @@ void DmfComputation<FImpl,T,Tio>
         {
             pinned_side = Side::right;
         }
-
 
         START_TIMER("distil vectors");
         if(pinned_side==Side::right)
@@ -779,8 +779,8 @@ void DmfComputation<FImpl,T,Tio>
 
                         // copy from cache
                         START_TIMER("cache copy");
-                        thread_for_collapse(5,iext,nExt_,{
-                        // for(unsigned int iext=0;iext<nExt_;iext++)
+                        // thread_for_collapse(5,iext,nExt_,{
+                        for(unsigned int iext=0;iext<nExt_;iext++)
                         for(unsigned int istr=0;istr<nStr_;istr++)
                         for(unsigned int t=0;t<nt_;t++)
                         for(unsigned int iii=0;iii<icache_size;iii++)
@@ -789,7 +789,7 @@ void DmfComputation<FImpl,T,Tio>
                             block(iext,istr,t,ii+iii,jj+jjj) = cache(iext,istr,t,iii,jjj);
                             // std::cout << iext << " " << istr << " " << t <<  " " << ii+iii << " " << jj+jjj << " : "  << block(iext,istr,t,ii+iii,jj+jjj) << std::endl;;
                         }
-                        });
+                        // });
                         STOP_TIMER("cache copy");
                     }
 
@@ -812,12 +812,14 @@ void DmfComputation<FImpl,T,Tio>
                     // bufPinnedT_.resize(nExt_*nStr_*nt_sparse*blockSize_*blockSize_);                
                     DistilMatrixSet<Tio> block_pinned(bufPinnedT_.data(), nExt_ , nStr_ , blockSize_, blockSize_);
                     
-                    for(unsigned int it=0 ; it<time_dil_source.at(Side::right).size() ; it++)
+                    for(unsigned int it=0 ; it<time_dil_source.at(Side::right).size() ; it++)   // TODO: generalise to both sides
                     {
                         // TODO: generalise to dilution
-                        unsigned int t = time_dil_source.at(Side::right)[it];
-                        const unsigned int Tpinned=t;
-                        std::vector<unsigned int> ts_sparselist = {t};
+                        unsigned int t = (time_dil_source.at(Side::right)[it] + delta_t)%nt_;
+                        const unsigned int Tpinned = time_dil_source.at(Side::right)[it];
+
+                        std::cout << t << " " << Tpinned << std::endl << std::endl;
+                        std::cin.get();
 
                         START_TIMER("cache copy");
                         thread_for_collapse(4,iext,nExt_,{
@@ -855,12 +857,14 @@ void DmfComputation<FImpl,T,Tio>
 
                             START_TIMER("IO: write block");
 
-                            if( ((pinned_side==Side::right ? Tfree : Tpinned) == time_dil_source.at(Side::left)[0]) 
-                                && ((pinned_side==Side::right ? Tpinned : Tfree) == time_dil_source.at(Side::right)[0]) )     //execute this once per block
+                            // if( ((pinned_side==Side::right ? Tfree : Tpinned) == time_dil_source.at(Side::left)[0]) 
+                            //     && ((pinned_side==Side::right ? Tpinned : Tfree) == time_dil_source.at(Side::right)[0]) )     //execute this once per block
+                            if( !isInitFile_ )
                             {
                                 START_TIMER("IO: file creation");
                                 matrix_io.initFile(md);
                                 STOP_TIMER("IO: file creation");
+                                isInitFile_=true;
                             }
                             matrix_io.saveBlock(block_pinned, iext, istr, i, j, dataset_name,  std::to_string(t) , blockSize_);
                             STOP_TIMER("IO: write block");
