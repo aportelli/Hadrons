@@ -657,78 +657,72 @@ void DmfComputation<FImpl,T,Tio>
     std::vector<std::vector<unsigned int>> time_dil_pair_list;
     const unsigned int vol = g_->_gsites;
 
-    //assume only right side can be summed for now
     //make these input parameters
-    std::vector<unsigned int> delta_t_list={0,1,2,3,4,5,6,7}; // M(t+dt)
-    // std::vector<unsigned int> pinned_times={0,4}; // M(t+dt)
-    // std::vector<unsigned int> pinned_times={0, 2, 4, 6, 8, 10, 12, 14, 16, 18, 20, 22, 24, 26, 28, 30, 32, 34, 
-    //                                             36, 38, 40, 42, 44, 46, 48, 50, 52, 54, 56, 58, 60, 62, 64, 66, 68, 
-    //                                             70, 72, 74, 76, 78, 80, 82, 84, 86, 88, 90, 92, 94};
-    
-    std::vector<unsigned int> pinned_times={};
+    std::vector<unsigned int> delta_t_list={0};
+
+    Side pinned_side, fixed_side;
+    // pinned_side=Side::right
+    // hard-coding this for now to not complicate inputs
+    if(isRho(Side::left) && isPhi(Side::right))
+    {
+        pinned_side = Side::left;
+    }
+    else if(isPhi(Side::left) && isPhi(Side::right))
+    {
+        pinned_side = Side::right;
+    }
+    else
+    {
+        pinned_side = Side::right;
+    }
+    fixed_side = (pinned_side==Side::right ? Side::left : Side::right);
+
+    if(isRho(pinned_side))  //if the pinned side has a rho field, force delta_t to be 0, as the others should yield trivial zeros
+    {
+        delta_t_list={0};
+    }
 
     for(auto delta_t : delta_t_list)
-    {
-
-        Side pinned_side;
-        // hard-coding this for now to not complicate inputs
-        if(isRho(Side::left) && isPhi(Side::right))
-        {
-            pinned_side = Side::left;
-        }
-        else if(isPhi(Side::left) && isPhi(Side::right))
-        {
-            pinned_side = Side::right;
-        }
-        else
-        {
-            pinned_side = Side::right;
-        }
-
+    {        
         START_TIMER("distil vectors");
-        if(pinned_side==Side::right)
-        {
-            makePinnedDvLapSpinBlock(dv, time_dil_source.at(Side::right), n_idx, epack, Side::right, delta_t, peramb);
-        }
-        else
-        {
-            makePinnedDvLapSpinBlock(dv, time_dil_source.at(Side::left), n_idx, epack, Side::left, delta_t, peramb);
-        }
+        makePinnedDvLapSpinBlock(dv, time_dil_source.at(pinned_side), n_idx, epack, pinned_side, delta_t, peramb);
         STOP_TIMER("distil vectors");
 
-        for (unsigned int ibatchFree=0 ; ibatchFree<time_dil_source.at(Side::left).size()/dvBatchSize_ ; ibatchFree++)   //loop over left dv batches
+        for (unsigned int ibatchFixed=0 ; ibatchFixed<time_dil_source.at(fixed_side).size()/dvBatchSize_ ; ibatchFixed++)   //loop over left dv batches
         {
             START_TIMER("distil vectors");
-            std::vector<unsigned int> batch_dtFree;
-            if(pinned_side==Side::right){
-                batch_dtFree = fetchDvBatchIdxs(ibatchFree,time_dil_source.at(Side::left));
-                makeDvLapSpinBatch(dv, n_idx, epack, Side::left, batch_dtFree, peramb);
-            }
-            else
-            {
-                batch_dtFree = fetchDvBatchIdxs(ibatchFree,time_dil_source.at(Side::right));
-                makeDvLapSpinBatch(dv, n_idx, epack, Side::right, batch_dtFree, peramb);
-            }
+            std::vector<unsigned int> batch_dtFixed;
+            batch_dtFixed = fetchDvBatchIdxs(ibatchFixed,time_dil_source.at(fixed_side));
+            makeDvLapSpinBatch(dv, n_idx, epack, fixed_side, batch_dtFixed, peramb);
             STOP_TIMER("distil vectors");
-            for (unsigned int idtFree=0 ; idtFree<batch_dtFree.size() ; idtFree++)
+            for (unsigned int idtFixed=0 ; idtFixed<batch_dtFixed.size() ; idtFixed++)
             {
-                unsigned int Tfree = batch_dtFree[idtFree];
+                unsigned int Tfixed = batch_dtFixed[idtFixed];
 
-                // if( (isRho(Side::left) && isRho(Side::right)) 
-                //     || onlyDiag_)
-                // {
-                //     pinned_times.clear();
-                //     pinned_times.push_back(Tfree); //only diagonal rhorho blocks don't vanish
-                // }
-                
-                if(pinned_side==Side::right)
+                std::vector<unsigned int> pinned_times={};
+                if( (isRho(Side::left) && isRho(Side::right)) 
+                    || onlyDiag_)
                 {
-                    LOG(Message) << "------------------------ " << Tfree << " X pinned " << MDistil::timeslicesDump(pinned_times) << " ------------------------" << std::endl; 
+                    pinned_times.clear();
+                    pinned_times.push_back(Tfixed); //only diagonal rhorho blocks don't vanish
                 }
                 else
                 {
-                    LOG(Message) << "------------------------ pinned " << MDistil::timeslicesDump(pinned_times) << " X " << Tfree << " ------------------------" << std::endl; 
+                    for(auto t : time_dil_source.at(pinned_side))
+                    {
+                        pinned_times.push_back(t+delta_t);
+                    }
                 }
+
+                if(pinned_side==Side::right)
+                {
+                    LOG(Message) << "------------------------ " << Tfixed << " X ( " << MDistil::timeslicesDump(time_dil_source.at(pinned_side)) << ") ------------------------" << std::endl; 
+                }
+                else
+                {
+                    LOG(Message) << "------------------------ ( " << MDistil::timeslicesDump(time_dil_source.at(pinned_side)) << ") X " << Tfixed << " ------------------------" << std::endl; 
+                }
+                LOG(Message) << "Time shift : " << delta_t << std::endl; 
 
                 unsigned int nblocki = dilSizeLS_.at(Side::left)/blockSize_ + (((dilSizeLS_.at(Side::left) % blockSize_) != 0) ? 1 : 0);
                 unsigned int nblockj = dilSizeLS_.at(Side::right)/blockSize_ + (((dilSizeLS_.at(Side::right) % blockSize_) != 0) ? 1 : 0);
@@ -759,17 +753,9 @@ void DmfComputation<FImpl,T,Tio>
 
                         double timer = 0.0;
                         START_TIMER("kernel");
-                        // unsigned int dv_idxR = idtR*dilSizeLS_.at(Side::right) +j+jj;
-                        
-                        if(pinned_side==Side::right){
-                            unsigned int dv_idxFree = idtFree*dilSizeLS_.at(Side::left) +i+ii;
-                            A2Autils<FImpl>::MesonField(cache, &dv.at(Side::left)[dv_idxFree], &dv.at(Side::right)[j+jj], gamma, ph, nd_ - 1, &timer);
-                        }
-                        else{
-                            unsigned int dv_idxFree = idtFree*dilSizeLS_.at(Side::right) +j+jj;
-                            A2Autils<FImpl>::MesonField(cache, &dv.at(Side::left)[i+ii], &dv.at(Side::right)[dv_idxFree], gamma, ph, nd_ - 1, &timer);
-                        }
-
+                        unsigned int dv_idxLeftOffset = (pinned_side==Side::right) ? idtFixed*dilSizeLS_.at(Side::left) : 0;
+                        unsigned int dv_idxRightOffset = (pinned_side==Side::left) ? idtFixed*dilSizeLS_.at(Side::right) : 0;
+                        A2Autils<FImpl>::MesonField(cache, &dv.at(Side::left)[dv_idxLeftOffset +i+ii], &dv.at(Side::right)[dv_idxRightOffset +j+jj], gamma, ph, nd_ - 1, &timer);
                         STOP_TIMER("kernel");
                         time_kernel += timer;
 
@@ -779,54 +765,46 @@ void DmfComputation<FImpl,T,Tio>
 
                         // copy from cache
                         START_TIMER("cache copy");
-                        // thread_for_collapse(5,iext,nExt_,{
-                        for(unsigned int iext=0;iext<nExt_;iext++)
+                        thread_for_collapse(5,iext,nExt_,{
+                        // for(unsigned int iext=0;iext<nExt_;iext++)
                         for(unsigned int istr=0;istr<nStr_;istr++)
-                        for(unsigned int t=0;t<nt_;t++)
+                        for(unsigned int t=0;t<nt_;t++)     // TODO: could loop just through the times I know are non zero now...
                         for(unsigned int iii=0;iii<icache_size;iii++)
                         for(unsigned int jjj=0;jjj<jcache_size;jjj++)
                         {
                             block(iext,istr,t,ii+iii,jj+jjj) = cache(iext,istr,t,iii,jjj);
-                            // std::cout << iext << " " << istr << " " << t <<  " " << ii+iii << " " << jj+jjj << " : "  << block(iext,istr,t,ii+iii,jj+jjj) << std::endl;;
                         }
-                        // });
+                        });
                         STOP_TIMER("cache copy");
                     }
 
                     LOG(Message) << "Kernel perf (flops) " << flops/time_kernel/1.0e3/nodes 
                                 << " Gflop/s/node " << std::endl;
-                    LOG(Message) << "Kernel perf (read) " << bytes/time_kernel*0.000931322574615478515625/nodes //  *1.0e6/1024/1024/1024/nodes
+                    LOG(Message) << "Kernel perf (read) " << bytes/time_kernel*1.0e6/1024/1024/1024/nodes
                                 << " GB/s/node "  << std::endl;
                     blockCounter_++;
                     blockFlops_ += flops/time_kernel/1.0e3/nodes ;
-                    blockBytes_ += bytes/time_kernel*0.000931322574615478515625/nodes ; // 1.0e6/1024/1024/1024/nodes
+                    blockBytes_ += bytes/time_kernel*1.0e6/1024/1024/1024/nodes;
 
                     // saving current block to disk
-    #ifdef HADRONS_A2AM_PARALLEL_IO
+#ifdef HADRONS_A2AM_PARALLEL_IO     //only one implemented, todo: add exception
                     //parallel io
                     unsigned int inode = g_->ThisRank();
                     unsigned int nnode = g_->RankCount(); 
-                    LOG(Message) << "Starting parallel IO. Rank count=" << nnode  << std::endl;
-
-                    const int nt_sparse = 1; //full time dilution , todo: adapt to dilution
-                    // bufPinnedT_.resize(nExt_*nStr_*nt_sparse*blockSize_*blockSize_);                
-                    DistilMatrixSet<Tio> block_pinned(bufPinnedT_.data(), nExt_ , nStr_ , blockSize_, blockSize_);
-                    
-                    for(unsigned int it=0 ; it<time_dil_source.at(Side::right).size() ; it++)   // TODO: generalise to both sides
+                    for(unsigned int it=0 ; it<time_dil_source.at(pinned_side).size() ; it++)   // TODO: generalise to both sides; include this in the node loop?
                     {
+                        
                         // TODO: generalise to dilution
-                        unsigned int t = (time_dil_source.at(Side::right)[it] + delta_t)%nt_;
-                        const unsigned int Tpinned = time_dil_source.at(Side::right)[it];
-
-                        std::cout << t << " " << Tpinned << std::endl << std::endl;
-                        std::cin.get();
+                        unsigned int t = (time_dil_source.at(pinned_side)[it] + delta_t)%nt_;
+                        const unsigned int Tpinned = time_dil_source.at(pinned_side)[it];
 
                         START_TIMER("cache copy");
+                        DistilMatrixSet<Tio> block_pinned(bufPinnedT_.data(), nExt_ , nStr_ , iblock_size, jblock_size);
                         thread_for_collapse(4,iext,nExt_,{
                         // for(unsigned int iext=0;iext<nExt_;iext++)
                         for(unsigned int istr=0;istr<nStr_;istr++)
-                        for(unsigned int ii=0;ii<blockSize_;ii++)
-                        for(unsigned int jj=0;jj<blockSize_;jj++)
+                        for(unsigned int ii=0;ii<iblock_size;ii++)
+                        for(unsigned int jj=0;jj<jblock_size;jj++)
                         {
                             block_pinned(iext,istr,ii,jj) = block(iext,istr,t,ii,jj);
                         }
@@ -834,15 +812,11 @@ void DmfComputation<FImpl,T,Tio>
                         STOP_TIMER("cache copy");
 
                         std::string dataset_name;
-                        if(pinned_side==Side::right)
-                        {
-                            dataset_name = std::to_string(Tfree)+"-"+std::to_string(Tpinned);   
-                        }
-                        else
-                        {
-                            dataset_name = std::to_string(Tpinned)+"-"+std::to_string(Tfree);   
-                        }
-                        LOG(Message) << "Saving sparse " << dataset_name << " block" << std::endl; 
+                        dataset_name = std::to_string( (pinned_side==Side::right) ? Tfixed : Tpinned ) 
+                            + "-" + std::to_string( (pinned_side==Side::right) ? Tpinned : Tfixed );   
+
+
+                        LOG(Message) << "Starting parallel IO. Rank count=" << nnode << ". Sparse " << dataset_name << " block" << std::endl;
                         double ioTime = -GET_TIMER("IO: write block");
                         START_TIMER("IO: total");
                         g_->Barrier();
@@ -855,33 +829,31 @@ void DmfComputation<FImpl,T,Tio>
                             DistilMatrixIo<HADRONS_DISTIL_IO_TYPE> matrix_io(filenameDmfFn(iext, istr, n_idx.at(Side::left), n_idx.at(Side::right)), 
                                     DISTIL_MATRIX_NAME, dilSizeLS_.at(Side::left), dilSizeLS_.at(Side::right));
 
-                            START_TIMER("IO: write block");
-
-                            // if( ((pinned_side==Side::right ? Tfree : Tpinned) == time_dil_source.at(Side::left)[0]) 
-                            //     && ((pinned_side==Side::right ? Tpinned : Tfree) == time_dil_source.at(Side::right)[0]) )     //execute this once per block
-                            if( !isInitFile_ )
+                            if( ( Tfixed==time_dil_source.at(fixed_side).front() ) &&
+                                ( Tpinned==time_dil_source.at(pinned_side).front() ) &&
+                                ( t==(time_dil_source.at(pinned_side).front() + delta_t_list.front())%nt_ ) && 
+                                (i==0) && (j==0) )  //executes only once per file
                             {
                                 START_TIMER("IO: file creation");
                                 matrix_io.initFile(md);
                                 STOP_TIMER("IO: file creation");
-                                isInitFile_=true;
                             }
+                            START_TIMER("IO: write block");
                             matrix_io.saveBlock(block_pinned, iext, istr, i, j, dataset_name,  std::to_string(t) , blockSize_);
                             STOP_TIMER("IO: write block");
                         }
                         g_->Barrier();
                         STOP_TIMER("IO: total");
                         ioTime    += GET_TIMER("IO: write block");
-                        unsigned int bytesBlockSize  = static_cast<double>(nExt_*nStr_*nt_sparse*iblock_size*jblock_size*sizeof(Tio));
-                        double iospeed = bytesBlockSize/ioTime*0.95367431640625;     // 1.0e6/1024/1024
-                        unsigned int ntchunk = (nt_ > DISTIL_NT_CHUNK_SIZE) ? DISTIL_NT_CHUNK_SIZE : nt_; // for message purposes; set accordingly to A2AMatrix.hpp
+                        unsigned int bytesBlockSize  = static_cast<double>(nExt_*nStr_*iblock_size*jblock_size*sizeof(Tio));
+                        double iospeed = bytesBlockSize/ioTime*1.0e6/1024/1024;
                         LOG(Message)    << "HDF5 IO done " << sizeString(bytesBlockSize) << " in "
-                                        << ioTime  << " us (" << iospeed << " MB/s) (chunks=" 
-                                        << ntchunk << "x" << blockSize_ << "x" << blockSize_ << ")" << std::endl;
+                                        << ioTime  << " us (" << iospeed << " MB/s) (chunking "
+                                        << blockSize_ << "x" << blockSize_ << ")" << std::endl;
                         blockIoSpeed_ += iospeed;
                     }
                 }
-    #endif              
+#endif              
             }
         }
     }

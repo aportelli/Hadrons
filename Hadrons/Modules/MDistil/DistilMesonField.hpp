@@ -9,9 +9,7 @@
 #include <Hadrons/DistilMatrix.hpp>
 #include <Hadrons/Modules/MDistil/DistilUtils.hpp>
 
-#ifndef HADRONS_DISTIL_IO_TYPE
-#define HADRONS_DISTIL_IO_TYPE ComplexF
-#endif
+
 
 BEGIN_HADRONS_NAMESPACE
 
