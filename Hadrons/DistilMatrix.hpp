@@ -125,7 +125,7 @@ class DistilMatrixIo
 public:
     // constructors
     DistilMatrixIo(void) = default;
-    DistilMatrixIo(std::string filename, std::string dataname, const unsigned int ni = 0,
+    DistilMatrixIo(std::string filename, std::string dataname, const unsigned int nt=0, const unsigned int ni = 0,
                 const unsigned int nj = 0);
     // destructor
     ~DistilMatrixIo(void) = default;
@@ -142,7 +142,7 @@ public:
 
     void saveBlock(const DistilMatrixSet<T> &m, const unsigned int ext, const unsigned int str,
                                const unsigned int i, const unsigned int j, std::string datasetName,
-                               std::string t_name, const unsigned int chunkSize);
+                               const unsigned int t, const unsigned int chunkSize);
 
     //distillation overloads and new methods
     template <typename MetadataType>
@@ -160,8 +160,9 @@ private:
 // constructor /////////////////////////////////////////////////////////////////
 template <typename T>
 DistilMatrixIo<T>::DistilMatrixIo(std::string filename, std::string dataname, 
-                            const unsigned int ni, const unsigned int nj)
-: filename_(filename), dataname_(dataname), ni_(ni), nj_(nj)
+                            const unsigned int nt, const unsigned int ni,
+                            const unsigned int nj)
+: filename_(filename), dataname_(dataname), ni_(ni), nj_(nj), nt_(nt)
 {}
 
 template <typename T>
@@ -242,17 +243,16 @@ template <typename T>
 void DistilMatrixIo<T>::saveBlock(const DistilMatrixSet<T> &m,
                                const unsigned int ext, const unsigned int str,
                                const unsigned int i, const unsigned int j, std::string datasetName,
-                               std::string t_name, const unsigned int chunkSize)
+                               const unsigned int t, const unsigned int chunkSize)
 {
     unsigned int blockSizei = m.dimension(2);
     unsigned int blockSizej = m.dimension(3);
     unsigned int nstr       = m.dimension(1);
-    size_t       offset     = (ext*nstr + str)*blockSizei*blockSizej;
+    size_t       offset     = ((ext*nstr + str)*nt_ + t)*blockSizei*blockSizej;
+
+    std::string t_name = std::to_string(t);
 
     saveBlock(m.data() + offset, i, j, blockSizei, blockSizej, t_name, datasetName, chunkSize);
-
-    // createDilutionBlock(datasetName, chunkSize, t);
-    // saveBlock(m.data() + offset, i, j, blockSizei, blockSizej, datasetName);
 }
 
 /////////////////////////////////////
@@ -658,23 +658,23 @@ void DmfComputation<FImpl,T,Tio>
     const unsigned int vol = g_->_gsites;
 
     //make these input parameters
-    std::vector<unsigned int> delta_t_list={0};
+    std::vector<unsigned int> delta_t_list={0,1,2,3,4,5,6,7};
 
     Side pinned_side, fixed_side;
-    // pinned_side=Side::right
+    pinned_side=Side::left;
     // hard-coding this for now to not complicate inputs
-    if(isRho(Side::left) && isPhi(Side::right))
-    {
-        pinned_side = Side::left;
-    }
-    else if(isPhi(Side::left) && isPhi(Side::right))
-    {
-        pinned_side = Side::right;
-    }
-    else
-    {
-        pinned_side = Side::right;
-    }
+    // if(isRho(Side::left) && isPhi(Side::right))
+    // {
+    //     pinned_side = Side::left;
+    // }
+    // else if(isPhi(Side::left) && isPhi(Side::right))
+    // {
+    //     pinned_side = Side::right;
+    // }
+    // else
+    // {
+    //     pinned_side = Side::right;
+    // }
     fixed_side = (pinned_side==Side::right ? Side::left : Side::right);
 
     if(isRho(pinned_side))  //if the pinned side has a rho field, force delta_t to be 0, as the others should yield trivial zeros
@@ -798,18 +798,18 @@ void DmfComputation<FImpl,T,Tio>
                         unsigned int t = (time_dil_source.at(pinned_side)[it] + delta_t)%nt_;
                         const unsigned int Tpinned = time_dil_source.at(pinned_side)[it];
 
-                        START_TIMER("cache copy");
-                        DistilMatrixSet<Tio> block_pinned(bufPinnedT_.data(), nExt_ , nStr_ , iblock_size, jblock_size);
-                        thread_for_collapse(4,iext,nExt_,{
-                        // for(unsigned int iext=0;iext<nExt_;iext++)
-                        for(unsigned int istr=0;istr<nStr_;istr++)
-                        for(unsigned int ii=0;ii<iblock_size;ii++)
-                        for(unsigned int jj=0;jj<jblock_size;jj++)
-                        {
-                            block_pinned(iext,istr,ii,jj) = block(iext,istr,t,ii,jj);
-                        }
-                        });
-                        STOP_TIMER("cache copy");
+                        DistilMatrixSet<Tio> block_pinned(bBuf_.data(), nExt_ , nStr_ , iblock_size, jblock_size);
+                        // START_TIMER("cache copy");
+                        // thread_for_collapse(4,iext,nExt_,{
+                        // // for(unsigned int iext=0;iext<nExt_;iext++)
+                        // for(unsigned int istr=0;istr<nStr_;istr++)
+                        // for(unsigned int ii=0;ii<iblock_size;ii++)
+                        // for(unsigned int jj=0;jj<jblock_size;jj++)
+                        // {
+                        //     block_pinned(iext,istr,ii,jj) = block(iext,istr,t,ii,jj);
+                        // }
+                        // });
+                        // STOP_TIMER("cache copy");
 
                         std::string dataset_name;
                         dataset_name = std::to_string( (pinned_side==Side::right) ? Tfixed : Tpinned ) 
@@ -826,8 +826,8 @@ void DmfComputation<FImpl,T,Tio>
                             // metadata;
                             DistilMesonFieldMetadata<FImpl> md = metadataDmfFn(iext,istr,n_idx.at(Side::left),n_idx.at(Side::right));
 
-                            DistilMatrixIo<HADRONS_DISTIL_IO_TYPE> matrix_io(filenameDmfFn(iext, istr, n_idx.at(Side::left), n_idx.at(Side::right)), 
-                                    DISTIL_MATRIX_NAME, dilSizeLS_.at(Side::left), dilSizeLS_.at(Side::right));
+                            DistilMatrixIo<HADRONS_DISTIL_IO_TYPE> matrix_io(filenameDmfFn(iext, istr, n_idx.at(Side::left), n_idx.at(Side::right)),
+                                    DISTIL_MATRIX_NAME, nt_, dilSizeLS_.at(Side::left), dilSizeLS_.at(Side::right));
 
                             if( ( Tfixed==time_dil_source.at(fixed_side).front() ) &&
                                 ( Tpinned==time_dil_source.at(pinned_side).front() ) &&
@@ -839,7 +839,7 @@ void DmfComputation<FImpl,T,Tio>
                                 STOP_TIMER("IO: file creation");
                             }
                             START_TIMER("IO: write block");
-                            matrix_io.saveBlock(block_pinned, iext, istr, i, j, dataset_name,  std::to_string(t) , blockSize_);
+                            matrix_io.saveBlock(block_pinned, iext, istr, i, j, dataset_name, t, blockSize_);
                             STOP_TIMER("IO: write block");
                         }
                         g_->Barrier();
