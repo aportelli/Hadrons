@@ -135,20 +135,16 @@ public:
     unsigned int getNt(void) const;
     size_t       getSize(void) const;
 
-
     // block I/O
+    template <typename MetadataType>
+    void initFile(const MetadataType &d);
+
     void saveBlock(const T *data, const unsigned int i, const unsigned int j,
                    const unsigned int blockSizei, const unsigned int blockSizej, std::string t_name, std::string datasetName, const unsigned int chunkSize);
 
     void saveBlock(const DistilMatrixSet<T> &m, const unsigned int ext, const unsigned int str,
                                const unsigned int i, const unsigned int j, std::string datasetName,
                                const unsigned int t, const unsigned int chunkSize);
-
-    //distillation overloads and new methods
-    template <typename MetadataType>
-    void initFile(const MetadataType &d);
-
-    // void createDilutionBlock(std::string datasetName, const unsigned int chunkSize, const std::vector<unsigned int> timeSlices);
 
     // template <template <class> class Vec, typename VecT>
     // void load(Vec<VecT> &v, double *tRead = nullptr, GridBase *grid = nullptr, std::string datasetName="");
@@ -189,24 +185,35 @@ void DistilMatrixIo<T>::saveBlock(const T *data,
                                const unsigned int chunkSize)
 {
 #ifdef HAVE_HDF5
-    Hdf5Reader reader(filename_, false);
-    push(reader, DISTIL_MATRIX_NAME);
+    
+    H5NS::H5File file(filename_,H5F_ACC_RDWR);
+    H5NS::Group rootgroup = file.openGroup(DISTIL_MATRIX_NAME);
 
-    H5NS::Group& group = reader.getGroup();
+    // create t group if it doesnt exist, or open it
+    H5NS::Group tgroup;
+    // if ( H5Lexists( file.getId(), t_name, H5P_DEFAULT ) > 0 )
+    // {
+    //     tgroup = rootgroup.openGroup(t_name);
+    //     // grp=h5file.openGroup("A");
+    // }
+    // else
+    // {
+    //     tgroup = rootgroup.createGroup(t_name);
+    //     // grp=h5file.createGroup("A");
+    // }
 
-    //create t group ifit doesnt exist, or get it
     H5NS::Exception::dontPrint();
     try{
-        group = group.openGroup(t_name);
+        tgroup = rootgroup.openGroup(t_name);
     } catch (...) {                         //WHICH EXCEPTION SHOULD IT CATCH??
-        group = group.createGroup(t_name);
+        tgroup = rootgroup.createGroup(t_name);
     }
 
     H5NS::DataSet        dataset;
     //create zeroed dataset T1,T2, or open it
     H5NS::Exception::dontPrint();
     try{
-        dataset = group.openDataSet(datasetName);
+        dataset = tgroup.openDataSet(datasetName);
     } catch (...) {                         //WHICH EXCEPTION SHOULD IT CATCH??
         H5NS::DataSpace      dataspace;
         std::vector<hsize_t>    dim = {static_cast<hsize_t>(ni_), 
@@ -217,7 +224,7 @@ void DistilMatrixIo<T>::saveBlock(const T *data,
         H5NS::DSetCreatPropList     plist;
         plist.setChunk(chunk.size(), chunk.data());
         plist.setFletcher32();
-        dataset = group.createDataSet(datasetName, Hdf5Type<T>::type(), dataspace, plist);
+        dataset = tgroup.createDataSet(datasetName, Hdf5Type<T>::type(), dataspace, plist);
     }
 
 
