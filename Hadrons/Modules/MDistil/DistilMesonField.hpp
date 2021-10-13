@@ -75,6 +75,7 @@ private:
     std::map<Side,std::string>          dmfType_;
     std::vector<unsigned int>           tSourceL_;
     std::vector<unsigned int>           tSourceR_;
+    Side                                pinned_side_;
 };
 
 MODULE_REGISTER_TMP(DistilMesonField, TDistilMesonField<FIMPL>, MDistil);
@@ -202,12 +203,30 @@ void TDistilMesonField<FImpl>::setup(void)
         gamma_ = strToVec<Gamma::Algebra>(par().gamma);
     }
 
+    //manually select side now, turn into input later
+    // pinned_side_=Side::left;
+    // hard-coding this for now to not complicate inputs
+    if( dmfType_.at(Side::left)=="rho" && dmfType_.at(Side::right)=="phi" )
+    {
+        pinned_side_ = Side::left;
+    }
+    else if( dmfType_.at(Side::left)=="phi" && dmfType_.at(Side::right)=="phi" )
+    {
+        pinned_side_ = Side::right;
+    }
+    else
+    {
+        pinned_side_ = Side::right;
+    }
+    std::map<Side, unsigned int> dilSizeT = { {Side::left, pinned_side_==Side::left ? 1 : DISTILVECTOR_TIME_BATCH_SIZE},
+                                                {Side::right, pinned_side_==Side::right ? 1 : DISTILVECTOR_TIME_BATCH_SIZE} };
+
     envTmpLat(ComplexField,             "coor");
     envTmp(std::vector<ComplexField>,   "phase",        1, momenta_.size(), g );
-    envTmp(DistilVector,                "dvl",          1, DISTILVECTOR_TIME_BATCH_SIZE*dilSizeLS_.at(Side::left), g);
-    envTmp(DistilVector,                "dvr",          1, DISTILVECTOR_TIME_BATCH_SIZE*dilSizeLS_.at(Side::right), g);
+    envTmp(DistilVector,                "dvl",          1, dilSizeT.at(Side::left)*dilSizeLS_.at(Side::left), g);
+    envTmp(DistilVector,                "dvr",          1, dilSizeT.at(Side::right)*dilSizeLS_.at(Side::right), g);
     envTmp(Computation,                 "computation",  1, dmfType_, g, g3d, noisel, noiser, par().blockSize, 
-                par().cacheSize, env().getDim(g->Nd() - 1), momenta_.size(), gamma_.size(), isExact_, onlyDiag_);
+                par().cacheSize, env().getDim(g->Nd() - 1), momenta_.size(), gamma_.size(), isExact_, onlyDiag_,pinned_side_);
 }
 
 // execution ///////////////////////////////////////////////////////////////////
@@ -352,7 +371,9 @@ void TDistilMesonField<FImpl>::execute(void)
     
     if(isExact_)
         LOG(Message) << "Exact distillation" << std::endl;
-    LOG(Message) << "Distil batch size (time-dilution direction): " << DISTILVECTOR_TIME_BATCH_SIZE << std::endl;
+    LOG(Message) << "Distil batch size (time-dilution direction) : " << DISTILVECTOR_TIME_BATCH_SIZE << std::endl;
+    std::string pinned_side_str = (pinned_side_==Side::left) ? "left" : "right";
+    LOG(Message) << "Pinned side : " << pinned_side_str << std::endl;
     LOG(Message) << "Selected time-dilution partitions :"   << std::endl;
     LOG(Message) << " Left : " << MDistil::timeslicesDump(time_sources.at(Side::left)) << std::endl;
     LOG(Message) << " Right : " << MDistil::timeslicesDump(time_sources.at(Side::right)) << std::endl;
