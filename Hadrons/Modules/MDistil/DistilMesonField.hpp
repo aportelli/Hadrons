@@ -301,7 +301,7 @@ void TDistilMesonField<FImpl>::execute(void)
         }
     }
 
-    std::string filepath = par().outPath + "/" + par().mesonFieldType + "/";
+    std::string filepath = par().outPath + "/" + par().mesonFieldType + "." + std::to_string(vm().getTrajectory()) + "/";
     Hadrons::mkdir(filepath);
 
     //auxiliar lambda functions for names and metadata
@@ -317,7 +317,8 @@ void TDistilMesonField<FImpl>::execute(void)
         {
             filename += "_n" + std::to_string(nl) + "_" + std::to_string(nr) ;
         }
-        filename += "." + std::to_string(vm().getTrajectory()) + ".h5";
+        filename += ".h5";
+        // filename += "." + std::to_string(vm().getTrajectory()) + ".h5";
         return filename;
     };
 
@@ -333,6 +334,7 @@ void TDistilMesonField<FImpl>::execute(void)
         md.Nvec             = nVec;     //nvec is the same for both sides
         md.NoisePair        = {nl,nr};
         md.MesonFieldType   = par().mesonFieldType;
+        md.PinnedSide       = (pinned_side_==Side::left) ? "left" : "right";
         if(isExact_)
         {
             md.NoiseHashLeft   = noisel.generateHash();

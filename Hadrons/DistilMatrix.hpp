@@ -31,8 +31,8 @@ BEGIN_MODULE_NAMESPACE(MDistil)
 // Dimensions:
 //   0 - ext - external field (momentum phase, etc...)
 //   1 - str - spin-color structure or covariant derivative operators
-//   2 - i   - left  A2A mode index
-//   3 - j   - right A2A mode index
+//   2 - i   - left  spin-Laplacian mode index
+//   3 - j   - right spin-Laplacian mode index
 template <typename T>
 using DistilMatrixSet = Eigen::TensorMap<Eigen::Tensor<T, 4, Eigen::RowMajor>>;
 
@@ -54,7 +54,9 @@ public:
                                     std::string,                MesonFieldType,
                                     std::vector<std::string>,   NoiseHashLeft,
                                     std::vector<std::string>,   NoiseHashRight,
-                                    std::vector<std::vector<unsigned int>>,  RaggedVectorTest)
+                                    std::string,                PinnedSide
+                                    )
+                                    // std::vector<std::vector<unsigned int>>,  RaggedVectorTest,
 };
 
 //metadata io class to deal with 2d ragged arrays (possibly remove after Mike's serialisation revision)
@@ -806,7 +808,7 @@ void DmfComputation<FImpl,T,Tio>
                             unsigned int istr = k%nStr_;
                             // metadata;
                             DistilMesonFieldMetadata<FImpl> md = metadataDmfFn(iext,istr,n_idx.at(Side::left),n_idx.at(Side::right));
-                            md.RaggedVectorTest = {{1,2,3},{4,5}};
+                            // md.RaggedVectorTest = {{1,2,3},{4,5}};
 
                             DistilMatrixIo<HADRONS_DISTIL_IO_TYPE> matrix_io(filenameDmfFn(iext, istr, n_idx.at(Side::left), n_idx.at(Side::right)),
                                     DISTIL_MATRIX_NAME, nt_, dilSizeLS_.at(Side::left), dilSizeLS_.at(Side::right));
