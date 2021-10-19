@@ -44,8 +44,8 @@ template <typename T>
 // using DistilMatrix = A2AMatrix<T>;
 using DistilMatrix = Eigen::Matrix<T, -1, -1, Eigen::RowMajor>;
 
-
 using DilutionMap  = std::array<std::vector<std::vector<unsigned int>>,3>;
+
 enum Side {left = 0, right = 1};
 const std::vector<Side> sides =  {Side::left,Side::right}; 
 
@@ -55,15 +55,21 @@ class DistilMesonFieldMetadata: Serializable
 {
 public:
     GRID_SERIALIZABLE_CLASS_MEMBERS(DistilMesonFieldMetadata,
-                                    unsigned int,               Nt,
-                                    unsigned int,               Nvec,
-                                    std::vector<RealF>,         Momentum,
-                                    Gamma::Algebra,             Operator,               // can turn into more general operators in the future
-                                    std::vector<unsigned int>,  NoisePair,
-                                    std::string,                MesonFieldType,
-                                    std::vector<std::string>,   NoiseHashLeft,
-                                    std::vector<std::string>,   NoiseHashRight,
-                                    std::string,                PinnedSide,             // is this useful?
+                                    unsigned int,                               Nt,
+                                    unsigned int,                               Nvec,
+                                    std::vector<RealF>,                         Momentum,
+                                    Gamma::Algebra,                             Operator,               // can turn into more general operators in the future
+                                    std::vector<unsigned int>,                  NoisePair,
+                                    std::string,                                MesonFieldType,
+                                    std::vector<std::string>,                   NoiseHashLeft,
+                                    std::vector<std::string>,                   NoiseHashRight,
+                                    std::vector<std::vector<unsigned int>>,     TimeDilutionLeft,
+                                    std::vector<std::vector<unsigned int>>,     TimeDilutionRight,
+                                    std::vector<std::vector<unsigned int>>,     LapDilutionLeft,
+                                    std::vector<std::vector<unsigned int>>,     LapDilutionRight,
+                                    std::vector<std::vector<unsigned int>>,     SpinDilutionLeft,
+                                    std::vector<std::vector<unsigned int>>,     SpinDilutionRight,
+                                    std::string,                                PinnedSide,             // is this useful?
                                     )
 };
 
@@ -348,13 +354,10 @@ void DistilMatrixIo<T>::load(Vec<VecT> &v, const unsigned int t, const std::stri
 #endif
 }
 
-/////////////////////////////////////
-/////////////////////////////////////
-/////////////////////////////////////
-/////////////////////////////////////
-/////////////////////////////////////
+//####################################
+//# computation class declaration    #
+//####################################
 
-//computation class declaration
 template <typename FImpl, typename T, typename Tio>
 class DmfComputation
 {
@@ -890,7 +893,6 @@ void DmfComputation<FImpl,T,Tio>
                             unsigned int iext = k/nStr_;
                             unsigned int istr = k%nStr_;
                             // metadata;
-                            DistilMesonFieldMetadata<FImpl> md = metadataDmfFn(iext,istr,n_idx.at(Side::left),n_idx.at(Side::right));
 
                             DistilMatrixIo<HADRONS_DISTIL_IO_TYPE> matrix_io(filenameDmfFn(iext, istr, n_idx.at(Side::left), n_idx.at(Side::right)),
                                     DISTIL_MATRIX_NAME, nt_, dilSizeLS_.at(Side::left), dilSizeLS_.at(Side::right));
@@ -900,6 +902,15 @@ void DmfComputation<FImpl,T,Tio>
                                 ( t==(time_dil_source.at(pinned_side_).front() + delta_t_list.front())%nt_ ) && 
                                 (i==0) && (j==0) )  //executes only once per file
                             {
+                                DistilMesonFieldMetadata<FImpl> md = metadataDmfFn(iext,istr,n_idx.at(Side::left),n_idx.at(Side::right));
+                                DilutionMap lmap = getMap(Side::left);
+                                DilutionMap rmap = getMap(Side::right);
+                                md.TimeDilutionLeft  = lmap[Index::t];
+                                md.TimeDilutionRight = rmap[Index::t];
+                                md.LapDilutionLeft   = lmap[Index::l];
+                                md.LapDilutionRight  = rmap[Index::l];
+                                md.SpinDilutionLeft  = lmap[Index::s];
+                                md.SpinDilutionRight = rmap[Index::s];
                                 START_TIMER("IO: file creation");
                                 matrix_io.initFile(md);
                                 STOP_TIMER("IO: file creation");
@@ -923,29 +934,6 @@ void DmfComputation<FImpl,T,Tio>
             }
         }
     }
-    
-    // //write dilution schemes and time source pairs
-    // if(g_->IsBoss())
-    // {
-    //     START_TIMER("IO: total");
-    //     for(unsigned int iext=0 ; iext<nExt_ ; iext++)
-    //     for(unsigned int istr=0 ; istr<nStr_ ; istr++)
-    //     {
-    //         DistilMetadataIo mdIo(filenameDmfFn(iext,istr,n_idx.at(Side::left),n_idx.at(Side::right)),
-    //                 std::string(DISTIL_MATRIX_NAME) + "/" + std::string(METADATA_NAME) );
-    //         mdIo.write2dMetadata("TimeSourcePairs", time_dil_pair_list);
-    //         //  dilution schemes (2d ragged metadata) - replace by grid serialisation code when support to ragged vectors is done
-    //         DilutionMap lmap = getMap(Side::left);
-    //         DilutionMap rmap = getMap(Side::right);
-    //         mdIo.write2dMetadata("TimeDilutionLeft" , lmap[Index::t], DILUTION_METADATA_NAME);
-    //         mdIo.write2dMetadata("TimeDilutionRight", rmap[Index::t], DILUTION_METADATA_NAME);
-    //         mdIo.write2dMetadata("LapDilutionLeft"  , lmap[Index::l], DILUTION_METADATA_NAME);
-    //         mdIo.write2dMetadata("LapDilutionRight" , rmap[Index::l], DILUTION_METADATA_NAME);
-    //         mdIo.write2dMetadata("SpinDilutionLeft" , lmap[Index::s], DILUTION_METADATA_NAME);
-    //         mdIo.write2dMetadata("SpinDilutionRight", rmap[Index::s], DILUTION_METADATA_NAME);
-    //     }
-    //     STOP_TIMER("IO: total");
-    // }
 }
 
 // END_MODULE_NAMESPACE
