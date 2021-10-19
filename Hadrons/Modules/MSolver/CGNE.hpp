@@ -1,32 +1,5 @@
-/*
- * RBPrecCG.hpp, part of Hadrons (https://github.com/aportelli/Hadrons)
- *
- * Copyright (C) 2015 - 2020
- *
- * Author: Antonin Portelli <antonin.portelli@me.com>
- * Author: fionnoh <fionnoh@gmail.com>
- *
- * Hadrons is free software: you can redistribute it and/or modify
- * it under the terms of the GNU General Public License as published by
- * the Free Software Foundation, either version 2 of the License, or
- * (at your option) any later version.
- *
- * Hadrons is distributed in the hope that it will be useful,
- * but WITHOUT ANY WARRANTY; without even the implied warranty of
- * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
- * GNU General Public License for more details.
- *
- * You should have received a copy of the GNU General Public License
- * along with Hadrons.  If not, see <http://www.gnu.org/licenses/>.
- *
- * See the full license in the file "LICENSE" in the top level distribution 
- * directory.
- */
-
-/*  END LEGAL */
-
-#ifndef Hadrons_MSolver_RBPrecCG_hpp_
-#define Hadrons_MSolver_RBPrecCG_hpp_
+#ifndef Hadrons_MSolver_CGNE_hpp_
+#define Hadrons_MSolver_CGNE_hpp_
 
 #include <Hadrons/Global.hpp>
 #include <Hadrons/Module.hpp>
@@ -38,14 +11,14 @@
 BEGIN_HADRONS_NAMESPACE
 
 /******************************************************************************
- *                     Schur red-black preconditioned CG                      *
+ *                         CGNE                                 *
  ******************************************************************************/
 BEGIN_MODULE_NAMESPACE(MSolver)
 
-class RBPrecCGPar: Serializable
+class CGNEPar: Serializable
 {
 public:
-    GRID_SERIALIZABLE_CLASS_MEMBERS(RBPrecCGPar ,
+    GRID_SERIALIZABLE_CLASS_MEMBERS(CGNEPar,
                                     std::string , action,
                                     unsigned int, maxIteration,
                                     double      , residual,
@@ -53,50 +26,48 @@ public:
 };
 
 template <typename FImpl, int nBasis = HADRONS_DEFAULT_LANCZOS_NBASIS>
-class TRBPrecCG: public Module<RBPrecCGPar>
+class TCGNE: public Module<CGNEPar>
 {
 public:
     FERM_TYPE_ALIASES(FImpl,);
     SOLVER_TYPE_ALIASES(FImpl,);
 public:
     // constructor
-    TRBPrecCG(const std::string name);
+    TCGNE(const std::string name);
     // destructor
-    virtual ~TRBPrecCG(void) {};
-    // dependencies/products
+    virtual ~TCGNE(void) {};
+    // dependency relation
     virtual std::vector<std::string> getInput(void);
     virtual std::vector<std::string> getReference(void);
     virtual std::vector<std::string> getOutput(void);
-protected:
     // setup
     virtual void setup(void);
     // execution
     virtual void execute(void);
 };
 
-MODULE_REGISTER_TMP(RBPrecCG, ARG(TRBPrecCG<FIMPL>), MSolver);
-MODULE_REGISTER_TMP(ZRBPrecCG, ARG(TRBPrecCG<ZFIMPL>), MSolver);
+MODULE_REGISTER_TMP(CGNE, TCGNE<FIMPL>, MSolver);
 
 /******************************************************************************
- *                      TRBPrecCG template implementation                     *
+ *                 TCGNE implementation                             *
  ******************************************************************************/
 // constructor /////////////////////////////////////////////////////////////////
 template <typename FImpl, int nBasis>
-TRBPrecCG<FImpl, nBasis>::TRBPrecCG(const std::string name)
-: Module(name)
+TCGNE<FImpl, nBasis>::TCGNE(const std::string name)
+: Module<CGNEPar>(name)
 {}
 
 // dependencies/products ///////////////////////////////////////////////////////
 template <typename FImpl, int nBasis>
-std::vector<std::string> TRBPrecCG<FImpl, nBasis>::getInput(void)
+std::vector<std::string> TCGNE<FImpl, nBasis>::getInput(void)
 {
-    std::vector<std::string> in = {};
+    std::vector<std::string> in;
     
     return in;
 }
 
 template <typename FImpl, int nBasis>
-std::vector<std::string> TRBPrecCG<FImpl, nBasis>::getReference(void)
+std::vector<std::string> TCGNE<FImpl, nBasis>::getReference(void)
 {
     std::vector<std::string> ref = {par().action};
     
@@ -109,39 +80,50 @@ std::vector<std::string> TRBPrecCG<FImpl, nBasis>::getReference(void)
 }
 
 template <typename FImpl, int nBasis>
-std::vector<std::string> TRBPrecCG<FImpl, nBasis>::getOutput(void)
+std::vector<std::string> TCGNE<FImpl, nBasis>::getOutput(void)
 {
-    std::vector<std::string> out = {getName(), getName() + "_subtract"};
+    std::vector<std::string> out = {getName()};
     
     return out;
 }
 
 // setup ///////////////////////////////////////////////////////////////////////
 template <typename FImpl, int nBasis>
-void TRBPrecCG<FImpl, nBasis>::setup(void)
+void TCGNE<FImpl, nBasis>::setup(void)
 {
     if (par().maxIteration == 0)
     {
         HADRONS_ERROR(Argument, "zero maximum iteration");
     }
 
-    LOG(Message) << "setting up Schur red-black preconditioned CG for"
+    LOG(Message) << "setting up normal equation CG for"
                  << " action '" << par().action << "' with residual "
                  << par().residual << ", maximum iteration " 
                  << par().maxIteration << std::endl;
-
+    
     auto Ls        = env().getObjectLs(par().action);
     auto &mat      = envGet(FMat, par().action);
     auto guesserPt = makeGuesser<FImpl, nBasis>(par().eigenPack);
 
-    auto makeSolver = [&mat, guesserPt, this](bool subGuess) {
+    auto makeSolver = [&mat, guesserPt, this](bool subGuess) 
+    {
         return [&mat, guesserPt, subGuess, this](FermionField &sol,
-                                     const FermionField &source) {
-            ConjugateGradient<FermionField> cg(par().residual,
-                                               par().maxIteration);
-            HADRONS_DEFAULT_SCHUR_SOLVE<FermionField> schurSolver(cg);
-            schurSolver.subtractGuess(subGuess);
-            schurSolver(mat, source, sol, *guesserPt);
+                                                 const FermionField &source) 
+        {
+            GridBase                                *g = sol.Grid();
+            FermionField                            guess(g), tmp(g);
+            MdagMLinearOperator<FMat, FermionField> hermOp(mat);
+            ConjugateGradient<FermionField>         cg(par().residual,
+                                                       par().maxIteration);
+
+            guess = sol;
+            mat.Mdag(source, tmp);
+            (*guesserPt)(tmp, sol);
+            cg(hermOp, tmp, sol);
+            if (subGuess)
+            {
+                sol -= guess;
+            }
         };
     };
     auto solver = makeSolver(false);
@@ -152,11 +134,11 @@ void TRBPrecCG<FImpl, nBasis>::setup(void)
 
 // execution ///////////////////////////////////////////////////////////////////
 template <typename FImpl, int nBasis>
-void TRBPrecCG<FImpl, nBasis>::execute(void)
+void TCGNE<FImpl, nBasis>::execute(void)
 {}
 
 END_MODULE_NAMESPACE
 
 END_HADRONS_NAMESPACE
 
-#endif // Hadrons_MSolver_RBPrecCG_hpp_
+#endif // Hadrons_MSolver_CGNE_hpp_

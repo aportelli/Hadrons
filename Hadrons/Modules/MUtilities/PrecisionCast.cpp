@@ -30,4 +30,5 @@ using namespace Hadrons;
 using namespace MUtilities;
 
 template class Grid::Hadrons::MUtilities::TPrecisionCast<GIMPLD::GaugeField, GIMPLF::GaugeField>;
+template class Grid::Hadrons::MUtilities::TPrecisionCast<GIMPLD::GaugeLinkField, GIMPLF::GaugeLinkField>;
 template class Grid::Hadrons::MUtilities::TPrecisionCast<FIMPLD::FermionField, FIMPLF::FermionField>;

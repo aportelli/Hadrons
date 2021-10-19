@@ -51,10 +51,11 @@ public:
                                     unsigned int, maxPVIteration,
                                     double      , innerResidual,
                                     double      , outerResidual,
+                                    double      , PVResidual,
                                     std::string , eigenPack);
 };
 
-template <typename FImplInner, typename FImplOuter, int nBasis>
+template <typename FImplInner, typename FImplOuter, int nBasis = HADRONS_DEFAULT_LANCZOS_NBASIS>
 class TMADWFCG: public Module<MADWFCGPar>
 {
 public:
@@ -78,8 +79,9 @@ private:
     struct CGincreaseTol;
 };
 
-MODULE_REGISTER_TMP(ZMADWFCG, ARG(TMADWFCG<ZFIMPLD, FIMPLD, HADRONS_DEFAULT_LANCZOS_NBASIS>), MSolver);
-MODULE_REGISTER_TMP( MADWFCG, ARG(TMADWFCG< FIMPLD, FIMPLD, HADRONS_DEFAULT_LANCZOS_NBASIS>), MSolver);
+MODULE_REGISTER_TMP(ZMADWFCG,          ARG(TMADWFCG<ZFIMPLD, FIMPLD>), MSolver);
+MODULE_REGISTER_TMP(ZMADWFMixedPrecCG, ARG(TMADWFCG<ZFIMPLF, FIMPLD>), MSolver);
+MODULE_REGISTER_TMP( MADWFCG,          ARG(TMADWFCG< FIMPLD, FIMPLD>), MSolver);
 
 /******************************************************************************
  *                        TMADWFCG implementation                             *
@@ -125,34 +127,17 @@ std::vector<std::string> TMADWFCG<FImplInner, FImplOuter, nBasis>
 }
 
 
-template <typename FImplInner, typename FImplOuter, int nBasis>
-struct TMADWFCG<FImplInner, FImplOuter, nBasis>
-::CGincreaseTol : public MADWFinnerIterCallbackBase {
-    ConjugateGradient<LatticeFermionD> &cg_inner;  
-    RealD outer_resid;
-
-    CGincreaseTol(ConjugateGradient<LatticeFermionD> &cg_inner,
-    RealD outer_resid): cg_inner(cg_inner), outer_resid(outer_resid){}
-
-    void operator()(const RealD current_resid){
-        LOG(Message) << "CGincreaseTol with current residual " << current_resid << " changing inner tolerance " << cg_inner.Tolerance << " -> ";
-        while(cg_inner.Tolerance < current_resid) cg_inner.Tolerance *= 2;
-
-        //cg_inner.Tolerance = outer_resid/current_resid;
-        LOG(Message) << cg_inner.Tolerance << std::endl;
-    }
-};
-
-
 // setup ///////////////////////////////////////////////////////////////////////
 template <typename FImplInner, typename FImplOuter, int nBasis>
 void TMADWFCG<FImplInner, FImplOuter, nBasis>
 ::setup(void)
 {
-    LOG(Message) << "Setting up MADWF solver " << std::endl
-                 << "with inner/outer action  '"          << par().innerAction       << "'/'" << par().outerAction       << std::endl
-                 << "     inner/outer residual "          << par().innerResidual     <<  "/"  << par().outerResidual     << std::endl
-                 << "     maximum inner/outer/PV iterations " << par().maxInnerIteration <<  "/"  << par().maxOuterIteration <<  "/"  << par().maxPVIteration << std::endl;
+    LOG(Message) << "Setting up MADWF solver " << std::endl;
+    LOG(Message) << "with inner/outer action  '"  << par().innerAction   << "'/'" << par().outerAction   << "'" << std::endl;
+    LOG(Message) << "     inner/outer/PV residual "  << par().innerResidual <<  "/"  << par().outerResidual <<  "/"  << par().PVResidual  << std::endl;
+    LOG(Message) << "     maximum inner/outer/PV iterations " << par().maxInnerIteration <<  "/"  << par().maxOuterIteration <<  "/"  << par().maxPVIteration << std::endl;
+    if (!par().eigenPack.empty())
+        LOG(Message) << "     eigenpack '" << par().eigenPack << "'" << std::endl;
 
     auto Ls_outer  = env().getObjectLs(par().outerAction);
     auto &omat     = envGet(FMatOuter, par().outerAction);
@@ -170,7 +155,7 @@ void TMADWFCG<FImplInner, FImplOuter, nBasis>
                 HADRONS_ERROR(Implementation, "MADWF solver with subtracted guess is not implemented!");
             }
 
-            ConjugateGradient<FermionFieldOuter> CG_PV(par().outerResidual, par().maxPVIteration);
+            ConjugateGradient<FermionFieldOuter> CG_PV(par().PVResidual, par().maxPVIteration);
             HADRONS_DEFAULT_SCHUR_SOLVE<FermionFieldOuter> Schur_PV(CG_PV);
             typedef PauliVillarsSolverRBprec<FermionFieldOuter, HADRONS_DEFAULT_SCHUR_SOLVE<FermionFieldOuter>> PVtype;
             PVtype PV_outer(Schur_PV);
@@ -178,17 +163,14 @@ void TMADWFCG<FImplInner, FImplOuter, nBasis>
             ConjugateGradient<FermionFieldInner> CG_inner(par().innerResidual, par().maxInnerIteration, 0);
             HADRONS_DEFAULT_SCHUR_SOLVE<FermionFieldInner> SchurSolver_inner(CG_inner);
 
-            CGincreaseTol update(CG_inner, par().outerResidual);
-
             MADWF<CayleyFermion5D<FImplOuter>, CayleyFermion5D<FImplInner>,
-            // MADWF<FTypeOuter, FTypeInner,
                   PVtype, HADRONS_DEFAULT_SCHUR_SOLVE<FermionFieldInner>, 
                   LinearFunction<FermionFieldInner> >  
                 madwf(D_outer, D_inner,
                       PV_outer, SchurSolver_inner,
                       *guesserPt,
                       par().outerResidual, par().maxOuterIteration,
-                      &update);
+                      nullptr);
 
             madwf(source, sol);
         };

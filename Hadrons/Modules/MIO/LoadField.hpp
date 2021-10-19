@@ -71,6 +71,7 @@ MODULE_REGISTER_TMP(LoadPropagator, TLoadField<FIMPL::PropagatorField>, MIO);
 #ifdef GRID_DEFAULT_PRECISION_DOUBLE
 MODULE_REGISTER_TMP(LoadPropagatorIo32, ARG(TLoadField<FIMPL::PropagatorField, FIMPLF::PropagatorField>), MIO);
 #endif
+MODULE_REGISTER_TMP(LoadColourMatrixField, TLoadField<GIMPL::GaugeLinkField>, MIO);
 
 /******************************************************************************
  *                 TLoadField implementation                             *

@@ -33,3 +33,4 @@ template class Grid::Hadrons::MIO::TLoadField<FIMPL::PropagatorField>;
 #ifdef GRID_DEFAULT_PRECISION_DOUBLE
 template class Grid::Hadrons::MIO::TLoadField<FIMPL::PropagatorField, FIMPLF::PropagatorField>;
 #endif
+template class Grid::Hadrons::MIO::TLoadField<GIMPL::GaugeLinkField>;
