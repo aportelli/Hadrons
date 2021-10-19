@@ -26,19 +26,28 @@
 #define GET_TIMER(name)   ((tarray != nullptr) ? tarray->getDTimer(name) : 0.)
 
 BEGIN_HADRONS_NAMESPACE
-BEGIN_MODULE_NAMESPACE(MDistil)
+// BEGIN_MODULE_NAMESPACE(MDistil)
 
-// Dimensions:
-//   0 - ext - external field (momentum phase, etc...)
-//   1 - str - spin-color structure or covariant derivative operators
-//   2 - i   - left  spin-Laplacian mode index
-//   3 - j   - right spin-Laplacian mode index
+// Dimensions of distil matrix set:
+//   0 : ext - external field (momentum phase, etc...)
+//   1 : str - spin-color structure or covariant derivative operators
+//   2 : i   - left  spin-Laplacian mode index
+//   3 : j   - right spin-Laplacian mode index
 template <typename T>
 using DistilMatrixSet = Eigen::TensorMap<Eigen::Tensor<T, 4, Eigen::RowMajor>>;
+using namespace MDistil;
+
+// Dimensions of distil matrix:
+//   0 : i   - left  spin-Laplacian mode index
+//   1 : j   - right spin-Laplacian mode index
+template <typename T>
+// using DistilMatrix = A2AMatrix<T>;
+using DistilMatrix = Eigen::Matrix<T, -1, -1, Eigen::RowMajor>;
+
 
 using DilutionMap  = std::array<std::vector<std::vector<unsigned int>>,3>;
 enum Side {left = 0, right = 1};
-const std::vector<Side> sides =  {Side::left,Side::right};
+const std::vector<Side> sides =  {Side::left,Side::right}; 
 
 // metadata serialiser class
 template <typename FImpl>
@@ -54,9 +63,8 @@ public:
                                     std::string,                MesonFieldType,
                                     std::vector<std::string>,   NoiseHashLeft,
                                     std::vector<std::string>,   NoiseHashRight,
-                                    std::string,                PinnedSide
+                                    std::string,                PinnedSide,             // is this useful?
                                     )
-                                    // std::vector<std::vector<unsigned int>>,  RaggedVectorTest,
 };
 
 //metadata io class to deal with 2d ragged arrays (possibly remove after Mike's serialisation revision)
@@ -111,17 +119,6 @@ public:
 /******************************************************************************
  *                  Class to handle Distil matrix block HDF5 I/O                 *
  ******************************************************************************/
-
-// test purposes
-template <typename FImpl>
-class TestMd: Serializable
-{
-public:
-    GRID_SERIALIZABLE_CLASS_MEMBERS(TestMd,
-                                    std::string,    name)
-};
-
-
 template <typename T>
 class DistilMatrixIo
 {
@@ -133,9 +130,6 @@ public:
     // destructor
     ~DistilMatrixIo(void) = default;
     // access
-    unsigned int getNi(void) const;
-    unsigned int getNj(void) const;
-    unsigned int getNt(void) const;
     size_t       getSize(void) const;
 
     // block I/O
@@ -149,14 +143,14 @@ public:
                                const unsigned int i, const unsigned int j, std::string datasetName,
                                const unsigned int t, const unsigned int chunkSize);
 
-    // template <template <class> class Vec, typename VecT>
-    // void load(Vec<VecT> &v, double *tRead = nullptr, GridBase *grid = nullptr, std::string datasetName="");
+    template <template <class> class Vec, typename VecT>
+    void load(Vec<VecT> &v, const unsigned int t, const std::string dataset_name, double *tRead = nullptr, GridBase *grid = nullptr);
 private:
     std::string  filename_{""}, dataname_{""};
     unsigned int nt_{0}, ni_{0}, nj_{0};
 };
 
-// constructor /////////////////////////////////////////////////////////////////
+// implementation /////////////////////////////////////////////////////////////////
 template <typename T>
 DistilMatrixIo<T>::DistilMatrixIo(std::string filename, std::string dataname, 
                             const unsigned int nt, const unsigned int ni,
@@ -175,6 +169,12 @@ void DistilMatrixIo<T>::initFile(const MetadataType &d)
 #else
     HADRONS_ERROR(Implementation, "distil matrix I/O needs HDF5 library");
 #endif
+}
+
+template <typename T>
+size_t DistilMatrixIo<T>::getSize(void) const
+{
+    return nt_*ni_*nj_*sizeof(T);
 }
 
 template <typename T>
@@ -242,8 +242,6 @@ void DistilMatrixIo<T>::saveBlock(const T *data,
                               stride.data(), block.data());
     dataset.write(data, Hdf5Type<T>::type(), memspace, dataspace);
 
-
-
 #else
     HADRONS_ERROR(Implementation, "distil matrix I/O needs HDF5 library");
 #endif
@@ -263,6 +261,91 @@ void DistilMatrixIo<T>::saveBlock(const DistilMatrixSet<T> &m,
     std::string t_name = std::to_string(t);
 
     saveBlock(m.data() + offset, i, j, blockSizei, blockSizej, t_name, datasetName, chunkSize);
+}
+
+template <typename T>
+template <template <class> class Vec, typename VecT>
+void DistilMatrixIo<T>::load(Vec<VecT> &v, const unsigned int t, const std::string dataset_name, double *tRead, GridBase *grid)
+{
+#ifdef HAVE_HDF5
+    std::vector<hsize_t> hdim;
+    H5NS::DataSet        dataset;
+    H5NS::DataSpace      dataspace;
+    H5NS::CompType       datatype;
+
+    if (!(grid) || grid->IsBoss())
+    {
+        Hdf5Reader reader(filename_);
+        push(reader, dataname_);
+        auto &root_group = reader.getGroup();
+        std::string t_name = std::to_string(t);
+        auto t_group = root_group.openGroup(t_name);
+        dataset = t_group.openDataSet(dataset_name);
+        datatype = dataset.getCompType();
+        dataspace = dataset.getSpace();
+        hdim.resize(dataspace.getSimpleExtentNdims());
+        dataspace.getSimpleExtentDims(hdim.data());
+        if ((ni_ * nj_ != 0) and
+            ((hdim[0] != ni_) or (hdim[0] != nj_)))
+        {
+            HADRONS_ERROR(Size, "distil matrix size mismatch (got "
+                + std::to_string(hdim[0]) + "x" + std::to_string(hdim[1]) + ", expected "
+                + std::to_string(ni_) + "x" + std::to_string(nj_));
+        }
+        ni_ = hdim[0];
+        nj_ = hdim[1];
+    }
+    if (grid)
+    {
+        grid->Broadcast(grid->BossRank(), &ni_, sizeof(unsigned int));
+        grid->Broadcast(grid->BossRank(), &nj_, sizeof(unsigned int));
+    }
+
+    DistilMatrix<T>         buf(ni_, nj_);
+    int broadcastSize =  sizeof(T) * buf.size();
+    std::vector<hsize_t> count    = {static_cast<hsize_t>(ni_),
+                                     static_cast<hsize_t>(nj_)},
+                         stride   = {1, 1},
+                         block    = {1, 1},
+                         memCount = {static_cast<hsize_t>(ni_),
+                                     static_cast<hsize_t>(nj_)};
+    H5NS::DataSpace      memspace(memCount.size(), memCount.data());
+
+    std::cout << "Loading timeslice";
+    std::cout.flush();
+    *tRead = 0.;
+    // for (unsigned int tp1 = nt_; tp1 > 0; --tp1)
+    // {
+        // unsigned int         t      = tp1 - 1;
+        std::vector<hsize_t> offset = {0, 0};
+        
+        // if (t % 10 == 0)
+        // {
+        //     std::cout << " " << t;
+        //     std::cout.flush();
+        // }
+        if (!(grid) || grid->IsBoss())
+        {
+            dataspace.selectHyperslab(H5S_SELECT_SET, count.data(), offset.data(),
+                                      stride.data(), block.data());
+        }
+        if (tRead) *tRead -= usecond();
+        if (!(grid) || grid->IsBoss())
+        {
+            dataset.read(buf.data(), datatype, memspace, dataspace);
+        }
+        if (grid)
+        {
+            grid->Broadcast(grid->BossRank(), buf.data(), broadcastSize);
+        }
+        if (tRead) *tRead += usecond();
+        // v[t] = buf.template cast<VecT>();
+        v[0] = buf.template cast<VecT>();
+    // }
+    std::cout << std::endl;
+#else
+    HADRONS_ERROR(Implementation, "all-to-all matrix I/O needs HDF5 library");
+#endif
 }
 
 /////////////////////////////////////
@@ -553,8 +636,8 @@ void DmfComputation<FImpl,T,Tio>
     unsigned int dt = d_coor[Index::t] , dk = d_coor[Index::l] , ds = d_coor[Index::s];
     
     //compute at pin_time, insert at t
-    const unsigned int pin_time = (dt + delta_t)%nt_;     //TODO: generalise to dilution
-    const unsigned int t        = pin_time;               //TODO: generalise to dilution
+    const unsigned int pin_time = (dt + delta_t)%nt_;               //TODO: generalise to dilution
+    const unsigned int t        = pin_time;                         //TODO: generalise to dilution 
 
     std::vector<int> peramb_ts = peramb.MetaData.timeSources;
     std::vector<int>::iterator itr_dt = std::find(peramb_ts.begin(), peramb_ts.end(), dt);
@@ -570,7 +653,7 @@ void DmfComputation<FImpl,T,Tio>
             ExtractSliceLocal(evec3d_,epack.evec[k],0,pin_time-Nt_first,nd_ - 1);
             tmp3d_ += evec3d_ * peramb.tensor(pin_time, k, dk, n_idx, idt_peramb, ds);
         }
-        InsertSliceLocal(tmp3d_,phi_component,0,t-Nt_first,nd_ - 1);        //shift this byt delta_t
+        InsertSliceLocal(tmp3d_,phi_component,0,t-Nt_first,nd_ - 1);
         // std::cout << phi_component << std::endl;
     }
 }
@@ -592,7 +675,7 @@ void DmfComputation<FImpl,T,Tio>
 
     //compute at pin_time, insert at t
     const unsigned int pin_time = (dt + delta_t)%nt_;     //TODO: generalise to dilution
-    const unsigned int t        = dt;               //TODO: generalise to dilution
+    const unsigned int t        = pin_time;               //TODO: generalise to dilution
 
     // adapt to dilution! (add an it loop and untrivialise ik and is loops)
     
@@ -669,7 +752,7 @@ void DmfComputation<FImpl,T,Tio>
     const unsigned int vol = g_->_gsites;
 
     //make these input parameters
-    std::vector<unsigned int> delta_t_list={0,1,2,3,4,5,6,7};
+    std::vector<unsigned int> delta_t_list={0} ; //,1,2,3,4,5,6,7};
     
     if(isRho(pinned_side_))  //if the pinned side has a rho field, force delta_t to be 0, as the others should yield trivial zeros
     {
@@ -808,7 +891,6 @@ void DmfComputation<FImpl,T,Tio>
                             unsigned int istr = k%nStr_;
                             // metadata;
                             DistilMesonFieldMetadata<FImpl> md = metadataDmfFn(iext,istr,n_idx.at(Side::left),n_idx.at(Side::right));
-                            // md.RaggedVectorTest = {{1,2,3},{4,5}};
 
                             DistilMatrixIo<HADRONS_DISTIL_IO_TYPE> matrix_io(filenameDmfFn(iext, istr, n_idx.at(Side::left), n_idx.at(Side::right)),
                                     DISTIL_MATRIX_NAME, nt_, dilSizeLS_.at(Side::left), dilSizeLS_.at(Side::right));
@@ -864,42 +946,9 @@ void DmfComputation<FImpl,T,Tio>
     //     }
     //     STOP_TIMER("IO: total");
     // }
-
-    
-
-    // TestMd<FImpl> md;
-    // md.name = "heyo";
-
-
-    // bBuf_.resize(1*1*12*12);
-    // DistilMatrixSet<Tio> test_block(bBuf_.data(), 1 , 1 , 6, 6);
-    // DistilMatrixSet<Tio> test_block_2(bBuf_.data(), 1 , 1 , 6, 6);
-
-    // thread_for_collapse(4,iext,1,{
-    // // for(unsigned int iext=0;iext<nExt_;iext++)
-    // for(unsigned int istr=0;istr<1;istr++)
-    // for(unsigned int ii=0;ii<6;ii++)
-    // for(unsigned int jj=0;jj<6;jj++)
-    // {
-    //     test_block(iext,istr,ii,jj) = 0;
-    // }
-    // });
-
-    // // test_block(0,0,0,0) = 66.6;
-    // test_block(0,0,3,3) = 33.3;
-
-    // DistilMatrixIo<HADRONS_DISTIL_IO_TYPE> matrix_io("test.h5", DISTIL_MATRIX_NAME, 12, 12);
-    // matrix_io.initFile(md);
-    // matrix_io.saveBlock(test_block, 0, 0, 5, 5, "0-0", "t666" , 6);
-
-    // test_block_2(0,0,2,2) = 66.6;
-    // matrix_io.saveBlock(test_block_2, 0, 0, 5, 5, "0-0", "t555" , 6);
-
-
-
 }
 
-END_MODULE_NAMESPACE
+// END_MODULE_NAMESPACE
 END_HADRONS_NAMESPACE
 
 #endif // Distil_matrix_hpp_
