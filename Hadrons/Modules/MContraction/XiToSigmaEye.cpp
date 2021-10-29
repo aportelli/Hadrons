@@ -1,5 +1,5 @@
 /*
- * LoadEigenPack.cpp, part of Hadrons (https://github.com/aportelli/Hadrons)
+ * XiToSigmaEye.cpp, part of Hadrons (https://github.com/aportelli/Hadrons)
  *
  * Copyright (C) 2015 - 2020
  *
@@ -23,14 +23,10 @@
  */
 
 /*  END LEGAL */
-#include <Hadrons/Modules/MIO/LoadEigenPack.hpp>
+#include <Hadrons/Modules/MContraction/XiToSigmaEye.hpp>
 
 using namespace Grid;
 using namespace Hadrons;
-using namespace MIO;
+using namespace MContraction;
 
-template class Grid::Hadrons::MIO::TLoadEigenPack<FermionEigenPack<FIMPL>, GIMPL>;
-#ifdef GRID_DEFAULT_PRECISION_DOUBLE
-template class Grid::Hadrons::MIO::TLoadEigenPack<FermionEigenPack<FIMPLF>, GIMPLF>;
-template class Grid::Hadrons::MIO::TLoadEigenPack<FermionEigenPack<FIMPL, FIMPLF>, GIMPL>;
-#endif
+template class Grid::Hadrons::MContraction::TXiToSigmaEye<FIMPL>;

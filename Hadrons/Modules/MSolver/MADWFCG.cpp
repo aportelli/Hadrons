@@ -1,9 +1,9 @@
 /*
- * LoadEigenPack.cpp, part of Hadrons (https://github.com/aportelli/Hadrons)
+ * MADWFCG.cpp, part of Hadrons (https://github.com/aportelli/Hadrons)
  *
  * Copyright (C) 2015 - 2020
  *
- * Author: Antonin Portelli <antonin.portelli@me.com>
+ * Author: Raoul Hodgson <raoul.hodgson@ed.ac.uk>
  *
  * Hadrons is free software: you can redistribute it and/or modify
  * it under the terms of the GNU General Public License as published by
@@ -23,14 +23,14 @@
  */
 
 /*  END LEGAL */
-#include <Hadrons/Modules/MIO/LoadEigenPack.hpp>
+#include <Hadrons/Modules/MSolver/MADWFCG.hpp>
 
 using namespace Grid;
 using namespace Hadrons;
-using namespace MIO;
+using namespace MSolver;
 
-template class Grid::Hadrons::MIO::TLoadEigenPack<FermionEigenPack<FIMPL>, GIMPL>;
-#ifdef GRID_DEFAULT_PRECISION_DOUBLE
-template class Grid::Hadrons::MIO::TLoadEigenPack<FermionEigenPack<FIMPLF>, GIMPLF>;
-template class Grid::Hadrons::MIO::TLoadEigenPack<FermionEigenPack<FIMPL, FIMPLF>, GIMPL>;
-#endif
+template class Grid::Hadrons::MSolver::TMADWFCG<ZFIMPLD, FIMPLD>;
+template class Grid::Hadrons::MSolver::TMADWFCG<ZFIMPLF, FIMPLD>;
+template class Grid::Hadrons::MSolver::TMADWFCG< FIMPLD, FIMPLD>;
+
+

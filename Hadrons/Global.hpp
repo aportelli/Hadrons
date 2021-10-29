@@ -117,6 +117,10 @@ typedef FermionOperator<FImpl>                     FMat##suffix;\
 typedef typename FImpl::FermionField               FermionField##suffix;\
 typedef typename FImpl::GaugeField                 GaugeField##suffix;\
 typedef typename FImpl::DoubledGaugeField          DoubledGaugeField##suffix;\
+typedef LinearOperatorBase<FermionField##suffix>   FBaseOp##suffix;\
+typedef NonHermitianLinearOperator<FMat##suffix, FermionField##suffix>   FOp##suffix;\
+typedef MdagMLinearOperator<FMat##suffix, FermionField##suffix>   FHermOp##suffix;\
+typedef HADRONS_DEFAULT_SCHUR_OP<FMat##suffix, FermionField##suffix> FSchurOp##suffix;\
 typedef Lattice<iSpinMatrix<typename FImpl::Simd>> SpinMatrixField##suffix;\
 typedef Lattice<iColourVector<typename FImpl::Simd>> ColourVectorField##suffix;\
 typedef Lattice<iColourMatrix<typename FImpl::Simd>> ColourMatrixField##suffix;\
@@ -124,7 +128,8 @@ typedef typename PropagatorField##suffix::vector_object::scalar_object    SpinCo
 typedef Lattice<iSpinColourSpinColourMatrix<typename FImpl::Simd>> SpinColourSpinColourMatrixField##suffix;
 
 #define GAUGE_TYPE_ALIASES(GImpl, suffix)\
-typedef typename GImpl::GaugeField GaugeField##suffix;
+typedef typename GImpl::GaugeField GaugeField##suffix;\
+typedef typename GImpl::GaugeLinkField GaugeLinkField##suffix;
 
 #define SOLVER_TYPE_ALIASES(FImpl, suffix)\
 typedef Solver<FImpl> Solver##suffix;

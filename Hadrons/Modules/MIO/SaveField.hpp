@@ -80,6 +80,7 @@ MODULE_REGISTER_TMP(SavePropagator, TSaveField<FIMPL::PropagatorField>, MIO);
 #ifdef GRID_DEFAULT_PRECISION_DOUBLE
 MODULE_REGISTER_TMP(SavePropagatorIo32, ARG(TSaveField<FIMPL::PropagatorField, FIMPLF::PropagatorField>), MIO);
 #endif
+MODULE_REGISTER_TMP(SaveColourMatrixField, TSaveField<GIMPL::GaugeLinkField>, MIO);
 
 /******************************************************************************
  *                 TSaveField implementation                             *

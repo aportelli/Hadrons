@@ -12,7 +12,8 @@ EXTRA_PROGRAMS = \
   Test_free_prop            \
   Test_hadrons_meson_3pt    \
   Test_hadrons_spectrum     \
-  Test_sigma_to_nucleon
+  Test_sigma_to_nucleon     \
+  Test_xi_to_sigma
 
 CLEANFILES = $(EXTRA_PROGRAMS)
 
@@ -50,3 +51,6 @@ Test_hadrons_spectrum_LDADD=-lHadrons -lGrid
 
 Test_sigma_to_nucleon_SOURCES=Test_sigma_to_nucleon.cpp
 Test_sigma_to_nucleon_LDADD=-lHadrons -lGrid
+
+Test_xi_to_sigma_SOURCES=Test_xi_to_sigma.cpp
+Test_xi_to_sigma_LDADD=-lHadrons -lGrid
