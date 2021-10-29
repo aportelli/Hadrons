@@ -743,13 +743,15 @@ void VirtualMachine::updateProfile(const unsigned int address)
     resizeProfile();
     for (unsigned int a = 0; a < env().getMaxAddress(); ++a)
     {
-        if (env().hasCreatedObject(a) and (profile_.object[a].module == -1))
+        int envMod = env().getObjectModule(a);
+
+        if ((env().hasCreatedObject(a) or (envMod == address)) and (profile_.object[a].module == -1))
         {
+            profile_.object[a].module   = address;
             profile_.object[a].size     = env().getObjectSize(a);
             profile_.object[a].storage  = env().getObjectStorage(a);
-            profile_.object[a].module   = address;
             profile_.module[address][a] = profile_.object[a].size;
-            if (env().getObjectModule(a) < 0)
+            if (envMod < 0)
             {
                 env().setObjectModule(a, address);
             }
