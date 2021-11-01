@@ -118,6 +118,7 @@ void TCGNE<FImpl, nBasis>::setup(void)
 
             guess = sol;
             mat.Mdag(source, tmp);
+            (*guesserPt)(tmp, sol);
             cg(hermOp, tmp, sol);
             if (subGuess)
             {

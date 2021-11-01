@@ -43,12 +43,10 @@ public:
     virtual void setup(void);
     // execution
     virtual void execute(void);
-private:
-    template <typename F>
-    GridBase *getGrid(void);
 };
 
 MODULE_REGISTER_TMP(FermionImplicitlyRestartedLanczos, TImplicitlyRestartedLanczos<FIMPL::FermionField>, MSolver);
+MODULE_REGISTER_TMP(FermionImplicitlyRestartedLanczosIo32, ARG(TImplicitlyRestartedLanczos<FIMPL::FermionField, FIMPLF::FermionField>), MSolver);
 
 /******************************************************************************
  *                 TImplicitlyRestartedLanczos implementation                 *
@@ -88,10 +86,10 @@ void TImplicitlyRestartedLanczos<Field, FieldIo>::setup(void)
     unsigned int Ls = env().getObjectLs(par().op);
     auto &op = envGet(Op, par().op);
 
-    grid = getGrid<Field>();
+    grid = getGrid<Field>(par().redBlack, Ls);
     if (typeHash<Field>() != typeHash<FieldIo>())
     {
-        gridIo = getGrid<FieldIo>();
+        gridIo = getGrid<FieldIo>(par().redBlack, Ls);
     }
     envCreateDerived(BasePack, Pack, getName(), Ls, 
                      par().lanczosParams.Nm, grid, gridIo);
@@ -112,17 +110,18 @@ void TImplicitlyRestartedLanczos<Field, FieldIo>::setup(void)
 template <typename Field, typename FieldIo>
 void TImplicitlyRestartedLanczos<Field, FieldIo>::execute(void)
 {
-    int      nconv;
-    auto     &epack = envGetDerived(BasePack, Pack, getName());
-    GridBase *grid = nullptr, *gridIo = nullptr;
+    int          nconv;
+    auto         &epack = envGetDerived(BasePack, Pack, getName());
+    GridBase     *grid = nullptr, *gridIo = nullptr;
+    unsigned int Ls = env().getObjectLs(par().op);
     
     envGetTmp(ImplicitlyRestartedLanczos<Field>, irl);
     envGetTmp(Field, src);
 
-    grid = getGrid<Field>();
+    grid = getGrid<Field>(par().redBlack, Ls);
     if (typeHash<Field>() != typeHash<FieldIo>())
     {
-        gridIo = getGrid<FieldIo>();
+        gridIo = getGrid<FieldIo>(par().redBlack, Ls);
     }
     gaussian(rng4d(), src);
     if (par().redBlack)
@@ -138,39 +137,6 @@ void TImplicitlyRestartedLanczos<Field, FieldIo>::execute(void)
     {
         epack.write(par().output, par().multiFile, vm().getTrajectory());
     }
-}
-
-template <typename Field, typename FieldIo>
-template <typename F>
-GridBase * TImplicitlyRestartedLanczos<Field, FieldIo>::getGrid(void)
-{
-    GridBase     *grid;
-    unsigned int Ls = env().getObjectLs(par().op);
-
-    if (Ls == 1)
-    {
-        if (par().redBlack)
-        {
-            grid = envGetRbGrid(Field);
-        }
-        else
-        {
-            grid = envGetGrid(Field);
-        }
-    }
-    else
-    {
-        if (par().redBlack)
-        {
-            grid = envGetRbGrid(Field, Ls);
-        }
-        else
-        {
-            grid = envGetGrid(Field, Ls);
-        }
-    }
-
-    return grid;
 }
 
 END_MODULE_NAMESPACE
