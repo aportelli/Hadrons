@@ -58,68 +58,19 @@ public:
                                     unsigned int,                               Nt,
                                     unsigned int,                               Nvec,
                                     std::vector<RealF>,                         Momentum,
-                                    Gamma::Algebra,                             Operator,               // can turn into more general operators in the future
+                                    Gamma::Algebra,                             Operator,               // more general operators in the future
                                     std::vector<unsigned int>,                  NoisePair,
                                     std::string,                                MesonFieldType,
-                                    std::vector<std::string>,                   NoiseHashLeft,
-                                    std::vector<std::string>,                   NoiseHashRight,
+                                    std::string,                                NoiseHashLeft,
+                                    std::string,                                NoiseHashRight,
                                     std::vector<std::vector<unsigned int>>,     TimeDilutionLeft,
                                     std::vector<std::vector<unsigned int>>,     TimeDilutionRight,
                                     std::vector<std::vector<unsigned int>>,     LapDilutionLeft,
                                     std::vector<std::vector<unsigned int>>,     LapDilutionRight,
                                     std::vector<std::vector<unsigned int>>,     SpinDilutionLeft,
                                     std::vector<std::vector<unsigned int>>,     SpinDilutionRight,
-                                    std::string,                                PinnedSide,             // is this useful?
+                                    std::string,                                PinnedSide,
                                     )
-};
-
-//metadata io class to deal with 2d ragged arrays (possibly remove after Mike's serialisation revision)
-class DistilMetadataIo
-{
-private:
-    std::string fileName_, metadataName_;
-public:
-    DistilMetadataIo(std::string filename, std::string metadataname):fileName_(filename) , metadataName_(metadataname) {}
-    template <typename T>
-    void write2dMetadata(const std::string name, const std::vector<std::vector<T>>& data, const std::string newgroupname="")
-    {
-#ifdef HAVE_HDF5
-        // variable-length struct
-        typedef struct  {
-            size_t len; /* Length of VL data (in base type units) */      
-            void *p;    /* Pointer to VL data */        
-        } VlStorage;
-        
-        Hdf5Reader  reader(fileName_, false);
-        push(reader, metadataName_);
-        H5NS::Group &subgroup = reader.getGroup();
-
-        if(!newgroupname.empty())
-        {
-            H5NS::Exception::dontPrint();
-            try{
-                subgroup = subgroup.openGroup(newgroupname);
-            } catch (...) {
-                subgroup = subgroup.createGroup(newgroupname);
-            }
-        }
-
-        H5NS::VarLenType vl_type(Hdf5Type<T>::type());
-        std::vector<VlStorage> vl_data(data.size());
-        for(unsigned int i=0 ; i<data.size() ; i++)
-        {
-            vl_data.at(i).len = data.at(i).size();
-            vl_data.at(i).p = (void*) &data.at(i).front();
-        }
-
-        hsize_t         attrDim = data.size();
-        H5NS::DataSpace attrSpace(1, &attrDim);
-        H5NS::Attribute attr = subgroup.createAttribute(name, vl_type, attrSpace);
-        attr.write(vl_type, &vl_data.front());
-#else
-        HADRONS_ERROR(Implementation, "distillation I/O needs HDF5 library");
-#endif
-    }
 };
 
 /******************************************************************************
@@ -389,12 +340,12 @@ private:
     const unsigned int                  nExt_;
     const unsigned int                  nStr_;
     const bool                          isExact_;
-    const bool                          onlyDiag_;
     bool                                isInitFile_=false;
     std::map<Side, unsigned int>        dilSizeLS_;
     std::map<Side, DistillationNoise&>  distilNoise_;
     const unsigned int                  dvBatchSize_ = DISTILVECTOR_TIME_BATCH_SIZE;
     Side                                pinned_side_,fixed_side_;
+    std::vector<unsigned int>           delta_t_list_;
 public:
     DmfComputation(std::map<Side,std::string>   mf_type,
                    GridCartesian*               g,
@@ -407,8 +358,8 @@ public:
                    const unsigned int           n_ext,
                    const unsigned int           n_str,
                    const bool                   is_exact,
-                   const bool                   only_diag,
-                   Side                         pinned_side);
+                   Side                         pinned_side,
+                   std::vector<unsigned int>    delta_t_list);
     bool isPhi(Side s);
     bool isRho(Side s);
     DilutionMap getMap(Side s);
@@ -489,11 +440,11 @@ DmfComputation<FImpl,T,Tio>
                  const unsigned int             n_ext,
                  const unsigned int             n_str,
                  const bool                     is_exact,
-                 const bool                     only_diag,
-                 Side                           pinned_side)
+                 Side                           pinned_side,
+                 std::vector<unsigned int>      delta_t_list)
 : dmfType_(mf_type), g_(g), g3d_(g3d), evec3d_(g3d), tmp3d_(g3d), tmp4d_(g)
 , nt_(nt) , nd_(g->Nd()), blockSize_(block_size) , cacheSize_(cache_size)
-, nExt_(n_ext) , nStr_(n_str) , isExact_(is_exact) , onlyDiag_(only_diag), pinned_side_(pinned_side)
+, nExt_(n_ext) , nStr_(n_str) , isExact_(is_exact) , pinned_side_(pinned_side), delta_t_list_(delta_t_list)
 {
     cBuf_.resize(nExt_*nStr_*nt_*cacheSize_*cacheSize_);
     bBuf_.resize(nExt_*nStr_*nt_*blockSize_*blockSize_); //maximum size
@@ -570,7 +521,7 @@ void DmfComputation<FImpl,T,Tio>
 }
 
 // lap-spin blocks have fixed dimensions of (lap-spin dilution size left)x(lap-spin dilution size right)
-// and each is identified by the starting posision in time dilution space, (T1,dtR)
+// and each is identified by the starting posision in time dilution space, (dtL,dtR)
 template <typename FImpl, typename T, typename Tio>
 void DmfComputation<FImpl,T,Tio>
 ::makeDvLapSpinBlock(std::map<Side, DistilVector&>                  dv,
@@ -638,7 +589,7 @@ void DmfComputation<FImpl,T,Tio>
     std::array<unsigned int,3> d_coor = n.dilutionCoordinates(D);
     unsigned int dt = d_coor[Index::t] , dk = d_coor[Index::l] , ds = d_coor[Index::s];
     
-    //compute at pin_time, insert at t
+    //compute at pin_time, insert at t=pin_time
     const unsigned int pin_time = (dt + delta_t)%nt_;               //TODO: generalise to dilution
     const unsigned int t        = pin_time;                         //TODO: generalise to dilution 
 
@@ -657,7 +608,6 @@ void DmfComputation<FImpl,T,Tio>
             tmp3d_ += evec3d_ * peramb.tensor(pin_time, k, dk, n_idx, idt_peramb, ds);
         }
         InsertSliceLocal(tmp3d_,phi_component,0,t-Nt_first,nd_ - 1);
-        // std::cout << phi_component << std::endl;
     }
 }
 
@@ -700,8 +650,6 @@ void DmfComputation<FImpl,T,Tio>
             }
         }
     }
-    // std::cout << rho_component << std::endl;
-    // std::cin.get();
 }
 
 template <typename FImpl, typename T, typename Tio>
@@ -754,15 +702,12 @@ void DmfComputation<FImpl,T,Tio>
     std::vector<std::vector<unsigned int>> time_dil_pair_list;
     const unsigned int vol = g_->_gsites;
 
-    //make these input parameters
-    std::vector<unsigned int> delta_t_list={0} ; //,1,2,3,4,5,6,7};
-    
-    if(isRho(pinned_side_))  //if the pinned side has a rho field, force delta_t to be 0, as the others should yield trivial zeros
-    {
-        delta_t_list={0};
-    }
+    // if(isRho(pinned_side_))  //if the pinned side has a rho field, force delta_t to be 0, as the others should yield trivial zeros
+    // {
+    //     delta_t_list={0};
+    // }
 
-    for(auto delta_t : delta_t_list)
+    for(auto delta_t : delta_t_list_)
     {        
         START_TIMER("distil vectors");
         makePinnedDvLapSpinBlock(dv, time_dil_source.at(pinned_side_), n_idx, epack, pinned_side_, delta_t, peramb);
@@ -780,8 +725,7 @@ void DmfComputation<FImpl,T,Tio>
                 unsigned int Tfixed = batch_dtFixed[idtFixed];
 
                 std::vector<unsigned int> pinned_times={};
-                if( (isRho(Side::left) && isRho(Side::right)) 
-                    || onlyDiag_)
+                if( (isRho(Side::left) && isRho(Side::right)) )
                 {
                     pinned_times.clear();
                     pinned_times.push_back(Tfixed); //only diagonal rhorho blocks don't vanish
@@ -796,13 +740,13 @@ void DmfComputation<FImpl,T,Tio>
 
                 if(pinned_side_==Side::right)
                 {
-                    LOG(Message) << "------------------------ " << Tfixed << " X ( " << MDistil::timeslicesDump(time_dil_source.at(pinned_side_)) << ") ------------------------" << std::endl; 
+                    LOG(Message) << "------------ " << Tfixed << " X ( " << MDistil::timeslicesDump(time_dil_source.at(pinned_side_)) << ") ------------" << std::endl; 
                 }
                 else
                 {
-                    LOG(Message) << "------------------------ ( " << MDistil::timeslicesDump(time_dil_source.at(pinned_side_)) << ") X " << Tfixed << " ------------------------" << std::endl; 
+                    LOG(Message) << "------------ ( " << MDistil::timeslicesDump(time_dil_source.at(pinned_side_)) << ") X " << Tfixed << " ------------" << std::endl; 
                 }
-                LOG(Message) << "Time shift : " << delta_t << std::endl; 
+                LOG(Message) << "Time shift (deltaT) : " << delta_t << std::endl; 
 
                 unsigned int nblocki = dilSizeLS_.at(Side::left)/blockSize_ + (((dilSizeLS_.at(Side::left) % blockSize_) != 0) ? 1 : 0);
                 unsigned int nblockj = dilSizeLS_.at(Side::right)/blockSize_ + (((dilSizeLS_.at(Side::right) % blockSize_) != 0) ? 1 : 0);
@@ -846,7 +790,6 @@ void DmfComputation<FImpl,T,Tio>
                         // copy from cache
                         START_TIMER("cache copy");
                         thread_for_collapse(5,iext,nExt_,{
-                        // for(unsigned int iext=0;iext<nExt_;iext++)
                         for(unsigned int istr=0;istr<nStr_;istr++)
                         for(unsigned int t=0;t<nt_;t++)     // TODO: could loop just through the times I know are non zero now...
                         for(unsigned int iii=0;iii<icache_size;iii++)
@@ -899,7 +842,7 @@ void DmfComputation<FImpl,T,Tio>
 
                             if( ( Tfixed==time_dil_source.at(fixed_side_).front() ) &&
                                 ( Tpinned==time_dil_source.at(pinned_side_).front() ) &&
-                                ( t==(time_dil_source.at(pinned_side_).front() + delta_t_list.front())%nt_ ) && 
+                                ( t==(time_dil_source.at(pinned_side_).front() + delta_t_list_.front())%nt_ ) && 
                                 (i==0) && (j==0) )  //executes only once per file
                             {
                                 DistilMesonFieldMetadata<FImpl> md = metadataDmfFn(iext,istr,n_idx.at(Side::left),n_idx.at(Side::right));
