@@ -302,8 +302,10 @@ void TPerambulator<FImpl>::execute(void)
                 if(perambMode == pMode::saveSolve)
                 {
    	            // index of the solve just has the reduced time dimension 
-   	            dIndexSolve = ds + nDS * dk + nDL * nDS * idt;
+   	            dIndexSolve = dilNoise.dilutionIndex(dt,dk,ds);
                     std::string sFileName(par().fullSolveFileName);
+                    sFileName.append("_noise");
+                    sFileName.append(std::to_string(inoise));
                     DistillationVectorsIo::writeComponent(sFileName, fermion4dtmp, "fullSolve", nNoise, nDL, nDS, nDT, invT, inoise+nNoise*dIndexSolve, vm().getTrajectory());
                 }
    	    }
@@ -354,6 +356,9 @@ void TPerambulator<FImpl>::execute(void)
     if (grid4d->IsBoss() && !par().perambFileName.empty())
     {
         envGetTmp(PerambIndexTensor, PerambDT);
+	std::vector<std::string> nHash = dilNoise.generateHash();
+	PerambDT.MetaData.noiseHashes = nHash;
+	PerambDT.MetaData.Version = "0.1";
         for (int dt = 0; dt < Nt; dt++)
         {
             std::vector<int>::iterator it = std::find(std::begin(invT), std::end(invT), dt);

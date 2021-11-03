@@ -1,5 +1,5 @@
 /*
- * LoadEigenPack.cpp, part of Hadrons (https://github.com/aportelli/Hadrons)
+ * LoadNersc.cpp, part of Hadrons (https://github.com/aportelli/Hadrons)
  *
  * Copyright (C) 2015 - 2020
  *
@@ -23,14 +23,10 @@
  */
 
 /*  END LEGAL */
-#include <Hadrons/Modules/MIO/LoadEigenPack.hpp>
+#include <Hadrons/Modules/MIO/SaveNersc.hpp>
 
 using namespace Grid;
 using namespace Hadrons;
 using namespace MIO;
 
-template class Grid::Hadrons::MIO::TLoadEigenPack<FermionEigenPack<FIMPL>, GIMPL>;
-#ifdef GRID_DEFAULT_PRECISION_DOUBLE
-template class Grid::Hadrons::MIO::TLoadEigenPack<FermionEigenPack<FIMPLF>, GIMPLF>;
-template class Grid::Hadrons::MIO::TLoadEigenPack<FermionEigenPack<FIMPL, FIMPLF>, GIMPL>;
-#endif
+template class Grid::Hadrons::MIO::TSaveNersc<GIMPL>;
