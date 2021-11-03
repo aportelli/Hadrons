@@ -51,7 +51,7 @@ BEGIN_HADRONS_NAMESPACE
 class NamedTensorDefaultMetadata : Serializable
 {
 public:
-    GRID_SERIALIZABLE_CLASS_MEMBERS(NamedTensorDefaultMetadata, int, Version);
+    GRID_SERIALIZABLE_CLASS_MEMBERS(NamedTensorDefaultMetadata, std::string, Version);
 };
 
 template<typename Scalar_, int NumIndices_, typename MetaData_ = NamedTensorDefaultMetadata>
@@ -233,7 +233,7 @@ class PerambMetadata : Serializable
 {
 public:
     GRID_SERIALIZABLE_CLASS_MEMBERS(PerambMetadata, 
-		                    int, Version,
+		                    std::string, Version,
                                     std::vector<int>, timeSources );
 };
 
@@ -244,16 +244,18 @@ class PerambTensor : public NamedTensor<SpinVector, 6, PerambMetadata>
     static const std::array<std::string, 6> DefaultIndexNames__;
     // Construct a named tensor explicitly specifying size of each dimension
     template<typename... IndexTypes>
-    PerambTensor(Eigen::Index nT, Eigen::Index nVec, Eigen::Index LI, Eigen::Index nNoise, Eigen::Index nT_inv, Eigen::Index SI)
-    : NamedTensor{Name__, DefaultIndexNames__, nT, nVec, LI, nNoise, nT_inv, SI} {}
+    PerambTensor(Eigen::Index nT, Eigen::Index nVec, Eigen::Index nDl, Eigen::Index nNoise, Eigen::Index nTinv, Eigen::Index nDs)
+    : NamedTensor{Name__, DefaultIndexNames__, nT, nVec, nDl, nNoise, nTinv, nDs} {}
 };
 
 // Separate class for multiFile
 class PerambIndexMetadata : Serializable
 {
 public:
-    GRID_SERIALIZABLE_CLASS_MEMBERS(PerambIndexMetadata, int, Version,
-                                    int, timeDilutionIndex );
+    GRID_SERIALIZABLE_CLASS_MEMBERS(PerambIndexMetadata, 
+		                    std::string, Version,
+                                    int, timeDilutionIndex,
+		                    std::vector<std::string>, noiseHashes );
 };
 
 class PerambIndexTensor : public NamedTensor<SpinVector, 5, PerambIndexMetadata>
@@ -263,8 +265,8 @@ class PerambIndexTensor : public NamedTensor<SpinVector, 5, PerambIndexMetadata>
     static const std::array<std::string, 5> DefaultIndexNames__;
     // Construct a named tensor explicitly specifying size of each dimension
     template<typename... IndexTypes>
-    PerambIndexTensor(Eigen::Index nT, Eigen::Index nVec, Eigen::Index LI, Eigen::Index nNoise, Eigen::Index SI)
-    : NamedTensor{Name__, DefaultIndexNames__, nT, nVec, LI, nNoise, SI} {}
+    PerambIndexTensor(Eigen::Index nT, Eigen::Index nVec, Eigen::Index nDl, Eigen::Index nNoise, Eigen::Index nDs)
+    : NamedTensor{Name__, DefaultIndexNames__, nT, nVec, nDl, nNoise, nDs} {}
 };
 
 class TimesliceEvals : public NamedTensor<RealD, 2>

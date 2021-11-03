@@ -356,6 +356,9 @@ void TPerambulator<FImpl>::execute(void)
     if (grid4d->IsBoss() && !par().perambFileName.empty())
     {
         envGetTmp(PerambIndexTensor, PerambDT);
+	std::vector<std::string> nHash = dilNoise.generateHash();
+	PerambDT.MetaData.noiseHashes = nHash;
+	PerambDT.MetaData.Version = "0.1";
         for (int dt = 0; dt < Nt; dt++)
         {
             std::vector<int>::iterator it = std::find(std::begin(invT), std::end(invT), dt);

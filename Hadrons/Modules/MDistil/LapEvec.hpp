@@ -373,6 +373,7 @@ void TLapEvec<FImpl>::execute(void)
             sEigenPackName.resize(NameLen);
             sEigenPackName.append("evals.");
             sEigenPackName.append(sTrajNum);
+            Evals.MetaData.Version="0.1";
             Evals.write( sEigenPackName );
         }
     }
