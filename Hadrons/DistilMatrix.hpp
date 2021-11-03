@@ -269,37 +269,28 @@ void DistilMatrixIo<T>::load(Vec<VecT> &v, const unsigned int t, const std::stri
     std::cout << "Loading timeslice";
     std::cout.flush();
     *tRead = 0.;
-    // for (unsigned int tp1 = nt_; tp1 > 0; --tp1)
-    // {
-        // unsigned int         t      = tp1 - 1;
-        std::vector<hsize_t> offset = {0, 0};
-        
-        // if (t % 10 == 0)
-        // {
-        //     std::cout << " " << t;
-        //     std::cout.flush();
-        // }
-        if (!(grid) or grid->IsBoss())
-        {
-            dataspace.selectHyperslab(H5S_SELECT_SET, count.data(), offset.data(),
-                                      stride.data(), block.data());
-        }
-        if (tRead) *tRead -= usecond();
-        if (!(grid) or grid->IsBoss())
-        {
-            dataset.read(buf.data(), datatype, memspace, dataspace);
-        }
-        if (grid)
-        {
-            grid->Broadcast(grid->BossRank(), buf.data(), broadcastSize);
-        }
-        if (tRead) *tRead += usecond();
-        // v[t] = buf.template cast<VecT>();
-        v[0] = buf.template cast<VecT>();
-    // }
+
+    std::vector<hsize_t> offset = {0, 0};
+    
+    if (!(grid) or grid->IsBoss())
+    {
+        dataspace.selectHyperslab(H5S_SELECT_SET, count.data(), offset.data(),
+                                    stride.data(), block.data());
+    }
+    if (tRead) *tRead -= usecond();
+    if (!(grid) or grid->IsBoss())
+    {
+        dataset.read(buf.data(), datatype, memspace, dataspace);
+    }
+    if (grid)
+    {
+        grid->Broadcast(grid->BossRank(), buf.data(), broadcastSize);
+    }
+    if (tRead) *tRead += usecond();
+    v[0] = buf.template cast<VecT>();
     std::cout << std::endl;
 #else
-    HADRONS_ERROR(Implementation, "all-to-all matrix I/O needs HDF5 library");
+    HADRONS_ERROR(Implementation, "distil matrix I/O needs HDF5 library");
 #endif
 }
 
