@@ -53,11 +53,11 @@ public:
 template <typename FImpl>
 void NPRUtils<FImpl>::tensorProd(SpinColourSpinColourMatrixField &lret, PropagatorField &a, PropagatorField &b)
 {
-    autoView(lret_v, lret, AcceleratorWrite);
-    autoView(a_v, a, AcceleratorRead);
-    autoView(b_v, b, AcceleratorRead);
+    autoView(lret_v, lret, CpuWrite);
+    autoView(a_v, a, CpuRead);
+    autoView(b_v, b, CpuRead);
 
-    accelerator_for( site, lret_v.size(), a.Grid()->Nsimd(), {
+    thread_for( site, lret_v.size(), {
         vTComplex left;
         for(int si=0; si < Ns; ++si)
 	{
