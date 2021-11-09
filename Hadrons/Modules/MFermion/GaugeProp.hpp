@@ -116,6 +116,7 @@ void TGaugeProp<FImpl>::setup(void)
     unsigned int sourceSize;
 
     Ls_ = env().getObjectLs(par().solver);
+    // source is a single propagator
     if (envHasType(PropagatorField, par().source))
     {
         envCreateLat(PropagatorField, getName());
@@ -125,9 +126,24 @@ void TGaugeProp<FImpl>::setup(void)
         }
         sourceSize = Ns*FImpl::Dimension;
     }
+    // source is a vector of propagators
     else if (envHasType(std::vector<PropagatorField>, par().source))
     {
         auto &src = envGet(std::vector<PropagatorField>, par().source);
+
+        envCreate(std::vector<PropagatorField>, getName(), 1, src.size(),
+                  envGetGrid(PropagatorField));
+        if (Ls_ > 1)
+        {
+            envCreate(std::vector<PropagatorField>, getName() + "_5d", Ls_,
+                      src.size(), envGetGrid(PropagatorField, Ls_));
+        }
+        sourceSize = src.size()*Ns*FImpl::Dimension;
+    }
+    // source is a vector of pointer of propagators
+    else if (envHasType(std::vector<PropagatorField *>, par().source))
+    {
+        auto &src = envGet(std::vector<PropagatorField *>, par().source);
 
         envCreate(std::vector<PropagatorField>, getName(), 1, src.size(),
                   envGetGrid(PropagatorField));
@@ -246,6 +262,7 @@ void TGaugeProp<FImpl>::execute(void)
     std::string propName = (Ls_ == 1) ? getName() : (getName() + "_5d");
     std::vector<PropagatorField *> propPt, physPropPt, srcPt;
 
+    // source is a single propagator
     if (envHasType(PropagatorField, par().source))
     {
         auto &prop         = envGet(PropagatorField, propName);
@@ -257,7 +274,8 @@ void TGaugeProp<FImpl>::execute(void)
         physPropPt.push_back(&propPhysical);
         srcPt.push_back(&fullSrc);
     }
-    else
+    // source is a vector of propagators
+    else if (envHasType(std::vector<PropagatorField>, par().source))
     {
         auto &prop         = envGet(std::vector<PropagatorField>, propName);
         auto &propPhysical = envGet(std::vector<PropagatorField>, getName());
@@ -270,6 +288,21 @@ void TGaugeProp<FImpl>::execute(void)
             physPropPt.push_back(&(propPhysical[i]));
             srcPt.push_back(&(fullSrc[i]));
         }
+    }
+    // source is a vector of pointer of propagators
+    else if (envHasType(std::vector<PropagatorField *>, par().source))
+    {
+        auto &prop         = envGet(std::vector<PropagatorField>, propName);
+        auto &propPhysical = envGet(std::vector<PropagatorField>, getName());
+        auto &fullSrcPt    = envGet(std::vector<PropagatorField *>, par().source);
+
+        LOG(Message) << "Using source reference vector '" << par().source << "'" << std::endl;
+        for (unsigned int i = 0; i < fullSrcPt.size(); ++i)
+        {
+            propPt.push_back(&(prop[i]));
+            physPropPt.push_back(&(propPhysical[i]));
+        }
+        srcPt = fullSrcPt;
     }
     solvePropagator(propPt, physPropPt, srcPt);
 }
