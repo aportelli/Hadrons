@@ -46,6 +46,7 @@ public:
 
 MODULE_REGISTER_TMP(BatchExactDeflation, ARG(TBatchExactDeflation<FermionEigenPack<FIMPL>, GIMPL>), MGuesser);
 MODULE_REGISTER_TMP(BatchExactDeflationF, ARG(TBatchExactDeflation<FermionEigenPack<FIMPLF>, GIMPLF>), MGuesser);
+MODULE_REGISTER_TMP(BatchExactDeflationDIOF, ARG(TBatchExactDeflation<FermionEigenPack<FIMPL, FIMPLF>, GIMPL>), MGuesser);
 
 /******************************************************************************
  *                            The guesser itself                              *
@@ -83,31 +84,81 @@ public:
         unsigned int sourceSize = out.size();
 
         LOG(Message) << "=== BATCH DEFLATION GUESSER START" << std::endl;
+        LOG(Message) << "Total Sources: " << sourceSize << std::endl;
+        LOG(Message) << "Total Eigenvectors: " << epPar_.size << std::endl;
+        LOG(Message) << "Source batch size: " << sourceBatchSize_ << std::endl;
+        LOG(Message) << "Eigenvector batch size: " << evBatchSize_ << std::endl;
+
+        // stop watches
+
+        GridStopWatch w1;
+        GridStopWatch w2;
+        GridTime IOAccum = w1.Elapsed() - w1.Elapsed();
+        GridStopWatch w3;
+        GridTime ProjAccum = w1.Elapsed() - w1.Elapsed();
+        GridStopWatch w4;
+        GridStopWatch w5;
+        GridTime GFixAccum = w1.Elapsed() - w1.Elapsed();
+ 
         LOG(Message) << "--- zero guesses" << std::endl;
+        
+        w1.Start();
         for (auto &v: out)
         {
             v = Zero();
         }
+        w1.Stop();
+
+        LOG(Message) << "Zeroing the 'out' vector took: " << w1.Elapsed() << std::endl;
+
         for (unsigned int bv = 0; bv < epPar_.size; bv += evBatchSize_)
         {
             unsigned int evBlockSize = std::min(epPar_.size - bv, evBatchSize_);
 
             LOG(Message) << "--- batch " << bv/evBatchSize_ << std::endl;
             LOG(Message) << "I/O" << std::endl;
+            
+            w2.Start();
             epack_.read(epPar_.filestem, epPar_.multiFile, bv, bv + evBlockSize, traj_);
+            w2.Stop();
+            IOAccum += w2.Elapsed();
+            LOG(Message) << "IO of " << evBlockSize << " eigenvectors took: " << w2.Elapsed() << std::endl;
+            w2.Reset();
+
+            w5.Start();
             if (transform_ != nullptr)
             {
                 epack_.gaugeTransform(*transform_);
             }
+            w5.Stop();
+            GFixAccum += w5.Elapsed();
+            LOG(Message) << "Gauge fixing took: " << w5.Elapsed() << std::endl;
+            w5.Reset();
+        
             LOG(Message) << "project" << std::endl;
+
+            w3.Start();
             for (unsigned int bs = 0; bs < sourceSize; bs += sourceBatchSize_)
             {
                 unsigned int sourceBlockSize = std::min(sourceSize - bs, sourceBatchSize_);
 
+                LOG(Message) << "--- Source batch " << bs/sourceBatchSize_ << std::endl;
+                w4.Start();
                 projAccumulate(in, out, evBlockSize, bs, bs + sourceBlockSize);
+                w4.Stop();
+                LOG(Message) << "This projection of " << sourceBlockSize << " sources took: " << w4.Elapsed() << std::endl;
+                w4.Reset();
             }
+            w3.Stop();
+            ProjAccum += w3.Elapsed();
+            LOG(Message) << "This projection took: " << w3.Elapsed() << std::endl;
+            w3.Reset();
         }
         
+        LOG(Message) << "=== Timings ===" << std::endl;
+        LOG(Message) << "Total IO time: " << IOAccum << std::endl;
+        LOG(Message) << "Total Gauge Fix time: " << GFixAccum << std::endl;
+        LOG(Message) << "Total Project time: " << ProjAccum << std::endl;
         LOG(Message) << "=== BATCH DEFLATION GUESSER END" << std::endl;
     }
 private:
