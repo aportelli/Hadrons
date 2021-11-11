@@ -122,8 +122,7 @@ void TFourQuark<FImpl1, FImpl2>::tensorprod(LatticeSpinColourSpinColourMatrix &l
 	    autoView(lret_v, lret, CpuWrite);
 	    autoView(a_v, a, CpuRead);
 	    autoView(b_v, b, CpuRead);
-#define MYGRID_NVCC
-#ifdef MYGRID_NVCC
+#ifdef GRID_NVCC
 #warning "NVCC problem: Removed impossibly slow compile of simple NPR host code in FourQuark.hpp"
 #else
             thread_foreach( site,lret_v,{
@@ -157,7 +156,7 @@ void TFourQuark<FImpl1, FImpl2>::setup(void)
 template <typename FImpl1, typename FImpl2>
 void TFourQuark<FImpl1, FImpl2>::execute(void)
 {
-#ifndef MYGRID_NVCC
+#ifndef GRID_NVCC
 
 /*********************************************************************************
 
