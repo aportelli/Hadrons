@@ -1,56 +1,26 @@
 #include <Grid/Grid.h>
+#include <Hadrons/Application.hpp>
+#include <Hadrons/Modules.hpp>
 
 using namespace Grid;
-
-template<typename Field> 
-void projAccumulate(const std::vector<Field> &in, std::vector<Field> &out,
-                    std::vector<Field> &evec,
-                    std::vector<Complex> &eval,
-                    const unsigned int evBatchSize,
-                    const unsigned int si, const unsigned int sf)
-{
-    GridBase *g       = in[0].Grid();
-    double   lVol     = g->lSites();
-    double   siteSize = sizeof(typename Field::scalar_object);
-    double   lSizeGB  = lVol*siteSize/1024./1024./1024.;
-    double   nIt      = evBatchSize*(sf - si);
-    double   t        = 0.;
-    
-    t -= usecond();
-    for (unsigned int i = 0; i < evBatchSize; ++i)
-    for (unsigned int j = si; j < sf; ++j)
-    {
-
-        axpy(out[j], TensorRemove(innerProduct(evec[i], in[j]))/eval[i], evec[i], out[j]);
-
-    }
-    t += usecond();
-
-    // performance (STREAM convention): innerProduct 2 reads + axpy 2 reads 1 write = 5 transfers
-    std::cout << GridLogMessage << "projAccumulate: " << t << " us | " << 5.*nIt*lSizeGB << " GB | " << 5.*nIt*lSizeGB/t*1.0e6 << " GB/s" << std::endl;
-
-};
+using namespace Hadrons;
 
 template<typename Field>
 void ProjAccumRunner(std::vector<Field> &in, std::vector<Field> &out, unsigned int eb, unsigned int sb)
 {
     GridBase *g       = in[0].Grid();
 
-    std::vector<Field> eigenVec(1,g);
-    std::vector<Complex> eigenval;
+    EigenPack<Field> Epack(eb, g, g);
     
     std::vector<int> seeds({1,2,3,4});
+    std::vector<int> seeds5({5,6,7,8});
     GridSerialRNG            RNG;   RNG.SeedFixedIntegers(seeds);
-    std::vector<int> seeds5({5,6,7,8}); // change line up
     GridParallelRNG          RNG5(g);  RNG5.SeedFixedIntegers(seeds5);
 
     GridStopWatch w1;
     GridTime ProjAccum = w1.Elapsed() - w1.Elapsed();
     
     unsigned int evSize = 4*eb;
-
-    eigenVec.resize(eb,g);
-    eigenval.resize(eb);
 
     std::cout << GridLogMessage << "ProjAccumRunner start" << std::endl;
     
@@ -63,18 +33,18 @@ void ProjAccumRunner(std::vector<Field> &in, std::vector<Field> &out, unsigned i
         
         std::cout << GridLogMessage << "New eigenvector picks" << std::endl;
 
-        // touch eigen vectors to bring back to host
+        // touch eigen vectors with new randoms to bring back to host
 
-        for (auto &e: eigenVec)
+        for (auto &e: Epack.evec)
         {
             random(RNG5,e);
         }
 
-        for (auto &e: eigenval)
+        for (auto &e: Epack.eval)
         {
             random(RNG,e);
 
-            std::cout << GridLogDebug << "eigenval random pick" << e << std::endl;
+            std::cout << GridLogDebug << "eigenval random pick: " << e << std::endl;
         }
 
         std::cout << GridLogMessage << "evBlockSize: " << evBlockSize << std::endl;
@@ -86,7 +56,7 @@ void ProjAccumRunner(std::vector<Field> &in, std::vector<Field> &out, unsigned i
             std::cout << GridLogMessage << "srcBlockSize: " << srcBlockSize << std::endl;
 
             w1.Start();
-            projAccumulate<Field>(in, out, eigenVec, eigenval, evBlockSize, j, j + srcBlockSize);
+            MGuesser::BatchExactDeflationGuesser<FermionEigenPack<FIMPL>, GIMPL>::projAccumulate<Field>(in, out, Epack, evBlockSize, j, j + srcBlockSize);
             w1.Stop();
             ProjAccum += w1.Elapsed();
             w1.Reset();

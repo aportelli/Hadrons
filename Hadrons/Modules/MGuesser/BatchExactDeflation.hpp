@@ -161,9 +161,10 @@ public:
         LOG(Message) << "Total Project time: " << ProjAccum << std::endl;
         LOG(Message) << "=== BATCH DEFLATION GUESSER END" << std::endl;
     }
-private:
-    void projAccumulate(const std::vector<Field> &in, std::vector<Field> &out,
-                        const unsigned int evBatchSize,
+
+    template<typename Field>
+    static void projAccumulate(const std::vector<Field> &in, std::vector<Field> &out,
+                        Pack &epack, const unsigned int evBatchSize,
                         const unsigned int si, const unsigned int sf)
     {
         GridBase *g       = in[0].Grid();
@@ -178,12 +179,19 @@ private:
         for (unsigned int j = si; j < sf; ++j)
         {
             axpy(out[j], 
-                 TensorRemove(innerProduct(epack_.evec[i], in[j]))/epack_.eval[i], 
-                 epack_.evec[i], out[j]);
+                 TensorRemove(innerProduct(epack.evec[i], in[j]))/epack.eval[i], 
+                 epack.evec[i], out[j]);
         }
         t += usecond();
         // performance (STREAM convention): innerProduct 2 reads + axpy 2 reads 1 write = 5 transfers
         LOG(Message) << "projAccumulate: " << t << " us | " << 5.*nIt*lSizeGB << " GB | " << 5.*nIt*lSizeGB/t*1.0e6 << " GB/s" << std::endl;
+    }
+private:
+    void projAccumulate(const std::vector<Field> &in, std::vector<Field> &out,
+                        const unsigned int evBatchSize,
+                        const unsigned int si, const unsigned int sf)
+    {
+        projAccumulate<Field>(in, out, epack_, evBatchSize, si, sf);
     };
 private:
     MIO::LoadEigenPackPar epPar_;
