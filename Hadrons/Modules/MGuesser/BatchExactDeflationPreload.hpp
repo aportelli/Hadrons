@@ -57,6 +57,16 @@ class BatchExactDeflationPreloadGuesser: public LinearFunction<typename FImpl::F
 public:
     typedef typename FImpl::FermionField Field;
     typedef typename EPack::Field   EPackField;
+private:
+    static constexpr bool requireCast_ = !(std::is_same<Field,EPackField>::value);
+    static constexpr std::size_t CastBufferSize_( std::size_t n ){ return requireCast_ ? n : 0; };
+
+    template <typename O>
+    typename std::enable_if<std::is_same<Field,O>::value, const std::vector<Field> &>::type
+    CopyOrOriginal( const std::vector<Field> &Copy, const std::vector<O> &Original ) { return Original; }
+    template <typename O>
+    typename std::enable_if<!std::is_same<Field,O>::value, const std::vector<Field> &>::type
+    CopyOrOriginal( const std::vector<Field> &Copy, const std::vector<O> &Original ) { return Copy; }
 public:
     BatchExactDeflationPreloadGuesser(const std::vector<EPackField> & evec,const std::vector<RealD> & eval, 
                                         const unsigned int epSize,
@@ -74,22 +84,17 @@ public:
 
     virtual void operator() (const std::vector<Field> &in, std::vector<Field> &out)
     {
-        bool requireCast = !(std::is_same<Field,EPackField>::value);
-
         unsigned int nBatch = epSize_/evBatchSize_ + (((epSize_ % evBatchSize_) != 0) ? 1 : 0);
         unsigned int sourceSize = out.size();
 
-        std::vector<Field> evecCast;
-        std::vector<RealD> evalCast;
-        if (requireCast) {
-            evecCast.resize(evBatchSize_, Field(in[0].Grid()) );
-            evalCast.resize(evBatchSize_, 0.);
-        }
+        std::vector<Field> evecCast( CastBufferSize_(evBatchSize_) , Field(in[0].Grid()) );
+        std::vector<RealD> evalCast( CastBufferSize_(evBatchSize_) , 0. );
 
         LOG(Message) << "=== BATCH DEFLATION GUESSER START" << std::endl;
-        if (requireCast) {
+        if (requireCast_) {
             LOG(Message) << "Eigenpack requires precision change" << std::endl;
         }
+
         for (auto &v: out)
         {
             v = Zero();
@@ -102,30 +107,31 @@ public:
         {
             unsigned int evBlockSize = std::min(epSize_ - bv, evBatchSize_);
 
-            cast_t -= usecond();
-            if (requireCast) {
+            if (requireCast_) {
+                cast_t -= usecond();
                 for (unsigned int i = 0; i < evBlockSize; ++i) {
                     precisionChange(evecCast[i],evec_[bv+i]);
                     evalCast[i] = eval_[bv+i];
                 }
+                cast_t += usecond();
             }
-            cast_t += usecond();
 
             proj_t -= usecond();
             for (unsigned int bs = 0; bs < sourceSize; bs += sourceBatchSize_)
             {
                 unsigned int sourceBlockSize = std::min(sourceSize - bs, sourceBatchSize_);
 
-                if (requireCast) {
-                    projAccumulate(in, out, evecCast, evalCast, 0, evBlockSize, bs, bs + sourceBlockSize);
-                } else {
-                    projAccumulate(in, out, evec_, eval_, bv, bv + evBlockSize, bs, bs + sourceBlockSize);
-                }
+                projAccumulate(in, out, 
+                            CopyOrOriginal(evecCast, evec_),
+                            requireCast_ ? evalCast : eval_,
+                            requireCast_ ? 0 : bv,
+                            requireCast_ ? evBlockSize : bv + evBlockSize,
+                            bs, bs + sourceBlockSize);
             }
             proj_t += usecond();
         }
 
-        if (requireCast) {
+        if (requireCast_) {
             LOG(Message) << "Total precision change time " << cast_t/1.e6 << " s" << std::endl;
         }
         LOG(Message) << "Total projection time " << proj_t/1.e6 << " s" <<  std::endl;
@@ -133,12 +139,11 @@ public:
         LOG(Message) << "=== BATCH DEFLATION GUESSER END" << std::endl;
     }
 private:
-    void projAccumulateImpl(const std::vector<Field> &in, std::vector<Field> &out,
+    static void projAccumulate(const std::vector<Field> &in, std::vector<Field> &out,
                         const std::vector<Field>& evec,
                         const std::vector<RealD>& eval,
                         const unsigned int ei, const unsigned int ef,
-                        const unsigned int si, const unsigned int sf,
-                        std::true_type)
+                        const unsigned int si, const unsigned int sf)
     {
         GridBase *g       = in[0].Grid();
         double   lVol     = g->lSites();
@@ -160,28 +165,6 @@ private:
         LOG(Message) << "projAccumulate: " << t << " us | " << 5.*nIt*lSizeGB << " GB | " << 5.*nIt*lSizeGB/t*1.0e6 << " GB/s" << std::endl;
     };
 
-    template<typename F1, typename F2>
-    void projAccumulateImpl(const std::vector<F1> &in, std::vector<F1> &out,
-                        const std::vector<F2>& evec,
-                        const std::vector<RealD>& eval,
-                        const unsigned int ei, const unsigned int ef,
-                        const unsigned int si, const unsigned int sf,
-                        std::false_type)
-    {
-        assert(0 && "Type mismatch");
-    };
-
-
-    template<typename F1, typename F2>
-    void projAccumulate(const std::vector<F1> &in, std::vector<F1> &out,
-                        const std::vector<F2>& evec,
-                        const std::vector<RealD>& eval,
-                        const unsigned int ei, const unsigned int ef,
-                        const unsigned int si, const unsigned int sf)
-    {
-        projAccumulateImpl(in, out, evec, eval, ei, ef, si, sf,
-                        std::integral_constant<bool, std::is_same<F1,F2>::value>{});
-    }
 private:
     const std::vector<EPackField> &  evec_;
     const std::vector<RealD> &  eval_;
