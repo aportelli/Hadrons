@@ -1,5 +1,5 @@
-#ifndef Hadrons_MDistil_DistilMesonField_hpp_
-#define Hadrons_MDistil_DistilMesonField_hpp_
+#ifndef Hadrons_MDistil_DistilMesonFieldPinned_hpp_
+#define Hadrons_MDistil_DistilMesonFieldPinned_hpp_
 
 #include <Hadrons/Global.hpp>
 #include <Hadrons/Module.hpp>
@@ -11,15 +11,19 @@
 
 BEGIN_HADRONS_NAMESPACE
 
-/******************************************************************************
- *                         DistilMesonField                                 *
- ******************************************************************************/
+/*******************************************************************
+ *                         DistilMesonFieldPinned                        *
+ * Receives LapH eigenvectors and perambulator/noise.              *
+ * Computes DistilMesonFieldPinneds by block (of spin-lap dilution size) *
+ * and save them to H5 files.                                      *
+ *******************************************************************/
+
 BEGIN_MODULE_NAMESPACE(MDistil)
 
-class DistilMesonFieldPar: Serializable
+class DistilMesonFieldPinnedPar: Serializable
 {
 public:
-    GRID_SERIALIZABLE_CLASS_MEMBERS(DistilMesonFieldPar,
+    GRID_SERIALIZABLE_CLASS_MEMBERS(DistilMesonFieldPinnedPar,
                                     std::string,                outPath,
                                     std::string,                lapEigenPack,
                                     std::string,                leftNoise,
@@ -38,7 +42,7 @@ public:
 };
 
 template <typename FImpl>
-class TDistilMesonField: public Module<DistilMesonFieldPar>
+class TDistilMesonFieldPinned: public Module<DistilMesonFieldPinnedPar>
 {
 public:
     FERM_TYPE_ALIASES(FImpl,);
@@ -49,9 +53,9 @@ public:
     typedef typename Computation::DistillationNoise DistillationNoise;
 public:
     // constructor
-    TDistilMesonField(const std::string name);
+    TDistilMesonFieldPinned(const std::string name);
     // destructor
-    virtual ~TDistilMesonField(void) {};
+    virtual ~TDistilMesonFieldPinned(void) {};
     // dependency relation
     virtual std::vector<std::string> getInput(void);
     virtual std::vector<std::string> getOutput(void);
@@ -72,20 +76,21 @@ private:
     std::vector<unsigned int>           delta_t_list_;
 };
 
-MODULE_REGISTER_TMP(DistilMesonField, TDistilMesonField<FIMPL>, MDistil);
+MODULE_REGISTER_TMP(DistilMesonFieldPinned, TDistilMesonFieldPinned<FIMPL>, MDistil);
 
 /******************************************************************************
- *                 TDistilMesonField implementation                             *
+ *                 TDistilMesonFieldPinned implementation                             *
  ******************************************************************************/
 // constructor /////////////////////////////////////////////////////////////////
 template <typename FImpl>
-TDistilMesonField<FImpl>::TDistilMesonField(const std::string name)
-: Module<DistilMesonFieldPar>(name)
-{}
+TDistilMesonFieldPinned<FImpl>::TDistilMesonFieldPinned(const std::string name)
+: Module<DistilMesonFieldPinnedPar>(name)
+{
+}
 
 // dependencies/products ///////////////////////////////////////////////////////
 template <typename FImpl>
-std::vector<std::string> TDistilMesonField<FImpl>::getInput(void)
+std::vector<std::string> TDistilMesonFieldPinned<FImpl>::getInput(void)
 {   
     std::vector<std::string> in = {par().lapEigenPack, par().leftNoise, par().rightNoise};
 
@@ -105,16 +110,15 @@ std::vector<std::string> TDistilMesonField<FImpl>::getInput(void)
 }
 
 template <typename FImpl>
-std::vector<std::string> TDistilMesonField<FImpl>::getOutput(void)
+std::vector<std::string> TDistilMesonFieldPinned<FImpl>::getOutput(void)
 {
-    std::vector<std::string> out = {getName()};
-    
+    std::vector<std::string> out = {};
     return out;
 }
 
 // setup ///////////////////////////////////////////////////////////////////////
 template <typename FImpl>
-void TDistilMesonField<FImpl>::setup(void)
+void TDistilMesonFieldPinned<FImpl>::setup(void)
 {
     if( envHasDerivedType(DistillationNoise, ExactDistillationPolicy<FImpl>, par().leftNoise)
         and envHasDerivedType(DistillationNoise, ExactDistillationPolicy<FImpl>, par().rightNoise) )
@@ -240,7 +244,7 @@ void TDistilMesonField<FImpl>::setup(void)
 
 // execution ///////////////////////////////////////////////////////////////////
 template <typename FImpl>
-void TDistilMesonField<FImpl>::execute(void)
+void TDistilMesonFieldPinned<FImpl>::execute(void)
 {
     // temps
     envGetTmp(DistilVector, dvl);
@@ -443,7 +447,6 @@ void TDistilMesonField<FImpl>::execute(void)
 }
 
 END_MODULE_NAMESPACE
-
 END_HADRONS_NAMESPACE
 
-#endif // Hadrons_MDistil_DistilMesonField_hpp_
+#endif // Hadrons_MDistil_DistilMesonFieldPinned_hpp_

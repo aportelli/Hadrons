@@ -49,10 +49,10 @@ const std::vector<Side> sides =  {Side::left,Side::right};  //for easy looping o
 
 // metadata serialiser class
 template <typename FImpl>
-class DistilMesonFieldMetadata: Serializable
+class DistilMesonFieldPinnedMetadata: Serializable
 {
 public:
-    GRID_SERIALIZABLE_CLASS_MEMBERS(DistilMesonFieldMetadata,
+    GRID_SERIALIZABLE_CLASS_MEMBERS(DistilMesonFieldPinnedMetadata,
                                     unsigned int,                               Nt,
                                     unsigned int,                               Nvec,
                                     std::vector<RealF>,                         Momentum,
@@ -308,7 +308,7 @@ public:
     typedef typename DistillationNoise::Index Index;
     typedef typename DistillationNoise::LapPack LapPack;
     typedef std::function<std::string(const unsigned int, const unsigned int, const int, const int)>  FilenameFn;
-    typedef std::function<DistilMesonFieldMetadata<FImpl>(const unsigned int, const unsigned int, const int, const int, DilutionMap, DilutionMap)>  MetadataFn;
+    typedef std::function<DistilMesonFieldPinnedMetadata<FImpl>(const unsigned int, const unsigned int, const int, const int, DilutionMap, DilutionMap)>  MetadataFn;
 public:
     long    blockCounter_ = 0;
     double  blockFlops_ = 0.0, blockBytes_ = 0.0, blockIoSpeed_ = 0.0;
@@ -821,7 +821,7 @@ void DmfComputation<FImpl,T,Tio>
                                     (i==0) and (j==0) )  //first IO block
                                 {
                                     //fetch metadata
-                                    DistilMesonFieldMetadata<FImpl> md = metadataDmfFn(iext,istr,n_idx.at(Side::left),n_idx.at(Side::right),fetchDilutionMap(Side::left),fetchDilutionMap(Side::right));
+                                    DistilMesonFieldPinnedMetadata<FImpl> md = metadataDmfFn(iext,istr,n_idx.at(Side::left),n_idx.at(Side::right),fetchDilutionMap(Side::left),fetchDilutionMap(Side::right));
                                     //init file and write metadata
                                     START_TIMER("IO: file creation");
                                     matrix_io.initFile(md);
@@ -833,7 +833,7 @@ void DmfComputation<FImpl,T,Tio>
                             }
                             g_->Barrier();
 #else
-    HADRONS_ERROR(Implementation, "DistilMesonField serial IO not implemented.");
+    HADRONS_ERROR(Implementation, "DistilMesonFieldPinned serial IO not implemented.");
 #endif              
                             STOP_TIMER("IO: total");
                             ioTime    += GET_TIMER("IO: write block");
