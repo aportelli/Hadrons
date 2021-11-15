@@ -7,6 +7,7 @@
 #include <Hadrons/NamedTensor.hpp>
 #include <Hadrons/TimerArray.hpp>
 #include <Hadrons/Modules/MDistil/DistilUtils.hpp>
+#include <Hadrons/DistillationVectors.hpp>
 
 #ifndef HADRONS_DISTIL_IO_TYPE
 #define HADRONS_DISTIL_IO_TYPE ComplexF
@@ -307,6 +308,7 @@ public:
     typedef std::vector<FermionField> DistilVector;
     typedef typename DistillationNoise::Index Index;
     typedef typename DistillationNoise::LapPack LapPack;
+    typedef std::function<std::string(const unsigned int, const unsigned int, const int, const int)>  TrajNumberFn;
     typedef std::function<std::string(const unsigned int, const unsigned int, const int, const int)>  FilenameFn;
     typedef std::function<DistilMesonFieldMetadata<FImpl>(const unsigned int, const unsigned int, const int, const int, DilutionMap, DilutionMap)>  MetadataFn;
 public:
@@ -322,12 +324,14 @@ private:
     std::vector<T>                      cBuf_;
     const unsigned int                  blockSize_; //eventually turns into io chunk size
     const unsigned int                  cacheSize_;
+    const unsigned int                  traj_;
     const unsigned int                  nt_, nd_, nExt_, nStr_;
     const bool                          isExact_;
     bool                                isInitFile_=false;
     std::map<Side, unsigned int>        dilSizeLS_;
     std::map<Side, DistillationNoise&>  distilNoise_;
     const unsigned int                  dvBatchSize_ = DISTILVECTOR_TIME_BATCH_SIZE;
+    std::map<Side, std::string>         vectorStem_={{Side::left,""},{Side::right,""}};
 public:
     DmfComputation(std::map<Side,std::string>   mf_type,
                    GridCartesian*               g,
@@ -339,7 +343,10 @@ public:
                    const unsigned int           nt,
                    const unsigned int           n_ext,
                    const unsigned int           n_str,
-                   const bool                   is_exact);
+                   const bool                   is_exact,
+                   const unsigned int           traj,
+                   const std::string            left_vector_stem="",
+                   const std::string            right_vector_stem="");
     bool isPhi(Side s);
     bool isRho(Side s);
     DilutionMap fetchDilutionMap(Side s);
@@ -350,6 +357,12 @@ private:
                           const unsigned int    D,
                           PerambTensor&         peramb,
                           LapPack&              epack);
+    void loadPhiComponent(FermionField&            phi_component,
+                          DistillationNoise&       n,
+                          const unsigned int       D,
+                          std::string              vector_stem,
+                          PerambTensor&            peramb,
+                          LapPack&                 epack);
     void makeRhoComponent(FermionField&         rho_component,
                           DistillationNoise&    n,
                           const unsigned int    n_idx,
@@ -431,10 +444,13 @@ DmfComputation<FImpl,T,Tio>
                  const unsigned int             nt,
                  const unsigned int             n_ext,
                  const unsigned int             n_str,
-                 const bool                     is_exact)
+                 const bool                     is_exact,
+                 const unsigned int             traj,
+                 const std::string              left_vector_stem,
+                 const std::string              right_vector_stem)
 : dmfType_(mf_type), g_(g), g3d_(g3d), evec3d_(g3d), tmp3d_(g3d), tmp4d_(g)
 , nt_(nt) , nd_(g->Nd()), blockSize_(block_size) , cacheSize_(cache_size)
-, nExt_(n_ext) , nStr_(n_str) , isExact_(is_exact)
+, nExt_(n_ext) , nStr_(n_str) , isExact_(is_exact), traj_(traj)
 {
     cBuf_.resize(nExt_*nStr_*nt_*cacheSize_*cacheSize_);
     bBuf_.resize(nExt_*nStr_*nt_*blockSize_*blockSize_); //maximum size
@@ -442,6 +458,8 @@ DmfComputation<FImpl,T,Tio>
     distilNoise_ = std::map<Side, DistillationNoise&> ({{Side::left,nl},{Side::right,nr}});
     dilSizeLS_ = { {Side::left,nl.dilutionSize(Index::l)*nl.dilutionSize(Index::s)} ,
                              {Side::right,nr.dilutionSize(Index::l)*nr.dilutionSize(Index::s)} };
+
+    vectorStem_ = { {Side::left,left_vector_stem} , {Side::right,right_vector_stem}};
 }
 
 template <typename FImpl, typename T, typename Tio>
@@ -500,6 +518,20 @@ void DmfComputation<FImpl,T,Tio>
 
 template <typename FImpl, typename T, typename Tio>
 void DmfComputation<FImpl,T,Tio>
+::loadPhiComponent(FermionField&            phi_component,
+                   DistillationNoise&       n,
+                   const unsigned int       D,
+                   std::string              vector_stem,
+                   PerambTensor&            peramb,
+                   LapPack&                 epack)
+{
+    const unsigned int nVec = epack.evec.size();
+    DistillationVectorsIo::readComponent(phi_component, vector_stem, n.size(),
+				    n.dilutionSize(Index::l), n.dilutionSize(Index::s), n.dilutionSize(Index::t), peramb.MetaData.timeSources, D, traj_);
+}
+
+template <typename FImpl, typename T, typename Tio>
+void DmfComputation<FImpl,T,Tio>
 ::makeRhoComponent(FermionField&        rho_component,
                    DistillationNoise&   n,
                    const unsigned int   n_idx,
@@ -527,7 +559,14 @@ void DmfComputation<FImpl,T,Tio>
         unsigned int D = iD + D_offset - iD_offset;
         if(isPhi(s))
         {
-            makePhiComponent(dv.at(s)[iD] , distilNoise_.at(s) , n_idx.at(s) , D , peramb.at(s), epack);
+            if(vectorStem_.at(s).empty())
+            {
+                makePhiComponent(dv.at(s)[iD] , distilNoise_.at(s) , n_idx.at(s) , D , peramb.at(s), epack);
+            }
+            else
+            {
+                loadPhiComponent(dv.at(s)[iD] , distilNoise_.at(s) , D , vectorStem_.at(s), peramb.at(s), epack);
+            }
         }
         else if(isRho(s))
         {
@@ -877,18 +916,12 @@ void DmfComputation<FImpl,T,Tio>
     for (unsigned int ibatchL=0 ; ibatchL<time_dil_source.at(Side::left).size()/dvBatchSize_ ; ibatchL++)   //loop over left dv batches
     {
         std::vector<unsigned int> batch_dtL = fetchDvBatchIdxs(ibatchL,time_dil_source.at(Side::left));
-        START_TIMER("distil vectors");
-        makeDvLapSpinBatch(dv, n_idx, epack, Side::left, batch_dtL, peramb);
-        STOP_TIMER("distil vectors");
         for (unsigned int idtL=0 ; idtL<batch_dtL.size() ; idtL++)
         {
             unsigned int dtL = batch_dtL[idtL];
             for (unsigned int ibatchR=0 ; ibatchR<time_dil_source.at(Side::right).size()/dvBatchSize_ ; ibatchR++)  //loop over right dv batches
             {
                 std::vector<unsigned int> batch_dtR = fetchDvBatchIdxs(ibatchR,time_dil_source.at(Side::right));
-                START_TIMER("distil vectors");
-                makeDvLapSpinBatch(dv, n_idx, epack, Side::right, batch_dtR, peramb);
-                STOP_TIMER("distil vectors");
                 for (unsigned int idtR=0 ; idtR<batch_dtR.size() ; idtR++)
                 {
                     unsigned int dtR = batch_dtR[idtR];
@@ -923,6 +956,11 @@ void DmfComputation<FImpl,T,Tio>
                     {
                         LOG(Message) << "------------------------ " << dtL << "-" << dtR << " ------------------------" << std::endl; 
                         LOG(Message) << "Saving time slices : " << MDistil::timeslicesDump(ts_intersection) << std::endl;
+
+                        START_TIMER("distil vectors");
+                        makeDvLapSpinBatch(dv, n_idx, epack, Side::left, batch_dtL, peramb);
+                        makeDvLapSpinBatch(dv, n_idx, epack, Side::right, batch_dtR, peramb);
+                        STOP_TIMER("distil vectors");
 
                         unsigned int nblocki = dilSizeLS_.at(Side::left)/blockSize_ + (((dilSizeLS_.at(Side::left) % blockSize_) != 0) ? 1 : 0);
                         unsigned int nblockj = dilSizeLS_.at(Side::right)/blockSize_ + (((dilSizeLS_.at(Side::right) % blockSize_) != 0) ? 1 : 0);

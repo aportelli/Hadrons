@@ -29,6 +29,8 @@ public:
                                     std::string,                rightTimeSources,
                                     std::string,                leftPeramb,
                                     std::string,                rightPeramb,
+                                    std::string,                leftVectorStem,
+                                    std::string,                rightVectorStem,
                                     unsigned int,               blockSize,
                                     unsigned int,               cacheSize,
                                     std::string,                onlyDiagonal,
@@ -68,6 +70,8 @@ private:
     std::map<Side,std::string>          dmfType_;
     std::vector<unsigned int>           tSourceL_;
     std::vector<unsigned int>           tSourceR_;
+    std::map<Side, std::string>         perambNames_;
+    std::map<Side, std::string>         vectorNames_;
 };
 
 MODULE_REGISTER_TMP(DistilMesonField, TDistilMesonField<FIMPL>, MDistil);
@@ -88,9 +92,10 @@ std::vector<std::string> TDistilMesonField<FImpl>::getInput(void)
     std::vector<std::string> in = {par().lapEigenPack, par().leftNoise, par().rightNoise};
 
     //define meson field type (if a peramb object, set to phi, rho otherwise)
-    dmfType_.emplace(Side::left   , par().leftPeramb.empty()  ? "rho" : "phi");
-    dmfType_.emplace(Side::right  , par().rightPeramb.empty() ? "rho" : "phi");
-
+    dmfType_.emplace(Side::left   , (par().leftPeramb.empty()  and par().leftVectorStem.empty() ) ? "rho" : "phi");
+    dmfType_.emplace(Side::right  , (par().rightPeramb.empty() and par().rightVectorStem.empty()) ? "rho" : "phi");
+    perambNames_ = {{Side::left,par().leftPeramb},{Side::right,par().rightPeramb}};
+    vectorNames_ = {{Side::left,par().leftVectorStem},{Side::right,par().rightVectorStem}};
     //require peramb dependency if phi case
     for(Side s : sides)
     {
@@ -196,7 +201,7 @@ void TDistilMesonField<FImpl>::setup(void)
     envTmp(DistilVector,                "dvl",          1, DISTILVECTOR_TIME_BATCH_SIZE*dilSizeLS_.at(Side::left), g);
     envTmp(DistilVector,                "dvr",          1, DISTILVECTOR_TIME_BATCH_SIZE*dilSizeLS_.at(Side::right), g);
     envTmp(Computation,                 "computation",  1, dmfType_, g, g3d, noisel, noiser, par().blockSize, 
-                par().cacheSize, env().getDim(g->Nd() - 1), momenta_.size(), gamma_.size(), isExact_);
+                par().cacheSize, env().getDim(g->Nd() - 1), momenta_.size(), gamma_.size(), isExact_, vm().getTrajectory(), par().leftVectorStem, par().rightVectorStem);
 }
 
 // execution ///////////////////////////////////////////////////////////////////
@@ -231,13 +236,12 @@ void TDistilMesonField<FImpl>::execute(void)
 
     // fetch time sources input
     std::map<Side, std::vector<unsigned int>> time_sources = {{Side::left,tSourceL_},{Side::right,tSourceR_}};
-    std::map<Side, std::string> peramb_input = {{Side::left,par().leftPeramb},{Side::right,par().rightPeramb}}; // perambulator time sources
     std::map<Side, std::vector<int>> ts_peramb;
     for(Side s : sides)     
     {
         if(computation.isPhi(s))
         {
-            auto & inPeramb = envGet(PerambTensor , peramb_input.at(s));
+            auto & inPeramb = envGet(PerambTensor , perambNames_.at(s));
             ts_peramb.emplace(s , inPeramb.MetaData.timeSources);
             if(time_sources.at(s).empty())  //in case it's empty and it's a phi, include all available peramb time sources
             {
@@ -354,6 +358,10 @@ void TDistilMesonField<FImpl>::execute(void)
         LOG(Message) << "Only diagonal setting is on" << std::endl;
     }
     LOG(Message) << "Distil vector batch size (time-dilution direction) : " << DISTILVECTOR_TIME_BATCH_SIZE << std::endl;
+    if(!par().leftVectorStem.empty())
+        LOG(Message) << "Reading left vector from " << par().leftVectorStem << std::endl;
+    if(!par().rightVectorStem.empty())
+        LOG(Message) << "Reading right vector from " << par().rightVectorStem << std::endl;
     LOG(Message) << "Selected time-dilution partitions :"   << std::endl;
     LOG(Message) << " Left : " << MDistil::timeslicesDump(time_sources.at(Side::left)) << std::endl;
     LOG(Message) << " Right : " << MDistil::timeslicesDump(time_sources.at(Side::right)) << std::endl;
@@ -384,8 +392,8 @@ void TDistilMesonField<FImpl>::execute(void)
             std::map<Side, PerambTensor&> peramb;
             for(Side s : sides)
             {
-                if(computation.isPhi(s)){
-                    PerambTensor &perambtemp = envGet( PerambTensor , s==Side::left ? par().leftPeramb : par().rightPeramb);
+                if(computation.isPhi(s) and !perambNames_.at(s).empty()){
+                    PerambTensor &perambtemp = envGet( PerambTensor , perambNames_.at(s));
                     peramb.emplace(s , perambtemp);
                 }
             }

@@ -239,7 +239,7 @@ void TDistilMesonFieldPinned<FImpl>::setup(void)
     envTmp(DistilVector,                "dvl",          1, dilSizeT.at(Side::left)*dilSizeLS_.at(Side::left), g);
     envTmp(DistilVector,                "dvr",          1, dilSizeT.at(Side::right)*dilSizeLS_.at(Side::right), g);
     envTmp(Computation,                 "computation",  1, dmfType_, g, g3d, noisel, noiser, par().blockSize, 
-                par().cacheSize, env().getDim(g->Nd() - 1), momenta_.size(), gamma_.size(), isExact_);
+                par().cacheSize, env().getDim(g->Nd() - 1), momenta_.size(), gamma_.size(), isExact_, vm().getTrajectory(), "", "");
 }
 
 // execution ///////////////////////////////////////////////////////////////////
