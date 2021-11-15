@@ -239,7 +239,7 @@ void TDistilMesonFieldPinned<FImpl>::setup(void)
     envTmp(DistilVector,                "dvl",          1, dilSizeT.at(Side::left)*dilSizeLS_.at(Side::left), g);
     envTmp(DistilVector,                "dvr",          1, dilSizeT.at(Side::right)*dilSizeLS_.at(Side::right), g);
     envTmp(Computation,                 "computation",  1, dmfType_, g, g3d, noisel, noiser, par().blockSize, 
-                par().cacheSize, env().getDim(g->Nd() - 1), momenta_.size(), gamma_.size(), isExact_, pinned_side_, delta_t_list_);
+                par().cacheSize, env().getDim(g->Nd() - 1), momenta_.size(), gamma_.size(), isExact_);
 }
 
 // execution ///////////////////////////////////////////////////////////////////
@@ -259,7 +259,7 @@ void TDistilMesonFieldPinned<FImpl>::execute(void)
     const unsigned int nd   = g->Nd();
     const unsigned int nt   = env().getDim(nd - 1);
     typedef std::function<std::string(const unsigned int, const unsigned int, const int, const int)>  FilenameFn;
-    typedef std::function<DistilMesonFieldPinnedMetadata<FImpl>(const unsigned int, const unsigned int, const int, const int)>  MetadataFn;
+    typedef std::function<DistilMesonFieldMetadata<FImpl>(const unsigned int, const unsigned int, const int, const int)>  MetadataFn;
     std::map<Side, DistilVector & > dist_vecs = {{Side::left,dvl}  ,{Side::right,dvr}};
     DistillationNoise &noisel = envGet( DistillationNoise , par().leftNoise);
     DistillationNoise &noiser = envGet( DistillationNoise , par().rightNoise);
@@ -335,7 +335,7 @@ void TDistilMesonFieldPinned<FImpl>::execute(void)
 
     auto metadataDmfFn = [this, &nt, &nVec, &noisel, &noiser](const unsigned int m, const unsigned int o, const unsigned int nl, const unsigned int nr, DilutionMap lmap, DilutionMap rmap)
     {
-        DistilMesonFieldPinnedMetadata<FImpl> md;
+        DistilMesonFieldMetadata<FImpl> md;
         for (auto pmu: momenta_[m])
         {
             md.Momentum.push_back(pmu);
@@ -431,11 +431,11 @@ void TDistilMesonFieldPinned<FImpl>::execute(void)
                     peramb.emplace(s , perambtemp);
                 }
             }
-            computation.execute(filenameDmfFn, metadataDmfFn, gamma_, dist_vecs, noise_idx, phase, time_sources, epack, this, peramb);
+            computation.executePinned(filenameDmfFn, metadataDmfFn, gamma_, dist_vecs, noise_idx, phase, time_sources, epack, this, pinned_side_, delta_t_list_, peramb);
         }
         else
         {
-            computation.execute(filenameDmfFn, metadataDmfFn, gamma_, dist_vecs, noise_idx, phase, time_sources, epack, this);
+            computation.executePinned(filenameDmfFn, metadataDmfFn, gamma_, dist_vecs, noise_idx, phase, time_sources, epack, this, pinned_side_, delta_t_list_);
         }
         LOG(Message) << "Meson fields saved to " << outputMFPath_ << std::endl;
     }
