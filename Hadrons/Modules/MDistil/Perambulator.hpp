@@ -39,6 +39,11 @@
 #include <Hadrons/Modules/MDistil/DistilUtils.hpp>
 
 BEGIN_HADRONS_NAMESPACE
+
+#define START_P_TIMER(name) if (this) this->startTimer(name)
+#define STOP_P_TIMER(name)  if (this) this->stopTimer(name)
+// #define GET_TIMER(name)   ((this != nullptr) ? this->getDTimer(name) : 0.)
+
 BEGIN_MODULE_NAMESPACE(MDistil)
 
 /******************************************************************************
@@ -46,9 +51,6 @@ BEGIN_MODULE_NAMESPACE(MDistil)
  ******************************************************************************/
 
 GRID_SERIALIZABLE_ENUM(pMode, undef, perambOnly, 0, inputSolve, 1, outputSolve, 2, saveSolve, 3);
-
-
-
 
 class PerambulatorPar: Serializable
 {
@@ -140,11 +142,12 @@ void TPerambulator<FImpl>::setup(void)
     int nDS = dilNoise.dilutionSize(DistillationNoise<FImpl>::Index::s);	
     int nDT = dilNoise.dilutionSize(DistillationNoise<FImpl>::Index::t);
     pMode perambMode{par().perambMode};
-    // get nVec from DilutedNoise class, unless specified here. This is useful (and allowed) only in the inputSolve mode, where an already computed full solve can be recycled to compute a new perambulator with a smaller nVec.   
+    // get nVec from DilutedNoise class, unless specified here. This is useful (and allowed) only in the inputSolve mode, 
+    // where an already computed full solve can be recycled to compute a new perambulator with a smaller nVec.   
     int nVec=0;
     if(par().nVec.empty())
     {
-	nVec = dilNoise.getNl();
+	    nVec = dilNoise.getNl();
     }
     else
     {
@@ -158,13 +161,15 @@ void TPerambulator<FImpl>::setup(void)
     {
         HADRONS_ERROR(Argument, "only perambMode = inputSolve supports a different nVec to the one specified in DilutedNoise");
     }
-    // If we run with reduced nVec we still need the same DilutedNoise object, we have to keep track of two different values of nDL: the one used for the original full solve, and the one used in this module execution 
+    // If we run with reduced nVec we still need the same DilutedNoise object, we have to keep track of two different values of nDL:
+    // the one used for the original full solve, and the one used in this module execution 
     int nDL_reduced=nDL;
     if(nDL>nVec)
     {
         nDL_reduced=nVec;
     }
-    // read in and verify the format of the vector of time sources used in this module execution. Must be a subset of available time dilution indices.
+    // Read in and verify the format of the vector of time sources used in this module execution. 
+    // It must be a subset of available time dilution indices.
     int nSourceT;
     std::string sourceT = par().timeSources;
     nSourceT = verifyTimeSourcesInput(sourceT, nDT);
@@ -176,7 +181,7 @@ void TPerambulator<FImpl>::setup(void)
     {
         LOG(Message)<< "setting up output field for full solves" << std::endl;
         envCreate(std::vector<FermionField>, getName()+"_full_solve", 1, nNoise*nDL*nDS*nSourceT,
-                  envGetGrid(FermionField));
+        envGetGrid(FermionField));
     }
     
     envTmpLat(FermionField,      "dist_source");
@@ -205,7 +210,7 @@ void TPerambulator<FImpl>::execute(void)
     int nVec=0;
     if(par().nVec.empty())
     {
-	nVec = dilNoise.getNl();
+	    nVec = dilNoise.getNl();
     }
     else
     {
@@ -251,89 +256,107 @@ void TPerambulator<FImpl>::execute(void)
         for (int d = 0; d < nD; d++)
         {
             index = dilNoise.dilutionCoordinates(d);
-   	    dt = index[DistillationNoise<FImpl>::Index::t];
-   	    dk = index[DistillationNoise<FImpl>::Index::l];
-   	    //skip laplacian dilution indices which are larger than (reduced) number of eigenvectors used for the perambulator 
-	    if(dk>=nDL_reduced)
-	    {
-   	        continue;
-	    }
-   	    ds = index[DistillationNoise<FImpl>::Index::s];
-	    std::vector<int>::iterator it = std::find(std::begin(invT), std::end(invT), dt);
-   	    //skip dilution indices which are not in invT
-   	    if(it == std::end(invT))
-   	    {
-   	        continue;
-   	    }
-	    idt=it - std::begin(invT);
+            dt = index[DistillationNoise<FImpl>::Index::t];
+            dk = index[DistillationNoise<FImpl>::Index::l];
+            // Skip laplacian dilution indices which are larger than (reduced) number of eigenvectors used for the perambulator 
+            if(dk>=nDL_reduced)
+            {
+                continue;
+            }
+            ds = index[DistillationNoise<FImpl>::Index::s];
+            std::vector<int>::iterator it = std::find(std::begin(invT), std::end(invT), dt);
+            // Skip dilution indices which are not in invT
+            if(it == std::end(invT))
+            {
+                continue;
+            }
+	        idt=it - std::begin(invT);
             if(perambMode == pMode::inputSolve)
-   	    {
+   	        {
+                START_P_TIMER("input solve");
                 auto &solveIn         = envGet(std::vector<FermionField>, par().fullSolve);
-   	        // index of the solve just has the reduced time dimension & uses nDL from solveIn
-   	        dIndexSolve = ds + nDS * dk + nDL * nDS * idt;
+                // Index of the solve just has the reduced time dimension & uses nDL from solveIn
+                dIndexSolve = ds + nDS * dk + nDL * nDS * idt;
                 fermion4dtmp = solveIn[inoise+nNoise*dIndexSolve];
-		LOG(Message) <<  "re-using source vector: noise " << inoise << " dilution (d_t,d_k,d_alpha) : (" << dt << ","<< dk << "," << ds << ")" << std::endl;
-   	    } 
-   	    else 
-   	    {
+                STOP_P_TIMER("input solve");
+		        LOG(Message) <<  "re-using source vector: noise " << inoise << " dilution (d_t,d_k,d_alpha) : (" << dt << ","<< dk << "," << ds << ")" << std::endl;
+   	        } 
+            else 
+            {
                 dist_source = dilNoise.makeSource(d,inoise);
                 fermion4dtmp=0;
                 auto &solver=envGet(Solver, par().solver);
                 auto &mat = solver.getFMat();
                 if (Ls_ == 1)
-		{
+		        {
+                    START_P_TIMER("solver");
                     solver(fermion4dtmp, dist_source);
-		}
-		else
+                    START_P_TIMER("solver");
+                }
+                else
                 {
+                    START_P_TIMER("solver handling");
                     envGetTmp(FermionField,      v5dtmp);
                     envGetTmp(FermionField,      v5dtmp_sol);
                     mat.ImportPhysicalFermionSource(dist_source, v5dtmp);
+                    STOP_P_TIMER("solver handling");
+                    START_P_TIMER("solver");
                     solver(v5dtmp_sol, v5dtmp);
+                    STOP_P_TIMER("solver");
+                    START_P_TIMER("solver handling");
                     mat.ExportPhysicalFermionSolution(v5dtmp_sol, fermion4dtmp);
+                    STOP_P_TIMER("solver handling");
                 }
                 if(perambMode == pMode::outputSolve)
                 {
-   	            // index of the solve just has the reduced time dimension 
-   	            dIndexSolve = ds + nDS * dk + nDL * nDS * idt;
+   	                // Index of the solve just has the reduced time dimension 
+                    START_P_TIMER("output solve");
+   	                dIndexSolve = ds + nDS * dk + nDL * nDS * idt;
                     auto &solveOut = envGet(std::vector<FermionField>, getName()+"_full_solve");
                     solveOut[inoise+nNoise*dIndexSolve] = fermion4dtmp;
-		}
+                    STOP_P_TIMER("ouptut solve");
+		        }
                 if(perambMode == pMode::saveSolve)
                 {
-   	            // index of the solve just has the reduced time dimension 
-   	            dIndexSolve = dilNoise.dilutionIndex(dt,dk,ds);
+   	                // Index of the solve just has the reduced time dimension
+                    START_P_TIMER("save solve");
+   	                dIndexSolve = dilNoise.dilutionIndex(dt,dk,ds);
                     std::string sFileName(par().fullSolveFileName);
                     sFileName.append("_noise");
                     sFileName.append(std::to_string(inoise));
                     DistillationVectorsIo::writeComponent(sFileName, fermion4dtmp, "fullSolve", nNoise, nDL, nDS, nDT, invT, inoise+nNoise*dIndexSolve, vm().getTrajectory());
+                    STOP_P_TIMER("save solve");
                 }
-   	    }
+   	        }
+            START_P_TIMER("perambulator computation");
             for (int is = 0; is < Ns; is++)
             {
                 cv4dtmp = peekSpin(fermion4dtmp,is);
                 for (int t = Ntfirst; t < Ntfirst + Ntlocal; t++)
                 {
                     ExtractSliceLocal(cv3dtmp,cv4dtmp,0,t-Ntfirst,Tdir); 
-   	            for (int ivec = 0; ivec < nVec; ivec++)
+   	                for (int ivec = 0; ivec < nVec; ivec++)
                     {
                         ExtractSliceLocal(evec3d,epack.evec[ivec],0,t-Ntfirst,Tdir);
                         pokeSpin(perambulator.tensor(t, ivec, dk, inoise,idt,ds),static_cast<Complex>(innerProduct(evec3d, cv3dtmp)),is);
                     }
                 }
             }
+            STOP_P_TIMER("perambulator computation");
         }
     }
     // Now share my timeslice data with other members of the grid
+    START_P_TIMER("perambulator sharing");
     const int NumSlices{grid4d->_processors[Tdir] / grid3d->_processors[Tdir]};
     if (NumSlices > 1)
     {
         LOG(Debug) <<  "Sharing perambulator data with other nodes" << std::endl;
         const int MySlice {grid4d->_processor_coor[Tdir]};
         const int TensorSize {static_cast<int>(perambulator.tensor.size() * PerambTensor::Traits::count)};
-        if (TensorSize != perambulator.tensor.size() * PerambTensor::Traits::count){
-	    HADRONS_ERROR(Range, "peramb size overflow");
-	}
+        if (TensorSize != perambulator.tensor.size() * PerambTensor::Traits::count)
+        {
+	        HADRONS_ERROR(Range, "peramb size overflow");
+        }
         const int SliceCount {TensorSize/NumSlices};
         using InnerScalar = typename PerambTensor::Traits::scalar_type;
         InnerScalar * const PerambData {EigenIO::getFirstScalar( perambulator.tensor )};
@@ -351,51 +374,56 @@ void TPerambulator<FImpl>::execute(void)
         }
         grid4d->GlobalSumVector(PerambData, TensorSize);
     }
+    STOP_P_TIMER("perambulator sharing");
     
     // Save the perambulator to disk from the boss node
     if (grid4d->IsBoss() && !par().perambFileName.empty())
     {
+        START_P_TIMER("perambulator io");
         envGetTmp(PerambIndexTensor, PerambDT);
-	std::vector<std::string> nHash = dilNoise.generateHash();
-	PerambDT.MetaData.noiseHashes = nHash;
-	PerambDT.MetaData.Version = "0.1";
+        std::vector<std::string> nHash = dilNoise.generateHash();
+        PerambDT.MetaData.noiseHashes = nHash;
+        PerambDT.MetaData.Version = "0.1";
         for (int dt = 0; dt < Nt; dt++)
         {
             std::vector<int>::iterator it = std::find(std::begin(invT), std::end(invT), dt);
-            //skip dilution indices which are not in invT
+            // Skip dilution indices which are not in invT
             if(it == std::end(invT))
             {
                 continue;
             }
     	    LOG(Message) <<  "saving perambulator dt= " << dt << std::endl;
-	    idt=it - std::begin(invT);
+	        idt=it - std::begin(invT);
             std::string sPerambName {par().perambFileName};
             sPerambName.append("/iDT_");
             sPerambName.append(std::to_string(dt));
             sPerambName.append(".");
             sPerambName.append(std::to_string(vm().getTrajectory()));
             makeFileDir(sPerambName, grid4d);
-	    for (int t = 0; t < Nt; t++)
+	        for (int t = 0; t < Nt; t++)
             for (int ivec = 0; ivec < nVec; ivec++)
             for (int idl = 0; idl < nDL_reduced; idl++)
             for (int in = 0; in < nNoise; in++)
             for (int ids = 0; ids < nDS; ids++)
-	    {
-	        PerambDT.tensor(t,ivec,idl,in,ids) = perambulator.tensor(t,ivec,idl,in,idt,ids);
-	    }
+            {
+                PerambDT.tensor(t,ivec,idl,in,ids) = perambulator.tensor(t,ivec,idl,in,idt,ids);
+            }
        	    PerambDT.MetaData.timeDilutionIndex = dt;
             PerambDT.write(sPerambName.c_str());
-	}
+	    }
+        STOP_P_TIMER("perambulator io");
     }
 
     // Also save the full sink if specified
     std::string sFileName(par().fullSolveFileName);
     if(perambMode == pMode::outputSolve && !sFileName.empty())
     {
-	//TODO: Add (at least) sourceTimes as metadata.
+        START_P_TIMER("output solve io");
+	    // TODO: Add (at least) sourceTimes as metadata.
         auto &solveOut = envGet(std::vector<FermionField>, getName()+"_full_solve");
-	bool multiFileFullSolve = (par().multiFileFullSolve == "true" || par().multiFileFullSolve == "True" || par().multiFileFullSolve == "1");
+	    bool multiFileFullSolve = (par().multiFileFullSolve == "true" || par().multiFileFullSolve == "True" || par().multiFileFullSolve == "1");
         DistillationVectorsIo::write(sFileName, solveOut, "fullSolve", nNoise, nDL, nDS, nDT, invT, multiFileFullSolve, vm().getTrajectory());
+        STOP_P_TIMER("output solve io");
     }
 }
 
