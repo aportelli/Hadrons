@@ -144,36 +144,26 @@ void DistilMatrixIo<T>::saveBlock(const T *data,
                                const unsigned int chunkSize)
 {
 #ifdef HAVE_HDF5
-    
     H5NS::H5File file(filename_,H5F_ACC_RDWR);
     H5NS::Group rootgroup = file.openGroup(DISTIL_MATRIX_NAME);
 
-    // create t group if it doesnt exist, or open it
     H5NS::Group tgroup;
-    // if ( H5Lexists( file.getId(), t_name, H5P_DEFAULT ) > 0 )
-    // {
-    //     tgroup = rootgroup.openGroup(t_name);
-    //     // grp=h5file.openGroup("A");
-    // }
-    // else
-    // {
-    //     tgroup = rootgroup.createGroup(t_name);
-    //     // grp=h5file.createGroup("A");
-    // }
-
-    H5NS::Exception::dontPrint();
-    try{
+    if ( H5Lexists( rootgroup.getId(), t_name.c_str(), H5P_DEFAULT ) > 0 )
+    {
         tgroup = rootgroup.openGroup(t_name);
-    } catch (...) {                         //WHICH EXCEPTION SHOULD IT CATCH??
+    }
+    else
+    {
         tgroup = rootgroup.createGroup(t_name);
     }
 
     H5NS::DataSet        dataset;
-    //create zeroed dataset T1,T2, or open it
-    H5NS::Exception::dontPrint();
-    try{
+    if ( H5Lexists( tgroup.getId(), datasetName.c_str(), H5P_DEFAULT ) > 0 )
+    {
         dataset = tgroup.openDataSet(datasetName);
-    } catch (...) {                         //WHICH EXCEPTION SHOULD IT CATCH??
+    }
+    else
+    {
         H5NS::DataSpace      dataspace;
         std::vector<hsize_t>    dim = {static_cast<hsize_t>(ni_), 
                                     static_cast<hsize_t>(nj_)},
@@ -185,7 +175,6 @@ void DistilMatrixIo<T>::saveBlock(const T *data,
         plist.setFletcher32();
         dataset = tgroup.createDataSet(datasetName, Hdf5Type<T>::type(), dataspace, plist);
     }
-
 
     std::vector<hsize_t> count = {blockSizei, blockSizej},
                          offset = {static_cast<hsize_t>(i),
