@@ -34,6 +34,7 @@ public:
                                     unsigned int,               blockSize,
                                     unsigned int,               cacheSize,
                                     std::string,                onlyDiagonal,
+                                    std::string,                diagShift,
                                     std::string,                gamma,
                                     std::vector<std::string>,   momenta)
 };
@@ -67,6 +68,7 @@ private:
     std::vector<Gamma::Algebra>         gamma_;  
     bool                                isExact_=false;
     bool                                onlyDiag_=false;
+    unsigned int                  diagShift_=0;
     std::map<Side,std::string>          dmfType_;
     std::vector<unsigned int>           tSourceL_;
     std::vector<unsigned int>           tSourceR_;
@@ -194,6 +196,16 @@ void TDistilMesonFieldFixed<FImpl>::setup(void)
     if(par().onlyDiagonal == "true" || par().onlyDiagonal == "false")
     {
         onlyDiag_ = (par().onlyDiagonal=="true") ? true : false;
+    }
+
+    if( onlyDiag_ and
+         dmfType_.at(Side::left)=="phi" and dmfType_.at(Side::right)=="phi" and !par().diagShift.empty()) //enables diagonal dtR shift only for phiphi field
+    {
+        diagShift_ = std::stoi(par().diagShift);
+    }
+    else
+    {
+        diagShift_=0;
     }
 
     envTmpLat(ComplexField,             "coor");
@@ -397,11 +409,11 @@ void TDistilMesonFieldFixed<FImpl>::execute(void)
                     peramb.emplace(s , perambtemp);
                 }
             }
-            computation.executeFixed(filenameDmfFn, metadataDmfFn, gamma_, dist_vecs, noise_idx, phase, time_sources, epack, this, onlyDiag_, peramb);
+            computation.executeFixed(filenameDmfFn, metadataDmfFn, gamma_, dist_vecs, noise_idx, phase, time_sources, epack, this, onlyDiag_, diagShift_, peramb);
         }
         else
         {
-            computation.executeFixed(filenameDmfFn, metadataDmfFn, gamma_, dist_vecs, noise_idx, phase, time_sources, epack, this, onlyDiag_);
+            computation.executeFixed(filenameDmfFn, metadataDmfFn, gamma_, dist_vecs, noise_idx, phase, time_sources, epack, this, onlyDiag_, diagShift_);
         }
         LOG(Message) << "Meson fields saved to " << outputMFPath_ << std::endl;
     }

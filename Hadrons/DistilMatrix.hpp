@@ -381,7 +381,8 @@ private:
                                       std::vector<unsigned int>         dt_list,
                                       std::map<Side, PerambTensor&>     peramb);
     std::vector<unsigned int> fetchDvBatchIdxs(unsigned int               ibatch,
-                                               std::vector<unsigned int>  time_dil_sources);
+                                               std::vector<unsigned int>  time_dil_sources,
+                                               unsigned int                    shift=0);
     void makeRelativePhiComponent(FermionField&                phi_component,
                             DistillationNoise&               n,
                             const unsigned int               n_idx,
@@ -425,6 +426,7 @@ public:
                  LapPack&                                       epack,
                  TimerArray*                                    tarray,
                  bool                                           only_diag,
+                 const unsigned int                             diag_shift,
                  std::map<Side, PerambTensor&>                  peramb={});
 };
 
@@ -594,11 +596,11 @@ void DmfComputation<FImpl,T,Tio>
 // fetch time dilution indices (sources) in dv batch ibatch
 template <typename FImpl, typename T, typename Tio>
 std::vector<unsigned int> DmfComputation<FImpl,T,Tio>
-::fetchDvBatchIdxs(unsigned int ibatch, std::vector<unsigned int> time_dil_sources)
+::fetchDvBatchIdxs(unsigned int ibatch, std::vector<unsigned int> time_dil_sources, const unsigned int shift)
 {
     std::vector<unsigned int> batch_dt;
     for(unsigned int dt=ibatch*dvBatchSize_; dt<(ibatch+1)*dvBatchSize_; dt++){
-        batch_dt.push_back(time_dil_sources[dt]);
+        batch_dt.push_back( (time_dil_sources[dt]+shift)%distilNoise_.at(Side::right).dilutionSize(Index::t) );
     }
     return batch_dt;
 }
@@ -898,7 +900,7 @@ void DmfComputation<FImpl,T,Tio>
 
 template <typename FImpl, typename T, typename Tio>
 void DmfComputation<FImpl,T,Tio>
-::executeFixed(const FilenameFn                              &filenameDmfFn,
+::executeFixed(const FilenameFn                         &filenameDmfFn,
           const MetadataFn                              &metadataDmfFn,
           std::vector<Gamma::Algebra>                   gamma,
           std::map<Side, DistilVector&>                 dv,
@@ -908,6 +910,7 @@ void DmfComputation<FImpl,T,Tio>
           LapPack&                                      epack,
           TimerArray*                                   tarray,
           bool                                          only_diag,
+          const unsigned int                            diag_shift,
           std::map<Side, PerambTensor&>                 peramb)
 {
     const unsigned int vol = g_->_gsites;
@@ -921,7 +924,7 @@ void DmfComputation<FImpl,T,Tio>
             unsigned int dtL = batch_dtL[idtL];
             for (unsigned int ibatchR=0 ; ibatchR<time_dil_source.at(Side::right).size()/dvBatchSize_ ; ibatchR++)  //loop over right dv batches
             {
-                std::vector<unsigned int> batch_dtR = fetchDvBatchIdxs(ibatchR,time_dil_source.at(Side::right));
+                std::vector<unsigned int> batch_dtR = fetchDvBatchIdxs(ibatchR,time_dil_source.at(Side::right), diag_shift);
                 for (unsigned int idtR=0 ; idtR<batch_dtR.size() ; idtR++)
                 {
                     unsigned int dtR = batch_dtR[idtR];
@@ -945,14 +948,9 @@ void DmfComputation<FImpl,T,Tio>
                                         time_partition.at(Side::right).begin(), time_partition.at(Side::right).end(),
                                         std::back_inserter(ts_intersection));
 
-                    // const int nt_sparse = ts_intersection.size();
-                    bBuf_.resize(nExt_*nStr_*nt_*blockSize_*blockSize_);
-
-                    // std::cout << dtL <<  " " << dtR << " " << time_partition.at(Side::left) << " " << time_partition.at(Side::right) << " " << ts_intersection << std::endl;
-                    // std::cin.get();
-
-                    // only execute when partitions have at least one time slice in common; only computes diagonal when onlydiag true
-                    if( !ts_intersection.empty() and (!only_diag or dtL==dtR) )
+                    // only execute when partitions have at least one time slice in common; only computes diagonal (up to diag_shift) when onlydiag true
+                    if( !ts_intersection.empty() and 
+                        ( !only_diag or ((dtL+diag_shift)%distilNoise_.at(Side::right).dilutionSize(Index::t)==dtR) ) )
                     {
                         LOG(Message) << "------------------------ " << dtL << "-" << dtR << " ------------------------" << std::endl; 
                         LOG(Message) << "Saving time slices : " << MDistil::timeslicesDump(ts_intersection) << std::endl;
@@ -1032,7 +1030,6 @@ void DmfComputation<FImpl,T,Tio>
                             {
                                 // TODO: generalise to dilution
                                 // unsigned int t = ts_intersection[it];
-
                                 std::vector<unsigned int> left_partition = distilNoise_.at(Side::left).dilutionPartition(Index::t,dtL);
                                 std::vector<unsigned int> right_partition = distilNoise_.at(Side::right).dilutionPartition(Index::t,dtR);
 
@@ -1058,7 +1055,7 @@ void DmfComputation<FImpl,T,Tio>
 
                                         //executes once per file
                                         if( ( dtL==time_dil_source.at(Side::left).front() ) and      //first time-dilution idx at one side
-                                            ( dtR==time_dil_source.at(Side::right).front() ) and    // same as above for the other side
+                                            ( dtR==((time_dil_source.at(Side::right).front()+diag_shift)%distilNoise_.at(Side::right).dilutionSize(Index::t)) ) and    // same as above for the other side
                                             ( t==ts_intersection.front() ) and    //first time slice
                                             (i==0) and (j==0) )  //first IO block
                                         {
