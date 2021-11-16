@@ -68,7 +68,7 @@ public:
                                     std::vector<std::vector<unsigned int>>,     LapDilutionRight,
                                     std::vector<std::vector<unsigned int>>,     SpinDilutionLeft,
                                     std::vector<std::vector<unsigned int>>,     SpinDilutionRight,
-                                    std::string,                                PinnedSide,
+                                    std::string,                                RelativeSide,
                                     )
 };
 
@@ -320,7 +320,7 @@ private:
     GridCartesian*                      g3d_;
     ColourVectorField                   evec3d_;
     FermionField                        tmp3d_, tmp4d_;
-    std::vector<Tio>                    bBuf_, bufPinnedT_; //potentially large objects
+    std::vector<Tio>                    bBuf_; //potentially large objects
     std::vector<T>                      cBuf_;
     const unsigned int                  blockSize_; //eventually turns into io chunk size
     const unsigned int                  cacheSize_;
@@ -382,20 +382,20 @@ private:
                                       std::map<Side, PerambTensor&>     peramb);
     std::vector<unsigned int> fetchDvBatchIdxs(unsigned int               ibatch,
                                                std::vector<unsigned int>  time_dil_sources);
-    void makePinnedPhiComponent(FermionField&                phi_component,
+    void makeRelativePhiComponent(FermionField&                phi_component,
                             DistillationNoise&               n,
                             const unsigned int               n_idx,
                             const unsigned int               D,
                             const unsigned int               delta_t,
                             PerambTensor&                    peramb,
                             LapPack&                         epack);
-    void makePinnedRhoComponent(FermionField&            rho_component,
+    void makeRelativeRhoComponent(FermionField&            rho_component,
                             DistillationNoise&           n,
                             const unsigned int           n_idx,
                             const unsigned int           t,
                             const unsigned int           D,
                             LapPack&                     epack);
-    void makePinnedDvLapSpinBlock(std::map<Side, DistilVector&>     dv,
+    void makeRelativeDvLapSpinBlock(std::map<Side, DistilVector&>     dv,
                                std::vector<unsigned int>            dt_list,
                                std::map<Side, unsigned int>         n_idx,
                                LapPack&                             epack,
@@ -403,7 +403,7 @@ private:
                                const unsigned int                   delta_t,
                                std::map<Side, PerambTensor&>        peramb);
 public:
-    void executePinned(const FilenameFn                               &filenameDmfFn,
+    void executeRelative(const FilenameFn                               &filenameDmfFn,
                        const MetadataFn                               &metadataDmfFn,
                        std::vector<Gamma::Algebra>                    gamma,
                        std::map<Side, DistilVector&>                  dv,
@@ -412,10 +412,10 @@ public:
                        std::map<Side, std::vector<unsigned int>>      time_dil_source,
                        LapPack&                                       epack,
                        TimerArray*                                    tarray,
-                       Side                                           pinned_side,
+                       Side                                           relative_side,
                        std::vector<unsigned int>                      delta_t_list,
                        std::map<Side, PerambTensor&>                  peramb={});
-    void execute(const FilenameFn                               &filenameDmfFn,
+    void executeFixed(const FilenameFn                               &filenameDmfFn,
                  const MetadataFn                               &metadataDmfFn,
                  std::vector<Gamma::Algebra>                    gamma,
                  std::map<Side, DistilVector&>                  dv,
@@ -603,11 +603,11 @@ std::vector<unsigned int> DmfComputation<FImpl,T,Tio>
     return batch_dt;
 }
 
-// makePinned methods build distil vectors with reorganised time slices
+// makeRelative methods build distil vectors with reorganised time slices
 // (in order to compute multiple time-dilution blocks at different t with a single call of MesonField kernel)
 template <typename FImpl, typename T, typename Tio>
 void DmfComputation<FImpl,T,Tio>
-::makePinnedPhiComponent(FermionField&              phi_component,
+::makeRelativePhiComponent(FermionField&              phi_component,
                    DistillationNoise&               n,
                    const unsigned int               n_idx,
                    const unsigned int               D,
@@ -618,9 +618,9 @@ void DmfComputation<FImpl,T,Tio>
     std::array<unsigned int,3> d_coor = n.dilutionCoordinates(D);
     unsigned int dt = d_coor[Index::t] , dk = d_coor[Index::l] , ds = d_coor[Index::s];
     
-    //compute at pin_time, insert at t=pin_time
-    const unsigned int pin_time = (dt + delta_t)%nt_;               //TODO: generalise to dilution
-    const unsigned int t        = pin_time;                         //TODO: generalise to dilution 
+    //compute at relative_time, insert at t=relative_time
+    const unsigned int relative_time = (dt + delta_t)%nt_;               //TODO: generalise to dilution
+    const unsigned int t        = relative_time;                         //TODO: generalise to dilution 
 
     std::vector<int> peramb_ts = peramb.MetaData.timeSources;
     std::vector<int>::iterator itr_dt = std::find(peramb_ts.begin(), peramb_ts.end(), dt);
@@ -628,13 +628,13 @@ void DmfComputation<FImpl,T,Tio>
     const unsigned int nVec = epack.evec.size();
     const unsigned int Nt_first = g_->LocalStarts()[nd_ - 1];
     const unsigned int Nt_local = g_->LocalDimensions()[nd_ - 1];
-    if( (pin_time>=Nt_first) and (pin_time<Nt_first+Nt_local) )
+    if( (relative_time>=Nt_first) and (relative_time<Nt_first+Nt_local) )
     {
         tmp3d_ = Zero();
         for (unsigned int k = 0; k < nVec; k++)
         {
-            ExtractSliceLocal(evec3d_,epack.evec[k],0,pin_time-Nt_first,nd_ - 1);
-            tmp3d_ += evec3d_ * peramb.tensor(pin_time, k, dk, n_idx, idt_peramb, ds);
+            ExtractSliceLocal(evec3d_,epack.evec[k],0,relative_time-Nt_first,nd_ - 1);
+            tmp3d_ += evec3d_ * peramb.tensor(relative_time, k, dk, n_idx, idt_peramb, ds);
         }
         InsertSliceLocal(tmp3d_,phi_component,0,t-Nt_first,nd_ - 1);
     }
@@ -642,34 +642,34 @@ void DmfComputation<FImpl,T,Tio>
 
 template <typename FImpl, typename T, typename Tio>
 void DmfComputation<FImpl,T,Tio>
-::makePinnedRhoComponent(FermionField&          rho_component,
+::makeRelativeRhoComponent(FermionField&          rho_component,
                    DistillationNoise&           n,
                    const unsigned int           n_idx,
                    const unsigned int           D,
                    const unsigned int           delta_t,
                    LapPack&                     epack)
 {
-    // abstract this to makePinnedSource() kind of method in DilutedNoise?
+    // abstract this to makeRelativeSource() kind of method in DilutedNoise?
     std::array<unsigned int,3> d_coor = n.dilutionCoordinates(D);
     unsigned int dt = d_coor[Index::t] , dk = d_coor[Index::l] , ds = d_coor[Index::s];
 
     typename DistillationNoise::NoiseType   noise(n.getNoise()[n_idx].data(), nt_, epack.eval.size(), Ns);
 
-    //compute at pin_time, insert at t
-    const unsigned int pin_time = (dt + delta_t)%nt_;     //TODO: generalise to dilution
-    const unsigned int t        = pin_time;               //TODO: generalise to dilution
+    //compute at relative_time, insert at t
+    const unsigned int relative_time = (dt + delta_t)%nt_;     //TODO: generalise to dilution
+    const unsigned int t        = relative_time;               //TODO: generalise to dilution
 
     // adapt to dilution! (add an it loop and untrivialise ik and is loops)
     
     const unsigned int Nt_first = g_->LocalStarts()[nd_ - 1];
     const unsigned int Nt_local = g_->LocalDimensions()[nd_ - 1];
-    if( (pin_time>=Nt_first) and (pin_time<Nt_first+Nt_local) )
+    if( (relative_time>=Nt_first) and (relative_time<Nt_first+Nt_local) )
     {
         for (unsigned int ik = dk; ik < dk+1; ik++)
         {
             for (unsigned int is = ds; is < ds+1; is++)
             {
-                ExtractSliceLocal(evec3d_, epack.evec[ik], 0, pin_time - Nt_first, nd_-1);
+                ExtractSliceLocal(evec3d_, epack.evec[ik], 0, relative_time - Nt_first, nd_-1);
                 evec3d_ = evec3d_*noise(dt, ik, is);
                 tmp3d_  = Zero();
                 pokeSpin(tmp3d_, evec3d_, is);
@@ -683,7 +683,7 @@ void DmfComputation<FImpl,T,Tio>
 
 template <typename FImpl, typename T, typename Tio>
 void DmfComputation<FImpl,T,Tio>
-::makePinnedDvLapSpinBlock(std::map<Side, DistilVector&>                dv,
+::makeRelativeDvLapSpinBlock(std::map<Side, DistilVector&>                dv,
                                std::vector<unsigned int>                dt_list,
                                std::map<Side, unsigned int>             n_idx,
                                LapPack&                                 epack,
@@ -700,16 +700,16 @@ void DmfComputation<FImpl,T,Tio>
         unsigned int dt = d_coor[Index::t] , dk = d_coor[Index::l] , ds = d_coor[Index::s];
         if( std::count(dt_list.begin(), dt_list.end(), dt)!=0 )    //if dt is in dt_list
         {
-            const unsigned int Dpinned = distilNoise_.at(s).dilutionIndex(0,dk,ds);
+            const unsigned int Drelative = distilNoise_.at(s).dilutionIndex(0,dk,ds);
             std::vector<unsigned int>::iterator itr_dt = std::find(dt_list.begin(), dt_list.end(), dt);
             unsigned int idt = std::distance(dt_list.begin(), itr_dt);
             if(isPhi(s))
             {
-                makePinnedPhiComponent(dv.at(s)[Dpinned] , distilNoise_.at(s) , n_idx.at(s) , D , delta_t , peramb.at(s), epack);
+                makeRelativePhiComponent(dv.at(s)[Drelative] , distilNoise_.at(s) , n_idx.at(s) , D , delta_t , peramb.at(s), epack);
             }
             else if(isRho(s))
             {
-                makePinnedRhoComponent(dv.at(s)[Dpinned] , distilNoise_.at(s) , n_idx.at(s), D, delta_t , epack);
+                makeRelativeRhoComponent(dv.at(s)[Drelative] , distilNoise_.at(s) , n_idx.at(s), D, delta_t , epack);
             }
         }
     }
@@ -717,7 +717,7 @@ void DmfComputation<FImpl,T,Tio>
 
 template <typename FImpl, typename T, typename Tio>
 void DmfComputation<FImpl,T,Tio>
-::executePinned(const FilenameFn                              &filenameDmfFn,
+::executeRelative(const FilenameFn                              &filenameDmfFn,
                 const MetadataFn                              &metadataDmfFn,
                 std::vector<Gamma::Algebra>                   gamma,
                 std::map<Side, DistilVector&>                 dv,
@@ -726,38 +726,38 @@ void DmfComputation<FImpl,T,Tio>
                 std::map<Side, std::vector<unsigned int>>     time_dil_source,
                 LapPack&                                      epack,
                 TimerArray*                                   tarray,
-                Side                                          pinned_side,
+                Side                                          relative_side,
                 std::vector<unsigned int>                     delta_t_list,
                 std::map<Side, PerambTensor&>                 peramb)
 {
     const unsigned int vol = g_->_gsites;
-    Side fixed_side = (pinned_side==Side::right ? Side::left : Side::right);
+    Side anchored_side = (relative_side==Side::right ? Side::left : Side::right);
 
     for(auto delta_t : delta_t_list)
     {        
         START_TIMER("distil vectors");
-        makePinnedDvLapSpinBlock(dv, time_dil_source.at(pinned_side), n_idx, epack, pinned_side, delta_t, peramb);
+        makeRelativeDvLapSpinBlock(dv, time_dil_source.at(relative_side), n_idx, epack, relative_side, delta_t, peramb);
         STOP_TIMER("distil vectors");
 
         //loop over left dv batches
-        for (unsigned int ibatchFixed=0 ; ibatchFixed<time_dil_source.at(fixed_side).size()/dvBatchSize_ ; ibatchFixed++)
+        for (unsigned int ibatchAnchored=0 ; ibatchAnchored<time_dil_source.at(anchored_side).size()/dvBatchSize_ ; ibatchAnchored++)
         {
             START_TIMER("distil vectors");
-            std::vector<unsigned int> batch_dtFixed;
-            batch_dtFixed = fetchDvBatchIdxs(ibatchFixed,time_dil_source.at(fixed_side));
-            makeDvLapSpinBatch(dv, n_idx, epack, fixed_side, batch_dtFixed, peramb);
+            std::vector<unsigned int> batch_dtAnchored;
+            batch_dtAnchored = fetchDvBatchIdxs(ibatchAnchored,time_dil_source.at(anchored_side));
+            makeDvLapSpinBatch(dv, n_idx, epack, anchored_side, batch_dtAnchored, peramb);
             STOP_TIMER("distil vectors");
-            for (unsigned int idtFixed=0 ; idtFixed<batch_dtFixed.size() ; idtFixed++)
+            for (unsigned int idtAnchored=0 ; idtAnchored<batch_dtAnchored.size() ; idtAnchored++)
             {
-                unsigned int Tfixed = batch_dtFixed[idtFixed];
+                unsigned int Tanchored = batch_dtAnchored[idtAnchored];
 
-                if(pinned_side==Side::right)
+                if(relative_side==Side::right)
                 {
-                    LOG(Message) << "------------ " << Tfixed << " X ( " << MDistil::timeslicesDump(time_dil_source.at(pinned_side)) << ") ------------" << std::endl; 
+                    LOG(Message) << "------------ " << Tanchored << " X ( " << MDistil::timeslicesDump(time_dil_source.at(relative_side)) << ") ------------" << std::endl; 
                 }
                 else
                 {
-                    LOG(Message) << "------------ ( " << MDistil::timeslicesDump(time_dil_source.at(pinned_side)) << ") X " << Tfixed << " ------------" << std::endl; 
+                    LOG(Message) << "------------ ( " << MDistil::timeslicesDump(time_dil_source.at(relative_side)) << ") X " << Tanchored << " ------------" << std::endl; 
                 }
                 LOG(Message) << "Time shift (deltaT) : " << delta_t << std::endl; 
 
@@ -790,8 +790,8 @@ void DmfComputation<FImpl,T,Tio>
 
                         double timer = 0.0;
                         START_TIMER("kernel");
-                        unsigned int dv_idxLeftOffset = (pinned_side==Side::right) ? idtFixed*dilSizeLS_.at(Side::left) : 0;
-                        unsigned int dv_idxRightOffset = (pinned_side==Side::left) ? idtFixed*dilSizeLS_.at(Side::right) : 0;
+                        unsigned int dv_idxLeftOffset = (relative_side==Side::right) ? idtAnchored*dilSizeLS_.at(Side::left) : 0;
+                        unsigned int dv_idxRightOffset = (relative_side==Side::left) ? idtAnchored*dilSizeLS_.at(Side::right) : 0;
                         A2Autils<FImpl>::MesonField(cache, &dv.at(Side::left)[dv_idxLeftOffset +i+ii], &dv.at(Side::right)[dv_idxRightOffset +j+jj], gamma, ph, nd_ - 1, &timer);
                         STOP_TIMER("kernel");
                         time_kernel += timer;
@@ -826,25 +826,25 @@ void DmfComputation<FImpl,T,Tio>
                     unsigned int inode = g_->ThisRank();
                     unsigned int nnode = g_->RankCount(); 
                     LOG(Message) << "Starting parallel IO. Rank count=" << nnode << std::endl;
-                    for(unsigned int it=0 ; it<time_dil_source.at(pinned_side).size() ; it++)
+                    for(unsigned int it=0 ; it<time_dil_source.at(relative_side).size() ; it++)
                     {
                         // TODO: generalise to dilution
-                        unsigned int t = (time_dil_source.at(pinned_side)[it] + delta_t)%nt_;
-                        const unsigned int Tpinned = time_dil_source.at(pinned_side)[it];
+                        unsigned int t = (time_dil_source.at(relative_side)[it] + delta_t)%nt_;
+                        const unsigned int Trelative = time_dil_source.at(relative_side)[it];
 
-                        DistilMatrixSet<Tio> block_pinned(bBuf_.data(), nExt_ , nStr_ , iblock_size, jblock_size);
+                        DistilMatrixSet<Tio> block_relative(bBuf_.data(), nExt_ , nStr_ , iblock_size, jblock_size);
 
                         std::string dataset_name;
-                        dataset_name = std::to_string( (pinned_side==Side::right) ? Tfixed : Tpinned ) 
-                            + "-" + std::to_string( (pinned_side==Side::right) ? Tpinned : Tfixed );
+                        dataset_name = std::to_string( (relative_side==Side::right) ? Tanchored : Trelative ) 
+                            + "-" + std::to_string( (relative_side==Side::right) ? Trelative : Tanchored );
 
-                        std::vector<unsigned int> pinned_partition = distilNoise_.at(pinned_side).dilutionPartition(Index::t,Tpinned);
-                        std::vector<unsigned int> fixed_partition = distilNoise_.at(fixed_side).dilutionPartition(Index::t,Tfixed);
+                        std::vector<unsigned int> relative_partition = distilNoise_.at(relative_side).dilutionPartition(Index::t,Trelative);
+                        std::vector<unsigned int> anchored_partition = distilNoise_.at(anchored_side).dilutionPartition(Index::t,Tanchored);
 
-                        if( !( isRho(pinned_side) and std::count(pinned_partition.begin(), pinned_partition.end(), t)==0  ) 
-                            and !(isRho(fixed_side) and std::count(fixed_partition.begin(), fixed_partition.end(), t)==0) )
+                        if( !( isRho(relative_side) and std::count(relative_partition.begin(), relative_partition.end(), t)==0  ) 
+                            and !(isRho(anchored_side) and std::count(anchored_partition.begin(), anchored_partition.end(), t)==0) )
                         {
-                            LOG(Message)    << "Saving block block " << dataset_name << " , t=" << t << std::endl;
+                            LOG(Message)    << "Saving block " << dataset_name << " , t=" << t << std::endl;
 
                             double ioTime = -GET_TIMER("IO: write block");
                             START_TIMER("IO: total");
@@ -860,9 +860,9 @@ void DmfComputation<FImpl,T,Tio>
                                         DISTIL_MATRIX_NAME, nt_, dilSizeLS_.at(Side::left), dilSizeLS_.at(Side::right));
 
                                 //executes once per file
-                                if( ( Tfixed==time_dil_source.at(fixed_side).front() ) and      //first time-dilution idx at one side
-                                    ( Tpinned==time_dil_source.at(pinned_side).front() ) and    // same as above for the other side
-                                    ( t==(time_dil_source.at(pinned_side).front() + delta_t_list.front())%nt_ ) and    //first time slice
+                                if( ( Tanchored==time_dil_source.at(anchored_side).front() ) and      //first time-dilution idx at one side
+                                    ( Trelative==time_dil_source.at(relative_side).front() ) and    // same as above for the other side
+                                    ( t==(time_dil_source.at(relative_side).front() + delta_t_list.front())%nt_ ) and    //first time slice
                                     (i==0) and (j==0) )  //first IO block
                                 {
                                     //fetch metadata
@@ -873,7 +873,7 @@ void DmfComputation<FImpl,T,Tio>
                                     STOP_TIMER("IO: file creation");
                                 }
                                 START_TIMER("IO: write block");
-                                matrix_io.saveBlock(block_pinned, iext, istr, i, j, dataset_name, t, blockSize_);
+                                matrix_io.saveBlock(block_relative, iext, istr, i, j, dataset_name, t, blockSize_);
                                 STOP_TIMER("IO: write block");
                             }
                             g_->Barrier();
@@ -898,7 +898,7 @@ void DmfComputation<FImpl,T,Tio>
 
 template <typename FImpl, typename T, typename Tio>
 void DmfComputation<FImpl,T,Tio>
-::execute(const FilenameFn                              &filenameDmfFn,
+::executeFixed(const FilenameFn                              &filenameDmfFn,
           const MetadataFn                              &metadataDmfFn,
           std::vector<Gamma::Algebra>                   gamma,
           std::map<Side, DistilVector&>                 dv,
@@ -1039,7 +1039,7 @@ void DmfComputation<FImpl,T,Tio>
                                 if( !( isRho(Side::left) and std::count(left_partition.begin(), left_partition.end(), t)==0  ) 
                                     and !(isRho(Side::right) and std::count(right_partition.begin(), right_partition.end(), t)==0) )
                                 {
-                                    DistilMatrixSet<Tio> block_pinned(bBuf_.data(), nExt_ , nStr_ , iblock_size, jblock_size);
+                                    DistilMatrixSet<Tio> block_relative(bBuf_.data(), nExt_ , nStr_ , iblock_size, jblock_size);
                                     std::string dataset_name = std::to_string(dtL)+"-"+std::to_string(dtR);
                                     LOG(Message)    << "Saving block block " << dataset_name << " , t=" << t << std::endl;
 
@@ -1071,7 +1071,7 @@ void DmfComputation<FImpl,T,Tio>
                                             STOP_TIMER("IO: file creation");
                                         }
                                         START_TIMER("IO: write block");
-                                        matrix_io.saveBlock(block_pinned, iext, istr, i, j, dataset_name, t, blockSize_);
+                                        matrix_io.saveBlock(block_relative, iext, istr, i, j, dataset_name, t, blockSize_);
                                         STOP_TIMER("IO: write block");
                                     }
                                     g_->Barrier();
