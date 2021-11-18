@@ -84,7 +84,10 @@ void StatLogger::start(const unsigned int period)
             {
                 auto watch = *GridLogMessage.StopWatch;
 
+                if (watch.isRunning())
+                {
                 watch.Stop();
+                }
                 auto time = watch.Elapsed().count();
                 watch.Start();
                 logMemory(time);
