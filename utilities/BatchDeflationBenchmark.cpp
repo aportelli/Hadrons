@@ -18,7 +18,7 @@ void ProjAccumRunner(std::vector<Field> &in, std::vector<Field> &out, unsigned i
     GridParallelRNG          RNG5(g);  RNG5.SeedFixedIntegers(seeds5);
 
     GridStopWatch w1;
-    GridTime ProjAccum = w1.Elapsed() - w1.Elapsed();
+    GridTime ProjAccum = GridTime::zero();
     
     unsigned int evSize = totSizeE;
 
