@@ -5,6 +5,7 @@
 #include <Hadrons/Module.hpp>
 #include <Hadrons/ModuleFactory.hpp>
 #include <Hadrons/Modules/MIO/LoadEigenPack.hpp>
+#include <Hadrons/TimerArray.hpp>
 
 BEGIN_HADRONS_NAMESPACE
 
@@ -89,76 +90,60 @@ public:
         LOG(Message) << "Source batch size: " << sourceBatchSize_ << std::endl;
         LOG(Message) << "Eigenvector batch size: " << evBatchSize_ << std::endl;
 
-        // stop watches
-
-        GridStopWatch w1;
-        GridStopWatch w2;
-        GridTime IOAccum = w1.Elapsed() - w1.Elapsed();
-        GridStopWatch w3;
-        GridTime ProjAccum = w1.Elapsed() - w1.Elapsed();
-        GridStopWatch w4;
-        GridStopWatch w5;
-        GridTime GFixAccum = w1.Elapsed() - w1.Elapsed();
+        double IOAccum = 0; 
+        double ProjAccum = 0;
+        double GFixAccum = 0;
+        TimerArray trA;
  
         LOG(Message) << "--- zero guesses" << std::endl;
-        
-        w1.Start();
+        trA.startTimer("Zero");
         for (auto &v: out)
         {
             v = Zero();
         }
-        w1.Stop();
-
-        LOG(Message) << "Zeroing the 'out' vector took: " << w1.Elapsed() << std::endl;
+        trA.stopTimer("Zero");
+        LOG(Message) << "Zeroing the 'out' vector took: " << trA.getDTimer("Zero")/1.0e6 << std::endl;
 
         for (unsigned int bv = 0; bv < epPar_.size; bv += evBatchSize_)
         {
             unsigned int evBlockSize = std::min(epPar_.size - bv, evBatchSize_);
 
-            LOG(Message) << "--- batch " << bv/evBatchSize_ << std::endl;
-            LOG(Message) << "I/O" << std::endl;
+            LOG(Message) << "--- Ev batch " << bv/evBatchSize_ << std::endl;
+            LOG(Message) << "--- I/O" << std::endl;
             
-            w2.Start();
+            trA.startTimer("IO");
             epack_.read(epPar_.filestem, epPar_.multiFile, bv, bv + evBlockSize, traj_);
-            w2.Stop();
-            IOAccum += w2.Elapsed();
-            LOG(Message) << "IO of " << evBlockSize << " eigenvectors took: " << w2.Elapsed() << std::endl;
-            w2.Reset();
+            trA.stopTimer("IO");
+            IOAccum += trA.getDTimer("IO");
+            LOG(Message) << "IO of " << evBlockSize << " eigenvectors took: " << trA.getDTimer("IO")/1.0e6 << std::endl;
 
-            w5.Start();
+            trA.startTimer("GF");
             if (transform_ != nullptr)
             {
                 epack_.gaugeTransform(*transform_);
             }
-            w5.Stop();
-            GFixAccum += w5.Elapsed();
-            LOG(Message) << "Gauge fixing took: " << w5.Elapsed() << std::endl;
-            w5.Reset();
+            trA.stopTimer("GF");
+            GFixAccum += trA.getDTimer("GF");
+            LOG(Message) << "Gauge fixing took: " << trA.getDTimer("GF")/1.0e6 << std::endl;
         
-            LOG(Message) << "project" << std::endl;
-
-            w3.Start();
+            LOG(Message) << "Project" << std::endl;
+            trA.startTimer("Proj");
             for (unsigned int bs = 0; bs < sourceSize; bs += sourceBatchSize_)
             {
                 unsigned int sourceBlockSize = std::min(sourceSize - bs, sourceBatchSize_);
-
                 LOG(Message) << "--- Source batch " << bs/sourceBatchSize_ << std::endl;
-                w4.Start();
-                projAccumulate(in, out, evBlockSize, bs, bs + sourceBlockSize);
-                w4.Stop();
-                LOG(Message) << "This projection of " << sourceBlockSize << " sources took: " << w4.Elapsed() << std::endl;
-                w4.Reset();
+                projAccumulate(in, out, epack_, evBlockSize, bs, bs + sourceBlockSize);
             }
-            w3.Stop();
-            ProjAccum += w3.Elapsed();
-            LOG(Message) << "This projection took: " << w3.Elapsed() << std::endl;
-            w3.Reset();
+            trA.stopTimer("Proj");
+            ProjAccum += trA.getDTimer("Proj");
+            LOG(Message) << "Projection took: " << trA.getDTimer("Proj")/1.0e6 << std::endl;
         }
         
         LOG(Message) << "=== Timings ===" << std::endl;
-        LOG(Message) << "Total IO time: " << IOAccum << std::endl;
-        LOG(Message) << "Total Gauge Fix time: " << GFixAccum << std::endl;
-        LOG(Message) << "Total Project time: " << ProjAccum << std::endl;
+        LOG(Message) << "Total Zero time" << trA.getDTimer("Zero")/1.0e6 << std::endl;
+        LOG(Message) << "Total IO time: " << IOAccum/1.0e6 << std::endl;
+        LOG(Message) << "Total Gauge Fix time: " << GFixAccum/1.0e6 << std::endl;
+        LOG(Message) << "Total Project time: " << ProjAccum/1.0e6 << std::endl;
         LOG(Message) << "=== BATCH DEFLATION GUESSER END" << std::endl;
     }
 
@@ -185,13 +170,6 @@ public:
         t += usecond();
         // performance (STREAM convention): innerProduct 2 reads + axpy 2 reads 1 write = 5 transfers
         LOG(Message) << "projAccumulate: " << t << " us | " << 5.*nIt*lSizeGB << " GB | " << 5.*nIt*lSizeGB/t*1.0e6 << " GB/s" << std::endl;
-    }
-private:
-    void projAccumulate(const std::vector<Field> &in, std::vector<Field> &out,
-                        const unsigned int evBatchSize,
-                        const unsigned int si, const unsigned int sf)
-    {
-        projAccumulate<Field>(in, out, epack_, evBatchSize, si, sf);
     };
 private:
     MIO::LoadEigenPackPar epPar_;

@@ -1,15 +1,15 @@
 #include <Grid/Grid.h>
 #include <Hadrons/Application.hpp>
 #include <Hadrons/Modules.hpp>
+#include <Hadrons/Module.hpp>
 
 using namespace Grid;
 using namespace Hadrons;
 
 template<typename Field>
-void ProjAccumRunner(std::vector<Field> &in, std::vector<Field> &out, unsigned int eb, unsigned int sb)
+void ProjAccumRunner(std::vector<Field> &in, std::vector<Field> &out, unsigned int eb, unsigned int sb, unsigned int totSizeE)
 {
     GridBase *g       = in[0].Grid();
-
     EigenPack<Field> Epack(eb, g, g);
     
     std::vector<int> seeds({1,2,3,4});
@@ -20,20 +20,16 @@ void ProjAccumRunner(std::vector<Field> &in, std::vector<Field> &out, unsigned i
     GridStopWatch w1;
     GridTime ProjAccum = w1.Elapsed() - w1.Elapsed();
     
-    unsigned int evSize = 4*eb;
+    unsigned int evSize = totSizeE;
 
-    std::cout << GridLogMessage << "ProjAccumRunner start" << std::endl;
+    LOG(Message) << "ProjAccumRunner start" << std::endl;
     
     for (int i = 0; i < evSize; i += eb)
     {
 
         unsigned int evBlockSize = std::min(evSize - i, eb);
-
-        // make new ev and eval of size evBlockSize to simulate ev IO.
         
-        std::cout << GridLogMessage << "New eigenvector picks" << std::endl;
-
-        // touch eigen vectors with new randoms to bring back to host
+        LOG(Message) << "New eigenvector picks" << std::endl;
 
         for (auto &e: Epack.evec)
         {
@@ -44,16 +40,16 @@ void ProjAccumRunner(std::vector<Field> &in, std::vector<Field> &out, unsigned i
         {
             random(RNG,e);
 
-            std::cout << GridLogDebug << "eigenval random pick: " << e << std::endl;
+            LOG(Debug) << "eigenval random pick: " << e << std::endl;
         }
 
-        std::cout << GridLogMessage << "evBlockSize: " << evBlockSize << std::endl;
+        LOG(Message) << "evBlockSize: " << evBlockSize << std::endl;
 
         for(unsigned int j = 0; j < in.size(); j += sb)
         {
             unsigned int srcBlockSize = std::min((int)in.size() - j, sb);
 
-            std::cout << GridLogMessage << "srcBlockSize: " << srcBlockSize << std::endl;
+            LOG(Message) << "srcBlockSize: " << srcBlockSize << std::endl;
 
             w1.Start();
             MGuesser::BatchExactDeflationGuesser<FermionEigenPack<FIMPL>, GIMPL>::projAccumulate<Field>(in, out, Epack, evBlockSize, j, j + srcBlockSize);
@@ -63,124 +59,106 @@ void ProjAccumRunner(std::vector<Field> &in, std::vector<Field> &out, unsigned i
         }
     }
 
-    std::cout << GridLogMessage << "ProjAccumRunner end" << std::endl;
-    std::cout << GridLogMessage << "ProjAccum total: " << ProjAccum << std::endl;
+    LOG(Message) << "ProjAccumRunner end" << std::endl;
+    LOG(Message) << "ProjAccum total: " << ProjAccum << std::endl;
 
 }
 
-inline void makeGrid(std::shared_ptr<GridBase> &gPt, 
-                     const std::shared_ptr<GridCartesian> &gBasePt,
-                     const unsigned int Ls = 1, const bool rb = false)
+GridBase * makeGrid(const unsigned int Ls = 1, const bool rb = false)
 {
-  if (rb)
-  {
-    if (Ls > 1)
-    {
-      gPt.reset(SpaceTimeGrid::makeFiveDimRedBlackGrid(Ls, gBasePt.get()));
+  auto &env  = Environment::getInstance();
+  env.createGrid(Ls);
+  
+   if (rb)
+   {
+        if (Ls > 1)
+        {
+            return env.getRbGrid(Ls);
+        }
+        else
+        {
+            return env.getRbGrid();
+        }
     }
     else
     {
-      gPt.reset(SpaceTimeGrid::makeFourDimRedBlackGrid(gBasePt.get()));
+        if (Ls > 1)
+        {   
+            return env.getGrid(Ls);
+        }
+        else
+        {
+            return env.getGrid();
+        }
     }
-  }
-  else
-  {
-    if (Ls > 1)
-    {
-        gPt.reset(SpaceTimeGrid::makeFiveDimGrid(Ls, gBasePt.get()));
-    }
-    else
-    {
-        gPt = gBasePt;
-    }
-  }
 }
 
 void scanner(const Coordinate &latt, unsigned int Ls, bool rb,
              unsigned int minBatchSizeE, unsigned int maxBatchSizeE, 
-             unsigned int minBatchSizeS, unsigned int maxBatchSizeS)
+             unsigned int minBatchSizeS, unsigned int maxBatchSizeS,
+             unsigned int totSizeE, unsigned int totSizeS, unsigned int stepSize)
 {
-
-    // set up grid objects
-
-    auto mpi = GridDefaultMpi();
-    auto simd = GridDefaultSimd(latt.size(), LatticeFermion::vector_type::Nsimd());
-
-    std::shared_ptr<GridCartesian> gBasePt(SpaceTimeGrid::makeFourDimGrid(latt, simd, mpi));
-    std::shared_ptr<GridBase>      gPt;
-
-    makeGrid(gPt, gBasePt, Ls, rb);
-
-    GridBase *g = gPt.get();
+    auto *g = makeGrid(Ls, rb);
 
     std::vector<LatticeFermion> srcVec(1,g);
     std::vector<LatticeFermion> outVec(1,g);
-    
-    // resize
 
-    unsigned int SrcFactor = 4;
+    srcVec.resize(totSizeS,g);
+    outVec.resize(totSizeS,g);
 
-    srcVec.resize(SrcFactor*maxBatchSizeS,g);
-    outVec.resize(SrcFactor*maxBatchSizeS,g);
+    std::vector<int> seeds5({1,2,3,4});
+    GridParallelRNG          RNG5(g);
+    RNG5.SeedFixedIntegers(seeds5);
 
-    // fill vectors with random data
-
-    std::vector<int> seeds5({5,6,7,8});
-
-    GridParallelRNG          RNG5(g);  RNG5.SeedFixedIntegers(seeds5);
-
-    // scan over sourse batch size and eigenvector batch size up to max input
-
-    for (int eb = minBatchSizeE; eb <= maxBatchSizeE; eb++)
+    for (int eb = minBatchSizeE; eb <= maxBatchSizeE; eb+stepSize)
     {
-        for (int sb = minBatchSizeS; sb <= maxBatchSizeS; sb++)
+        for (int sb = minBatchSizeS; sb <= maxBatchSizeS; sb+stepSize)
         {
-            std::cout << GridLogMessage << "Scan Source batch size: " << sb << " Eigenvector batch size: " << eb << std::endl;
-
-            // New source vector
+            LOG(Message) << "Scan Source batch size: " << sb << std::endl;
+            LOG(Message) << "Eigenvector batch size: " << eb << std::endl;
                 
             for (auto &s: srcVec)
             {
                 random(RNG5,s);
             }
-         
-                // zero the out vector
 
             for (auto &v: outVec)
             {
                 v = Zero();
             }
 
-            ProjAccumRunner<LatticeFermion>(srcVec, outVec, eb, sb);        
-            
+            ProjAccumRunner<LatticeFermion>(srcVec, outVec, eb, sb, totSizeE);        
         }
     }
 }
 
 int main(int argc, char *argv[])
 {
-    // input parameters
-
     unsigned int minBatchSizeE = 0;
     unsigned int minBatchSizeS = 0;
     unsigned int maxBatchSizeE;
     unsigned int maxBatchSizeS;
+    unsigned int totSizeE;
+    unsigned int totSizeS;
+    unsigned int stepSize;
     unsigned int Ls;
     bool rb;
 
-    if (argc < 6)
+    if (argc < 9)
     {
-        std::cerr << "usage: " << argv[0] << " <Ls> <RB {0|1}> <minBatchSizeE> <maxBatchSizeE> <minBatchSizeS> <maxBatchSizeS>  [Grid options]";
+        std::cerr << "usage: " << argv[0] << " <Ls> <RB {0|1}> <minBatchSizeEV> <maxBatchSizeEV> <minBatchSizeSrc> <maxBatchSizeSrc> <Total EV> <Total Src> <Step Size> [Grid options]";
         std::cerr << std::endl;
     }
 
     Ls = std::stoi(argv[1]);
     rb = (std::string(argv[2]) == "1");
-
     minBatchSizeE = std::stoi(argv[3]);
     maxBatchSizeE = std::stoi(argv[4]);
     minBatchSizeS = std::stoi(argv[5]);
     maxBatchSizeS = std::stoi(argv[6]);
+    totSizeE      = std::stoi(argv[7]);
+    totSizeS      = std::stoi(argv[8]);
+    stepSize      = std::stoi(argv[9]);
 
     if (minBatchSizeE < 1 || minBatchSizeS < 1)
     {
@@ -190,24 +168,22 @@ int main(int argc, char *argv[])
 
     Grid_init(&argc, &argv);
 
-    std::cout << GridLogMessage << "=== Inputs ===" << std::endl;
-    std::cout << GridLogMessage << "Ls: " << Ls << " rb: " << rb << std::endl;
-    std::cout << GridLogMessage << " minBatchSizeE: " << minBatchSizeE << " maxBatchSizeE: " << maxBatchSizeE << std::endl;
-    std::cout << GridLogMessage << " minBatchSizeS: " << minBatchSizeE << " maxBatchSizeS: " << maxBatchSizeE << std::endl;
+    LOG(Message) << "=== Inputs ===" << std::endl;
+    LOG(Message) << "Ls: " << Ls << " rb: " << rb << std::endl;
+    LOG(Message) << "Total sources: " << totSizeS << "Total Eigenvectors: " << totSizeE << std::endl;
+    LOG(Message) << "minBatchSizeE: " << minBatchSizeE << " maxBatchSizeE: " << maxBatchSizeE << std::endl;
+    LOG(Message) << "minBatchSizeS: " << minBatchSizeE << " maxBatchSizeS: " << maxBatchSizeE << std::endl;
+    LOG(Message) << "Scan Step Size: " << stepSize << std::endl;
 
     int64_t threads = GridThread::GetThreads();
     auto    mpi     = GridDefaultMpi();
 
-    std::cout << GridLogMessage << "Grid is setup to use " << threads << " threads" << std::endl;
-    std::cout << GridLogMessage << "MPI partition " << mpi << std::endl;
+    LOG(Message) << "Grid is setup to use " << threads << " threads" << std::endl;
+    LOG(Message) << "MPI partition " << mpi << std::endl;
 
-    scanner(GridDefaultLatt(), Ls, rb, minBatchSizeE, maxBatchSizeE, minBatchSizeE, maxBatchSizeS);
+    scanner(GridDefaultLatt(), Ls, rb, minBatchSizeE, maxBatchSizeE, minBatchSizeE, maxBatchSizeS, totSizeE, totSizeS, stepSize);
 
-    std::cout << GridLogMessage << "---End of Scan---" << std::endl;
-
-    // Print a summary
-
-    std::cout << GridLogMessage << "Grid finalize" << std::endl;
+    LOG(Message) << "---End of Scan---" << std::endl;
 
     Grid_finalize();
 }
