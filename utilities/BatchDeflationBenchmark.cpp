@@ -93,7 +93,7 @@ GridBase * makeGrid(const unsigned int Ls = 1, const bool rb = false)
     }
 }
 
-void scanner(const Coordinate &latt, unsigned int Ls, bool rb,
+void scanner(unsigned int Ls, bool rb,
              unsigned int minBatchSizeE, unsigned int maxBatchSizeE, 
              unsigned int minBatchSizeS, unsigned int maxBatchSizeS,
              unsigned int totSizeE, unsigned int totSizeS, unsigned int stepSize)
@@ -181,7 +181,7 @@ int main(int argc, char *argv[])
     LOG(Message) << "Grid is setup to use " << threads << " threads" << std::endl;
     LOG(Message) << "MPI partition " << mpi << std::endl;
 
-    scanner(GridDefaultLatt(), Ls, rb, minBatchSizeE, maxBatchSizeE, minBatchSizeE, maxBatchSizeS, totSizeE, totSizeS, stepSize);
+    scanner(Ls, rb, minBatchSizeE, maxBatchSizeE, minBatchSizeE, maxBatchSizeS, totSizeE, totSizeS, stepSize);
 
     LOG(Message) << "---End of Scan---" << std::endl;
 
