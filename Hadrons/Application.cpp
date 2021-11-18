@@ -185,8 +185,9 @@ void Application::run(void)
         if (env().getGrid()->IsBoss())
         {
             statDb.setFilename(statDbFilename);
+            statLogger.setPeriod(getPar().database.statDbPeriodMs);
             statLogger.setDatabase(statDb);
-            statLogger.start(500);
+            statLogger.start();
         }
     }
     if (getPar().saveSchedule or getPar().scheduleFile.empty())

@@ -30,6 +30,10 @@
 #include <Hadrons/Global.hpp>
 #include <Hadrons/Database.hpp>
 
+#if defined GRID_CUDA and !defined GRID_UVM
+#define GRID_CUDA_NOUVM 1
+#endif
+
 BEGIN_HADRONS_NAMESPACE
 
 /******************************************************************************
@@ -47,34 +51,54 @@ public:
                            SqlNotNull<size_t>, commsCurrent,
                            SqlNotNull<size_t>, totalPeak);
     };
+    struct DeviceMemoryEntry: public SqlEntry
+    {
+        HADRONS_SQL_FIELDS(SqlNotNull<GridTime::rep>, time,
+                           SqlNotNull<size_t>, totalCurrent,
+                           SqlNotNull<size_t>, envCurrent,
+                           SqlNotNull<size_t>, gridCurrent,
+                           SqlNotNull<size_t>, evictableCurrent,
+                           SqlNotNull<size_t>, hostToDevice,
+                           SqlNotNull<size_t>, hostToDeviceTransfers,
+                           SqlNotNull<size_t>, deviceToHost,
+                           SqlNotNull<size_t>, deviceToHostTransfers);
+    };
 public:
     // constructor
     StatLogger(void) = default;
-    StatLogger(Database &db);
+    StatLogger(Database &db, const unsigned int periodMs);
     // destructor
     virtual ~StatLogger(void);
     // set and initialise DB
     void setDatabase(Database &db);
+    void setPeriod(const unsigned int periodMs);
+    unsigned int getPeriod(void) const;
     // logger control
-    void start(const unsigned int period);
+    void start(void);
     void stop(void);
     bool isRunning(void) const;
 private:
     // log memory usage
     void logMemory(const GridTime::rep time);
+    void logDeviceMemory(const GridTime::rep time);
 private:
     Database          *db_{nullptr};
     std::atomic<bool> isRunning_{false};
     std::thread       thread_;
+    unsigned int      periodMs_{0};
 };
 
 /******************************************************************************
- *                   Utils to query resident memoery from OS                  *
+ *                   Utils to query resident memory from OS                   *
  ******************************************************************************/
 namespace MemoryUtils
 {
-    size_t getCurrentRSS(void);
-    size_t getPeakRSS(void);
+    size_t getHostCurrent(void);
+    size_t getHostPeak(void);
+#if defined GRID_CUDA
+    // size_t getDeviceCurrent(void);
+
+#endif
     void   printMemory(void);
 }
 

@@ -53,12 +53,13 @@ public:
     struct DatabasePar: Serializable
     {
         GRID_SERIALIZABLE_CLASS_MEMBERS(DatabasePar,
-                                        std::string, applicationDb,
-                                        std::string, resultDb,
-                                        bool,        restoreModules,
-                                        bool,        restoreMemoryProfile,
-                                        bool,        restoreSchedule,
-                                        bool,        makeStatDb);
+                                        std::string,  applicationDb,
+                                        std::string,  resultDb,
+                                        bool,         restoreModules,
+                                        bool,         restoreMemoryProfile,
+                                        bool,         restoreSchedule,
+                                        bool,         makeStatDb,
+                                        unsigned int, statDbPeriodMs);
         DatabasePar(void): 
         restoreModules{false}, restoreMemoryProfile{false},
         restoreSchedule{false}, makeStatDb{false} {}
