@@ -45,7 +45,6 @@ class LoadDistillationVectorsPar: Serializable
 public:
     GRID_SERIALIZABLE_CLASS_MEMBERS(LoadDistillationVectorsPar,
                                     std::string,  filestem,
-                                    bool,         multiFile,
                                     std::string, distilNoise,
                                     std::string, timeSources);
 };
@@ -172,7 +171,7 @@ void TLoadDistillationVectors<FImpl>::execute(void)
 	}
     }
 
-    DistillationVectorsIo::read(vec, par().filestem, nNoise, nDL, nDS, nDT, invT, par().multiFile, vm().getTrajectory());
+    DistillationVectorsIo::read(vec, par().filestem, nNoise, nDL, nDS, nDT, invT, 1, vm().getTrajectory());
 }
 
 END_MODULE_NAMESPACE

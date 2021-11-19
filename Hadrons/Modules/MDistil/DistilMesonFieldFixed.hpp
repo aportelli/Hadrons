@@ -34,7 +34,7 @@ public:
                                     unsigned int,               blockSize,
                                     unsigned int,               cacheSize,
                                     std::string,                onlyDiagonal,
-                                    std::string,                diagShift,
+                                    std::string,                deltaT,
                                     std::string,                gamma,
                                     std::vector<std::string>,   momenta)
 };
@@ -199,9 +199,9 @@ void TDistilMesonFieldFixed<FImpl>::setup(void)
     }
 
     if( onlyDiag_ and
-         dmfType_.at(Side::left)=="phi" and dmfType_.at(Side::right)=="phi" and !par().diagShift.empty()) //enables diagonal dtR shift only for phiphi field
+         dmfType_.at(Side::left)=="phi" and dmfType_.at(Side::right)=="phi" and !par().deltaT.empty()) //enables diagonal dtR shift only for phiphi field
     {
-        diagShift_ = std::stoi(par().diagShift);
+        diagShift_ = std::stoi(par().deltaT);
     }
     else
     {
