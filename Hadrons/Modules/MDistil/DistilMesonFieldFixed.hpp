@@ -1,5 +1,5 @@
-#ifndef Hadrons_MDistil_DistilMesonFieldPinned_hpp_
-#define Hadrons_MDistil_DistilMesonFieldPinned_hpp_
+#ifndef Hadrons_MDistil_DistilMesonFieldFixed_hpp_
+#define Hadrons_MDistil_DistilMesonFieldFixed_hpp_
 
 #include <Hadrons/Global.hpp>
 #include <Hadrons/Module.hpp>
@@ -11,19 +11,15 @@
 
 BEGIN_HADRONS_NAMESPACE
 
-/*******************************************************************
- *                         DistilMesonFieldPinned                        *
- * Receives LapH eigenvectors and perambulator/noise.              *
- * Computes DistilMesonFieldPinneds by block (of spin-lap dilution size) *
- * and save them to H5 files.                                      *
- *******************************************************************/
-
+/******************************************************************************
+ *                         DistilMesonFieldFixed                                 *
+ ******************************************************************************/
 BEGIN_MODULE_NAMESPACE(MDistil)
 
-class DistilMesonFieldPinnedPar: Serializable
+class DistilMesonFieldFixedPar: Serializable
 {
 public:
-    GRID_SERIALIZABLE_CLASS_MEMBERS(DistilMesonFieldPinnedPar,
+    GRID_SERIALIZABLE_CLASS_MEMBERS(DistilMesonFieldFixedPar,
                                     std::string,                outPath,
                                     std::string,                lapEigenPack,
                                     std::string,                leftNoise,
@@ -33,16 +29,18 @@ public:
                                     std::string,                rightTimeSources,
                                     std::string,                leftPeramb,
                                     std::string,                rightPeramb,
+                                    std::string,                leftVectorStem,
+                                    std::string,                rightVectorStem,
                                     unsigned int,               blockSize,
                                     unsigned int,               cacheSize,
+                                    std::string,                onlyDiagonal,
                                     std::string,                deltaT,
-                                    std::string,                pinSide,
                                     std::string,                gamma,
                                     std::vector<std::string>,   momenta)
 };
 
 template <typename FImpl>
-class TDistilMesonFieldPinned: public Module<DistilMesonFieldPinnedPar>
+class TDistilMesonFieldFixed: public Module<DistilMesonFieldFixedPar>
 {
 public:
     FERM_TYPE_ALIASES(FImpl,);
@@ -53,9 +51,9 @@ public:
     typedef typename Computation::DistillationNoise DistillationNoise;
 public:
     // constructor
-    TDistilMesonFieldPinned(const std::string name);
+    TDistilMesonFieldFixed(const std::string name);
     // destructor
-    virtual ~TDistilMesonFieldPinned(void) {};
+    virtual ~TDistilMesonFieldFixed(void) {};
     // dependency relation
     virtual std::vector<std::string> getInput(void);
     virtual std::vector<std::string> getOutput(void);
@@ -69,35 +67,37 @@ private:
     std::vector<std::vector<RealF>>     momenta_;
     std::vector<Gamma::Algebra>         gamma_;  
     bool                                isExact_=false;
+    bool                                onlyDiag_=false;
+    unsigned int                  diagShift_=0;
     std::map<Side,std::string>          dmfType_;
     std::vector<unsigned int>           tSourceL_;
     std::vector<unsigned int>           tSourceR_;
-    Side                                pinned_side_;
-    std::vector<unsigned int>           delta_t_list_;
+    std::map<Side, std::string>         perambNames_;
+    std::map<Side, std::string>         vectorNames_;
 };
 
-MODULE_REGISTER_TMP(DistilMesonFieldPinned, TDistilMesonFieldPinned<FIMPL>, MDistil);
+MODULE_REGISTER_TMP(DistilMesonFieldFixed, TDistilMesonFieldFixed<FIMPL>, MDistil);
 
 /******************************************************************************
- *                 TDistilMesonFieldPinned implementation                             *
+ *                 TDistilMesonFieldFixed implementation                             *
  ******************************************************************************/
 // constructor /////////////////////////////////////////////////////////////////
 template <typename FImpl>
-TDistilMesonFieldPinned<FImpl>::TDistilMesonFieldPinned(const std::string name)
-: Module<DistilMesonFieldPinnedPar>(name)
-{
-}
+TDistilMesonFieldFixed<FImpl>::TDistilMesonFieldFixed(const std::string name)
+: Module<DistilMesonFieldFixedPar>(name)
+{}
 
 // dependencies/products ///////////////////////////////////////////////////////
 template <typename FImpl>
-std::vector<std::string> TDistilMesonFieldPinned<FImpl>::getInput(void)
+std::vector<std::string> TDistilMesonFieldFixed<FImpl>::getInput(void)
 {   
     std::vector<std::string> in = {par().lapEigenPack, par().leftNoise, par().rightNoise};
 
     //define meson field type (if a peramb object, set to phi, rho otherwise)
-    dmfType_.emplace(Side::left   , par().leftPeramb.empty()  ? "rho" : "phi");
-    dmfType_.emplace(Side::right  , par().rightPeramb.empty() ? "rho" : "phi");
-
+    dmfType_.emplace(Side::left   , (par().leftPeramb.empty()  and par().leftVectorStem.empty() ) ? "rho" : "phi");
+    dmfType_.emplace(Side::right  , (par().rightPeramb.empty() and par().rightVectorStem.empty()) ? "rho" : "phi");
+    perambNames_ = {{Side::left,par().leftPeramb},{Side::right,par().rightPeramb}};
+    vectorNames_ = {{Side::left,par().leftVectorStem},{Side::right,par().rightVectorStem}};
     //require peramb dependency if phi case
     for(Side s : sides)
     {
@@ -110,15 +110,16 @@ std::vector<std::string> TDistilMesonFieldPinned<FImpl>::getInput(void)
 }
 
 template <typename FImpl>
-std::vector<std::string> TDistilMesonFieldPinned<FImpl>::getOutput(void)
+std::vector<std::string> TDistilMesonFieldFixed<FImpl>::getOutput(void)
 {
-    std::vector<std::string> out = {};
+    std::vector<std::string> out = {getName()};
+    
     return out;
 }
 
 // setup ///////////////////////////////////////////////////////////////////////
 template <typename FImpl>
-void TDistilMesonFieldPinned<FImpl>::setup(void)
+void TDistilMesonFieldFixed<FImpl>::setup(void)
 {
     if( envHasDerivedType(DistillationNoise, ExactDistillationPolicy<FImpl>, par().leftNoise)
         and envHasDerivedType(DistillationNoise, ExactDistillationPolicy<FImpl>, par().rightNoise) )
@@ -192,59 +193,32 @@ void TDistilMesonFieldPinned<FImpl>::setup(void)
         gamma_ = strToVec<Gamma::Algebra>(par().gamma);
     }
 
-    //parse pinSide
-    if(par().pinSide=="right")
+    if(par().onlyDiagonal == "true" || par().onlyDiagonal == "false")
     {
-        pinned_side_ = Side::right;
+        onlyDiag_ = (par().onlyDiagonal=="true") ? true : false;
     }
-    else if(par().pinSide=="left")
+
+    if( onlyDiag_ and
+         dmfType_.at(Side::left)=="phi" and dmfType_.at(Side::right)=="phi" and !par().deltaT.empty()) //enables diagonal dtR shift only for phiphi field
     {
-        pinned_side_ = Side::left;
-    }
-    else if( par().pinSide.empty() )    //default option
-    {
-        if( dmfType_.at(Side::left)=="rho" and dmfType_.at(Side::right)=="phi" )
-        {
-            pinned_side_ = Side::left;
-        }
-        else if( dmfType_.at(Side::left)=="phi" and dmfType_.at(Side::right)=="phi" )
-        {
-            pinned_side_ = Side::right;
-        }
-        else
-        {
-            pinned_side_ = Side::right;
-        }
+        diagShift_ = std::stoi(par().deltaT);
     }
     else
     {
-        HADRONS_ERROR(Argument, "pinSide input is not valid (right or left).");
+        diagShift_=0;
     }
-
-    //parse deltaT
-    if(dmfType_.at(pinned_side_)=="phi")
-    {
-        delta_t_list_ = strToVec<unsigned int>(par().deltaT);
-    }
-    else
-    {
-        delta_t_list_ = {0};    //pinning a rho field implies in delta_t=0 by definition
-    }
-
-    std::map<Side, unsigned int> dilSizeT = { {Side::left, pinned_side_==Side::left ? 1 : DISTILVECTOR_TIME_BATCH_SIZE},
-                                                {Side::right, pinned_side_==Side::right ? 1 : DISTILVECTOR_TIME_BATCH_SIZE} };  //the pinned distilvector has always time-dilution dimension 1
 
     envTmpLat(ComplexField,             "coor");
     envTmp(std::vector<ComplexField>,   "phase",        1, momenta_.size(), g );
-    envTmp(DistilVector,                "dvl",          1, dilSizeT.at(Side::left)*dilSizeLS_.at(Side::left), g);
-    envTmp(DistilVector,                "dvr",          1, dilSizeT.at(Side::right)*dilSizeLS_.at(Side::right), g);
+    envTmp(DistilVector,                "dvl",          1, DISTILVECTOR_TIME_BATCH_SIZE*dilSizeLS_.at(Side::left), g);
+    envTmp(DistilVector,                "dvr",          1, DISTILVECTOR_TIME_BATCH_SIZE*dilSizeLS_.at(Side::right), g);
     envTmp(Computation,                 "computation",  1, dmfType_, g, g3d, noisel, noiser, par().blockSize, 
-                par().cacheSize, env().getDim(g->Nd() - 1), momenta_.size(), gamma_.size(), isExact_, vm().getTrajectory(), "", "");
+                par().cacheSize, env().getDim(g->Nd() - 1), momenta_.size(), gamma_.size(), isExact_, vm().getTrajectory(), par().leftVectorStem, par().rightVectorStem);
 }
 
 // execution ///////////////////////////////////////////////////////////////////
 template <typename FImpl>
-void TDistilMesonFieldPinned<FImpl>::execute(void)
+void TDistilMesonFieldFixed<FImpl>::execute(void)
 {
     // temps
     envGetTmp(DistilVector, dvl);
@@ -274,13 +248,12 @@ void TDistilMesonFieldPinned<FImpl>::execute(void)
 
     // fetch time sources input
     std::map<Side, std::vector<unsigned int>> time_sources = {{Side::left,tSourceL_},{Side::right,tSourceR_}};
-    std::map<Side, std::string> peramb_input = {{Side::left,par().leftPeramb},{Side::right,par().rightPeramb}}; // perambulator time sources
     std::map<Side, std::vector<int>> ts_peramb;
     for(Side s : sides)     
     {
         if(computation.isPhi(s))
         {
-            auto & inPeramb = envGet(PerambTensor , peramb_input.at(s));
+            auto & inPeramb = envGet(PerambTensor , perambNames_.at(s));
             ts_peramb.emplace(s , inPeramb.MetaData.timeSources);
             if(time_sources.at(s).empty())  //in case it's empty and it's a phi, include all available peramb time sources
             {
@@ -345,7 +318,7 @@ void TDistilMesonFieldPinned<FImpl>::execute(void)
         md.Nvec             = nVec;     //nvec is the same for both sides
         md.NoisePair        = {nl,nr};
         md.MesonFieldType   = dmfType_.at(Side::left) + "-" + dmfType_.at(Side::right);
-        md.PinnedSide       = (pinned_side_==Side::left) ? "left" : "right";
+        md.RelativeSide     = "none";
         if(isExact_)
         {
             md.NoiseHashLeft   = noisel.generateHash()[nl];
@@ -392,10 +365,15 @@ void TDistilMesonFieldPinned<FImpl>::execute(void)
     {
         LOG(Message) << "Exact distillation" << std::endl;
     }
+    if(onlyDiag_)
+    {
+        LOG(Message) << "Only diagonal setting is on" << std::endl;
+    }
     LOG(Message) << "Distil vector batch size (time-dilution direction) : " << DISTILVECTOR_TIME_BATCH_SIZE << std::endl;
-    std::string pinned_side_str = (pinned_side_==Side::left) ? "left" : "right";
-    LOG(Message) << "Pinned side : " << pinned_side_str << std::endl;
-    LOG(Message) << "DeltaT list : " << delta_t_list_ << std::endl;
+    if(!par().leftVectorStem.empty())
+        LOG(Message) << "Reading left vector from " << par().leftVectorStem << std::endl;
+    if(!par().rightVectorStem.empty())
+        LOG(Message) << "Reading right vector from " << par().rightVectorStem << std::endl;
     LOG(Message) << "Selected time-dilution partitions :"   << std::endl;
     LOG(Message) << " Left : " << MDistil::timeslicesDump(time_sources.at(Side::left)) << std::endl;
     LOG(Message) << " Right : " << MDistil::timeslicesDump(time_sources.at(Side::right)) << std::endl;
@@ -426,16 +404,16 @@ void TDistilMesonFieldPinned<FImpl>::execute(void)
             std::map<Side, PerambTensor&> peramb;
             for(Side s : sides)
             {
-                if(computation.isPhi(s)){
-                    PerambTensor &perambtemp = envGet( PerambTensor , s==Side::left ? par().leftPeramb : par().rightPeramb);
+                if(computation.isPhi(s) and !perambNames_.at(s).empty()){
+                    PerambTensor &perambtemp = envGet( PerambTensor , perambNames_.at(s));
                     peramb.emplace(s , perambtemp);
                 }
             }
-            computation.executePinned(filenameDmfFn, metadataDmfFn, gamma_, dist_vecs, noise_idx, phase, time_sources, epack, this, pinned_side_, delta_t_list_, peramb);
+            computation.executeFixed(filenameDmfFn, metadataDmfFn, gamma_, dist_vecs, noise_idx, phase, time_sources, epack, this, onlyDiag_, diagShift_, peramb);
         }
         else
         {
-            computation.executePinned(filenameDmfFn, metadataDmfFn, gamma_, dist_vecs, noise_idx, phase, time_sources, epack, this, pinned_side_, delta_t_list_);
+            computation.executeFixed(filenameDmfFn, metadataDmfFn, gamma_, dist_vecs, noise_idx, phase, time_sources, epack, this, onlyDiag_, diagShift_);
         }
         LOG(Message) << "Meson fields saved to " << outputMFPath_ << std::endl;
     }
@@ -447,6 +425,7 @@ void TDistilMesonFieldPinned<FImpl>::execute(void)
 }
 
 END_MODULE_NAMESPACE
+
 END_HADRONS_NAMESPACE
 
-#endif // Hadrons_MDistil_DistilMesonFieldPinned_hpp_
+#endif // Hadrons_MDistil_DistilMesonFieldFixed_hpp_
