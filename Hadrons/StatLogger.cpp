@@ -124,13 +124,21 @@ void StatLogger::start()
                 {
                     watch.Stop();
                 }
-                auto time = watch.Elapsed().count();
+                auto time1 = watch.Elapsed().count();
                 watch.Start();
-                logMemory(time);
+                logMemory(time1);
 #ifdef GRID_CUDA_NOUVM
-                logDeviceMemory(time);
+                logDeviceMemory(time1);
 #endif
-                std::this_thread::sleep_for(std::chrono::milliseconds(getPeriod()));
+                watch.Stop();
+                auto time2 = watch.Elapsed().count();
+                auto diff  = getPeriod()*1000 - (time2 - time1);
+                if (diff < 0)
+                {
+                    std::cerr << "warning: StatLogger period smaller than metric polling (diff " 
+                              << diff << " us)" << std::endl;
+                }
+                std::this_thread::sleep_for(std::chrono::microseconds(diff));
             }
         });
     }
