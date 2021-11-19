@@ -52,7 +52,7 @@ int main(int argc, char *argv[])
     globalPar.trajCounter.start             = 1500;
     globalPar.trajCounter.end               = 1520;
     globalPar.trajCounter.step              = 20;
-    globalPar.runId                         = "kpi-scattering";
+    globalPar.runId                         = "kpi-scattering-test-exact";
     globalPar.database.applicationDb        = "kpiApp.db";
     globalPar.database.resultDb             = "kpiResults.db";
     globalPar.database.restoreSchedule      = false;
@@ -125,7 +125,6 @@ int main(int argc, char *argv[])
         perambPar.timeSources = ""; // empty -> invert on all time slices
         perambPar.perambMode = MDistil::pMode::perambOnly; // compute perambulator from lap evecs, discard unsmeared solves
         perambPar.nVec = ""; // empty = match nVec in distilNoise
-        perambPar.multiFileFullSolve = ""; // delete?
         application.createModule<MDistil::Perambulator>("Peramb_" + flavour[i] + "_nvec6", perambPar);
     }
 
@@ -148,49 +147,35 @@ int main(int argc, char *argv[])
     }
     // meson fields
 
-    // rho-rho field - NB: to get M(\bar{rho},rho), this needs to be multiplied by gamma5!
-    MDistil::DistilMesonField::Par mfPar;
-    mfPar.outPath = "./kpi-mesonfields/rho-rho";
-    mfPar.lapEigenPack = "lapevec";
-    mfPar.leftNoise = "exact";
-    mfPar.rightNoise = "exact";
-    mfPar.noisePairs = {""};
-    mfPar.leftTimeSources = ""; // empty -> invert on all time slices
-    mfPar.rightTimeSources = ""; // empty -> invert on all time slices
-    mfPar.leftPeramb = ""; // rho = no perambulator
-    mfPar.rightPeramb = ""; // rho = no perambulator
-    mfPar.leftVectorStem = "";
-    mfPar.rightVectorStem = "";
-    mfPar.blockSize = 24;
-    mfPar.cacheSize = 4;
-    mfPar.onlyDiagonal = "true";
-    mfPar.gamma = "all";
-    //mfPar.deltaT = 0;
-    mfPar.momenta = momenta;
-    application.createModule<MDistil::DistilMesonField>("RhoRho_nvec6", mfPar);
-    
     for (unsigned int i = 0; i < flavour.size(); ++i)
     {
         // phi-rho fields
-        //MDistil::DistilMesonField::Par mfPar;
+        MDistil::DistilMesonFieldFixed::Par mfPar;
         mfPar.outPath = "./kpi-mesonfields/phi_" + flavour[i] + "-rho";
         mfPar.lapEigenPack = "lapevec";
         mfPar.leftNoise = "exact";
         mfPar.rightNoise = "exact";
+        // trivial noise policy (=identity) for exact distillation
         mfPar.noisePairs = {""};
-        mfPar.leftTimeSources = ""; // empty -> invert on all time slices
-        mfPar.rightTimeSources = ""; // empty -> invert on all time slices
+        // empty -> invert on all time slices
+        mfPar.leftTimeSources = ""; 
+        mfPar.rightTimeSources = ""; 
         mfPar.leftPeramb = "Peramb_" + flavour[i] + "_nvec6";
-        mfPar.rightPeramb = ""; // rho = no perambulator
-        mfPar.leftVectorStem = "";
+        // rho = no perambulator
+        mfPar.rightPeramb = ""; 
+        // used if vectors should be read from disk instead of computed from perambulators
+        mfPar.leftVectorStem = ""; 
         mfPar.rightVectorStem = "";
+        // tuning parameters 
         mfPar.blockSize = 24;
         mfPar.cacheSize = 4;
-        mfPar.onlyDiagonal = "true";
+        // "true" would only compute the components needed for the 2pt functions, where dilution indices are equal dt_1 = dt_2
+        mfPar.onlyDiagonal = "false";
         mfPar.gamma = "all";
-        //mfPar.deltaT = 0;
+        // only relevant in the onlyDiagonal = "true" option, to support displaced two-hadron operators, 3pt functions etc.
+        mfPar.deltaT = "0"; 
         mfPar.momenta = momenta;
-        application.createModule<MDistil::DistilMesonField>("Phi_" + flavour[i] + "Rho_nvec6", mfPar);
+        application.createModule<MDistil::DistilMesonFieldFixed>("Phi_" + flavour[i] + "Rho_nvec6", mfPar);
     }
 
     // execution
