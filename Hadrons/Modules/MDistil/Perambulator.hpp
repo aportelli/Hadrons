@@ -62,8 +62,7 @@ public:
                                     std::string, distilNoise,
                                     std::string, timeSources,
                                     pMode, perambMode,
-                                    std::string, nVec,
-                                    std::string, multiFileFullSolve);
+                                    std::string, nVec);
 };
 
 template <typename FImpl>
@@ -386,16 +385,6 @@ void TPerambulator<FImpl>::execute(void)
        	    PerambDT.MetaData.timeDilutionIndex = dt;
             PerambDT.write(sPerambName.c_str());
 	}
-    }
-
-    // Also save the full sink if specified
-    std::string sFileName(par().fullSolveFileName);
-    if(perambMode == pMode::outputSolve && !sFileName.empty())
-    {
-	//TODO: Add (at least) sourceTimes as metadata.
-        auto &solveOut = envGet(std::vector<FermionField>, getName()+"_full_solve");
-	bool multiFileFullSolve = (par().multiFileFullSolve == "true" || par().multiFileFullSolve == "True" || par().multiFileFullSolve == "1");
-        DistillationVectorsIo::write(sFileName, solveOut, "fullSolve", nNoise, nDL, nDS, nDT, invT, multiFileFullSolve, vm().getTrajectory());
     }
 }
 
