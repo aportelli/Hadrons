@@ -24,6 +24,50 @@
 
 /*  END LEGAL */
 
+/**************************************************************************
+ * This test shows a typical use of stochastic distillation, computing
+ * all the meson fields needed to study pi-pi and K-pi scattering.
+ * We assume this is run on an 8^4 grid
+ *
+ * Two dilution schemes, both of which use 
+ *   Nvec = 6       Laplacian eigenvectors
+ *   LI = 3         interlaced eigenmode mode dilution
+ *   SI = 4         full dilution in spin
+ * for lines connected to the source timeslice ('fixed')
+ *   TI = 8         full diluton in time
+ *   tSrc = "0 4"   inversions only on timeslices 0 and 4
+ * for sink-to-sink lines ('relative')
+ *   TI = 2         interlaced time dilution
+ *   tSrc = ""      empty -> use all sources, in this case 2
+ *
+ * We place all two-hadron oprators on the same timeslice (no 
+ * displacement) and to avoid bias, we need independent noise sources.
+ * A box-diagram consists of 3 fixed and 1 relative line, and these
+ * are the minimum requirements for the independent noise sources.
+ *   nNoiseFix = 5  for fixed lines
+ *   nNoiseRel = 3  for relative lines
+ *
+ * We compute the following meson fields:
+ * NB: to get from M(phi,phi) to M(bar{phi},phi), multiply by gamma5
+ * 2pt functions:
+ *   M(phi_{l/s},phi_l)   fixed 
+ *   M(rho,rho)           fixed         
+ * 3pt functions: 
+ *   M(rho,phi_{l/s})     fixed
+ * 4pt functions:
+ *   M(phi_{l/s},phi_l)   relative RHS  
+ *   M(rho,phi_l)         relative LHS       
+ * 
+ * We use the mode 'saveSolve' in the light-quark perambulator module. In 
+ * addition to computing the perambulators, it also saves the unsmeared 
+ * solves on disk. These can late be contracted into meson fields by 
+ * passing the filename via the input parameters
+ *   leftVectorStem
+ *   rightVectorStem
+ * to the MesonFieldFixed module. This meson field represents a local 
+ * current.
+**************************************************************************/
+
 #include <typeinfo>
 #include <Hadrons/Application.hpp>
 #include <Hadrons/Modules.hpp>
