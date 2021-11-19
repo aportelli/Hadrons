@@ -6,3 +6,4 @@ using namespace MGuesser;
 
 template class Grid::Hadrons::MGuesser::TBatchExactDeflation<FermionEigenPack<FIMPL>, GIMPL>;
 template class Grid::Hadrons::MGuesser::TBatchExactDeflation<FermionEigenPack<FIMPLF>, GIMPLF>;
+template class Grid::Hadrons::MGuesser::TBatchExactDeflation<FermionEigenPack<FIMPL, FIMPLF>, GIMPL>;

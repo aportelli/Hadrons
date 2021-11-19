@@ -5,6 +5,7 @@
 #include <Hadrons/Module.hpp>
 #include <Hadrons/ModuleFactory.hpp>
 #include <Hadrons/Modules/MIO/LoadEigenPack.hpp>
+#include <Hadrons/TimerArray.hpp>
 
 BEGIN_HADRONS_NAMESPACE
 
@@ -46,6 +47,7 @@ public:
 
 MODULE_REGISTER_TMP(BatchExactDeflation, ARG(TBatchExactDeflation<FermionEigenPack<FIMPL>, GIMPL>), MGuesser);
 MODULE_REGISTER_TMP(BatchExactDeflationF, ARG(TBatchExactDeflation<FermionEigenPack<FIMPLF>, GIMPLF>), MGuesser);
+MODULE_REGISTER_TMP(BatchExactDeflationDIOF, ARG(TBatchExactDeflation<FermionEigenPack<FIMPL, FIMPLF>, GIMPL>), MGuesser);
 
 /******************************************************************************
  *                            The guesser itself                              *
@@ -83,36 +85,71 @@ public:
         unsigned int sourceSize = out.size();
 
         LOG(Message) << "=== BATCH DEFLATION GUESSER START" << std::endl;
+        LOG(Message) << "Total Sources: " << sourceSize << std::endl;
+        LOG(Message) << "Total Eigenvectors: " << epPar_.size << std::endl;
+        LOG(Message) << "Source batch size: " << sourceBatchSize_ << std::endl;
+        LOG(Message) << "Eigenvector batch size: " << evBatchSize_ << std::endl;
+
+        double IOAccum = 0; 
+        double ProjAccum = 0;
+        double GFixAccum = 0;
+        TimerArray trA;
+ 
         LOG(Message) << "--- zero guesses" << std::endl;
+        trA.startTimer("Zero");
         for (auto &v: out)
         {
             v = Zero();
         }
+        trA.stopTimer("Zero");
+        LOG(Message) << "Zeroing the 'out' vector took: " << trA.getDTimer("Zero")/1.0e6 << std::endl;
+
         for (unsigned int bv = 0; bv < epPar_.size; bv += evBatchSize_)
         {
             unsigned int evBlockSize = std::min(epPar_.size - bv, evBatchSize_);
 
-            LOG(Message) << "--- batch " << bv/evBatchSize_ << std::endl;
-            LOG(Message) << "I/O" << std::endl;
+            LOG(Message) << "--- Ev batch " << bv/evBatchSize_ << std::endl;
+            LOG(Message) << "--- I/O" << std::endl;
+            
+            trA.startTimer("IO");
             epack_.read(epPar_.filestem, epPar_.multiFile, bv, bv + evBlockSize, traj_);
+            trA.stopTimer("IO");
+            IOAccum += trA.getDTimer("IO");
+            LOG(Message) << "IO of " << evBlockSize << " eigenvectors took: " << trA.getDTimer("IO")/1.0e6 << std::endl;
+
+            trA.startTimer("GF");
             if (transform_ != nullptr)
             {
                 epack_.gaugeTransform(*transform_);
             }
-            LOG(Message) << "project" << std::endl;
+            trA.stopTimer("GF");
+            GFixAccum += trA.getDTimer("GF");
+            LOG(Message) << "Gauge fixing took: " << trA.getDTimer("GF")/1.0e6 << std::endl;
+        
+            LOG(Message) << "Project" << std::endl;
+            trA.startTimer("Proj");
             for (unsigned int bs = 0; bs < sourceSize; bs += sourceBatchSize_)
             {
                 unsigned int sourceBlockSize = std::min(sourceSize - bs, sourceBatchSize_);
-
-                projAccumulate(in, out, evBlockSize, bs, bs + sourceBlockSize);
+                LOG(Message) << "--- Source batch " << bs/sourceBatchSize_ << std::endl;
+                projAccumulate(in, out, epack_, evBlockSize, bs, bs + sourceBlockSize);
             }
+            trA.stopTimer("Proj");
+            ProjAccum += trA.getDTimer("Proj");
+            LOG(Message) << "Projection took: " << trA.getDTimer("Proj")/1.0e6 << std::endl;
         }
         
+        LOG(Message) << "=== Timings ===" << std::endl;
+        LOG(Message) << "Total Zero time" << trA.getDTimer("Zero")/1.0e6 << std::endl;
+        LOG(Message) << "Total IO time: " << IOAccum/1.0e6 << std::endl;
+        LOG(Message) << "Total Gauge Fix time: " << GFixAccum/1.0e6 << std::endl;
+        LOG(Message) << "Total Project time: " << ProjAccum/1.0e6 << std::endl;
         LOG(Message) << "=== BATCH DEFLATION GUESSER END" << std::endl;
     }
-private:
-    void projAccumulate(const std::vector<Field> &in, std::vector<Field> &out,
-                        const unsigned int evBatchSize,
+
+    template<typename Field>
+    static void projAccumulate(const std::vector<Field> &in, std::vector<Field> &out,
+                        Pack &epack, const unsigned int evBatchSize,
                         const unsigned int si, const unsigned int sf)
     {
         GridBase *g       = in[0].Grid();
@@ -127,8 +164,8 @@ private:
         for (unsigned int j = si; j < sf; ++j)
         {
             axpy(out[j], 
-                 TensorRemove(innerProduct(epack_.evec[i], in[j]))/epack_.eval[i], 
-                 epack_.evec[i], out[j]);
+                 TensorRemove(innerProduct(epack.evec[i], in[j]))/epack.eval[i], 
+                 epack.evec[i], out[j]);
         }
         t += usecond();
         // performance (STREAM convention): innerProduct 2 reads + axpy 2 reads 1 write = 5 transfers
