@@ -2,6 +2,7 @@
 #include <Hadrons/Application.hpp>
 #include <Hadrons/Modules.hpp>
 #include <Hadrons/Module.hpp>
+#include <Hadrons/Environment.hpp>
 
 using namespace Grid;
 using namespace Hadrons;
@@ -14,20 +15,17 @@ void ProjAccumRunner(std::vector<Field> &in, std::vector<Field> &out, unsigned i
     
     std::vector<int> seeds({1,2,3,4});
     std::vector<int> seeds5({5,6,7,8});
-    GridSerialRNG            RNG;   RNG.SeedFixedIntegers(seeds);
+    GridSerialRNG            RNG;      RNG.SeedFixedIntegers(seeds);
     GridParallelRNG          RNG5(g);  RNG5.SeedFixedIntegers(seeds5);
 
     GridStopWatch w1;
     GridTime ProjAccum = GridTime::zero();
-    
-    unsigned int evSize = totSizeE;
 
     LOG(Message) << "ProjAccumRunner start" << std::endl;
     
-    for (int i = 0; i < evSize; i += eb)
+    for (int i = 0; i < totSizeE; i += eb)
     {
-
-        unsigned int evBlockSize = std::min(evSize - i, eb);
+        unsigned int evBlockSize = std::min(totSizeE - i, eb);
         
         LOG(Message) << "New eigenvector picks" << std::endl;
 
@@ -100,6 +98,10 @@ void scanner(unsigned int Ls, bool rb,
 {
     auto *g = makeGrid(Ls, rb);
 
+    LOG(Debug) << "Check Grid type" << std::endl;
+    LOG(Debug) << " - cb  : " << g->_isCheckerBoarded << std::endl;
+    LOG(Debug) << " - fdim: " << g->_fdimensions << std::endl;
+
     std::vector<LatticeFermion> srcVec(1,g);
     std::vector<LatticeFermion> outVec(1,g);
 
@@ -110,9 +112,9 @@ void scanner(unsigned int Ls, bool rb,
     GridParallelRNG          RNG5(g);
     RNG5.SeedFixedIntegers(seeds5);
 
-    for (int eb = minBatchSizeE; eb <= maxBatchSizeE; eb+stepSize)
+    for (int eb = minBatchSizeE; eb <= maxBatchSizeE; eb += stepSize)
     {
-        for (int sb = minBatchSizeS; sb <= maxBatchSizeS; sb+stepSize)
+        for (int sb = minBatchSizeS; sb <= maxBatchSizeS; sb += stepSize)
         {
             LOG(Message) << "Scan Source batch size: " << sb << std::endl;
             LOG(Message) << "Eigenvector batch size: " << eb << std::endl;
@@ -170,9 +172,9 @@ int main(int argc, char *argv[])
 
     LOG(Message) << "=== Inputs ===" << std::endl;
     LOG(Message) << "Ls: " << Ls << " rb: " << rb << std::endl;
-    LOG(Message) << "Total sources: " << totSizeS << "Total Eigenvectors: " << totSizeE << std::endl;
+    LOG(Message) << "Total sources: " << totSizeS << " Total Eigenvectors: " << totSizeE << std::endl;
     LOG(Message) << "minBatchSizeE: " << minBatchSizeE << " maxBatchSizeE: " << maxBatchSizeE << std::endl;
-    LOG(Message) << "minBatchSizeS: " << minBatchSizeE << " maxBatchSizeS: " << maxBatchSizeE << std::endl;
+    LOG(Message) << "minBatchSizeS: " << minBatchSizeS << " maxBatchSizeS: " << maxBatchSizeS << std::endl;
     LOG(Message) << "Scan Step Size: " << stepSize << std::endl;
 
     int64_t threads = GridThread::GetThreads();
@@ -181,7 +183,7 @@ int main(int argc, char *argv[])
     LOG(Message) << "Grid is setup to use " << threads << " threads" << std::endl;
     LOG(Message) << "MPI partition " << mpi << std::endl;
 
-    scanner(Ls, rb, minBatchSizeE, maxBatchSizeE, minBatchSizeE, maxBatchSizeS, totSizeE, totSizeS, stepSize);
+    scanner(Ls, rb, minBatchSizeE, maxBatchSizeE, minBatchSizeS, maxBatchSizeS, totSizeE, totSizeS, stepSize);
 
     LOG(Message) << "---End of Scan---" << std::endl;
 
