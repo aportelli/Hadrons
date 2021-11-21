@@ -348,6 +348,7 @@ private:
                           LapPack&              epack);
     void loadPhiComponent(FermionField&            phi_component,
                           DistillationNoise&       n,
+                          const unsigned int       n_idx,
                           const unsigned int       D,
                           std::string              vector_stem,
                           PerambTensor&            peramb,
@@ -378,7 +379,8 @@ private:
                             const unsigned int               D,
                             const unsigned int               delta_t,
                             PerambTensor&                    peramb,
-                            LapPack&                         epack);
+                            LapPack&                         epack,
+                            std::string                      vector_stem="");
     void makeRelativeRhoComponent(FermionField&            rho_component,
                             DistillationNoise&           n,
                             const unsigned int           n_idx,
@@ -511,13 +513,14 @@ template <typename FImpl, typename T, typename Tio>
 void DmfComputation<FImpl,T,Tio>
 ::loadPhiComponent(FermionField&            phi_component,
                    DistillationNoise&       n,
+                   const unsigned int       n_idx,
                    const unsigned int       D,
                    std::string              vector_stem,
                    PerambTensor&            peramb,
                    LapPack&                 epack)
 {
     const unsigned int nVec = epack.evec.size();
-    DistillationVectorsIo::readComponent(phi_component, vector_stem, n.size(),
+    DistillationVectorsIo::readComponent(phi_component, vector_stem + "_noise" + std::to_string(n_idx) , n.size(),
 				    n.dilutionSize(Index::l), n.dilutionSize(Index::s), n.dilutionSize(Index::t), peramb.MetaData.timeSources, D, traj_);
 }
 
@@ -556,7 +559,7 @@ void DmfComputation<FImpl,T,Tio>
             }
             else
             {
-                loadPhiComponent(dv.at(s)[iD] , distilNoise_.at(s) , D , vectorStem_.at(s), peramb.at(s), epack);
+                loadPhiComponent(dv.at(s)[iD] , distilNoise_.at(s) , n_idx.at(s) , D , vectorStem_.at(s), peramb.at(s), epack);
             }
         }
         else if(isRho(s))
@@ -598,20 +601,25 @@ std::vector<unsigned int> DmfComputation<FImpl,T,Tio>
 // (in order to compute multiple time-dilution blocks at different t with a single call of MesonField kernel)
 template <typename FImpl, typename T, typename Tio>
 void DmfComputation<FImpl,T,Tio>
-::makeRelativePhiComponent(FermionField&              phi_component,
+::makeRelativePhiComponent(FermionField&            phi_component,
                    DistillationNoise&               n,
                    const unsigned int               n_idx,
                    const unsigned int               D,
                    const unsigned int               delta_t,
                    PerambTensor&                    peramb,
-                   LapPack&                         epack)
+                   LapPack&                         epack,
+                   std::string                      vector_stem)
 {
     std::array<unsigned int,3> d_coor = n.dilutionCoordinates(D);
     unsigned int dt = d_coor[Index::t] , dk = d_coor[Index::l] , ds = d_coor[Index::s];
+    if(!vector_stem.empty())
+    {
+        loadPhiComponent(tmp4d_, n , n_idx , D , vector_stem , peramb , epack);    // potentially io demanding
+    }
     
     //compute at relative_time, insert at t=relative_time
-    const unsigned int relative_time = (dt + delta_t)%nt_;               //TODO: generalise to dilution
-    const unsigned int t        = relative_time;                         //TODO: generalise to dilution 
+    const unsigned int relative_time    = (dt + delta_t)%nt_;               //TODO: generalise to dilution
+    const unsigned int t                = relative_time;                         //TODO: generalise to dilution 
 
     std::vector<int> peramb_ts = peramb.MetaData.timeSources;
     std::vector<int>::iterator itr_dt = std::find(peramb_ts.begin(), peramb_ts.end(), dt);
@@ -624,8 +632,15 @@ void DmfComputation<FImpl,T,Tio>
         tmp3d_ = Zero();
         for (unsigned int k = 0; k < nVec; k++)
         {
-            ExtractSliceLocal(evec3d_,epack.evec[k],0,relative_time-Nt_first,nd_ - 1);
-            tmp3d_ += evec3d_ * peramb.tensor(relative_time, k, dk, n_idx, idt_peramb, ds);
+            if(vector_stem.empty())
+            {
+                ExtractSliceLocal(evec3d_,epack.evec[k],0,relative_time-Nt_first,nd_ - 1);
+                tmp3d_ += evec3d_ * peramb.tensor(relative_time, k, dk, n_idx, idt_peramb, ds);
+            }
+            else
+            {
+                ExtractSliceLocal(tmp3d_,tmp4d_,0,relative_time-Nt_first,nd_ - 1); // extracting timeslice from loaded field
+            }
         }
         InsertSliceLocal(tmp3d_,phi_component,0,t-Nt_first,nd_ - 1);
     }
@@ -633,7 +648,7 @@ void DmfComputation<FImpl,T,Tio>
 
 template <typename FImpl, typename T, typename Tio>
 void DmfComputation<FImpl,T,Tio>
-::makeRelativeRhoComponent(FermionField&          rho_component,
+::makeRelativeRhoComponent(FermionField&        rho_component,
                    DistillationNoise&           n,
                    const unsigned int           n_idx,
                    const unsigned int           D,
@@ -651,7 +666,6 @@ void DmfComputation<FImpl,T,Tio>
     const unsigned int t        = relative_time;               //TODO: generalise to dilution
 
     // adapt to dilution! (add an it loop and untrivialise ik and is loops)
-    
     const unsigned int Nt_first = g_->LocalStarts()[nd_ - 1];
     const unsigned int Nt_local = g_->LocalDimensions()[nd_ - 1];
     if( (relative_time>=Nt_first) and (relative_time<Nt_first+Nt_local) )
@@ -696,7 +710,7 @@ void DmfComputation<FImpl,T,Tio>
             unsigned int idt = std::distance(dt_list.begin(), itr_dt);
             if(isPhi(s))
             {
-                makeRelativePhiComponent(dv.at(s)[Drelative] , distilNoise_.at(s) , n_idx.at(s) , D , delta_t , peramb.at(s), epack);
+                makeRelativePhiComponent(dv.at(s)[Drelative] , distilNoise_.at(s) , n_idx.at(s) , D , delta_t , peramb.at(s), epack, vectorStem_.at(s));
             }
             else if(isRho(s))
             {
