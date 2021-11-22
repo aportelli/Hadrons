@@ -68,7 +68,7 @@ private:
     std::vector<Gamma::Algebra>         gamma_;  
     bool                                isExact_=false;
     bool                                onlyDiag_=false;
-    unsigned int                  diagShift_=0;
+    unsigned int                        diagShift_=0;
     std::map<Side,std::string>          dmfType_;
     std::vector<unsigned int>           tSourceL_;
     std::vector<unsigned int>           tSourceR_;
@@ -196,6 +196,14 @@ void TDistilMesonFieldFixed<FImpl>::setup(void)
     if(par().onlyDiagonal == "true" || par().onlyDiagonal == "false")
     {
         onlyDiag_ = (par().onlyDiagonal=="true") ? true : false;
+    }
+    else if (par().onlyDiagonal.empty())
+    {
+        onlyDiag_=false;
+    }
+    else
+    {
+        HADRONS_ERROR(Argument,"Not recognized option for onlyDiagonal parameter.");
     }
 
     if( onlyDiag_ and

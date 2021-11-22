@@ -114,7 +114,7 @@ int main(int argc, char *argv[])
         application.createModule<MSolver::RBPrecCG>("cg_" + flavour[i],
                                                     solverPar);
         
-        // perabmulators
+        // perambulators
         MDistil::Perambulator::Par perambPar;
         perambPar.lapEigenPack = "lapevec";
         perambPar.solver = "cg_" + flavour[i];
@@ -149,33 +149,58 @@ int main(int argc, char *argv[])
 
     for (unsigned int i = 0; i < flavour.size(); ++i)
     {
-        // phi-rho fields
-        MDistil::DistilMesonFieldFixed::Par mfPar;
-        mfPar.outPath = "./kpi-mesonfields/phi_" + flavour[i] + "-rho";
-        mfPar.lapEigenPack = "lapevec";
-        mfPar.leftNoise = "exact";
-        mfPar.rightNoise = "exact";
+        // phi-phi fields (fixed)
+        MDistil::DistilMesonFieldFixed::Par mfParFixed;
+        mfParFixed.outPath = "./kpi-mesonfields/phi_" + flavour[0] + "-phi_" + flavour[i];
+        mfParFixed.lapEigenPack = "lapevec";
+        mfParFixed.leftNoise = "exact";
+        mfParFixed.rightNoise = "exact";
         // trivial noise policy (=identity) for exact distillation
-        mfPar.noisePairs = {""};
-        // empty -> invert on all time slices
-        mfPar.leftTimeSources = ""; 
-        mfPar.rightTimeSources = ""; 
-        mfPar.leftPeramb = "Peramb_" + flavour[i] + "_nvec6";
-        // rho = no perambulator
-        mfPar.rightPeramb = ""; 
+        mfParFixed.noisePairs = {""};
+        // empty -> time sources on all time slices (if a phi, corresponds to inversions made during perambulator part)
+        mfParFixed.leftTimeSources = ""; 
+        mfParFixed.rightTimeSources = ""; 
+        mfParFixed.leftPeramb = "Peramb_" + flavour[0] + "_nvec6";
+        mfParFixed.rightPeramb = "Peramb_" + flavour[i] + "_nvec6";
         // used if vectors should be read from disk instead of computed from perambulators
-        mfPar.leftVectorStem = ""; 
-        mfPar.rightVectorStem = "";
+        mfParFixed.leftVectorStem = ""; 
+        mfParFixed.rightVectorStem = "";
         // tuning parameters 
-        mfPar.blockSize = 24;
-        mfPar.cacheSize = 4;
+        mfParFixed.blockSize = 24;
+        mfParFixed.cacheSize = 4;
         // "true" would only compute the components needed for the 2pt functions, where dilution indices are equal dt_1 = dt_2
-        mfPar.onlyDiagonal = "false";
-        mfPar.gamma = "all";
+        mfParFixed.onlyDiagonal = "false";
+        mfParFixed.gamma = "all";
         // only relevant in the onlyDiagonal = "true" option, to support displaced two-hadron operators, 3pt functions etc.
-        mfPar.deltaT = "0"; 
-        mfPar.momenta = momenta;
-        application.createModule<MDistil::DistilMesonFieldFixed>("Phi_" + flavour[i] + "Rho_nvec6", mfPar);
+        mfParFixed.deltaT = "0"; 
+        mfParFixed.momenta = momenta;
+        application.createModule<MDistil::DistilMesonFieldFixed>("Phi_" + flavour[0] + "Phi_" + flavour[i] + "nvec6", mfParFixed);
+
+        // rho-phi fields (relative order)
+        MDistil::DistilMesonFieldRelative::Par mfParRel;
+        mfParRel.outPath = "./kpi-mesonfields/rho-phi_" + flavour[i];
+        mfParRel.lapEigenPack = "lapevec";
+        mfParRel.leftNoise = "exact";
+        mfParRel.rightNoise = "exact";
+        // trivial noise policy (=identity) for exact distillation
+        mfParRel.noisePairs = {""};
+        // empty -> time sources on all time slices (if a phi, corresponds to inversions made during perambulator part)
+        mfParRel.leftTimeSources = ""; 
+        mfParRel.rightTimeSources = ""; 
+        mfParRel.leftPeramb = "";
+        mfParRel.rightPeramb = "Peramb_" + flavour[i] + "_nvec6";
+        // used if vectors should be read from disk instead of computed from perambulators
+        mfParRel.leftVectorStem = ""; 
+        mfParRel.rightVectorStem = "";
+        // tuning parameters 
+        mfParRel.blockSize = 24;
+        mfParRel.cacheSize = 4;
+        // side of the time-dilution index that will be shifted relative to the time slices according to deltaT parameter
+        mfParRel.relativeSide = "right";
+        mfParRel.deltaT = "0"; 
+        mfParRel.gamma = "all";
+        mfParRel.momenta = momenta;
+        application.createModule<MDistil::DistilMesonFieldRelative>("Rho_" + flavour[0] + "Phi_" + flavour[i] + "nvec6", mfParRel);
     }
 
     // execution

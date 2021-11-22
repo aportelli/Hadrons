@@ -309,7 +309,7 @@ private:
     GridCartesian*                      g3d_;
     ColourVectorField                   evec3d_;
     FermionField                        tmp3d_, tmp4d_;
-    std::vector<Tio>                    bBuf_; //potentially large objects
+    std::vector<Tio>                    bBuf_;
     std::vector<T>                      cBuf_;
     const unsigned int                  blockSize_; //eventually turns into io chunk size
     const unsigned int                  cacheSize_;
@@ -381,13 +381,13 @@ private:
                             PerambTensor&                    peramb,
                             LapPack&                         epack,
                             std::string                      vector_stem="");
-    void makeRelativeRhoComponent(FermionField&            rho_component,
+    void makeRelativeRhoComponent(FermionField&          rho_component,
                             DistillationNoise&           n,
                             const unsigned int           n_idx,
                             const unsigned int           t,
                             const unsigned int           D,
                             LapPack&                     epack);
-    void makeRelativeDvLapSpinBlock(std::map<Side, DistilVector&>     dv,
+    void makeRelativeDvLapSpinBlock(std::map<Side, DistilVector&>   dv,
                                std::vector<unsigned int>            dt_list,
                                std::map<Side, unsigned int>         n_idx,
                                LapPack&                             epack,
@@ -395,7 +395,7 @@ private:
                                const unsigned int                   delta_t,
                                std::map<Side, PerambTensor&>        peramb);
 public:
-    void executeRelative(const FilenameFn                               &filenameDmfFn,
+    void executeRelative(const FilenameFn                             &filenameDmfFn,
                        const MetadataFn                               &metadataDmfFn,
                        std::vector<Gamma::Algebra>                    gamma,
                        std::map<Side, DistilVector&>                  dv,
@@ -688,7 +688,7 @@ void DmfComputation<FImpl,T,Tio>
 
 template <typename FImpl, typename T, typename Tio>
 void DmfComputation<FImpl,T,Tio>
-::makeRelativeDvLapSpinBlock(std::map<Side, DistilVector&>                dv,
+::makeRelativeDvLapSpinBlock(std::map<Side, DistilVector&>              dv,
                                std::vector<unsigned int>                dt_list,
                                std::map<Side, unsigned int>             n_idx,
                                LapPack&                                 epack,
@@ -722,7 +722,7 @@ void DmfComputation<FImpl,T,Tio>
 
 template <typename FImpl, typename T, typename Tio>
 void DmfComputation<FImpl,T,Tio>
-::executeRelative(const FilenameFn                              &filenameDmfFn,
+::executeRelative(const FilenameFn                            &filenameDmfFn,
                 const MetadataFn                              &metadataDmfFn,
                 std::vector<Gamma::Algebra>                   gamma,
                 std::map<Side, DistilVector&>                 dv,
@@ -890,8 +890,7 @@ void DmfComputation<FImpl,T,Tio>
                             unsigned int bytesBlockSize  = static_cast<double>(nExt_*nStr_*iblock_size*jblock_size*sizeof(Tio));
                             double iospeed = bytesBlockSize/ioTime*1.0e6/1024/1024;
                             LOG(Message)    << "HDF5 IO done " << sizeString(bytesBlockSize) << " in "
-                                            << ioTime  << " us (" << iospeed << " MB/s) (chunking "
-                                            << blockSize_ << "x" << blockSize_ << ")" << std::endl;
+                                            << ioTime  << " us (" << iospeed << " MB/s)" << std::endl;
                             blockIoSpeed_ += iospeed;
                         }
                     }
@@ -1083,8 +1082,7 @@ void DmfComputation<FImpl,T,Tio>
                                     unsigned int bytesBlockSize  = static_cast<double>(nExt_*nStr_*iblock_size*jblock_size*sizeof(Tio));
                                     double iospeed = bytesBlockSize/ioTime*1.0e6/1024/1024;
                                     LOG(Message)    << "HDF5 IO done " << sizeString(bytesBlockSize) << " in "
-                                                    << ioTime  << " us (" << iospeed << " MB/s) (chunking "
-                                                    << blockSize_ << "x" << blockSize_ << ")" << std::endl;
+                                                    << ioTime  << " us (" << iospeed << " MB/s)" << std::endl;
                                     blockIoSpeed_ += iospeed;
                                 }
                             }
