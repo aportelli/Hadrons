@@ -1,5 +1,5 @@
 /*
- * Test_distil.cpp, part of Hadrons (https://github.com/aportelli/Hadrons)
+ * Test_exact_distil.cpp, part of Hadrons (https://github.com/aportelli/Hadrons)
  *
  * Copyright (C) 2015 - 2020
  *
@@ -24,6 +24,20 @@
 
 /*  END LEGAL */
 
+/**************************************************************************
+ * This test shows a typical use of stochastic distillation, computing
+ * all the meson fields needed to study pi-pi and K-pi scattering.
+ * We assume this is run on an 8^4 grid
+ *
+ *   Nvec = 6            Laplacian eigenvectors
+ *   exactDistillation   noise policy that enforces full dilution in spin, modes, time
+ *   timeSources = ""    inversions on every available time slice (0,1,2,3,4,5,6,7)
+ *
+ * The only meson fields needed are:
+ *   M(phi_{l/s},rho)   fixed 
+ * We don't have to rely on gamma-5 hermiticity as we are computing all relevant 
+ * inversions to get the 2pt, 3pt and 4pt functions.
+**************************************************************************/
 #include <typeinfo>
 #include <Hadrons/Application.hpp>
 #include <Hadrons/Modules.hpp>
