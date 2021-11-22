@@ -125,19 +125,24 @@ std::vector<std::string> TDistilMesonFieldRelative<FImpl>::getOutput(void)
 template <typename FImpl>
 void TDistilMesonFieldRelative<FImpl>::setup(void)
 {
-    if( envHasDerivedType(DistillationNoise, ExactDistillationPolicy<FImpl>, par().leftNoise)
-        and envHasDerivedType(DistillationNoise, ExactDistillationPolicy<FImpl>, par().rightNoise) )
-    {
-        isExact_ = true;
-    }
-
     GridCartesian *g            = envGetGrid(FermionField);
     GridCartesian *g3d          = envGetSliceGrid(FermionField, g->Nd() - 1);
+    const unsigned int nt       = env().getDim(g->Nd() - 1);
     DistillationNoise &noisel   = envGet( DistillationNoise , par().leftNoise);
     DistillationNoise &noiser   = envGet( DistillationNoise , par().rightNoise);
     outputMFPath_   = par().outPath;
     dilSizeLS_      = { {Side::left,noisel.dilutionSize(Index::l)*noisel.dilutionSize(Index::s)},
                         {Side::right,noiser.dilutionSize(Index::l)*noiser.dilutionSize(Index::s)} };
+    
+    if( envHasDerivedType(DistillationNoise, ExactDistillationPolicy<FImpl>, par().leftNoise)
+        and envHasDerivedType(DistillationNoise, ExactDistillationPolicy<FImpl>, par().rightNoise) )
+    {
+        isExact_ = true;
+    }
+    else if(noisel.dilutionSize(Index::t)!=nt or noiser.dilutionSize(Index::t)!=nt)
+    {
+         HADRONS_ERROR(Implementation, "Non-full time dilution not implemented.");
+    }
 
     if(par().blockSize > dilSizeLS_.at(Side::left) or par().blockSize > dilSizeLS_.at(Side::right))
     {
@@ -351,10 +356,15 @@ void TDistilMesonFieldRelative<FImpl>::execute(void)
         md.NoisePair        = {nl,nr};
         md.MesonFieldType   = dmfType_.at(Side::left) + "-" + dmfType_.at(Side::right);
         md.RelativeSide     = (relative_side_==Side::left) ? "left" : "right";
-        if(isExact_)
+        if(!isExact_)
         {
             md.NoiseHashLeft   = noisel.generateHash()[nl];
             md.NoiseHashRight  = noiser.generateHash()[nr];
+        }
+        else
+        {
+            md.NoiseHashLeft   = "0";
+            md.NoiseHashRight  = "0";
         }
         md.TimeDilutionLeft  = lmap[Index::t];
         md.TimeDilutionRight = rmap[Index::t];
