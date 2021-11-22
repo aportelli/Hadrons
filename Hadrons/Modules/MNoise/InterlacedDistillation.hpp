@@ -104,6 +104,7 @@ void TInterlacedDistillation<FImpl>::execute(void)
                  << par().ti << ", " << par().li << ", " << par().si << ")"
                  << std::endl;
 
+    GridCartesian *g     = envGetGrid(FermionField);
     auto &noise = envGetDerived(DistillationNoise<FImpl>,
                                 InterlacedDistillationNoise<FImpl>, getName());
 
@@ -118,6 +119,7 @@ void TInterlacedDistillation<FImpl>::execute(void)
 
     if(!par().fileName.empty())
     {
+        makeFileDir(par().fileName, g);
         noise.save(par().fileName, "InterlacedDistillation", vm().getTrajectory());
     }
 }

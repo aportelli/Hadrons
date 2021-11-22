@@ -24,6 +24,50 @@
 
 /*  END LEGAL */
 
+/**************************************************************************
+ * This test shows a typical use of stochastic distillation, computing
+ * all the meson fields needed to study pi-pi and K-pi scattering.
+ * We assume this is run on an 8^4 grid
+ *
+ * Two dilution schemes, both of which use 
+ *   Nvec = 6       Laplacian eigenvectors
+ *   LI = 3         interlaced eigenmode mode dilution
+ *   SI = 4         full dilution in spin
+ * for lines connected to the source timeslice ('fixed')
+ *   TI = 8         full diluton in time
+ *   tSrc = "0 4"   inversions only on timeslices 0 and 4
+ * for sink-to-sink lines ('relative')
+ *   TI = 2         interlaced time dilution
+ *   tSrc = ""      empty -> use all sources, in this case 2
+ *
+ * We place all two-hadron oprators on the same timeslice (no 
+ * displacement) and to avoid bias, we need independent noise sources.
+ * A box-diagram consists of 3 fixed and 1 relative line, and these
+ * are the minimum requirements for the independent noise sources.
+ *   nNoiseFix = 5  for fixed lines
+ *   nNoiseRel = 3  for relative lines
+ *
+ * We compute the following meson fields:
+ * NB: to get from M(phi,phi) to M(bar{phi},phi), multiply by gamma5
+ * 2pt functions:
+ *   M(phi_{l/s},phi_l)   fixed 
+ *   M(rho,rho)           fixed         
+ * 3pt functions: 
+ *   M(rho,phi_{l/s})     fixed
+ * 4pt functions:
+ *   M(phi_{l/s},phi_l)   relative RHS  
+ *   M(rho,phi_l)         relative LHS       
+ * 
+ * We use the mode 'saveSolve' in the light-quark perambulator module. In 
+ * addition to computing the perambulators, it also saves the unsmeared 
+ * solves on disk. These can late be contracted into meson fields by 
+ * passing the filename via the input parameters
+ *   leftVectorStem
+ *   rightVectorStem
+ * to the MesonFieldFixed module. This meson field represents a local 
+ * current.
+**************************************************************************/
+
 #include <typeinfo>
 #include <Hadrons/Application.hpp>
 #include <Hadrons/Modules.hpp>
@@ -47,7 +91,7 @@ int main(int argc, char *argv[])
     std::vector<std::string> flavour = {"l", "s"};
     std::vector<double>      mass    = {.01, .04};
     std::vector<std::string> noises  = {"noiseTdil2", "noiseTfull"};
-    std::vector<std::string> nNoises = {3, 5}; 
+    std::vector<int>         nNoises = {3, 5}; 
     std::vector<std::string> tSrcs   = {"", "0 4"}; 
     
     // global parameters
@@ -98,11 +142,11 @@ int main(int argc, char *argv[])
     noisePar.ti = 2; // T=8, ti=2 => 2 diluted time sources [0 2 4 6] and [1 3 5 7]
     noisePar.li = 3; // nVec=6, li=3 => 3 diluted eigenmode sources [0 3], [1 4] and [2 5]
     noisePar.si = 4; // nS=4, si=4 => full spin dilution; sources [0], [1], [2] and [3]
-    noisePar.fileName = "./noises/Tdil2";
+    noisePar.fileName = "./kpi-stoch/noises/Tdil2";
     application.createModule<MNoise::InterlacedDistillation>(noises[0],noisePar);
     noisePar.nNoise = nNoises[1]; // additional noises for fixed lines
     noisePar.ti = 8; // T=8, ti=8 => full time dilution
-    noisePar.fileName = "./noises/Tfull";
+    noisePar.fileName = "./kpi-stoch/noises/Tfull";
     application.createModule<MNoise::InterlacedDistillation>(noises[1],noisePar);
     // loop over flavours, set up action, solver, perambulator 
     for (unsigned int i = 0; i < flavour.size(); ++i)
@@ -131,15 +175,14 @@ int main(int argc, char *argv[])
             MDistil::Perambulator::Par perambPar;
             perambPar.lapEigenPack = "lapevec";
             perambPar.solver = "cg_" + flavour[i];
-            perambPar.perambFileName = "./Peramb_" + flavour[i] + "_nvec6";
-            perambPar.fullSolveFileName = ""; // only used for perambMode::saveSolve
+            perambPar.perambFileName = "./kpi-stoch/Peramb_" + flavour[i] + "_" + noises[j];
+            perambPar.fullSolveFileName = "./kpi-stoch/unsmeared_solve_" + flavour[i] + "_" + noises[j]; // only used for perambMode::saveSolve
             perambPar.fullSolve = ""; // only used for perambMode::loadSolve
             perambPar.distilNoise = noises[j];
             perambPar.timeSources = tSrcs[j]; // time slices to invert on
-            perambPar.perambMode = MDistil::pMode::perambOnly; // compute perambulator from lap evecs, discard unsmeared solves
+            perambPar.perambMode = MDistil::pMode::saveSolve; // compute perambulator from lap evecs, save unsmeared solves to disk
             perambPar.nVec = ""; // empty = match nVec in distilNoise
-            perambPar.multiFileFullSolve = ""; // delete?
-            application.createModule<MDistil::Perambulator>("Peramb_" + flavour[i] + "_" + noises[j] + "_nvec6", perambPar);
+            application.createModule<MDistil::Perambulator>("Peramb_" + flavour[i] + "_" + noises[j], perambPar);
         }
     }
 
@@ -161,14 +204,18 @@ int main(int argc, char *argv[])
        }
     }
     // noise pairs of meson fields with relative lines - independent noises
-    std::vector<std::string> noisePairsRel; 
+    std::vector<std::string> noisePairsRelLeft; 
+    std::vector<std::string> noisePairsRelRight; 
     // brute force list of momenta
     for (int i = 0; i < nNoises[0]; ++i)
     for (int j = 0; j < nNoises[1]; ++j)
     {
-        std::stringstream noisePair;
-	mom << i << " " << j;
-	noisePairsRel.push_back(noisePair.str());
+        std::stringstream noisePairL;
+	noisePairL << i << " " << j;
+	noisePairsRelLeft.push_back(noisePairL.str());
+        std::stringstream noisePairR;
+	noisePairR << j << " " << i;
+	noisePairsRelRight.push_back(noisePairR.str());
     }
     // noise pairs of meson fields with fixed lines - same set, so only off-diagonal!
     std::vector<std::string> noisePairsFix; 
@@ -179,100 +226,122 @@ int main(int argc, char *argv[])
         if(i != j)
         {
             std::stringstream noisePair;
-    	    mom << i << " " << j;
+    	    noisePair << i << " " << j;
 	    noisePairsFix.push_back(noisePair.str());
         }
     }
     // meson fields
 
-    // rho-rho field - NB: to get M(\bar{rho},rho), this needs to be multiplied by gamma5!
-    MDistil::DistilMesonField::Par mfPar;
-    mfPar.outPath = "./kpi-mesonfields/stoch/rho-rho";
+    // M(rho,rho)  fixed         
+    MDistil::DistilMesonFieldFixed::Par mfPar;
+    mfPar.outPath = "./kpi-stoch/M-rho-rho";
     mfPar.lapEigenPack = "lapevec";
     mfPar.leftNoise = "noiseTfull";
     mfPar.rightNoise = "noiseTfull";
     mfPar.noisePairs = noisePairsFix;
-    mfPar.leftTimeSources = tSrcs[1]; // time sources
-    mfPar.rightTimeSources = tSrcs[1]; // time sources
-    mfPar.leftPeramb = ""; // rho = no perambulator
-    mfPar.rightPeramb = ""; // rho = no perambulator
+    mfPar.leftTimeSources = tSrcs[1]; 
+    mfPar.rightTimeSources = tSrcs[1];
+    // rho = no perambulator
+    mfPar.leftPeramb = ""; 
+    mfPar.rightPeramb = ""; 
     mfPar.leftVectorStem = "";
     mfPar.rightVectorStem = "";
-    mfPar.blockSize = 24;
+    mfPar.blockSize = 12;
     mfPar.cacheSize = 4;
     mfPar.onlyDiagonal = "true";
     mfPar.gamma = "all";
     //mfPar.deltaT = 0;
     mfPar.momenta = momenta;
-    application.createModule<MDistil::DistilMesonField>("RhoRho_nvec6", mfPar);
+    application.createModule<MDistil::DistilMesonFieldFixed>("RhoRho", mfPar);
    
-    // phi-phi fields
-    // NB: to get M(\bar{phi},phi), this needs to be multiplied by gamma5!
     for (unsigned int i = 0; i < flavour.size(); ++i)
     {
-        // pion and kaon fixed meson fields for 2pt functions etc 
+        // M(phi_{l/s},phi_l)   fixed 
         //MDistil::DistilMesonField::Par mfPar;
-        mfPar.outPath = "./kpi-mesonfields/stoch/phi_" + flavour[i] + "-phi_l";
+        mfPar.outPath = "./kpi-stoch/M-phi_" + flavour[i] + "-phi_l-fix";
         mfPar.lapEigenPack = "lapevec";
         mfPar.leftNoise = "noiseTfull";
         mfPar.rightNoise = "noiseTfull";
         mfPar.noisePairs = noisePairsFix;
-        mfPar.leftTimeSources = tSrcs[1]; // time sources
-        mfPar.rightTimeSources = tSrcs[1]; // time sources
-        mfPar.leftPeramb = "Peramb_" + flavour[i] + "_nvec6"; // kaon / pion 1st quark
-        mfPar.rightPeramb = "Peramb_l_nvec6"; // kaon / pion 2nd quark = light
+        mfPar.leftTimeSources = tSrcs[1]; 
+        mfPar.rightTimeSources = tSrcs[1];
+        // n1 is the noises for fixed lines
+        mfPar.leftPeramb = "Peramb_" + flavour[i] + "_" + noises[1]; 
+        mfPar.rightPeramb = "Peramb_l_" + noises[1]; 
         mfPar.leftVectorStem = "";
         mfPar.rightVectorStem = "";
-        mfPar.blockSize = 24;
+        mfPar.blockSize = 12;
         mfPar.cacheSize = 4;
         mfPar.onlyDiagonal = "true";
         mfPar.gamma = "all";
         //mfPar.deltaT = 0;
         mfPar.momenta = momenta;
-        application.createModule<MDistil::DistilMesonField>("Phi_" + flavour[i] + "phi_l_nvec6", mfPar);
+        application.createModule<MDistil::DistilMesonFieldFixed>("Phi_" + flavour[i] + "phi_l-fix", mfPar);
+      
+        // M(rho,phi_{l/s})     fixed
+        //MDistil::DistilMesonField::Par mfPar;
+        mfPar.outPath = "./kpi-stoch/M-rho-phi_" + flavour[i] + "-fix";
+        mfPar.lapEigenPack = "lapevec";
+        mfPar.leftNoise = "noiseTfull";
+        mfPar.rightNoise = "noiseTfull";
+        mfPar.noisePairs = noisePairsFix;
+        mfPar.leftTimeSources = tSrcs[1];
+        mfPar.rightTimeSources = tSrcs[1];
+        // rho -> no perambulator
+        mfPar.leftPeramb = "";
+        // n1 -> fixed
+        mfPar.rightPeramb = "Peramb_" + flavour[i] + "_" + noises[1];
+        mfPar.leftVectorStem = "";
+        mfPar.rightVectorStem = "";
+        mfPar.blockSize = 12;
+        mfPar.cacheSize = 4;
+        mfPar.onlyDiagonal = "false";
+        mfPar.gamma = "all";
+        //mfPar.deltaT = 0;
+        mfPar.momenta = momenta;
+        application.createModule<MDistil::DistilMesonFieldFixed>("RhoPhi_" + flavour[i] + "-fix", mfPar);
+
+        // M(phi_{l/s},phi_l)   relative RHS  
+        MDistil::DistilMesonFieldRelative::Par mfrPar;
+        mfrPar.outPath = "./kpi-stoch/M-phi_" + flavour[i] + "-phi_l-rel";
+        mfrPar.lapEigenPack = "lapevec";
+        mfrPar.leftNoise = "noiseTfull";
+        mfrPar.rightNoise = "noiseTdil2";
+        mfrPar.noisePairs = noisePairsRelRight;
+        mfrPar.leftTimeSources = tSrcs[1]; 
+        mfrPar.rightTimeSources = tSrcs[0];
+        // n0 / n1 -> noise for relative / fixed lines
+        mfrPar.leftPeramb = "Peramb_" + flavour[i] + "_" + noises[1];
+        mfrPar.rightPeramb = "Peramb_l_" + noises[0]; 
+        //mfrPar.leftVectorStem = "";
+        //mfrPar.rightVectorStem = "";
+        mfrPar.blockSize = 12;
+        mfrPar.cacheSize = 4;
+        mfrPar.gamma = "all";
+        //mfrPar.deltaT = 0;
+        mfrPar.momenta = momenta;
+        application.createModule<MDistil::DistilMesonFieldRelative>("Phi_" + flavour[i] + "phi_l-relative", mfrPar);
     }
 
-    // kaon relative meson fields for 2pt functions etc 
-    //MDistil::DistilMesonField::Par mfPar;
-    mfPar.outPath = "./kpi-mesonfields/stoch/phi_s-phi_l_rel";
-    mfPar.lapEigenPack = "lapevec";
-    mfPar.leftNoise = "noiseTfull";
-    mfPar.rightNoise = "noiseTfull";
-    mfPar.noisePairs = noisePairsFix;
-    mfPar.leftTimeSources = tSrcs[1]; // time sources
-    mfPar.rightTimeSources = tSrcs[1]; // time sources
-    mfPar.leftPeramb = "Peramb_s_nvec6"; // kaon / pion 1st quark
-    mfPar.rightPeramb = "Peramb_l_nvec6"; // kaon / pion 2nd quark = light
-    mfPar.leftVectorStem = "";
-    mfPar.rightVectorStem = "";
-    mfPar.blockSize = 24;
-    mfPar.cacheSize = 4;
-    mfPar.onlyDiagonal = "true";
-    mfPar.gamma = "all";
-    //mfPar.deltaT = 0;
-    mfPar.momenta = momenta;
-    application.createModule<MDistil::DistilMesonField>("Phi_" + flavour[i] + "phi_l_nvec6", mfPar);
-
-    // phi_l-rho fields, sink-to-sink lines with time interlaced dilution
-    //MDistil::DistilMesonField::Par mfPar;
-    mfPar.outPath = "./kpi-mesonfields/stoch/rho_rel-phi_l";
-    mfPar.lapEigenPack = "lapevec";
-    mfPar.leftNoise = "noiseTdil2"; //left field has time interlaced dilution
-    mfPar.rightNoise = "noiseTfull";
-    mfPar.noisePairs = noisePairsRel;
-    mfPar.leftTimeSources = tSrcs[0]; // empty -> invert on all time dilution vectors
-    mfPar.rightTimeSources = tSrcs[1]; // time sources
-    mfPar.leftPeramb = ""; // rho
-    mfPar.rightPeramb = "Peramb_l_nvec6"; // phi_l
-    mfPar.leftVectorStem = "";
-    mfPar.rightVectorStem = "";
-    mfPar.blockSize = 24;
-    mfPar.cacheSize = 4;
-    mfPar.onlyDiagonal = "true";
-    mfPar.gamma = "all";
-    //mfPar.deltaT = 0;
-    mfPar.momenta = momenta;
-    application.createModule<MDistil::DistilMesonField>("Phi_" + flavour[i] + "phi_l_nvec6", mfPar);
+    // M(rho,phi_l)         relative LHS       
+    MDistil::DistilMesonFieldRelative::Par mfrPar;
+    mfrPar.outPath = "./kpi-stoch/M-rho-phi_l-rel";
+    mfrPar.lapEigenPack = "lapevec";
+    mfrPar.leftNoise = "noiseTdil2";
+    mfrPar.rightNoise = "noiseTfull";
+    mfrPar.noisePairs = noisePairsRelLeft;
+    mfrPar.leftTimeSources = tSrcs[0]; 
+    mfrPar.rightTimeSources = tSrcs[1]; 
+    mfrPar.leftPeramb = ""; 
+    mfrPar.rightPeramb = "Peramb_l_" + noises[1]; 
+    //mfrPar.leftVectorStem = "";
+    //mfrPar.rightVectorStem = "";
+    mfrPar.blockSize = 12;
+    mfrPar.cacheSize = 4;
+    mfrPar.gamma = "all";
+    //mfrPar.deltaT = 0;
+    mfrPar.momenta = momenta;
+    application.createModule<MDistil::DistilMesonFieldRelative>("Rhophi_l", mfrPar);
 
     // execution
     application.saveParameterFile("kpiStoch.xml");
