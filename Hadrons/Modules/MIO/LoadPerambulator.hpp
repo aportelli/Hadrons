@@ -33,7 +33,12 @@
 #ifndef Hadrons_MIO_LoadPerambulator_hpp_
 #define Hadrons_MIO_LoadPerambulator_hpp_
 
-#include <Hadrons/Modules/MDistil/Distil.hpp>
+#include <Hadrons/Global.hpp>
+#include <Hadrons/Module.hpp>
+#include <Hadrons/ModuleFactory.hpp>
+#include <Hadrons/DilutedNoise.hpp>
+#include <Hadrons/NamedTensor.hpp>
+#include <Hadrons/Modules/MDistil/DistilUtils.hpp>
 
 BEGIN_HADRONS_NAMESPACE
 BEGIN_MODULE_NAMESPACE(MIO)
@@ -46,8 +51,9 @@ class LoadPerambulatorPar: Serializable
 {
 public:
     GRID_SERIALIZABLE_CLASS_MEMBERS(LoadPerambulatorPar,
-                                        std::string, PerambFileName,
-                                        std::string, DistilParams);
+                                        std::string, perambFileName,
+                                        std::string, distilNoise,
+                                        std::string, timeSources);
 };
 
 template <typename FImpl>
@@ -80,7 +86,7 @@ TLoadPerambulator<FImpl>::TLoadPerambulator(const std::string name) : Module<Loa
 template <typename FImpl>
 std::vector<std::string> TLoadPerambulator<FImpl>::getInput(void)
 {
-    return {par().DistilParams};
+    return {par().distilNoise};
 }
 
 template <typename FImpl>
@@ -93,22 +99,66 @@ std::vector<std::string> TLoadPerambulator<FImpl>::getOutput(void)
 template <typename FImpl>
 void TLoadPerambulator<FImpl>::setup(void)
 {
-    const MDistil::DistilParameters &dp{envGet(MDistil::DistilParameters,  par().DistilParams)};
-    const int Nt{env().getDim(Tdir)}; 
-    const bool full_tdil{ dp.TI == Nt };
-    const int Nt_inv{ dp.inversions };
-    envCreate(MDistil::PerambTensor, getName(), 1, Nt,dp.nvec,dp.LI,dp.nnoise,Nt_inv,dp.SI);
+    auto &dilNoise = envGet(DistillationNoise<FImpl>, par().distilNoise);
+    int nNoise = dilNoise.size();	
+    int nVec = dilNoise.getNl();	
+    int nDL = dilNoise.dilutionSize(DistillationNoise<FImpl>::Index::l);	
+    int nDS = dilNoise.dilutionSize(DistillationNoise<FImpl>::Index::s);	
+    int nDT = dilNoise.dilutionSize(DistillationNoise<FImpl>::Index::t);	
+    const int  Nt{env().getDim(Tdir)};
+    int nSourceT;
+    std::string sourceT = par().timeSources;
+    nSourceT = MDistil::verifyTimeSourcesInput(sourceT,nDT);
+
+    envCreate(MDistil::PerambTensor, getName(), 1, Nt, nVec, nDL, nNoise, nSourceT, nDS);
+    envTmp(MDistil::PerambIndexTensor, "PerambTmp", 1, Nt, nVec, nDL, nNoise, nDS);
 }
 
 // execution ///////////////////////////////////////////////////////////////////
 template <typename FImpl>
 void TLoadPerambulator<FImpl>::execute(void)
 {
-  auto &perambulator = envGet(MDistil::PerambTensor, getName());
-  std::string sPerambName{ par().PerambFileName };
-  sPerambName.append( 1, '.' );
-  sPerambName.append( std::to_string( vm().getTrajectory() ) );
-  perambulator.read(sPerambName.c_str());
+    auto &perambulator = envGet(MDistil::PerambTensor, getName());
+    auto &dilNoise = envGet(DistillationNoise<FImpl>, par().distilNoise);
+    int nNoise = dilNoise.size();	
+    int nVec = dilNoise.getNl();	
+    int nDL = dilNoise.dilutionSize(DistillationNoise<FImpl>::Index::l);	
+    int nDS = dilNoise.dilutionSize(DistillationNoise<FImpl>::Index::s);	
+    int nDT = dilNoise.dilutionSize(DistillationNoise<FImpl>::Index::t);	
+    const int  Nt{env().getDim(Tdir)};
+
+    std::string sourceT = par().timeSources;
+    int nSourceT;
+    std::vector<int> invT;
+    nSourceT = MDistil::getSourceTimesFromInput(sourceT,nDT,dilNoise,invT);    
+    perambulator.MetaData.timeSources = invT;
+    
+    envGetTmp(MDistil::PerambIndexTensor, PerambTmp);
+    for (int dt = 0; dt < Nt; dt++)
+    {
+        std::vector<int>::iterator it = std::find(std::begin(invT), std::end(invT), dt);
+        //skip dilution indices which are not in invT
+        if(it == std::end(invT))
+        {
+            continue;
+        }
+        LOG(Message) <<  "reading perambulator dt= " << dt << std::endl;
+	int idt=it - std::begin(invT);
+        std::string sPerambName {par().perambFileName};
+        sPerambName.append("/iDT_");
+        sPerambName.append(std::to_string(dt));
+        sPerambName.append(".");
+        sPerambName.append(std::to_string(vm().getTrajectory()));
+        PerambTmp.read(sPerambName.c_str());
+	for (int t = 0; t < Nt; t++)
+        for (int ivec = 0; ivec < nVec; ivec++)
+        for (int idl = 0; idl < nDL; idl++)
+        for (int in = 0; in < nNoise; in++)
+        for (int ids = 0; ids < nDS; ids++)
+	{
+	    perambulator.tensor(t,ivec,idl,in,idt,ids) = PerambTmp.tensor(t,ivec,idl,in,ids);
+	}
+    }
 }
 
 END_MODULE_NAMESPACE
