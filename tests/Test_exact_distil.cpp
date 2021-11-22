@@ -125,8 +125,7 @@ int main(int argc, char *argv[])
         solverPar.action       = "dwf_" + flavour[i];
         solverPar.residual     = 1e-2;
         solverPar.maxIteration = 10000;
-        application.createModule<MSolver::RBPrecCG>("cg_" + flavour[i],
-                                                    solverPar);
+        application.createModule<MSolver::RBPrecCG>("cg_" + flavour[i], solverPar);
         
         // perabmulators
         MDistil::Perambulator::Par perambPar;
