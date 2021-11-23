@@ -619,7 +619,7 @@ void DmfComputation<FImpl,T,Tio>
     
     //compute at relative_time, insert at t=relative_time
     const unsigned int relative_time    = (dt + delta_t)%nt_;               //TODO: generalise to dilution
-    const unsigned int t                = relative_time;                         //TODO: generalise to dilution 
+    const unsigned int t                = relative_time;
 
     std::vector<int> peramb_ts = peramb.MetaData.timeSources;
     std::vector<int>::iterator itr_dt = std::find(peramb_ts.begin(), peramb_ts.end(), dt);
@@ -662,17 +662,17 @@ void DmfComputation<FImpl,T,Tio>
     typename DistillationNoise::NoiseType   noise(n.getNoise()[n_idx].data(), nt_, epack.eval.size(), Ns);
 
     //compute at relative_time, insert at t
-    const unsigned int relative_time = (dt + delta_t)%nt_;     //TODO: generalise to dilution
-    const unsigned int t        = relative_time;               //TODO: generalise to dilution
+    const unsigned int relative_time = (dt + delta_t)%nt_;     //TODO: generalise to non-full dilution
+    const unsigned int t        = relative_time;
 
     // adapt to dilution! (add an it loop and untrivialise ik and is loops)
     const unsigned int Nt_first = g_->LocalStarts()[nd_ - 1];
     const unsigned int Nt_local = g_->LocalDimensions()[nd_ - 1];
     if( (relative_time>=Nt_first) and (relative_time<Nt_first+Nt_local) )
     {
-        for (unsigned int ik = dk; ik < dk+1; ik++)
+        for (auto ik : n.dilutionPartition(Index::l, dk))
         {
-            for (unsigned int is = ds; is < ds+1; is++)
+            for (auto is : n.dilutionPartition(Index::s, ds))
             {
                 ExtractSliceLocal(evec3d_, epack.evec[ik], 0, relative_time - Nt_first, nd_-1);
                 evec3d_ = evec3d_*noise(dt, ik, is);
