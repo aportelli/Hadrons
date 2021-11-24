@@ -135,10 +135,6 @@ void TDistilMesonFieldFixed<FImpl>::setup(void)
     {
         isExact_ = true;
     }
-    else if(noisel.dilutionSize(Index::t)!=nt or noiser.dilutionSize(Index::t)!=nt)
-    {
-        HADRONS_ERROR(Implementation, "Non-full time dilution not implemented.");
-    }
 
     if(par().blockSize > dilSizeLS_.at(Side::left) or par().blockSize > dilSizeLS_.at(Side::right))
     {

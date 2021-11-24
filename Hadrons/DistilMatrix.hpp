@@ -701,11 +701,8 @@ void DmfComputation<FImpl,T,Tio>
     {
         std::array<unsigned int,3> d_coor = distilNoise_.at(s).dilutionCoordinates(D);
         unsigned int dt = d_coor[Index::t] , dk = d_coor[Index::l] , ds = d_coor[Index::s];
-        if( std::count(dt_list.begin(), dt_list.end(), dt)!=0 )    //if dt is in dt_list
+        if( std::count(dt_list.begin(), dt_list.end(), dt)!=0 )
         {
-            const unsigned int Drelative = distilNoise_.at(s).dilutionIndex(0,dk,ds);
-            std::vector<unsigned int>::iterator itr_dt = std::find(dt_list.begin(), dt_list.end(), dt);
-            unsigned int idt = std::distance(dt_list.begin(), itr_dt);
             if(isPhi(s))
             {
                 makeRelativePhiComponent(dv.at(s)[Drelative] , distilNoise_.at(s) , n_idx.at(s) , D , delta_t , peramb.at(s), epack, vectorStem_.at(s));
