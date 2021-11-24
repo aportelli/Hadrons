@@ -351,7 +351,6 @@ private:
                           const unsigned int       n_idx,
                           const unsigned int       D,
                           std::string              vector_stem,
-                          PerambTensor&            peramb,
                           LapPack&                 epack);
     void makeRhoComponent(FermionField&         rho_component,
                           DistillationNoise&    n,
@@ -516,12 +515,11 @@ void DmfComputation<FImpl,T,Tio>
                    const unsigned int       n_idx,
                    const unsigned int       D,
                    std::string              vector_stem,
-                   PerambTensor&            peramb,
                    LapPack&                 epack)
 {
     const unsigned int nVec = epack.evec.size();
     DistillationVectorsIo::readComponent(phi_component, vector_stem + "_noise" + std::to_string(n_idx) , n.size(),
-				    n.dilutionSize(Index::l), n.dilutionSize(Index::s), n.dilutionSize(Index::t), peramb.MetaData.timeSources, D, traj_);
+				    n.dilutionSize(Index::l), n.dilutionSize(Index::s), n.dilutionSize(Index::t), D, traj_);
 }
 
 template <typename FImpl, typename T, typename Tio>
@@ -559,7 +557,7 @@ void DmfComputation<FImpl,T,Tio>
             }
             else
             {
-                loadPhiComponent(dv.at(s)[iD] , distilNoise_.at(s) , n_idx.at(s) , D , vectorStem_.at(s), peramb.at(s), epack);
+                loadPhiComponent(dv.at(s)[iD] , distilNoise_.at(s) , n_idx.at(s) , D , vectorStem_.at(s), epack);
             }
         }
         else if(isRho(s))
@@ -614,7 +612,7 @@ void DmfComputation<FImpl,T,Tio>
     unsigned int dt = d_coor[Index::t] , dk = d_coor[Index::l] , ds = d_coor[Index::s];
     if(!vector_stem.empty())
     {
-        loadPhiComponent(tmp4d_, n , n_idx , D , vector_stem , peramb , epack);    // potentially io demanding
+        loadPhiComponent(tmp4d_, n , n_idx , D , vector_stem , epack);    // potentially io demanding
     }
     
     //compute at relative_time, insert at t=relative_time
