@@ -109,30 +109,30 @@ void TLoadDistillationVectors<FImpl>::setup(void)
     std::string sourceT = par().timeSources;
     if(par().timeSources.empty())
     {
-	nSourceT=nDT;
+    nSourceT=nDT;
     }
     else
     {
-	// check whether input is legal, i.e. a number of integers between 0 and (nDT-1)
-	std::regex rex("[0-9 ]+");
-	std::smatch sm;
-	std::regex_match(sourceT, sm, rex);
-	if (!sm[0].matched)
-	{
-	    HADRONS_ERROR(Range, "sourceTimes must be list of non-negative integers");
-	}
-	std::istringstream is(sourceT);
-	std::vector<int> iT ( ( std::istream_iterator<int>( is )  ), (std::istream_iterator<int>() ) );
-	nSourceT = iT.size();
-        for (int ii = 0; ii < nSourceT; ii++)
-	{
-	    if (iT[ii] >= nDT)
-	    {
-		HADRONS_ERROR(Range, "elements of sourceTimes must lie between 0 and nDT");
-	    }
-	}
+    // check whether input is legal, i.e. a number of integers between 0 and (nDT-1)
+    std::regex rex("[0-9 ]+");
+    std::smatch sm;
+    std::regex_match(sourceT, sm, rex);
+    if (!sm[0].matched)
+    {
+        HADRONS_ERROR(Range, "sourceTimes must be list of non-negative integers");
     }
-	    
+    std::istringstream is(sourceT);
+    std::vector<int> iT ( ( std::istream_iterator<int>( is )  ), (std::istream_iterator<int>() ) );
+    nSourceT = iT.size();
+        for (int ii = 0; ii < nSourceT; ii++)
+    {
+        if (iT[ii] >= nDT)
+        {
+        HADRONS_ERROR(Range, "elements of sourceTimes must lie between 0 and nDT");
+        }
+    }
+    }
+        
     envCreate(std::vector<FermionField>, getName(), 1, nNoise*nDL*nDS*nSourceT,
                   envGetGrid(FermionField));
 }
@@ -148,30 +148,7 @@ void TLoadDistillationVectors<FImpl>::execute(void)
     int nDL = dilNoise.dilutionSize(DistillationNoise<FImpl>::Index::l);	
     int nDS = dilNoise.dilutionSize(DistillationNoise<FImpl>::Index::s);	
     int nDT = dilNoise.dilutionSize(DistillationNoise<FImpl>::Index::t);	
-    std::string sourceT = par().timeSources;
-    int nSourceT;
-    std::vector<int> invT;
-    if(par().timeSources.empty())
-    {
-	// create sourceTimes all time-dilution indices
-        for (int dt = 0; dt < nDT; dt++)
-	{
-	    invT.push_back(dt);
-	}
-    }
-    else
-    {
-	std::istringstream is(sourceT);
-	std::vector<int> iT ( ( std::istream_iterator<int>( is )  ), (std::istream_iterator<int>() ) );
-	nSourceT = iT.size();
-	// create sourceTimes from the chosen subset of time-dilution indices
-        for (int dt = 0; dt < nSourceT; dt++)
-	{
-	    invT.push_back(iT[dt]);
-	}
-    }
-
-    DistillationVectorsIo::read(vec, par().filestem, nNoise, nDL, nDS, nDT, invT, 1, vm().getTrajectory());
+    DistillationVectorsIo::read(vec, par().filestem, nNoise, nDL, nDS, nDT, 1, vm().getTrajectory());
 }
 
 END_MODULE_NAMESPACE

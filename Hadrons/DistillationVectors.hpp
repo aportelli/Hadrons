@@ -70,7 +70,6 @@ public:
 			 const int nDL,
 			 const int nDS, 
 			 const int nDT, 
-			 std::vector<int> timeSources,
                          const bool multiFile, 
 			 const int trajectory = -1);
     template <typename Field>
@@ -91,7 +90,6 @@ public:
 			 const int nDL,
 			 const int nDS, 
 			 const int nDT, 
-			 std::vector<int> timeSources,
                          const int componentIndex, 
 			 const int trajectory = -1);
 private:
@@ -176,7 +174,6 @@ void DistillationVectorsIo::read(std::vector<Field> &vec,
 				    const int nDL,
 			            const int nDS, 
 				    const int nDT, 
-			            std::vector<int> timeSources,
                                     const bool multiFile, 
 				    const int trajectory)
 {
@@ -200,10 +197,6 @@ void DistillationVectorsIo::read(std::vector<Field> &vec,
             {
                 HADRONS_ERROR(Io, "vector index mismatch");
             }
-            if (record.timeSources != timeSources)
-            {
-                HADRONS_ERROR(Io, "source times mismatch");
-            }
             if (record.nNoise != nNoise || record.nDL != nDL || record.nDS != nDS || record.nDT != nDT )
             {
                 HADRONS_ERROR(Io, "dilution parameter mismatch");
@@ -220,10 +213,6 @@ void DistillationVectorsIo::read(std::vector<Field> &vec,
             if (record.index != i)
             {
                 HADRONS_ERROR(Io, "vector index mismatch");
-            }
-            if (record.timeSources != timeSources)
-            {
-                HADRONS_ERROR(Io, "source times mismatch");
             }
         }
         binReader.close();
@@ -277,7 +266,6 @@ void DistillationVectorsIo::readComponent(Field &vec,
 				    const int nDL,
 			            const int nDS, 
 				    const int nDT, 
-			            std::vector<int> timeSources,
                                     const int componentIndex, 
 				    const int trajectory)
 {
@@ -296,10 +284,6 @@ void DistillationVectorsIo::readComponent(Field &vec,
     if (record.index != componentIndex)
     {
         HADRONS_ERROR(Io, "vector index mismatch");
-    }
-    if (record.timeSources != timeSources)
-    {
-        HADRONS_ERROR(Io, "source times mismatch");
     }
     if (record.nNoise != nNoise || record.nDL != nDL || record.nDS != nDS || record.nDT != nDT )
     {
