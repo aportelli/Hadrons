@@ -134,8 +134,7 @@ int main(int argc, char *argv[])
     lapevecPar.lanczos.resid = 1e-2;
     lapevecPar.lanczos.irlLog = 0;
     application.createModule<MDistil::LapEvec>("lapevec",lapevecPar);
-    // noise policy - exact distillation
-    // automatically chooses full dilution, and uses 1s as 'noise' 
+    // noise policies
     MNoise::InterlacedDistillation::Par noisePar;
     noisePar.lapEigenPack = "lapevec";
     noisePar.nNoise = nNoises[0]; // only the noises for relative lines
@@ -257,7 +256,6 @@ int main(int argc, char *argv[])
     for (unsigned int i = 0; i < flavour.size(); ++i)
     {
         // M(phi_{l/s},phi_l)   fixed 
-        //MDistil::DistilMesonField::Par mfPar;
         mfPar.outPath = "./kpi-stoch/M-phi_" + flavour[i] + "-phi_l-fix";
         mfPar.lapEigenPack = "lapevec";
         mfPar.leftNoise = "noiseTfull";
@@ -279,7 +277,6 @@ int main(int argc, char *argv[])
         application.createModule<MDistil::DistilMesonFieldFixed>("Phi_" + flavour[i] + "phi_l-fix", mfPar);
       
         // M(rho,phi_{l/s})     fixed
-        //MDistil::DistilMesonField::Par mfPar;
         mfPar.outPath = "./kpi-stoch/M-rho-phi_" + flavour[i] + "-fix";
         mfPar.lapEigenPack = "lapevec";
         mfPar.leftNoise = "noiseTfull";
