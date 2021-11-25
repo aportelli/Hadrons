@@ -309,7 +309,7 @@ private:
     GridCartesian*                      g3d_;
     ColourVectorField                   evec3d_;
     FermionField                        tmp3d_, tmp4d_;
-    std::vector<Tio>                    bBuf_; //potentially large objects
+    std::vector<Tio>                    bBuf_;
     std::vector<T>                      cBuf_;
     const unsigned int                  blockSize_; //eventually turns into io chunk size
     const unsigned int                  cacheSize_;
@@ -348,9 +348,9 @@ private:
                           LapPack&              epack);
     void loadPhiComponent(FermionField&            phi_component,
                           DistillationNoise&       n,
+                          const unsigned int       n_idx,
                           const unsigned int       D,
                           std::string              vector_stem,
-                          PerambTensor&            peramb,
                           LapPack&                 epack);
     void makeRhoComponent(FermionField&         rho_component,
                           DistillationNoise&    n,
@@ -378,14 +378,15 @@ private:
                             const unsigned int               D,
                             const unsigned int               delta_t,
                             PerambTensor&                    peramb,
-                            LapPack&                         epack);
-    void makeRelativeRhoComponent(FermionField&            rho_component,
+                            LapPack&                         epack,
+                            std::string                      vector_stem="");
+    void makeRelativeRhoComponent(FermionField&          rho_component,
                             DistillationNoise&           n,
                             const unsigned int           n_idx,
                             const unsigned int           t,
                             const unsigned int           D,
                             LapPack&                     epack);
-    void makeRelativeDvLapSpinBlock(std::map<Side, DistilVector&>     dv,
+    void makeRelativeDvLapSpinBlock(std::map<Side, DistilVector&>   dv,
                                std::vector<unsigned int>            dt_list,
                                std::map<Side, unsigned int>         n_idx,
                                LapPack&                             epack,
@@ -393,7 +394,7 @@ private:
                                const unsigned int                   delta_t,
                                std::map<Side, PerambTensor&>        peramb);
 public:
-    void executeRelative(const FilenameFn                               &filenameDmfFn,
+    void executeRelative(const FilenameFn                             &filenameDmfFn,
                        const MetadataFn                               &metadataDmfFn,
                        std::vector<Gamma::Algebra>                    gamma,
                        std::map<Side, DistilVector&>                  dv,
@@ -511,14 +512,14 @@ template <typename FImpl, typename T, typename Tio>
 void DmfComputation<FImpl,T,Tio>
 ::loadPhiComponent(FermionField&            phi_component,
                    DistillationNoise&       n,
+                   const unsigned int       n_idx,
                    const unsigned int       D,
                    std::string              vector_stem,
-                   PerambTensor&            peramb,
                    LapPack&                 epack)
 {
     const unsigned int nVec = epack.evec.size();
-    DistillationVectorsIo::readComponent(phi_component, vector_stem, n.size(),
-				    n.dilutionSize(Index::l), n.dilutionSize(Index::s), n.dilutionSize(Index::t), peramb.MetaData.timeSources, D, traj_);
+    DistillationVectorsIo::readComponent(phi_component, vector_stem + "_noise" + std::to_string(n_idx) , n.size(),
+				    n.dilutionSize(Index::l), n.dilutionSize(Index::s), n.dilutionSize(Index::t), D, traj_);
 }
 
 template <typename FImpl, typename T, typename Tio>
@@ -556,7 +557,7 @@ void DmfComputation<FImpl,T,Tio>
             }
             else
             {
-                loadPhiComponent(dv.at(s)[iD] , distilNoise_.at(s) , D , vectorStem_.at(s), peramb.at(s), epack);
+                loadPhiComponent(dv.at(s)[iD] , distilNoise_.at(s) , n_idx.at(s) , D , vectorStem_.at(s), epack);
             }
         }
         else if(isRho(s))
@@ -598,20 +599,25 @@ std::vector<unsigned int> DmfComputation<FImpl,T,Tio>
 // (in order to compute multiple time-dilution blocks at different t with a single call of MesonField kernel)
 template <typename FImpl, typename T, typename Tio>
 void DmfComputation<FImpl,T,Tio>
-::makeRelativePhiComponent(FermionField&              phi_component,
+::makeRelativePhiComponent(FermionField&            phi_component,
                    DistillationNoise&               n,
                    const unsigned int               n_idx,
                    const unsigned int               D,
                    const unsigned int               delta_t,
                    PerambTensor&                    peramb,
-                   LapPack&                         epack)
+                   LapPack&                         epack,
+                   std::string                      vector_stem)
 {
     std::array<unsigned int,3> d_coor = n.dilutionCoordinates(D);
     unsigned int dt = d_coor[Index::t] , dk = d_coor[Index::l] , ds = d_coor[Index::s];
+    if(!vector_stem.empty())
+    {
+        loadPhiComponent(tmp4d_, n , n_idx , D , vector_stem , epack);    // potentially io demanding
+    }
     
     //compute at relative_time, insert at t=relative_time
-    const unsigned int relative_time = (dt + delta_t)%nt_;               //TODO: generalise to dilution
-    const unsigned int t        = relative_time;                         //TODO: generalise to dilution 
+    const unsigned int relative_time    = (dt + delta_t)%nt_;               //TODO: generalise to dilution
+    const unsigned int t                = relative_time;
 
     std::vector<int> peramb_ts = peramb.MetaData.timeSources;
     std::vector<int>::iterator itr_dt = std::find(peramb_ts.begin(), peramb_ts.end(), dt);
@@ -624,8 +630,15 @@ void DmfComputation<FImpl,T,Tio>
         tmp3d_ = Zero();
         for (unsigned int k = 0; k < nVec; k++)
         {
-            ExtractSliceLocal(evec3d_,epack.evec[k],0,relative_time-Nt_first,nd_ - 1);
-            tmp3d_ += evec3d_ * peramb.tensor(relative_time, k, dk, n_idx, idt_peramb, ds);
+            if(vector_stem.empty())
+            {
+                ExtractSliceLocal(evec3d_,epack.evec[k],0,relative_time-Nt_first,nd_ - 1);
+                tmp3d_ += evec3d_ * peramb.tensor(relative_time, k, dk, n_idx, idt_peramb, ds);
+            }
+            else
+            {
+                ExtractSliceLocal(tmp3d_,tmp4d_,0,relative_time-Nt_first,nd_ - 1); // extracting timeslice from loaded field
+            }
         }
         InsertSliceLocal(tmp3d_,phi_component,0,t-Nt_first,nd_ - 1);
     }
@@ -633,7 +646,7 @@ void DmfComputation<FImpl,T,Tio>
 
 template <typename FImpl, typename T, typename Tio>
 void DmfComputation<FImpl,T,Tio>
-::makeRelativeRhoComponent(FermionField&          rho_component,
+::makeRelativeRhoComponent(FermionField&        rho_component,
                    DistillationNoise&           n,
                    const unsigned int           n_idx,
                    const unsigned int           D,
@@ -647,18 +660,17 @@ void DmfComputation<FImpl,T,Tio>
     typename DistillationNoise::NoiseType   noise(n.getNoise()[n_idx].data(), nt_, epack.eval.size(), Ns);
 
     //compute at relative_time, insert at t
-    const unsigned int relative_time = (dt + delta_t)%nt_;     //TODO: generalise to dilution
-    const unsigned int t        = relative_time;               //TODO: generalise to dilution
+    const unsigned int relative_time = (dt + delta_t)%nt_;     //TODO: generalise to non-full dilution
+    const unsigned int t        = relative_time;
 
     // adapt to dilution! (add an it loop and untrivialise ik and is loops)
-    
     const unsigned int Nt_first = g_->LocalStarts()[nd_ - 1];
     const unsigned int Nt_local = g_->LocalDimensions()[nd_ - 1];
     if( (relative_time>=Nt_first) and (relative_time<Nt_first+Nt_local) )
     {
-        for (unsigned int ik = dk; ik < dk+1; ik++)
+        for (auto ik : n.dilutionPartition(Index::l, dk))
         {
-            for (unsigned int is = ds; is < ds+1; is++)
+            for (auto is : n.dilutionPartition(Index::s, ds))
             {
                 ExtractSliceLocal(evec3d_, epack.evec[ik], 0, relative_time - Nt_first, nd_-1);
                 evec3d_ = evec3d_*noise(dt, ik, is);
@@ -674,7 +686,7 @@ void DmfComputation<FImpl,T,Tio>
 
 template <typename FImpl, typename T, typename Tio>
 void DmfComputation<FImpl,T,Tio>
-::makeRelativeDvLapSpinBlock(std::map<Side, DistilVector&>                dv,
+::makeRelativeDvLapSpinBlock(std::map<Side, DistilVector&>              dv,
                                std::vector<unsigned int>                dt_list,
                                std::map<Side, unsigned int>             n_idx,
                                LapPack&                                 epack,
@@ -689,14 +701,11 @@ void DmfComputation<FImpl,T,Tio>
     {
         std::array<unsigned int,3> d_coor = distilNoise_.at(s).dilutionCoordinates(D);
         unsigned int dt = d_coor[Index::t] , dk = d_coor[Index::l] , ds = d_coor[Index::s];
-        if( std::count(dt_list.begin(), dt_list.end(), dt)!=0 )    //if dt is in dt_list
+        if( std::count(dt_list.begin(), dt_list.end(), dt)!=0 )
         {
-            const unsigned int Drelative = distilNoise_.at(s).dilutionIndex(0,dk,ds);
-            std::vector<unsigned int>::iterator itr_dt = std::find(dt_list.begin(), dt_list.end(), dt);
-            unsigned int idt = std::distance(dt_list.begin(), itr_dt);
             if(isPhi(s))
             {
-                makeRelativePhiComponent(dv.at(s)[Drelative] , distilNoise_.at(s) , n_idx.at(s) , D , delta_t , peramb.at(s), epack);
+                makeRelativePhiComponent(dv.at(s)[Drelative] , distilNoise_.at(s) , n_idx.at(s) , D , delta_t , peramb.at(s), epack, vectorStem_.at(s));
             }
             else if(isRho(s))
             {
@@ -708,7 +717,7 @@ void DmfComputation<FImpl,T,Tio>
 
 template <typename FImpl, typename T, typename Tio>
 void DmfComputation<FImpl,T,Tio>
-::executeRelative(const FilenameFn                              &filenameDmfFn,
+::executeRelative(const FilenameFn                            &filenameDmfFn,
                 const MetadataFn                              &metadataDmfFn,
                 std::vector<Gamma::Algebra>                   gamma,
                 std::map<Side, DistilVector&>                 dv,
@@ -876,8 +885,7 @@ void DmfComputation<FImpl,T,Tio>
                             unsigned int bytesBlockSize  = static_cast<double>(nExt_*nStr_*iblock_size*jblock_size*sizeof(Tio));
                             double iospeed = bytesBlockSize/ioTime*1.0e6/1024/1024;
                             LOG(Message)    << "HDF5 IO done " << sizeString(bytesBlockSize) << " in "
-                                            << ioTime  << " us (" << iospeed << " MB/s) (chunking "
-                                            << blockSize_ << "x" << blockSize_ << ")" << std::endl;
+                                            << ioTime  << " us (" << iospeed << " MB/s)" << std::endl;
                             blockIoSpeed_ += iospeed;
                         }
                     }
@@ -1069,8 +1077,7 @@ void DmfComputation<FImpl,T,Tio>
                                     unsigned int bytesBlockSize  = static_cast<double>(nExt_*nStr_*iblock_size*jblock_size*sizeof(Tio));
                                     double iospeed = bytesBlockSize/ioTime*1.0e6/1024/1024;
                                     LOG(Message)    << "HDF5 IO done " << sizeString(bytesBlockSize) << " in "
-                                                    << ioTime  << " us (" << iospeed << " MB/s) (chunking "
-                                                    << blockSize_ << "x" << blockSize_ << ")" << std::endl;
+                                                    << ioTime  << " us (" << iospeed << " MB/s)" << std::endl;
                                     blockIoSpeed_ += iospeed;
                                 }
                             }

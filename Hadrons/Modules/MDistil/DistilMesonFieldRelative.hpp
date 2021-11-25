@@ -33,6 +33,8 @@ public:
                                     std::string,                rightTimeSources,
                                     std::string,                leftPeramb,
                                     std::string,                rightPeramb,
+                                    std::string,                leftVectorStem,
+                                    std::string,                rightVectorStem,
                                     unsigned int,               blockSize,
                                     unsigned int,               cacheSize,
                                     std::string,                deltaT,
@@ -70,6 +72,8 @@ private:
     std::vector<Gamma::Algebra>         gamma_;  
     bool                                isExact_=false;
     std::map<Side,std::string>          dmfType_;
+    std::map<Side, std::string>         perambNames_;
+    std::map<Side, std::string>         vectorNames_;
     std::vector<unsigned int>           tSourceL_;
     std::vector<unsigned int>           tSourceR_;
     Side                                relative_side_;
@@ -95,9 +99,10 @@ std::vector<std::string> TDistilMesonFieldRelative<FImpl>::getInput(void)
     std::vector<std::string> in = {par().lapEigenPack, par().leftNoise, par().rightNoise};
 
     //define meson field type (if a peramb object, set to phi, rho otherwise)
-    dmfType_.emplace(Side::left   , par().leftPeramb.empty()  ? "rho" : "phi");
-    dmfType_.emplace(Side::right  , par().rightPeramb.empty() ? "rho" : "phi");
-
+    dmfType_.emplace(Side::left   , (par().leftPeramb.empty()  and par().leftVectorStem.empty() ) ? "rho" : "phi");
+    dmfType_.emplace(Side::right  , (par().rightPeramb.empty() and par().rightVectorStem.empty()) ? "rho" : "phi");
+    perambNames_ = {{Side::left,par().leftPeramb},{Side::right,par().rightPeramb}};
+    vectorNames_ = {{Side::left,par().leftVectorStem},{Side::right,par().rightVectorStem}};
     //require peramb dependency if phi case
     for(Side s : sides)
     {
@@ -120,19 +125,24 @@ std::vector<std::string> TDistilMesonFieldRelative<FImpl>::getOutput(void)
 template <typename FImpl>
 void TDistilMesonFieldRelative<FImpl>::setup(void)
 {
-    if( envHasDerivedType(DistillationNoise, ExactDistillationPolicy<FImpl>, par().leftNoise)
-        and envHasDerivedType(DistillationNoise, ExactDistillationPolicy<FImpl>, par().rightNoise) )
-    {
-        isExact_ = true;
-    }
-
     GridCartesian *g            = envGetGrid(FermionField);
     GridCartesian *g3d          = envGetSliceGrid(FermionField, g->Nd() - 1);
+    const unsigned int nt       = env().getDim(g->Nd() - 1);
     DistillationNoise &noisel   = envGet( DistillationNoise , par().leftNoise);
     DistillationNoise &noiser   = envGet( DistillationNoise , par().rightNoise);
     outputMFPath_   = par().outPath;
     dilSizeLS_      = { {Side::left,noisel.dilutionSize(Index::l)*noisel.dilutionSize(Index::s)},
                         {Side::right,noiser.dilutionSize(Index::l)*noiser.dilutionSize(Index::s)} };
+    
+    if( envHasDerivedType(DistillationNoise, ExactDistillationPolicy<FImpl>, par().leftNoise)
+        and envHasDerivedType(DistillationNoise, ExactDistillationPolicy<FImpl>, par().rightNoise) )
+    {
+        isExact_ = true;
+    }
+    else if(noisel.dilutionSize(Index::t)!=nt or noiser.dilutionSize(Index::t)!=nt)
+    {
+         HADRONS_ERROR(Implementation, "Non-full time dilution not implemented.");
+    }
 
     if(par().blockSize > dilSizeLS_.at(Side::left) or par().blockSize > dilSizeLS_.at(Side::right))
     {
@@ -239,7 +249,7 @@ void TDistilMesonFieldRelative<FImpl>::setup(void)
     envTmp(DistilVector,                "dvl",          1, dilSizeT.at(Side::left)*dilSizeLS_.at(Side::left), g);
     envTmp(DistilVector,                "dvr",          1, dilSizeT.at(Side::right)*dilSizeLS_.at(Side::right), g);
     envTmp(Computation,                 "computation",  1, dmfType_, g, g3d, noisel, noiser, par().blockSize, 
-                par().cacheSize, env().getDim(g->Nd() - 1), momenta_.size(), gamma_.size(), isExact_, vm().getTrajectory(), "", "");
+                par().cacheSize, env().getDim(g->Nd() - 1), momenta_.size(), gamma_.size(), isExact_, vm().getTrajectory(), par().leftVectorStem, par().rightVectorStem);
 }
 
 // execution ///////////////////////////////////////////////////////////////////
@@ -346,10 +356,15 @@ void TDistilMesonFieldRelative<FImpl>::execute(void)
         md.NoisePair        = {nl,nr};
         md.MesonFieldType   = dmfType_.at(Side::left) + "-" + dmfType_.at(Side::right);
         md.RelativeSide     = (relative_side_==Side::left) ? "left" : "right";
-        if(isExact_)
+        if(!isExact_)
         {
             md.NoiseHashLeft   = noisel.generateHash()[nl];
             md.NoiseHashRight  = noiser.generateHash()[nr];
+        }
+        else
+        {
+            md.NoiseHashLeft   = "0";
+            md.NoiseHashRight  = "0";
         }
         md.TimeDilutionLeft  = lmap[Index::t];
         md.TimeDilutionRight = rmap[Index::t];
@@ -393,6 +408,10 @@ void TDistilMesonFieldRelative<FImpl>::execute(void)
         LOG(Message) << "Exact distillation" << std::endl;
     }
     LOG(Message) << "Distil vector batch size (time-dilution direction) : " << DISTILVECTOR_TIME_BATCH_SIZE << std::endl;
+    if(!par().leftVectorStem.empty())
+        LOG(Message) << "Reading left vector from " << par().leftVectorStem << std::endl;
+    if(!par().rightVectorStem.empty())
+        LOG(Message) << "Reading right vector from " << par().rightVectorStem << std::endl;
     std::string relative_side_str = (relative_side_==Side::left) ? "left" : "right";
     LOG(Message) << "Relative side : " << relative_side_str << std::endl;
     LOG(Message) << "DeltaT list : " << delta_t_list_ << std::endl;
