@@ -703,6 +703,7 @@ void DmfComputation<FImpl,T,Tio>
         unsigned int dt = d_coor[Index::t] , dk = d_coor[Index::l] , ds = d_coor[Index::s];
         if( std::count(dt_list.begin(), dt_list.end(), dt)!=0 )
         {
+            const unsigned int Drelative = distilNoise_.at(s).dilutionIndex(0,dk,ds);
             if(isPhi(s))
             {
                 makeRelativePhiComponent(dv.at(s)[Drelative] , distilNoise_.at(s) , n_idx.at(s) , D , delta_t , peramb.at(s), epack, vectorStem_.at(s));
