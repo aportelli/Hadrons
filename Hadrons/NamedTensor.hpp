@@ -69,7 +69,7 @@ public:
     GRID_SERIALIZABLE_CLASS_MEMBERS(NamedTensor,
                                     Eigen::TensorMap<ET>,     tensor,
                                     std::vector<std::string>, IndexNames,
-		                    MetaData_,                MetaData );
+                                    MetaData_,                MetaData );
 
     // Name of the object and Index names as set in the constructor
     const std::string                          &Name_;
@@ -95,9 +95,9 @@ public:
       IndexNames{indexNames.begin(), indexNames.end()}, Name_{Name}, DefaultIndexNames_{indexNames}
     {
         if(sizeof...(otherDimensions) + 1 != NumIndices_)
-	{
+        {
             HADRONS_ERROR(Argument, "NamedTensor: dimensions != tensor rank");
-	}
+        }
     }
 
     // Do my index names match the default for my type?
@@ -120,17 +120,17 @@ public:
         std::string FileName_{FileName};
         FileName_.append( ".h5" );
         LOG(Message) << "Writing " << Name_ << " to file " << FileName_ << " tag " << Tag << std::endl;
-        using ScalarType = typename Traits::scalar_type;	
+        using ScalarType = typename Traits::scalar_type;        
         std::vector<hsize_t> dims, 
-	                 gridDims;
+                         gridDims;
 
         constexpr unsigned int ContainerRank{Traits::Rank};     
         // These are the tensor dimensions
-	for (int i = 0; i < NumIndices_; i++)
+        for (int i = 0; i < NumIndices_; i++)
         {
             dims.push_back(tensor.dimension(i));
         }
-	// These are the dimensions of the Grid datatype - for vectors and matrices, we do not write dimensions of size 1
+        // These are the dimensions of the Grid datatype - for vectors and matrices, we do not write dimensions of size 1
         for (int i = 0; i < ContainerRank; i++)
         {
             if(Traits::Dimension(i) > 1)
@@ -141,19 +141,19 @@ public:
         }  
         //Convention for scalar containers - without this the writing of gridDims fails 
         if(gridDims.empty())
-	{
+        {
             gridDims.push_back(1);
-	}	
+        }        
     
         Hdf5Writer writer( FileName_ );
-	Grid::write (writer, "MetaData", MetaData);
+        Grid::write (writer, "MetaData", MetaData);
         Grid::write (writer, "IndexNames", IndexNames);
         Grid::write (writer, "GridDimensions", gridDims);
         Grid::write (writer, "TensorDimensions", dims);
         H5NS::DataSet dataset;
         H5NS::DataSpace      dataspace(dims.size(), dims.data());
         H5NS::DSetCreatPropList     plist;
-	
+        
         plist.setFletcher32();
         plist.setChunk(dims.size(), dims.data());
         H5NS::Group &group = writer.getGroup();
@@ -175,23 +175,23 @@ public:
         #ifdef HAVE_HDF5
         // Grab index names and dimensions
         std::vector<std::string> OldIndexNames{std::move(IndexNames)};
-	const typename ET::Dimensions OldDimensions{tensor.dimensions()};
+        const typename ET::Dimensions OldDimensions{tensor.dimensions()};
 
-	using ScalarType = typename Traits::scalar_type;	
+        using ScalarType = typename Traits::scalar_type;        
         std::vector<hsize_t> dims,
-	                 gridDims;
+                         gridDims;
     
-	Grid::read (reader, "GridDimensions", gridDims);
-	Grid::read (reader, "TensorDimensions", dims);
-	Grid::read (reader, "MetaData", MetaData);
-	Grid::read (reader, "IndexNames", IndexNames);
+        Grid::read (reader, "GridDimensions", gridDims);
+        Grid::read (reader, "TensorDimensions", dims);
+        Grid::read (reader, "MetaData", MetaData);
+        Grid::read (reader, "IndexNames", IndexNames);
     
         H5NS::DataSet dataset;
         H5NS::Group &group = reader.getGroup();
         dataset=group.openDataSet(Tag);
         dataset.read(tensor.data(),Hdf5Type<ScalarType>::type());
 
-	//validate dimesnions and labels
+        //validate dimesnions and labels
         const typename ET::Dimensions & NewDimensions{tensor.dimensions()};
         for (int i = 0; i < NumIndices_; i++)
             if(OldDimensions[i] && OldDimensions[i] != NewDimensions[i])
@@ -233,7 +233,7 @@ class PerambMetadata : Serializable
 {
 public:
     GRID_SERIALIZABLE_CLASS_MEMBERS(PerambMetadata, 
-		                    std::string, Version,
+                                    std::string, Version,
                                     std::vector<int>, timeSources );
 };
 
@@ -253,9 +253,9 @@ class PerambIndexMetadata : Serializable
 {
 public:
     GRID_SERIALIZABLE_CLASS_MEMBERS(PerambIndexMetadata, 
-		                    std::string, Version,
+                                    std::string, Version,
                                     int, timeDilutionIndex,
-		                    std::vector<std::string>, noiseHashes );
+                                    std::vector<std::string>, noiseHashes );
 };
 
 class PerambIndexTensor : public NamedTensor<SpinVector, 5, PerambIndexMetadata>
