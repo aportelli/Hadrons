@@ -105,7 +105,6 @@ int main(int argc, char *argv[])
     // automatically chooses full dilution, and uses 1s as 'noise' 
     MNoise::ExactDistillation::Par noisePar;
     noisePar.lapEigenPack = "lapevec";
-    //noisePar.nVec = 6; // must be smaller or equal to lapevecPar.nVec
     application.createModule<MNoise::ExactDistillation>("exact",noisePar);
     // loop over flavours, set up action, solver, perambulator 
     for (unsigned int i = 0; i < flavour.size(); ++i)
