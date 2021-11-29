@@ -161,6 +161,11 @@ void TG1<FImpl>::execute(void)
 
     NPRUtils<FImpl>::phase(bilinear_phase,pIn,pOut);
 
+    /*
+    WARNING: This module still enforces Iwasaki gauge action. This needs to be worked on soon.
+    */
+    LOG(Warning) << "Iwasaki gauge action enforced by this module. Needs re-writing to allow for other actions!" << std::endl;
+
     IwasakiGaugeAction<FImpl> action(1.0); // Include freedom to choose the gauge action?
     action.deriv(Umu, dSdU);
 
