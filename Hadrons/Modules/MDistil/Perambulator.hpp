@@ -190,12 +190,12 @@ void TPerambulator<FImpl>::execute(void)
 
     for (int dt = 0; dt < dp.inversions; dt++)
     {
-	std::vector<int> sT;
+        std::vector<int> sT;
         for (int it = dt; it < Nt; it += dp.TI)
         {
-	    sT.push_back(it);
-	}
-	perambulator.MetaData.sourceTimes.push_back(sT);
+            sT.push_back(it);
+        }
+        perambulator.MetaData.sourceTimes.push_back(sT);
     }
     LOG(Message) << "Source times" << perambulator.MetaData.sourceTimes << std::endl;
 
@@ -208,15 +208,15 @@ void TPerambulator<FImpl>::execute(void)
                 for (int ds = 0; ds < dp.SI; ds++)
                 {
                     if(perambMode == pMode::inputSolve)
-		    {
+                    {
                         fermion4dtmp = solveIn[inoise+dp.nnoise*(dk+dp.LI*(dt+dp.inversions*ds))];
-		    } 
-		    else 
-		    {
+                    } 
+                    else 
+                    {
                         LOG(Message) <<  "LapH source vector from noise " << inoise << " and dilution component (d_k,d_t,d_alpha) : (" << dk << ","<< dt << "," << ds << ")" << std::endl;
                         dist_source = 0;
                         evec3d = 0;
-			DIST_SOURCE
+                        DIST_SOURCE
                         fermion4dtmp=0;
                         if (Ls_ == 1)
                             solver(fermion4dtmp, dist_source);
@@ -231,14 +231,14 @@ void TPerambulator<FImpl>::execute(void)
                             auto &solveOut = envGet(std::vector<FermionField>, objName);
                             solveOut[inoise+dp.nnoise*(dk+dp.LI*(dt+dp.inversions*ds))] = fermion4dtmp;
                         }
-		    }
+                    }
                     for (int is = 0; is < Ns; is++)
                     {
                         cv4dtmp = peekSpin(fermion4dtmp,is);
                         for (int t = Ntfirst; t < Ntfirst + Ntlocal; t++)
                         {
                             ExtractSliceLocal(cv3dtmp,cv4dtmp,0,t-Ntfirst,Tdir); 
-			    for (int ivec = 0; ivec < dp.nvec; ivec++)
+                            for (int ivec = 0; ivec < dp.nvec; ivec++)
                             {
                                 ExtractSliceLocal(evec3d,epack.evec[ivec],0,t-Ntfirst,Tdir);
                                 pokeSpin(perambulator.tensor(t, ivec, dk, inoise,dt,ds),static_cast<Complex>(innerProduct(evec3d, cv3dtmp)),is);

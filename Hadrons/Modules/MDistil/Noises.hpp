@@ -115,17 +115,17 @@ void TNoises<FImpl>::execute(void)
     for (int inoise = 0; inoise < dp.nnoise; inoise++) 
     {
         for (int t = 0; t < Nt; t++) 
-	{
+        {
             for (int ivec = 0; ivec < dp.nvec; ivec++) 
-	    {
+            {
                 for (int is = 0; is < Ns; is++) 
-		{
+                {
                     if (exact_distillation)
-		    {
+                    {
                         noise.tensor(inoise, t, ivec, is) = 1.;
-		    }
-    		    else
-		    {
+                    }
+                    else
+                    {
                         random(rngSerial(),rn);
                         // We could use a greater number of complex roots of unity
                         // ... but this seems to work well

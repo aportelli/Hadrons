@@ -176,17 +176,17 @@ void TDistilVectors<FImpl>::execute(void)
     {
         auto &rho = envGet(std::vector<FermionField>, RhoName);
         for (int inoise = 0; inoise < dp.nnoise; inoise++) 
-	{
+        {
             for (int dk = 0; dk < dp.LI; dk++) 
-	    {
+            {
                 for (int dt = 0; dt < dp.inversions; dt++) 
-		{
+                {
                     for (int ds = 0; ds < dp.SI; ds++) 
-		    {
+                    {
                         vecindex = inoise + dp.nnoise * (dk + dp.LI * (ds + dp.SI * dt));
                         dist_source = 0;
-			DIST_SOURCE
-			rho[vecindex]=dist_source;
+                        DIST_SOURCE
+                        rho[vecindex]=dist_source;
                     }
                 }
             }
@@ -196,20 +196,20 @@ void TDistilVectors<FImpl>::execute(void)
     {
         auto &phi = envGet(std::vector<FermionField>, PhiName);
         for (int inoise = 0; inoise < dp.nnoise; inoise++) 
-	{
+        {
             for (int dk = 0; dk < dp.LI; dk++) 
-	    {
+            {
                 for (int dt = 0; dt < dp.inversions; dt++) 
-		{
+                {
                     for (int ds = 0; ds < dp.SI; ds++) 
-		    {
+                    {
                         vecindex = inoise + dp.nnoise * (dk + dp.LI * (ds + dp.SI * dt));
                         phi[vecindex] = 0;
                         for (int t = Ntfirst; t < Ntfirst + Ntlocal; t++) 
-			{
+                        {
                             fermion3dtmp=0;
                             for (int ivec = 0; ivec < dp.nvec; ivec++) 
-			    {
+                            {
                                 ExtractSliceLocal(evec3d,epack.evec[ivec],0,t-Ntfirst,Tdir);
                                 fermion3dtmp += evec3d * perambulator.tensor(t, ivec, dk, inoise,dt,ds);
                             }
