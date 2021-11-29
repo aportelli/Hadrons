@@ -137,8 +137,8 @@ void TPerambulator<FImpl>::setup(void)
     const int  Nt{env().getDim(Tdir)};
     auto &dilNoise = envGet(DistillationNoise<FImpl>, par().distilNoise);
     int nNoise = dilNoise.size();
-    int nDL = dilNoise.dilutionSize(DistillationNoise<FImpl>::Index::l);	
-    int nDS = dilNoise.dilutionSize(DistillationNoise<FImpl>::Index::s);	
+    int nDL = dilNoise.dilutionSize(DistillationNoise<FImpl>::Index::l);        
+    int nDS = dilNoise.dilutionSize(DistillationNoise<FImpl>::Index::s);        
     int nDT = dilNoise.dilutionSize(DistillationNoise<FImpl>::Index::t);
     pMode perambMode{par().perambMode};
     // get nVec from DilutedNoise class, unless specified here. This is useful (and allowed) only in the inputSolve mode, 
@@ -205,7 +205,7 @@ void TPerambulator<FImpl>::execute(void)
 {
     const int Nt{env().getDim(Tdir)};
     auto &dilNoise = envGet(DistillationNoise<FImpl>, par().distilNoise);
-    int nNoise = dilNoise.size();	
+    int nNoise = dilNoise.size();        
     int nVec=0;
     if(par().nVec.empty())
     {
@@ -215,9 +215,9 @@ void TPerambulator<FImpl>::execute(void)
     {
         nVec = std::stoi(par().nVec);
     }
-    int nDL = dilNoise.dilutionSize(DistillationNoise<FImpl>::Index::l);	
-    int nDS = dilNoise.dilutionSize(DistillationNoise<FImpl>::Index::s);	
-    int nDT = dilNoise.dilutionSize(DistillationNoise<FImpl>::Index::t);	
+    int nDL = dilNoise.dilutionSize(DistillationNoise<FImpl>::Index::l);        
+    int nDS = dilNoise.dilutionSize(DistillationNoise<FImpl>::Index::s);        
+    int nDT = dilNoise.dilutionSize(DistillationNoise<FImpl>::Index::t);        
     int nD = nDL * nDS * nDT;
     // If we run with reduced nVec we still need the same DilutedNoise object, but a smaller laplacian dilution dimension
     int nDL_reduced=nDL;

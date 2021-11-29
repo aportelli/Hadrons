@@ -40,71 +40,71 @@ inline int verifyTimeSourcesInput(std::string sourceT, int nDT)
     int nSourceT=0;
     if(sourceT.empty())
     {
-	nSourceT=nDT;
+        nSourceT=nDT;
     }
     else
     {
-	// check whether input is legal, i.e. a number of integers between 0 and (nDT-1)
-	std::regex rex("[0-9 ]+");
-	std::smatch sm;
-	std::regex_match(sourceT, sm, rex);
-	if (!sm[0].matched)
-	{
-	    HADRONS_ERROR(Range, "sourceTimes must be list of non-negative integers");
-	}
-	std::istringstream is(sourceT);
-	std::vector<int> iT ( ( std::istream_iterator<int>( is )  ), (std::istream_iterator<int>() ) );
-	nSourceT = iT.size();
+        // check whether input is legal, i.e. a number of integers between 0 and (nDT-1)
+        std::regex rex("[0-9 ]+");
+        std::smatch sm;
+        std::regex_match(sourceT, sm, rex);
+        if (!sm[0].matched)
+        {
+            HADRONS_ERROR(Range, "sourceTimes must be list of non-negative integers");
+        }
+        std::istringstream is(sourceT);
+        std::vector<int> iT ( ( std::istream_iterator<int>( is )  ), (std::istream_iterator<int>() ) );
+        nSourceT = iT.size();
         for (int ii = 0; ii < nSourceT; ii++)
-	{
-	    if (iT[ii] >= nDT)
-	    {
-		HADRONS_ERROR(Range, "elements of sourceTimes must lie between 0 and nDT");
-	    }
-	}
-	// also check whether input is sorted
-	if(!std::is_sorted(iT.begin(), iT.end()))
-	{
-		HADRONS_ERROR(Range, "elements must be in ascending order");
+        {
+            if (iT[ii] >= nDT)
+            {
+                HADRONS_ERROR(Range, "elements of sourceTimes must lie between 0 and nDT");
+            }
+        }
+        // also check whether input is sorted
+        if(!std::is_sorted(iT.begin(), iT.end()))
+        {
+                HADRONS_ERROR(Range, "elements must be in ascending order");
 
-	}
+        }
     }
     return nSourceT;
 }
 
 template <typename FImpl>
 inline int getSourceTimesFromInput(std::string & sourceT, 
-		                   int nDT, 
-				   DistillationNoise<FImpl> & dilNoise,
-				   std::vector<int> & invT)
+                                   int nDT, 
+                                   DistillationNoise<FImpl> & dilNoise,
+                                   std::vector<int> & invT)
 {
-	typedef typename DistillationNoise<FImpl>::Index Index;
+        typedef typename DistillationNoise<FImpl>::Index Index;
     int nSourceT=0;
     std::vector<std::vector<unsigned int>> sourceTimes;
     if(sourceT.empty())
     {
-	// create sourceTimes all time-dilution indices
-	nSourceT=nDT;
+        // create sourceTimes all time-dilution indices
+        nSourceT=nDT;
         for (int dt = 0; dt < nDT; dt++)
-	{
-	    std::vector<unsigned int> sT = dilNoise.dilutionPartition(Index::t, dt);
-	    sourceTimes.push_back(sT);
-	    invT.push_back(dt);
-	}
+        {
+            std::vector<unsigned int> sT = dilNoise.dilutionPartition(Index::t, dt);
+            sourceTimes.push_back(sT);
+            invT.push_back(dt);
+        }
         LOG(Message) << "Perambulator for all " << nDT << " time-dilution vectors" << std::endl;
     }
     else
     {
-	std::istringstream is(sourceT);
-	std::vector<int> iT ( ( std::istream_iterator<int>( is )  ), (std::istream_iterator<int>() ) );
-	nSourceT = iT.size();
-	// create sourceTimes from the chosen subset of time-dilution indices
+        std::istringstream is(sourceT);
+        std::vector<int> iT ( ( std::istream_iterator<int>( is )  ), (std::istream_iterator<int>() ) );
+        nSourceT = iT.size();
+        // create sourceTimes from the chosen subset of time-dilution indices
         for (int dt = 0; dt < nSourceT; dt++)
-	{
-	    std::vector<unsigned int> sT = dilNoise.dilutionPartition(Index::t, iT[dt]);
-	    sourceTimes.push_back(sT);
-	    invT.push_back(iT[dt]);
-	}
+        {
+            std::vector<unsigned int> sT = dilNoise.dilutionPartition(Index::t, iT[dt]);
+            sourceTimes.push_back(sT);
+            invT.push_back(iT[dt]);
+        }
         LOG(Message) << "Perambulator for a subset of " << nSourceT << " time-dilution vectors" << std::endl;
     }
     LOG(Message) << "Source times" << sourceTimes << std::endl;

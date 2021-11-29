@@ -142,7 +142,7 @@ inline void TLapEvec<FImpl>::RotateEigen(std::vector<ColourVectorField> & evec)
                 peekSite(cv0, evec[k], siteFirst);
                 cv0()()(0).imag(0); // this should be zero after the phase multiply - force it to be so
                 pokeSite(cv0, evec[k], siteFirst);
-	    }
+            }
         }
     }
 }
@@ -287,7 +287,7 @@ void TLapEvec<FImpl>::execute(void)
     {
         for (int v = 0; v < LPar.nVec; v++)
         {
-                Evals.tensor( t, v ) = 0;
+            Evals.tensor( t, v ) = 0;
         }
     }
     for (int t = 0; t < Ntlocal; t++ )
@@ -324,22 +324,22 @@ void TLapEvec<FImpl>::execute(void)
             LOG(Error) << "MDistil::LapEvec : Not enough eigenvectors converged. If this occurs in practice, we should modify the eigensolver to iterate once more to ensure the second convergence test does not take us below the requested number of eigenvectors" << std::endl;
         }
         if( Nconv != LPar.nVec )
-	{
+        {
             eig[t].resize(LPar.nVec, gridLD);
-	}
-	RotateEigen( eig[t].evec ); // Rotate the eigenvectors into our phase convention
+        }
+        RotateEigen( eig[t].evec ); // Rotate the eigenvectors into our phase convention
         
         for (int i=0;i<LPar.nVec;i++)
-	{
+        {
             InsertSliceLocal(eig[t].evec[i],eig4d.evec[i],0,t,Tdir);
             if(t==0 && Ntfirst==0)
-	    {
-                eig4d.eval[i] = eig[t].eval[i]; // TODO: Discuss: is this needed? Is there a better way?
-	    }
+            {
+                eig4d.eval[i] = eig[t].eval[i]; 
+            }
             if(gridLD->IsBoss()) // Only do this on one node per timeslice, so a global sum will work
-	    {
+            {
                 Evals.tensor(t + Ntfirst,i) = eig[t].eval[i];
-	    }
+            }
         }
     }
     GridLogIRL.Active( PreviousIRLLogState );

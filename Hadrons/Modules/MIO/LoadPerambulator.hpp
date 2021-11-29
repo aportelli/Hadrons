@@ -100,11 +100,11 @@ template <typename FImpl>
 void TLoadPerambulator<FImpl>::setup(void)
 {
     auto &dilNoise = envGet(DistillationNoise<FImpl>, par().distilNoise);
-    int nNoise = dilNoise.size();	
-    int nVec = dilNoise.getNl();	
-    int nDL = dilNoise.dilutionSize(DistillationNoise<FImpl>::Index::l);	
-    int nDS = dilNoise.dilutionSize(DistillationNoise<FImpl>::Index::s);	
-    int nDT = dilNoise.dilutionSize(DistillationNoise<FImpl>::Index::t);	
+    int nNoise = dilNoise.size();        
+    int nVec = dilNoise.getNl();        
+    int nDL = dilNoise.dilutionSize(DistillationNoise<FImpl>::Index::l);        
+    int nDS = dilNoise.dilutionSize(DistillationNoise<FImpl>::Index::s);        
+    int nDT = dilNoise.dilutionSize(DistillationNoise<FImpl>::Index::t);        
     const int  Nt{env().getDim(Tdir)};
     int nSourceT;
     std::string sourceT = par().timeSources;
@@ -120,11 +120,11 @@ void TLoadPerambulator<FImpl>::execute(void)
 {
     auto &perambulator = envGet(MDistil::PerambTensor, getName());
     auto &dilNoise = envGet(DistillationNoise<FImpl>, par().distilNoise);
-    int nNoise = dilNoise.size();	
-    int nVec = dilNoise.getNl();	
-    int nDL = dilNoise.dilutionSize(DistillationNoise<FImpl>::Index::l);	
-    int nDS = dilNoise.dilutionSize(DistillationNoise<FImpl>::Index::s);	
-    int nDT = dilNoise.dilutionSize(DistillationNoise<FImpl>::Index::t);	
+    int nNoise = dilNoise.size();        
+    int nVec = dilNoise.getNl();        
+    int nDL = dilNoise.dilutionSize(DistillationNoise<FImpl>::Index::l);        
+    int nDS = dilNoise.dilutionSize(DistillationNoise<FImpl>::Index::s);        
+    int nDT = dilNoise.dilutionSize(DistillationNoise<FImpl>::Index::t);        
     const int  Nt{env().getDim(Tdir)};
 
     std::string sourceT = par().timeSources;
@@ -143,21 +143,21 @@ void TLoadPerambulator<FImpl>::execute(void)
             continue;
         }
         LOG(Message) <<  "reading perambulator dt= " << dt << std::endl;
-	int idt=it - std::begin(invT);
+        int idt=it - std::begin(invT);
         std::string sPerambName {par().perambFileName};
         sPerambName.append("/iDT_");
         sPerambName.append(std::to_string(dt));
         sPerambName.append(".");
         sPerambName.append(std::to_string(vm().getTrajectory()));
         PerambTmp.read(sPerambName.c_str());
-	for (int t = 0; t < Nt; t++)
+        for (int t = 0; t < Nt; t++)
         for (int ivec = 0; ivec < nVec; ivec++)
         for (int idl = 0; idl < nDL; idl++)
         for (int in = 0; in < nNoise; in++)
         for (int ids = 0; ids < nDS; ids++)
-	{
-	    perambulator.tensor(t,ivec,idl,in,idt,ids) = PerambTmp.tensor(t,ivec,idl,in,ids);
-	}
+        {
+            perambulator.tensor(t,ivec,idl,in,idt,ids) = PerambTmp.tensor(t,ivec,idl,in,ids);
+        }
     }
 }
 

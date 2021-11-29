@@ -45,7 +45,7 @@ class LoadLapEvecPar: Serializable
 public:
     GRID_SERIALIZABLE_CLASS_MEMBERS(LoadLapEvecPar,
                                     std::string, LapEvecFileName,
-				    int, nVec);
+                                    int, nVec);
 };
 
 template <typename FImpl>

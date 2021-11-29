@@ -101,10 +101,10 @@ template <typename FImpl>
 void TLoadDistillationVectors<FImpl>::setup(void)
 {
     auto &dilNoise = envGet(DistillationNoise<FImpl>, par().distilNoise);
-    int nNoise = dilNoise.size();	
-    int nDL = dilNoise.dilutionSize(DistillationNoise<FImpl>::Index::l);	
-    int nDS = dilNoise.dilutionSize(DistillationNoise<FImpl>::Index::s);	
-    int nDT = dilNoise.dilutionSize(DistillationNoise<FImpl>::Index::t);	
+    int nNoise = dilNoise.size();        
+    int nDL = dilNoise.dilutionSize(DistillationNoise<FImpl>::Index::l);        
+    int nDS = dilNoise.dilutionSize(DistillationNoise<FImpl>::Index::s);        
+    int nDT = dilNoise.dilutionSize(DistillationNoise<FImpl>::Index::t);        
     int nSourceT;
     std::string sourceT = par().timeSources;
     if(par().timeSources.empty())
@@ -113,24 +113,24 @@ void TLoadDistillationVectors<FImpl>::setup(void)
     }
     else
     {
-    // check whether input is legal, i.e. a number of integers between 0 and (nDT-1)
-    std::regex rex("[0-9 ]+");
-    std::smatch sm;
-    std::regex_match(sourceT, sm, rex);
-    if (!sm[0].matched)
-    {
-        HADRONS_ERROR(Range, "sourceTimes must be list of non-negative integers");
-    }
-    std::istringstream is(sourceT);
-    std::vector<int> iT ( ( std::istream_iterator<int>( is )  ), (std::istream_iterator<int>() ) );
-    nSourceT = iT.size();
-        for (int ii = 0; ii < nSourceT; ii++)
-    {
-        if (iT[ii] >= nDT)
+        // check whether input is legal, i.e. a number of integers between 0 and (nDT-1)
+        std::regex rex("[0-9 ]+");
+        std::smatch sm;
+        std::regex_match(sourceT, sm, rex);
+        if (!sm[0].matched)
         {
-        HADRONS_ERROR(Range, "elements of sourceTimes must lie between 0 and nDT");
+            HADRONS_ERROR(Range, "sourceTimes must be list of non-negative integers");
         }
-    }
+        std::istringstream is(sourceT);
+        std::vector<int> iT ( ( std::istream_iterator<int>( is )  ), (std::istream_iterator<int>() ) );
+        nSourceT = iT.size();
+        for (int ii = 0; ii < nSourceT; ii++)
+        {
+            if (iT[ii] >= nDT)
+            {
+                HADRONS_ERROR(Range, "elements of sourceTimes must lie between 0 and nDT");
+            }
+        }
     }
         
     envCreate(std::vector<FermionField>, getName(), 1, nNoise*nDL*nDS*nSourceT,
@@ -144,10 +144,10 @@ void TLoadDistillationVectors<FImpl>::execute(void)
     auto &vec = envGet(std::vector<FermionField>, getName());
     
     auto &dilNoise = envGet(DistillationNoise<FImpl>, par().distilNoise);
-    int nNoise = dilNoise.size();	
-    int nDL = dilNoise.dilutionSize(DistillationNoise<FImpl>::Index::l);	
-    int nDS = dilNoise.dilutionSize(DistillationNoise<FImpl>::Index::s);	
-    int nDT = dilNoise.dilutionSize(DistillationNoise<FImpl>::Index::t);	
+    int nNoise = dilNoise.size();        
+    int nDL = dilNoise.dilutionSize(DistillationNoise<FImpl>::Index::l);        
+    int nDS = dilNoise.dilutionSize(DistillationNoise<FImpl>::Index::s);        
+    int nDT = dilNoise.dilutionSize(DistillationNoise<FImpl>::Index::t);        
     DistillationVectorsIo::read(vec, par().filestem, nNoise, nDL, nDS, nDT, 1, vm().getTrajectory());
 }
 
