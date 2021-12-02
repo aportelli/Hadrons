@@ -95,6 +95,9 @@ env().template getRbGrid<typename latticeType::vector_type>(Ls)
 #define envGetRbGrid(...)\
 HADRONS_MACRO_REDIRECT_12(__VA_ARGS__, envGetRbGrid5, envGetRbGrid4)(__VA_ARGS__)
 
+#define envGetSliceGrid(latticeType, orthDim)\
+env().template getSliceGrid<typename latticeType::vector_type>(orthDim)
+
 #define envGet(type, name)\
 *env().template getObject<type>(name)
 
@@ -106,6 +109,9 @@ type &var = *env().template getObject<type>(getName() + "_tmp_" + #var)
 
 #define envHasType(type, name)\
 env().template isObjectOfType<type>(name)
+
+#define envHasDerivedType(base, type, name)\
+env().template isObjectOfDerivedType<base, type>(name)
 
 #define envCreate(type, name, Ls, ...)\
 env().template createObject<type>(name, Environment::Storage::standard, Ls, __VA_ARGS__)

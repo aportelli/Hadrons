@@ -1,9 +1,11 @@
 /*
- * LoadDistilNoise.cpp, part of Hadrons (https://github.com/aportelli/Hadrons)
+ * DistilMesonFieldFixed.cpp, part of Hadrons (https://github.com/aportelli/Hadrons)
  *
  * Copyright (C) 2015 - 2020
  *
+ * Author: Nelson Lachini <nelson.lachini@ed.ac.uk>
  * Author: Antonin Portelli <antonin.portelli@me.com>
+ * Author: Felix Erben <felix.erben@ed.ac.uk>
  *
  * Hadrons is free software: you can redistribute it and/or modify
  * it under the terms of the GNU General Public License as published by
@@ -23,10 +25,11 @@
  */
 
 /*  END LEGAL */
-#include <Hadrons/Modules/MIO/LoadDistilNoise.hpp>
+
+#include <Hadrons/Modules/MDistil/DistilMesonFieldFixed.hpp>
 
 using namespace Grid;
 using namespace Hadrons;
-using namespace MIO;
+using namespace MDistil;
 
-template class Grid::Hadrons::MIO::TLoadDistilNoise<FIMPL>;
+template class Grid::Hadrons::MDistil::TDistilMesonFieldFixed<FIMPL>;
