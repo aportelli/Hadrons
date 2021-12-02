@@ -418,4 +418,3 @@ END_MODULE_NAMESPACE
 END_HADRONS_NAMESPACE
 
 #endif // Hadrons_MDistil_Perambulator_hpp_
-
