@@ -5,6 +5,7 @@
  *
  * Author: Antonin Portelli <antonin.portelli@me.com>
  * Author: Fionn O hOgain <fionn.o.hogain@ed.ac.uk>
+ * Author: Michael Marshall <michael.marshall@ed.ac.uk>
  *
  * Hadrons is free software: you can redistribute it and/or modify
  * it under the terms of the GNU General Public License as published by
@@ -43,7 +44,7 @@ class VectorUnpackPar: Serializable
 public:
     GRID_SERIALIZABLE_CLASS_MEMBERS(VectorUnpackPar,
                                     std::string,  input,
-                                    unsigned int, size);
+                                    std::vector<std::string>, fields);
 };
 
 template <typename Field>
@@ -88,14 +89,7 @@ std::vector<std::string> TVectorUnpack<Field>::getInput(void)
 template <typename Field>
 std::vector<std::string> TVectorUnpack<Field>::getOutput(void)
 {
-    std::vector<std::string> out;
-
-    for (unsigned int i = 0; i < par().size; ++i)
-    {
-        out.push_back(getName() + "_" + std::to_string(i));
-    }
-    
-    return out;
+    return par().fields;
 }
 
 // setup ///////////////////////////////////////////////////////////////////////
@@ -106,17 +100,17 @@ void TVectorUnpack<Field>::setup(void)
     unsigned int Ls    = env().getObjectLs(par().input);
     auto         *grid = vec[0].Grid();
 
-    if (vec.size() != par().size)
+    if (vec.size() != par().fields.size())
         {
             HADRONS_ERROR(Size,"Mismatch between vector size ("
                                 + std::to_string(vec.size())
                                 + ") and module parameter size ("
-                                + std::to_string(par().size) + ").");
+                                + std::to_string(par().fields.size()) + ").");
         }
 
-    for (unsigned int i = 0; i < vec.size(); ++i)
+    for (const std::string &ThisName : par().fields)
     {
-        envCreate(Field, getName() + "_" + std::to_string(i), Ls, grid);
+        envCreate(Field, ThisName, Ls, grid);
     }
 }
 
@@ -129,7 +123,7 @@ void TVectorUnpack<Field>::execute(void)
     LOG(Message) << "Unpacking vector '" << par().input << "'" << std::endl;
     for (unsigned int i = 0; i < vec.size(); ++i)
     {
-        auto &veci = envGet(Field, getName() + "_" + std::to_string(i));
+        auto &veci = envGet(Field, par().fields[i]);
 
         veci = vec[i];
     }
