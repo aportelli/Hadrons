@@ -196,6 +196,7 @@ void StatLogger::logDeviceMemory(const GridTime::rep time)
     e.totalCurrent          = 0;
     e.envCurrent            = 0;
     e.gridCurrent           = MemoryManager::DeviceBytes;
+    e.evictableCurrent      = MemoryManager::DeviceLRUBytes;
     buf.h2d                 = MemoryManager::HostToDeviceBytes;
     buf.h2dTr               = MemoryManager::HostToDeviceXfer;
     buf.d2h                 = MemoryManager::DeviceToHostBytes;
