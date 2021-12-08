@@ -17,6 +17,10 @@ AC_ARG_WITH([grid],
     [CXXFLAGS="$CXXFLAGS -I$with_grid/include"]
     [LDFLAGS="$LDFLAGS -L$with_grid/lib"])
 
+AC_ARG_ENABLE([npr-fourquark],
+    [AC_HELP_STRING([--enable-npr-fourquark],[enable npr fourquark module])],
+    [AC_DEFINE([NPR_FOURQUARK],[1],[enable npr fourquark module])],[])
+
 AC_CHECK_PROG([GRIDCONF],[grid-config],[yes])
 if test x"$GRIDCONF" != x"yes" ; then
     AC_MSG_ERROR([grid-config not found])
