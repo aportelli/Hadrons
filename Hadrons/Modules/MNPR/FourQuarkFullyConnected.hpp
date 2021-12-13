@@ -29,7 +29,7 @@
 
 /*  END LEGAL */
 
-#ifdef NPR_FOURQUARK
+#ifdef Hadrons_NPR_FOURQUARK
 
 #ifndef Hadrons_MNPR_FourQuarkFullyConnected_hpp_
 #define Hadrons_MNPR_FourQuarkFullyConnected_hpp_

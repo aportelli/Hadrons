@@ -1,4 +1,4 @@
-#ifdef NPR_FOURQUARK
+#ifdef Hadrons_NPR_FOURQUARK
 
 #include <Hadrons/Modules/MNPR/FourQuarkFullyConnected.hpp>
 
