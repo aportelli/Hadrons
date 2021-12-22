@@ -20,7 +20,7 @@ CLEANFILES = $(EXTRA_PROGRAMS)
 
 tests-local: $(EXTRA_PROGRAMS)
 
-Test_QED_Local_SOURCES=Test_QED_LOCAL.cpp
+Test_QED_Local_SOURCES=Test_QED_Local.cpp
 Test_QED_Local_LDADD=-lHadrons -lGrid
 
 Test_QED_SOURCES=Test_QED.cpp

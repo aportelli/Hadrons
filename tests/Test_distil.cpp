@@ -191,7 +191,7 @@ void test_Perambulators( Application &application, const char * pszSuffix = null
   // Perambulator parameters
   MDistil::Perambulator::Par PerambPar;
   PerambPar.lapevec = "LapEvec";
-  PerambPar.PerambFileName = sModuleName;
+  PerambPar.perambFileName = sModuleName;
   PerambPar.solver = test_Solver( application, pszSuffix );
   PerambPar.DistilParams = "DPar_l";
   PerambPar.noise = "noise";
