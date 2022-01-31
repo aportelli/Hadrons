@@ -109,8 +109,8 @@ std::vector<std::string> TWilsonExpClover<FImpl>::getOutput(void)
 template <typename FImpl>
 void TWilsonExpClover<FImpl>::setup(void)
 {
-    LOG(Message) << "Setting up Wilson exponential clover fermion matrix with m= " << par().mass
-                 << " and twmass= " << par().twmass
+    LOG(Message) << "Setting up Wilson exponential clover fermion matrix with m = " << par().mass
+                 << " and twmass = " << par().twmass
                  << " using gauge field '" << par().gauge << "'" << std::endl;
     LOG(Message) << "Clover term csw_r: " << par().csw_r
                  << " csw_t: " << par().csw_t
