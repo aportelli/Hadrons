@@ -172,7 +172,7 @@ void Application::run(void)
     LOG(Message) << "Attempt(s) for resilient parallel I/O: " 
                  << BinaryIO::latticeWriteMaxRetry << std::endl;
     vm().setRunId(getPar().runId);
-    if (getPar().database.makeStatDb)
+    if (!getPar().database.statDbBase.empty())
     {
         std::string        statDbFilename;
         std::ostringstream oss;
@@ -180,7 +180,7 @@ void Application::run(void)
         auto nowLocal = *std::localtime(&now);
 
         oss << std::put_time(&nowLocal, "%Y%m%d-%H%M%S");
-        statDbFilename = getPar().runId + "-stat-" + oss.str() + ".db";
+        statDbFilename = getPar().database.statDbBase + getPar().runId + "-stat-" + oss.str() + ".db";
         LOG(Message) << "Logging run statistics in '" << statDbFilename << "'" << std::endl;
         if (env().getGrid()->IsBoss())
         {
@@ -213,7 +213,7 @@ void Application::run(void)
         vm().dumpModuleGraph(getPar().graphFile);
     }
     configLoop();
-    if (getPar().database.makeStatDb and env().getGrid()->IsBoss())
+    if (!getPar().database.statDbBase.empty() and env().getGrid()->IsBoss())
     {
         statLogger.stop();
     }
