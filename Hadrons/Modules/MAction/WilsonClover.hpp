@@ -43,11 +43,15 @@ BEGIN_MODULE_NAMESPACE(MAction)
 class WilsonCloverPar: Serializable
 {
 public:
+    WilsonCloverPar(void):
+        cF{1.0} {};
+public:
     GRID_SERIALIZABLE_CLASS_MEMBERS(WilsonCloverPar,
                                     std::string, gauge,
                                     double     , mass,
 				                    double     , csw_r,
 				                    double     , csw_t,
+                                    double     , cF,
 				                    WilsonAnisotropyCoefficients ,clover_anisotropy,
                                     std::string, boundary,
                                     std::string, twist
@@ -138,8 +142,8 @@ void TWilsonClover<FImpl>::setup(void)
     {
         HADRONS_ERROR(Size, "Wrong number of twist");
     }
-    envCreateDerived(FMat, WilsonCloverFermion<FImpl>, getName(), 1, U, grid,
-                     gridRb, par().mass, par().csw_r, par().csw_t, 
+    envCreateDerived(FMat, CompactWilsonCloverFermion<FImpl>, getName(), 1, U, grid,
+                     gridRb, par().mass, par().csw_r, par().csw_t, par().cF,
                      par().clover_anisotropy, implParams); 
 }
 
