@@ -43,9 +43,6 @@ BEGIN_MODULE_NAMESPACE(MAction)
 class WilsonCloverPar: Serializable
 {
 public:
-    WilsonCloverPar(void):
-        cF{1.0} {};
-public:
     GRID_SERIALIZABLE_CLASS_MEMBERS(WilsonCloverPar,
                                     std::string, gauge,
                                     double     , mass,
@@ -112,10 +109,11 @@ std::vector<std::string> TWilsonClover<FImpl>::getOutput(void)
 template <typename FImpl>
 void TWilsonClover<FImpl>::setup(void)
 {
-    LOG(Message) << "Setting up Wilson clover fermion matrix with m= " << par().mass
+    LOG(Message) << "Setting up Wilson clover fermion matrix with m = " << par().mass
                  << " using gauge field '" << par().gauge << "'" << std::endl;
     LOG(Message) << "Clover term csw_r: " << par().csw_r
-                 << " csw_t: " << par().csw_t
+                 << " csw_t: " << par().csw_t << std::endl;
+    LOG(Message) << "Boundary improvement coefficient cF = " << par().cF
                  << std::endl;
                  
     auto &U      = envGet(GaugeField, par().gauge);
