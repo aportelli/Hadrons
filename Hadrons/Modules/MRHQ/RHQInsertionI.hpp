@@ -35,7 +35,7 @@
 BEGIN_HADRONS_NAMESPACE
 
 /******************************************************************************
- *                                 RHQInsertionI                                      *
+ *                              RHQInsertionI                                 *
  ******************************************************************************/
 BEGIN_MODULE_NAMESPACE(MRHQ)
 
@@ -43,9 +43,10 @@ class RHQInsertionIPar: Serializable
 {
 public:
     GRID_SERIALIZABLE_CLASS_MEMBERS(RHQInsertionIPar,
-                                    std::string, q,
-                                    std::string, gauge,
-                                    unsigned int, gauge_index);
+                                    std::string,    q,
+                                    unsigned int,   index,
+                                    Gamma::Algebra, gamma5,
+                                    std::string,    gauge);
 };
 
 template <typename FImpl, typename GImpl>
@@ -109,17 +110,21 @@ void TRHQInsertionI<FImpl, GImpl>::setup(void)
 template <typename FImpl, typename GImpl>
 void TRHQInsertionI<FImpl, GImpl>::execute(void)
 {
-    LOG(Message) << "Applying Improvement term I to'" << par().q
+    LOG(Message) << "Applying Improvement term I with index " << par().index
+                 << " and gamma5=" << par().gamma5 
+                 << " to '" << par().q 
                  << std::endl;
 
-    auto &field    = envGet(PropagatorField, par().q);
-    const auto &gaugefield  = envGet(GaugeField, par().gauge);
-    const auto &gauge_index = par().gauge_index;
+    Gamma g5(par().gamma5);
 
-    const auto internal_gauge = peekLorentz(gaugefield, gauge_index);
-    PropagatorField insertion = (GImpl::CovShiftForward(internal_gauge,gauge_index,field) - GImpl::CovShiftBackward(internal_gauge,gauge_index,field));
+    auto &field = envGet(PropagatorField, par().q);
+    const auto &gaugefield = envGet(GaugeField, par().gauge);
+    const auto &index = par().index;
+
+    const auto internal_gauge = peekLorentz(gaugefield, index);
+    PropagatorField insertion = g5*(GImpl::CovShiftForward(internal_gauge,index,field) - GImpl::CovShiftBackward(internal_gauge,index,field));
     
-    auto &out  = envGet(PropagatorField, getName());
+    auto &out = envGet(PropagatorField, getName());
     out = insertion;
 }
 
