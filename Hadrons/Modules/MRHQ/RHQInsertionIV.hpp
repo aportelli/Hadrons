@@ -38,9 +38,11 @@ BEGIN_HADRONS_NAMESPACE
 /******************************************************************************
  *                            RHQInsertionIV                                  *
  ******************************************************************************/
-BEGIN_MODULE_NAMESPACE(MRHQ)
+// NB: It would be cleaner to define a common OpFlag somewhere else
+// but not sure where/how
+GRID_SERIALIZABLE_ENUM(OpIVFlag, undef, Chroma, 0, LeftRight, 1);
 
-GRID_SERIALIZABLE_ENUM(OpFlag, undef, Chroma, 0, LeftRight, 1);
+BEGIN_MODULE_NAMESPACE(MRHQ)
 
 class RHQInsertionIVPar: Serializable
 {
@@ -50,7 +52,7 @@ public:
                                     unsigned int,   index,
                                     Gamma::Algebra, gamma5,
                                     std::string,    gauge,
-                                    OpFlag,         flag);
+                                    OpIVFlag,       flag);
 };
 
 template <typename FImpl, typename GImpl>
@@ -113,16 +115,28 @@ void TRHQInsertionIV<FImpl, GImpl>::setup(void)
 template <typename FImpl, typename GImpl>
 void TRHQInsertionIV<FImpl, GImpl>::execute(void)
 {
-    // add flag parameter
+
     LOG(Message) << "Applying Improvement term IV with index " << par().index
                  << " and gamma5=" << par().gamma5 
                  << " to '" << par().q 
                  << "' with flag '" << par().flag << "'"
                  << std::endl;
     
-    if (par().flag == OpFlag::Chroma)
-    {
-        Gamma g5(par().gamma5); 
+    Gamma g5(par().gamma5); // should we check that it's really either Gamma5 or Identity? Use enum here as well?
+    
+    auto &field = envGet(PropagatorField, par().q);
+    const auto &gaugefield  = envGet(GaugeField, par().gauge);
+    const auto gauge_x = peekLorentz(gaugefield, 0);
+    const auto gauge_y = peekLorentz(gaugefield, 1);
+    const auto gauge_z = peekLorentz(gaugefield, 2);
+
+    auto &out = envGet(PropagatorField, getName());
+    if (par().flag == OpIVFlag::Chroma)
+    {   
+        Gamma gx(Gamma::Algebra::GammaX);
+        Gamma gy(Gamma::Algebra::GammaY);
+        Gamma gz(Gamma::Algebra::GammaZ);
+
         Gamma::Algebra gi; // gamma index
         switch(par().index){
             case 0:
@@ -140,25 +154,52 @@ void TRHQInsertionIV<FImpl, GImpl>::execute(void)
             // not sure if I should put a default as an error, in case the index is not valid;
             // in other modules there is no such check (ex in index for RHQ action)
             default:
-                HADRONS_ERROR(Argument, "Index must be in {'0', '1', '2', '3'}."); 
+                HADRONS_ERROR(Argument, "Index must be in {0, 1, 2, 3}."); 
         }
-
-        auto &field = envGet(PropagatorField, par().q);
-        const auto &gaugefield  = envGet(GaugeField, par().gauge);
-        const auto gauge_x = peekLorentz(gaugefield, 0);
-        const auto gauge_y = peekLorentz(gaugefield, 1);
-        const auto gauge_z = peekLorentz(gaugefield, 2);
-
-        Gamma gx(Gamma::Algebra::GammaX);
-        Gamma gy(Gamma::Algebra::GammaY);
-        Gamma gz(Gamma::Algebra::GammaZ);
         PropagatorField insertion = 
             gx*g5*gi * (GImpl::CovShiftForward(gauge_x,0,field) - GImpl::CovShiftBackward(gauge_x,0,field))
           + gy*g5*gi * (GImpl::CovShiftForward(gauge_y,1,field) - GImpl::CovShiftBackward(gauge_y,1,field))
           + gz*g5*gi * (GImpl::CovShiftForward(gauge_z,2,field) - GImpl::CovShiftBackward(gauge_z,2,field));
         
-        auto &out = envGet(PropagatorField, getName());
         out = insertion;
+    }
+    else if (par().flag == OpIVFlag::LeftRight)
+    {        
+        Gamma::Algebra sigma_iX; // gamma index
+        Gamma::Algebra sigma_iY;
+        Gamma::Algebra sigma_iZ;
+        switch(par().index){
+            case 0:
+                sigma_iX = 0.*sigma_iX;
+                sigma_iY = Gamma::Algebra::SigmaXY;
+                sigma_iZ = Gamma::Algebra::SigmaXZ;
+                break;
+            case 1:
+                sigma_iX = Gamma::Algebra::MinusSigmaXY;
+                sigma_iY = 0.*sigma_iY;
+                sigma_iZ = Gamma::Algebra::SigmaYZ;
+                break;
+            case 2:
+                sigma_iX = Gamma::Algebra::MinusSigmaXZ;
+                sigma_iY = Gamma::Algebra::MinusSigmaYZ;
+                sigma_iZ = 0.*sigma_iZ;
+                break;
+            case 3:
+                sigma_iX = Gamma::Algebra::MinusSigmaXT;
+                sigma_iY = Gamma::Algebra::MinusSigmaYT;
+                sigma_iZ = Gamma::Algebra::MinusSigmaZT;
+                break;
+            // not sure if I should put a default as an error, in case the index is not valid;
+            // in other modules there is no such check (ex in index for RHQ action)
+            default:
+                HADRONS_ERROR(Argument, "Index must be in {0, 1, 2, 3}."); 
+        }
+        PropagatorField insertion = 
+            (sigma_iX)*g5 * (GImpl::CovShiftForward(gauge_x,0,field) - GImpl::CovShiftBackward(gauge_x,0,field))
+          + (sigma_iY)*g5 * (GImpl::CovShiftForward(gauge_y,1,field) - GImpl::CovShiftBackward(gauge_y,1,field))
+          + (sigma_iZ)*g5 * (GImpl::CovShiftForward(gauge_z,2,field) - GImpl::CovShiftBackward(gauge_z,2,field));
+
+        out = -insertion;
     }
 }
 
