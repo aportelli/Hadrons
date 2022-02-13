@@ -37,7 +37,7 @@ BEGIN_HADRONS_NAMESPACE
 /******************************************************************************
  *                             RHQInsertionIII                                *
  ******************************************************************************/
-GRID_SERIALIZABLE_ENUM(OpFlagIII, undef, Chroma, 0, LeftRight, 1);
+GRID_SERIALIZABLE_ENUM(OpIIIFlag, undef, Chroma, 0, LeftRight, 1);
 
 BEGIN_MODULE_NAMESPACE(MRHQ)
 
@@ -45,11 +45,11 @@ class RHQInsertionIIIPar: Serializable
 {
 public:
     GRID_SERIALIZABLE_CLASS_MEMBERS(RHQInsertionIIIPar,
-                                    std::string, q,
+                                    std::string,    q,
                                     unsigned int,   index,
                                     Gamma::Algebra, gamma5,
                                     std::string,    gauge,
-                                    OpFlagIII,      flag);
+                                    OpIIIFlag,      flag);
 };
 
 template <typename FImpl, typename GImpl>
