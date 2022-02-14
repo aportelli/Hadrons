@@ -122,36 +122,41 @@ void TRHQInsertionIII<FImpl, GImpl>::execute(void)
     Gamma g5(par().gamma5); // should we check that it's really either Gamma5 or Identity? Use enum here as well?
     
     auto &field = envGet(PropagatorField, par().q);
-    const auto &gaugefield  = envGet(GaugeField, par().gauge);
+    const auto &gaugefield = envGet(GaugeField, par().gauge);
     const auto gauge_x = peekLorentz(gaugefield, 0);
     const auto gauge_y = peekLorentz(gaugefield, 1);
     const auto gauge_z = peekLorentz(gaugefield, 2);
 
+    Gamma gx(Gamma::Algebra::GammaX);
+    Gamma gy(Gamma::Algebra::GammaY);
+    Gamma gz(Gamma::Algebra::GammaZ);
+
+    // PropagatorField Dx = GImpl::CovShiftForward(gauge_x,0,field) - GImpl::CovShiftBackward(gauge_x,0,field);
+    // PropagatorField Dy = GImpl::CovShiftForward(gauge_y,1,field) - GImpl::CovShiftBackward(gauge_y,1,field);
+    // PropagatorField Dz = GImpl::CovShiftForward(gauge_z,2,field) - GImpl::CovShiftBackward(gauge_z,2,field);
+
+    Gamma::Algebra gi; 
+    switch(par().index){
+        case 0:
+            gi = Gamma::Algebra::GammaX;
+            break;
+        case 1:
+            gi = Gamma::Algebra::GammaY;
+            break;
+        case 2:
+            gi = Gamma::Algebra::GammaZ;
+            break;
+        case 3:
+            gi = Gamma::Algebra::GammaT;
+            break;
+        default:
+            HADRONS_ERROR(Argument, "Index must be in {0, 1, 2, 3}."); 
+    }
+    
     auto &out = envGet(PropagatorField, getName());
     if (par().flag == OpIIIFlag::Chroma)
-    {   
-        Gamma gx(Gamma::Algebra::GammaX);
-        Gamma gy(Gamma::Algebra::GammaY);
-        Gamma gz(Gamma::Algebra::GammaZ);
-
-        Gamma::Algebra gi; 
-        switch(par().index){
-            case 0:
-                gi = Gamma::Algebra::GammaX;
-                break;
-            case 1:
-                gi = Gamma::Algebra::GammaY;
-                break;
-            case 2:
-                gi = Gamma::Algebra::GammaZ;
-                break;
-            case 3:
-                gi = Gamma::Algebra::GammaT;
-                break;
-            default:
-                HADRONS_ERROR(Argument, "Index must be in {0, 1, 2, 3}."); 
-        }
-        PropagatorField insertion = 
+    {     
+        PropagatorField insertion =
             gi*g5*gx * (GImpl::CovShiftForward(gauge_x,0,field) - GImpl::CovShiftBackward(gauge_x,0,field))
           + gi*g5*gy * (GImpl::CovShiftForward(gauge_y,1,field) - GImpl::CovShiftBackward(gauge_y,1,field))
           + gi*g5*gz * (GImpl::CovShiftForward(gauge_z,2,field) - GImpl::CovShiftBackward(gauge_z,2,field));
@@ -160,39 +165,15 @@ void TRHQInsertionIII<FImpl, GImpl>::execute(void)
     }
     else if (par().flag == OpIIIFlag::LeftRight)
     {        
-        Gamma::Algebra sigma_iX; 
-        Gamma::Algebra sigma_iY;
-        Gamma::Algebra sigma_iZ;
-        switch(par().index){
-            case 0:
-                sigma_iX = 0.*sigma_iX;
-                sigma_iY = Gamma::Algebra::SigmaXY;
-                sigma_iZ = Gamma::Algebra::SigmaXZ;
-                break;
-            case 1:
-                sigma_iX = Gamma::Algebra::MinusSigmaXY;
-                sigma_iY = 0.*sigma_iY;
-                sigma_iZ = Gamma::Algebra::SigmaYZ;
-                break;
-            case 2:
-                sigma_iX = Gamma::Algebra::MinusSigmaXZ;
-                sigma_iY = Gamma::Algebra::MinusSigmaYZ;
-                sigma_iZ = 0.*sigma_iZ;
-                break;
-            case 3:
-                sigma_iX = Gamma::Algebra::MinusSigmaXT;
-                sigma_iY = Gamma::Algebra::MinusSigmaYT;
-                sigma_iZ = Gamma::Algebra::MinusSigmaZT;
-                break;
-            default:
-                HADRONS_ERROR(Argument, "Index must be in {0, 1, 2, 3}."); 
-        }
         PropagatorField insertion = 
-            (sigma_iX)*g5 * (GImpl::CovShiftForward(gauge_x,0,field) - GImpl::CovShiftBackward(gauge_x,0,field))
-          + (sigma_iY)*g5 * (GImpl::CovShiftForward(gauge_y,1,field) - GImpl::CovShiftBackward(gauge_y,1,field))
-          + (sigma_iZ)*g5 * (GImpl::CovShiftForward(gauge_z,2,field) - GImpl::CovShiftBackward(gauge_z,2,field));
+            gi*gx*g5 * (GImpl::CovShiftForward(gauge_x,0,field) - GImpl::CovShiftBackward(gauge_x,0,field)) 
+          - gx*gi*g5 * (GImpl::CovShiftForward(gauge_x,0,field) - GImpl::CovShiftBackward(gauge_x,0,field))
+          + gi*gy*g5 * (GImpl::CovShiftForward(gauge_y,1,field) - GImpl::CovShiftBackward(gauge_y,1,field))
+          - gy*gi*g5 * (GImpl::CovShiftForward(gauge_y,1,field) - GImpl::CovShiftBackward(gauge_y,1,field))
+          + gi*gz*g5 * (GImpl::CovShiftForward(gauge_z,2,field) - GImpl::CovShiftBackward(gauge_z,2,field)) 
+          - gz*gi*g5 * (GImpl::CovShiftForward(gauge_z,2,field) - GImpl::CovShiftBackward(gauge_z,2,field));
 
-        out = insertion;
+        out = 0.5*insertion;
     }
 }
 
