@@ -125,82 +125,57 @@ void TRHQInsertionIV<FImpl, GImpl>::execute(void)
     Gamma g5(par().gamma5); // should we check that it's really either Gamma5 or Identity? Use enum here as well?
     
     auto &field = envGet(PropagatorField, par().q);
-    const auto &gaugefield  = envGet(GaugeField, par().gauge);
+    const auto &gaugefield = envGet(GaugeField, par().gauge);
     const auto gauge_x = peekLorentz(gaugefield, 0);
     const auto gauge_y = peekLorentz(gaugefield, 1);
     const auto gauge_z = peekLorentz(gaugefield, 2);
 
+    Gamma gx(Gamma::Algebra::GammaX);
+    Gamma gy(Gamma::Algebra::GammaY);
+    Gamma gz(Gamma::Algebra::GammaZ);
+
+    const PropagatorField Dx = GImpl::CovShiftForward(gauge_x,0,field) - GImpl::CovShiftBackward(gauge_x,0,field);
+    const PropagatorField Dy = GImpl::CovShiftForward(gauge_y,1,field) - GImpl::CovShiftBackward(gauge_y,1,field);
+    const PropagatorField Dz = GImpl::CovShiftForward(gauge_z,2,field) - GImpl::CovShiftBackward(gauge_z,2,field);
+
+    Gamma::Algebra gi; 
+    switch(par().index){
+        case 0:
+            gi = Gamma::Algebra::GammaX;
+            break;
+        case 1:
+            gi = Gamma::Algebra::GammaY;
+            break;
+        case 2:
+            gi = Gamma::Algebra::GammaZ;
+            break;
+        case 3:
+            gi = Gamma::Algebra::GammaT;
+            break;
+        default:
+            HADRONS_ERROR(Argument, "Index must be in {0, 1, 2, 3}."); 
+    }
+    
     auto &out = envGet(PropagatorField, getName());
     if (par().flag == OpIVFlag::Chroma)
-    {   
-        Gamma gx(Gamma::Algebra::GammaX);
-        Gamma gy(Gamma::Algebra::GammaY);
-        Gamma gz(Gamma::Algebra::GammaZ);
-
-        Gamma::Algebra gi; // gamma index
-        switch(par().index){
-            case 0:
-                gi = Gamma::Algebra::GammaX;
-                break;
-            case 1:
-                gi = Gamma::Algebra::GammaY;
-                break;
-            case 2:
-                gi = Gamma::Algebra::GammaZ;
-                break;
-            case 3:
-                gi = Gamma::Algebra::GammaT;
-                break;
-            // not sure if I should put a default as an error, in case the index is not valid;
-            // in other modules there is no such check (ex in index for RHQ action)
-            default:
-                HADRONS_ERROR(Argument, "Index must be in {0, 1, 2, 3}."); 
-        }
-        PropagatorField insertion = 
-            gx*g5*gi * (GImpl::CovShiftForward(gauge_x,0,field) - GImpl::CovShiftBackward(gauge_x,0,field))
-          + gy*g5*gi * (GImpl::CovShiftForward(gauge_y,1,field) - GImpl::CovShiftBackward(gauge_y,1,field))
-          + gz*g5*gi * (GImpl::CovShiftForward(gauge_z,2,field) - GImpl::CovShiftBackward(gauge_z,2,field));
+    {     
+        PropagatorField insertion =
+            gx*g5*gi * Dx 
+          + gy*g5*gi * Dy
+          + gz*g5*gi * Dz;
         
         out = insertion;
     }
     else if (par().flag == OpIVFlag::LeftRight)
     {        
-        Gamma::Algebra sigma_iX; // gamma index
-        Gamma::Algebra sigma_iY;
-        Gamma::Algebra sigma_iZ;
-        switch(par().index){
-            case 0:
-                sigma_iX = 0.*sigma_iX;
-                sigma_iY = Gamma::Algebra::SigmaXY;
-                sigma_iZ = Gamma::Algebra::SigmaXZ;
-                break;
-            case 1:
-                sigma_iX = Gamma::Algebra::MinusSigmaXY;
-                sigma_iY = 0.*sigma_iY;
-                sigma_iZ = Gamma::Algebra::SigmaYZ;
-                break;
-            case 2:
-                sigma_iX = Gamma::Algebra::MinusSigmaXZ;
-                sigma_iY = Gamma::Algebra::MinusSigmaYZ;
-                sigma_iZ = 0.*sigma_iZ;
-                break;
-            case 3:
-                sigma_iX = Gamma::Algebra::MinusSigmaXT;
-                sigma_iY = Gamma::Algebra::MinusSigmaYT;
-                sigma_iZ = Gamma::Algebra::MinusSigmaZT;
-                break;
-            // not sure if I should put a default as an error, in case the index is not valid;
-            // in other modules there is no such check (ex in index for RHQ action)
-            default:
-                HADRONS_ERROR(Argument, "Index must be in {0, 1, 2, 3}."); 
-        }
         PropagatorField insertion = 
-            (sigma_iX)*g5 * (GImpl::CovShiftForward(gauge_x,0,field) - GImpl::CovShiftBackward(gauge_x,0,field))
-          + (sigma_iY)*g5 * (GImpl::CovShiftForward(gauge_y,1,field) - GImpl::CovShiftBackward(gauge_y,1,field))
-          + (sigma_iZ)*g5 * (GImpl::CovShiftForward(gauge_z,2,field) - GImpl::CovShiftBackward(gauge_z,2,field));
+            gi*gx*g5 * Dx - gx*gi*g5 * Dx
+          + gi*gy*g5 * Dy - gy*gi*g5 * Dy
+          + gi*gz*g5 * Dz - gz*gi*g5 * Dz;
 
-        out = -insertion;
+        out = -0.5*insertion;
     }
+ 
 }
 
 END_MODULE_NAMESPACE
