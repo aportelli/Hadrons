@@ -131,9 +131,9 @@ void TRHQInsertionIII<FImpl, GImpl>::execute(void)
     Gamma gy(Gamma::Algebra::GammaY);
     Gamma gz(Gamma::Algebra::GammaZ);
 
-    // PropagatorField Dx = GImpl::CovShiftForward(gauge_x,0,field) - GImpl::CovShiftBackward(gauge_x,0,field);
-    // PropagatorField Dy = GImpl::CovShiftForward(gauge_y,1,field) - GImpl::CovShiftBackward(gauge_y,1,field);
-    // PropagatorField Dz = GImpl::CovShiftForward(gauge_z,2,field) - GImpl::CovShiftBackward(gauge_z,2,field);
+    const PropagatorField Dx = GImpl::CovShiftForward(gauge_x,0,field) - GImpl::CovShiftBackward(gauge_x,0,field);
+    const PropagatorField Dy = GImpl::CovShiftForward(gauge_y,1,field) - GImpl::CovShiftBackward(gauge_y,1,field);
+    const PropagatorField Dz = GImpl::CovShiftForward(gauge_z,2,field) - GImpl::CovShiftBackward(gauge_z,2,field);
 
     Gamma::Algebra gi; 
     switch(par().index){
@@ -157,21 +157,18 @@ void TRHQInsertionIII<FImpl, GImpl>::execute(void)
     if (par().flag == OpIIIFlag::Chroma)
     {     
         PropagatorField insertion =
-            gi*g5*gx * (GImpl::CovShiftForward(gauge_x,0,field) - GImpl::CovShiftBackward(gauge_x,0,field))
-          + gi*g5*gy * (GImpl::CovShiftForward(gauge_y,1,field) - GImpl::CovShiftBackward(gauge_y,1,field))
-          + gi*g5*gz * (GImpl::CovShiftForward(gauge_z,2,field) - GImpl::CovShiftBackward(gauge_z,2,field));
+            gi*g5*gx * Dx
+          + gi*g5*gy * Dy
+          + gi*g5*gz * Dz;
         
         out = insertion;
     }
     else if (par().flag == OpIIIFlag::LeftRight)
     {        
         PropagatorField insertion = 
-            gi*gx*g5 * (GImpl::CovShiftForward(gauge_x,0,field) - GImpl::CovShiftBackward(gauge_x,0,field)) 
-          - gx*gi*g5 * (GImpl::CovShiftForward(gauge_x,0,field) - GImpl::CovShiftBackward(gauge_x,0,field))
-          + gi*gy*g5 * (GImpl::CovShiftForward(gauge_y,1,field) - GImpl::CovShiftBackward(gauge_y,1,field))
-          - gy*gi*g5 * (GImpl::CovShiftForward(gauge_y,1,field) - GImpl::CovShiftBackward(gauge_y,1,field))
-          + gi*gz*g5 * (GImpl::CovShiftForward(gauge_z,2,field) - GImpl::CovShiftBackward(gauge_z,2,field)) 
-          - gz*gi*g5 * (GImpl::CovShiftForward(gauge_z,2,field) - GImpl::CovShiftBackward(gauge_z,2,field));
+            gi*gx*g5 * Dx - gx*gi*g5 * Dx
+          + gi*gy*g5 * Dy - gy*gi*g5 * Dy
+          + gi*gz*g5 * Dz - gz*gi*g5 * Dz;
 
         out = 0.5*insertion;
     }
