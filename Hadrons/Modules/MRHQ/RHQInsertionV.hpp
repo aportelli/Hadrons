@@ -119,6 +119,10 @@ void TRHQInsertionV<FImpl, GImpl>::execute(void)
     const auto &gaugefield = envGet(GaugeField, par().gauge);
     const auto gauge_t = peekLorentz(gaugefield, 3);
 
+    if (par().gamma5 != Gamma::Algebra::Gamma5 && par().gamma5 != Gamma::Algebra::Identity)
+    {
+        HADRONS_ERROR(Argument, "gamma5 must be either 'Gamma5' or 'Identity'."); 
+    }
     Gamma g5(par().gamma5);
     Gamma gt(Gamma::Algebra::GammaT);
     

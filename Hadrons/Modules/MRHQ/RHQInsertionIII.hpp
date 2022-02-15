@@ -106,7 +106,7 @@ std::vector<std::string> TRHQInsertionIII<FImpl, GImpl>::getOutput(void)
 template <typename FImpl, typename GImpl>
 void TRHQInsertionIII<FImpl, GImpl>::setup(void)
 {
-    envCreateLat(PropagatorField, getName());//, 1, env().getDim(Tp));
+    envCreateLat(PropagatorField, getName());
 }
 
 // execution ///////////////////////////////////////////////////////////////////
@@ -119,7 +119,11 @@ void TRHQInsertionIII<FImpl, GImpl>::execute(void)
                  << "' with flag '" << par().flag << "'"
                  << std::endl;
     
-    Gamma g5(par().gamma5); // should we check that it's really either Gamma5 or Identity? Use enum here as well?
+    if (par().gamma5 != Gamma::Algebra::Gamma5 && par().gamma5 != Gamma::Algebra::Identity)
+    {
+        HADRONS_ERROR(Argument, "gamma5 must be either 'Gamma5' or 'Identity'."); 
+    }
+    Gamma g5(par().gamma5);
     
     auto &field = envGet(PropagatorField, par().q);
     const auto &gaugefield = envGet(GaugeField, par().gauge);

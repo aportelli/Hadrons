@@ -120,6 +120,10 @@ void TRHQInsertionIV<FImpl, GImpl>::execute(void)
                  << "' with flag '" << par().flag << "'"
                  << std::endl;
     
+    if (par().gamma5 != Gamma::Algebra::Gamma5 && par().gamma5 != Gamma::Algebra::Identity)
+    {
+        HADRONS_ERROR(Argument, "gamma5 must be either 'Gamma5' or 'Identity'."); 
+    }
     Gamma g5(par().gamma5);
     
     auto &field = envGet(PropagatorField, par().q);

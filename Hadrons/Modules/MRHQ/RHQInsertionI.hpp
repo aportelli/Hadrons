@@ -115,12 +115,20 @@ void TRHQInsertionI<FImpl, GImpl>::execute(void)
                  << " to '" << par().q 
                  << std::endl;
 
+    if (par().gamma5 != Gamma::Algebra::Gamma5 && par().gamma5 != Gamma::Algebra::Identity)
+    {
+        HADRONS_ERROR(Argument, "gamma5 must be either 'Gamma5' or 'Identity'."); 
+    }
     Gamma g5(par().gamma5);
+
+    if (par().index < 0 || par().index>3)
+    {
+        HADRONS_ERROR(Argument, "Index must be in {0, 1, 2, 3}."); 
+    }
+    const auto &index = par().index;
 
     auto &field = envGet(PropagatorField, par().q);
     const auto &gaugefield = envGet(GaugeField, par().gauge);
-    const auto &index = par().index;
-
     const auto internal_gauge = peekLorentz(gaugefield, index);
     PropagatorField insertion = g5*(GImpl::CovShiftForward(internal_gauge,index,field) - GImpl::CovShiftBackward(internal_gauge,index,field));
     
