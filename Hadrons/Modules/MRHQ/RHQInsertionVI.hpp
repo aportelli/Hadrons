@@ -142,7 +142,7 @@ void TRHQInsertionVI<FImpl, GImpl>::execute(void)
     }
 
     auto &out  = envGet(PropagatorField, getName());
-    PropagatorField insertion = gt*g5*gi * GImpl::CovShiftForward(gauge_t,3,field) - GImpl::CovShiftBackward(gauge_t,3,field);
+    PropagatorField insertion = gt*g5*gi * (GImpl::CovShiftForward(gauge_t,3,field) - GImpl::CovShiftBackward(gauge_t,3,field));
     out = insertion;
 }
 
