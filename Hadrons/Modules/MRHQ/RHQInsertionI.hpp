@@ -72,6 +72,7 @@ protected:
 };
 
 MODULE_REGISTER_TMP(RHQInsertionI, ARG(TRHQInsertionI<FIMPL, GIMPL>), MRHQ);
+MODULE_REGISTER_TMP(RHQInsertionII, ARG(TRHQInsertionI<FIMPL, GIMPL>), MRHQ);
 
 /******************************************************************************
  *                            RHQInsertionI                                   *
