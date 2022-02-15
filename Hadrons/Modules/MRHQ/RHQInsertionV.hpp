@@ -43,8 +43,10 @@ class RHQInsertionVPar: Serializable
 {
 public:
     GRID_SERIALIZABLE_CLASS_MEMBERS(RHQInsertionVPar,
-                                    std::string, q,
-                                    std::string, gauge);
+                                    std::string,    q,
+                                    unsigned int,   index,
+                                    Gamma::Algebra, gamma5,
+                                    std::string,    gauge);
 };
 
 template <typename FImpl, typename GImpl>
@@ -108,17 +110,38 @@ void TRHQInsertionV<FImpl, GImpl>::setup(void)
 template <typename FImpl, typename GImpl>
 void TRHQInsertionV<FImpl, GImpl>::execute(void)
 {
-    LOG(Message) << "Applying Improvement term V to'" << par().q
+    LOG(Message) << "Applying Improvement term I with index " << par().index
+                 << " and gamma5=" << par().gamma5 
+                 << " to '" << par().q 
                  << std::endl;
 
-    auto &field    = envGet(PropagatorField, par().q);
-    const auto &gaugefield  = envGet(GaugeField, par().gauge);
+    auto &field = envGet(PropagatorField, par().q);
+    const auto &gaugefield = envGet(GaugeField, par().gauge);
     const auto gauge_t = peekLorentz(gaugefield, 3);
 
+    Gamma g5(par().gamma5);
     Gamma gt(Gamma::Algebra::GammaT);
-    PropagatorField  insertion = gt * (GImpl::CovShiftForward( gauge_t,3,field) - GImpl::CovShiftBackward( gauge_t,3,field));
-     
+    
+    Gamma::Algebra gi; 
+    switch(par().index){
+        case 0:
+            gi = Gamma::Algebra::GammaX;
+            break;
+        case 1:
+            gi = Gamma::Algebra::GammaY;
+            break;
+        case 2:
+            gi = Gamma::Algebra::GammaZ;
+            break;
+        case 3:
+            gi = Gamma::Algebra::GammaT;
+            break;
+        default:
+            HADRONS_ERROR(Argument, "Index must be in {0, 1, 2, 3}."); 
+    }
+
     auto &out  = envGet(PropagatorField, getName());
+    PropagatorField insertion = gi*g5*gt * GImpl::CovShiftForward(gauge_t,3,field) - GImpl::CovShiftBackward(gauge_t,3,field);
     out = insertion;
 }
 
