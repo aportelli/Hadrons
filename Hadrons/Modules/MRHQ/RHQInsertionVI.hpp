@@ -55,8 +55,7 @@ class TRHQInsertionVI: public Module<RHQInsertionVIPar>
 {
 public:
     BASIC_TYPE_ALIASES(FImpl,);
-    GAUGE_TYPE_ALIASES(GImpl,)
-    SINK_TYPE_ALIASES();
+    GAUGE_TYPE_ALIASES(GImpl,);
 public:
     // constructor
     TRHQInsertionVI(const std::string name);
@@ -111,7 +110,7 @@ void TRHQInsertionVI<FImpl, GImpl>::setup(void)
 template <typename FImpl, typename GImpl>
 void TRHQInsertionVI<FImpl, GImpl>::execute(void)
 {
-    LOG(Message) << "Applying Improvement term I with index " << par().index
+    LOG(Message) << "Applying Improvement term VI with index " << par().index
                  << " and gamma5=" << par().gamma5 
                  << " to '" << par().q 
                  << std::endl;

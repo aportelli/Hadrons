@@ -38,8 +38,6 @@ BEGIN_HADRONS_NAMESPACE
 /******************************************************************************
  *                            RHQInsertionIV                                  *
  ******************************************************************************/
-// NB: It would be cleaner to define a common OpFlag somewhere else
-// but not sure where/how
 GRID_SERIALIZABLE_ENUM(OpIVFlag, undef, Chroma, 0, LeftRight, 1);
 
 BEGIN_MODULE_NAMESPACE(MRHQ)
@@ -122,7 +120,7 @@ void TRHQInsertionIV<FImpl, GImpl>::execute(void)
                  << "' with flag '" << par().flag << "'"
                  << std::endl;
     
-    Gamma g5(par().gamma5); // should we check that it's really either Gamma5 or Identity? Use enum here as well?
+    Gamma g5(par().gamma5);
     
     auto &field = envGet(PropagatorField, par().q);
     const auto &gaugefield = envGet(GaugeField, par().gauge);

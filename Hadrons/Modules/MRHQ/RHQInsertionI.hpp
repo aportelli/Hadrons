@@ -5,6 +5,7 @@
  *
  * Author: Antonin Portelli <antonin.portelli@me.com>
  * Author: Ryan Hill <rchrys.hill@gmail.com>
+ * Author: Alessandro Barone <barone1618@gmail.com>
  *
  * Hadrons is free software: you can redistribute it and/or modify
  * it under the terms of the GNU General Public License as published by
@@ -54,8 +55,7 @@ class TRHQInsertionI: public Module<RHQInsertionIPar>
 {
 public:
     BASIC_TYPE_ALIASES(FImpl,);
-    GAUGE_TYPE_ALIASES(GImpl,)
-    SINK_TYPE_ALIASES();
+    GAUGE_TYPE_ALIASES(GImpl,);
 public:
     // constructor
     TRHQInsertionI(const std::string name);
