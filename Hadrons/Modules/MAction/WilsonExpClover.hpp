@@ -46,9 +46,9 @@ public:
     GRID_SERIALIZABLE_CLASS_MEMBERS(WilsonExpCloverPar,
                                     std::string, gauge,
                                     double     , mass,
-                                    double     , twmass,
 				                    double     , csw_r,
 				                    double     , csw_t,
+                                    double     , cF,
 				                    WilsonAnisotropyCoefficients ,clover_anisotropy,
                                     std::string, boundary,
                                     std::string, twist
@@ -110,10 +110,10 @@ template <typename FImpl>
 void TWilsonExpClover<FImpl>::setup(void)
 {
     LOG(Message) << "Setting up Wilson exponential clover fermion matrix with m = " << par().mass
-                 << " and twmass = " << par().twmass
                  << " using gauge field '" << par().gauge << "'" << std::endl;
     LOG(Message) << "Clover term csw_r: " << par().csw_r
-                 << " csw_t: " << par().csw_t
+                 << " csw_t: " << par().csw_t << std::endl;
+    LOG(Message) << "Boundary improvement coefficient cF = " << par().cF
                  << std::endl;
                  
     auto &U      = envGet(GaugeField, par().gauge);
@@ -140,8 +140,8 @@ void TWilsonExpClover<FImpl>::setup(void)
     {
         HADRONS_ERROR(Size, "Wrong number of twist");
     }
-    envCreateDerived(FMat, WilsonExpCloverFermion<FImpl>, getName(), 1, U, grid,
-                     gridRb, par().mass, par().twmass, par().csw_r, par().csw_t, 
+    envCreateDerived(FMat, CompactWilsonExpCloverFermion<FImpl>, getName(), 1, U, grid,
+                     gridRb, par().mass, par().csw_r, par().csw_t, par().cF, 
                      par().clover_anisotropy, implParams); 
 }
 
