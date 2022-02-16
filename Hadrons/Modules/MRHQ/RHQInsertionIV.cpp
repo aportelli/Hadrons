@@ -1,5 +1,5 @@
 /*
- * RHQInsertionV.cpp, part of Hadrons (https://github.com/aportelli/Hadrons)
+ * RHQInsertionIV.cpp, part of Hadrons (https://github.com/aportelli/Hadrons)
  *
  * Copyright (C) 2015 - 2022
  *
@@ -25,11 +25,11 @@
  */
  
 /*  END LEGAL */
-#include <Hadrons/Modules/MRHQ/RHQInsertionV.hpp>
+
+#include <Hadrons/Modules/MRHQ/RHQInsertionIV.hpp>
 
 using namespace Grid;
 using namespace Hadrons;
 using namespace MRHQ;
 
-template class Grid::Hadrons::MRHQ::TRHQInsertionV<FIMPL, GIMPL>;
-
+template class Grid::Hadrons::MRHQ::TRHQInsertionIV<FIMPL, GIMPL>;

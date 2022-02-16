@@ -1,5 +1,5 @@
 /*
- * RHQInsertionV.hpp, part of Hadrons (https://github.com/aportelli/Hadrons)
+ * RHQInsertionIV.hpp, part of Hadrons (https://github.com/aportelli/Hadrons)
  *
  * Copyright (C) 2015 - 2022
  *
@@ -26,8 +26,8 @@
  
 /*  END LEGAL */
 
-#ifndef Hadrons_MRHQ_RHQInsertionV_hpp_
-#define Hadrons_MRHQ_RHQInsertionV_hpp_
+#ifndef Hadrons_MRHQ_RHQInsertionIV_hpp_
+#define Hadrons_MRHQ_RHQInsertionIV_hpp_
 
 #include <Hadrons/Global.hpp>
 #include <Hadrons/Module.hpp>
@@ -36,31 +36,34 @@
 BEGIN_HADRONS_NAMESPACE
 
 /******************************************************************************
- *                            RHQInsertionV                                   *
+ *                            RHQInsertionIV                                  *
  ******************************************************************************/
+GRID_SERIALIZABLE_ENUM(OpIVFlag, undef, Chroma, 0, LeftRight, 1);
+
 BEGIN_MODULE_NAMESPACE(MRHQ)
 
-class RHQInsertionVPar: Serializable
+class RHQInsertionIVPar: Serializable
 {
 public:
-    GRID_SERIALIZABLE_CLASS_MEMBERS(RHQInsertionVPar,
+    GRID_SERIALIZABLE_CLASS_MEMBERS(RHQInsertionIVPar,
                                     std::string,    q,
                                     unsigned int,   index,
                                     Gamma::Algebra, gamma5,
-                                    std::string,    gauge);
+                                    std::string,    gauge,
+                                    OpIVFlag,       flag);
 };
 
 template <typename FImpl, typename GImpl>
-class TRHQInsertionV: public Module<RHQInsertionVPar>
+class TRHQInsertionIV: public Module<RHQInsertionIVPar>
 {
 public:
     BASIC_TYPE_ALIASES(FImpl,);
     GAUGE_TYPE_ALIASES(GImpl,);
 public:
     // constructor
-    TRHQInsertionV(const std::string name);
+    TRHQInsertionIV(const std::string name);
     // destructor
-    virtual ~TRHQInsertionV(void) {};
+    virtual ~TRHQInsertionIV(void) {};
     // dependency relation
     virtual std::vector<std::string> getInput(void);
     virtual std::vector<std::string> getOutput(void);
@@ -71,20 +74,20 @@ protected:
     virtual void execute(void);
 };
 
-MODULE_REGISTER_TMP(RHQInsertionV, ARG(TRHQInsertionV<FIMPL, GIMPL>), MRHQ);
+MODULE_REGISTER_TMP(RHQInsertionIV, ARG(TRHQInsertionIV<FIMPL, GIMPL>), MRHQ);
 
 /******************************************************************************
- *                    TRHQInsertionV implementation                           *
+ *                       TRHQInsertionIV implementation                       *
  ******************************************************************************/
 // constructor /////////////////////////////////////////////////////////////////
 template <typename FImpl, typename GImpl>
-TRHQInsertionV<FImpl, GImpl>::TRHQInsertionV(const std::string name)
-: Module<RHQInsertionVPar>(name)
+TRHQInsertionIV<FImpl, GImpl>::TRHQInsertionIV(const std::string name)
+: Module<RHQInsertionIVPar>(name)
 {}
 
 // dependencies/products ///////////////////////////////////////////////////////
 template <typename FImpl, typename GImpl>
-std::vector<std::string> TRHQInsertionV<FImpl, GImpl>::getInput(void)
+std::vector<std::string> TRHQInsertionIV<FImpl, GImpl>::getInput(void)
 {
     std::vector<std::string> in = {par().q, par().gauge};
     
@@ -92,7 +95,7 @@ std::vector<std::string> TRHQInsertionV<FImpl, GImpl>::getInput(void)
 }
 
 template <typename FImpl, typename GImpl>
-std::vector<std::string> TRHQInsertionV<FImpl, GImpl>::getOutput(void)
+std::vector<std::string> TRHQInsertionIV<FImpl, GImpl>::getOutput(void)
 {
     std::vector<std::string> out = {getName()};
     
@@ -101,31 +104,42 @@ std::vector<std::string> TRHQInsertionV<FImpl, GImpl>::getOutput(void)
 
 // setup ///////////////////////////////////////////////////////////////////////
 template <typename FImpl, typename GImpl>
-void TRHQInsertionV<FImpl, GImpl>::setup(void)
+void TRHQInsertionIV<FImpl, GImpl>::setup(void)
 {
-    envCreateLat(PropagatorField, getName());//, 1, env().getDim(Tp));
+    envCreateLat(PropagatorField, getName());
 }
 
 // execution ///////////////////////////////////////////////////////////////////
 template <typename FImpl, typename GImpl>
-void TRHQInsertionV<FImpl, GImpl>::execute(void)
+void TRHQInsertionIV<FImpl, GImpl>::execute(void)
 {
-    LOG(Message) << "Applying Improvement term V with index " << par().index
+
+    LOG(Message) << "Applying Improvement term IV with index " << par().index
                  << " and gamma5=" << par().gamma5 
                  << " to '" << par().q 
+                 << "' with flag '" << par().flag << "'"
                  << std::endl;
-
-    auto &field = envGet(PropagatorField, par().q);
-    const auto &gaugefield = envGet(GaugeField, par().gauge);
-    const auto gauge_t = peekLorentz(gaugefield, 3);
-
+    
     if (par().gamma5 != Gamma::Algebra::Gamma5 && par().gamma5 != Gamma::Algebra::Identity)
     {
         HADRONS_ERROR(Argument, "gamma5 must be either 'Gamma5' or 'Identity'."); 
     }
     Gamma g5(par().gamma5);
-    Gamma gt(Gamma::Algebra::GammaT);
     
+    auto &field = envGet(PropagatorField, par().q);
+    const auto &gaugefield = envGet(GaugeField, par().gauge);
+    const auto gauge_x = peekLorentz(gaugefield, 0);
+    const auto gauge_y = peekLorentz(gaugefield, 1);
+    const auto gauge_z = peekLorentz(gaugefield, 2);
+
+    Gamma gx(Gamma::Algebra::GammaX);
+    Gamma gy(Gamma::Algebra::GammaY);
+    Gamma gz(Gamma::Algebra::GammaZ);
+
+    const PropagatorField Dx = GImpl::CovShiftForward(gauge_x,0,field) - GImpl::CovShiftBackward(gauge_x,0,field);
+    const PropagatorField Dy = GImpl::CovShiftForward(gauge_y,1,field) - GImpl::CovShiftBackward(gauge_y,1,field);
+    const PropagatorField Dz = GImpl::CovShiftForward(gauge_z,2,field) - GImpl::CovShiftBackward(gauge_z,2,field);
+
     Gamma::Algebra gi; 
     switch(par().index){
         case 0:
@@ -143,14 +157,31 @@ void TRHQInsertionV<FImpl, GImpl>::execute(void)
         default:
             HADRONS_ERROR(Argument, "Index must be in {0, 1, 2, 3}."); 
     }
+    
+    auto &out = envGet(PropagatorField, getName());
+    if (par().flag == OpIVFlag::Chroma)
+    {     
+        PropagatorField insertion =
+            gx*g5*gi * Dx 
+          + gy*g5*gi * Dy
+          + gz*g5*gi * Dz;
+        
+        out = insertion;
+    }
+    else if (par().flag == OpIVFlag::LeftRight)
+    {        
+        PropagatorField insertion = 
+            gi*gx*g5 * Dx - gx*gi*g5 * Dx
+          + gi*gy*g5 * Dy - gy*gi*g5 * Dy
+          + gi*gz*g5 * Dz - gz*gi*g5 * Dz;
 
-    auto &out  = envGet(PropagatorField, getName());
-    PropagatorField insertion = gi*g5*gt * (GImpl::CovShiftForward(gauge_t,3,field) - GImpl::CovShiftBackward(gauge_t,3,field));
-    out = insertion;
+        out = -0.5*insertion;
+    }
+ 
 }
 
 END_MODULE_NAMESPACE
 
 END_HADRONS_NAMESPACE
 
-#endif // Hadrons_MRHQ_RHQInsertionV_hpp_
+#endif // Hadrons_MRHQ_RHQInsertionIV_hpp_

@@ -5,6 +5,7 @@
  *
  * Author: Antonin Portelli <antonin.portelli@me.com>
  * Author: Ryan Hill <rchrys.hill@gmail.com>
+ * Author: Alessandro Barone <barone1618@gmail.com>
  *
  * Hadrons is free software: you can redistribute it and/or modify
  * it under the terms of the GNU General Public License as published by
@@ -35,7 +36,7 @@
 BEGIN_HADRONS_NAMESPACE
 
 /******************************************************************************
- *                                 RHQInsertionI                                      *
+ *                              RHQInsertionI                                 *
  ******************************************************************************/
 BEGIN_MODULE_NAMESPACE(MRHQ)
 
@@ -43,9 +44,10 @@ class RHQInsertionIPar: Serializable
 {
 public:
     GRID_SERIALIZABLE_CLASS_MEMBERS(RHQInsertionIPar,
-                                    std::string, q,
-                                    std::string, gauge,
-                                    unsigned int, gauge_index);
+                                    std::string,    q,
+                                    unsigned int,   index,
+                                    Gamma::Algebra, gamma5,
+                                    std::string,    gauge);
 };
 
 template <typename FImpl, typename GImpl>
@@ -53,8 +55,7 @@ class TRHQInsertionI: public Module<RHQInsertionIPar>
 {
 public:
     BASIC_TYPE_ALIASES(FImpl,);
-    GAUGE_TYPE_ALIASES(GImpl,)
-    SINK_TYPE_ALIASES();
+    GAUGE_TYPE_ALIASES(GImpl,);
 public:
     // constructor
     TRHQInsertionI(const std::string name);
@@ -71,6 +72,7 @@ protected:
 };
 
 MODULE_REGISTER_TMP(RHQInsertionI, ARG(TRHQInsertionI<FIMPL, GIMPL>), MRHQ);
+MODULE_REGISTER_TMP(RHQInsertionII, ARG(TRHQInsertionI<FIMPL, GIMPL>), MRHQ);
 
 /******************************************************************************
  *                            RHQInsertionI                                   *
@@ -109,17 +111,29 @@ void TRHQInsertionI<FImpl, GImpl>::setup(void)
 template <typename FImpl, typename GImpl>
 void TRHQInsertionI<FImpl, GImpl>::execute(void)
 {
-    LOG(Message) << "Applying Improvement term I to'" << par().q
+    LOG(Message) << "Applying Improvement term I with index " << par().index
+                 << " and gamma5=" << par().gamma5 
+                 << " to '" << par().q 
                  << std::endl;
 
-    auto &field    = envGet(PropagatorField, par().q);
-    const auto &gaugefield  = envGet(GaugeField, par().gauge);
-    const auto &gauge_index = par().gauge_index;
+    if (par().gamma5 != Gamma::Algebra::Gamma5 && par().gamma5 != Gamma::Algebra::Identity)
+    {
+        HADRONS_ERROR(Argument, "gamma5 must be either 'Gamma5' or 'Identity'."); 
+    }
+    Gamma g5(par().gamma5);
 
-    const auto internal_gauge = peekLorentz(gaugefield, gauge_index);
-    PropagatorField insertion = (GImpl::CovShiftForward(internal_gauge,gauge_index,field) - GImpl::CovShiftBackward(internal_gauge,gauge_index,field));
+    if (par().index < 0 || par().index>3)
+    {
+        HADRONS_ERROR(Argument, "Index must be in {0, 1, 2, 3}."); 
+    }
+    const auto &index = par().index;
+
+    auto &field = envGet(PropagatorField, par().q);
+    const auto &gaugefield = envGet(GaugeField, par().gauge);
+    const auto internal_gauge = peekLorentz(gaugefield, index);
+    PropagatorField insertion = g5*(GImpl::CovShiftForward(internal_gauge,index,field) - GImpl::CovShiftBackward(internal_gauge,index,field));
     
-    auto &out  = envGet(PropagatorField, getName());
+    auto &out = envGet(PropagatorField, getName());
     out = insertion;
 }
 
