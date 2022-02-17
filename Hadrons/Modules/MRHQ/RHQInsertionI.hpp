@@ -50,6 +50,8 @@ public:
                                     std::string,    gauge);
 };
 
+// See https://arxiv.org/abs/1501.05373 equations 11 and 12 for the operators
+// implemented in this module.
 template <typename FImpl, typename GImpl>
 class TRHQInsertionI: public Module<RHQInsertionIPar>
 {

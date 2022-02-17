@@ -53,6 +53,8 @@ public:
                                     OpIIIFlag,      flag);
 };
 
+// See https://arxiv.org/abs/1501.05373 equations 13 for the (Chroma convention) 
+// operator implemented in this module.
 template <typename FImpl, typename GImpl>
 class TRHQInsertionIII: public Module<RHQInsertionIIIPar>
 {

@@ -53,6 +53,8 @@ public:
                                     OpIVFlag,       flag);
 };
 
+// See https://arxiv.org/abs/1501.05373 equations 14 for the (Chroma convention) 
+// operator implemented in this module.
 template <typename FImpl, typename GImpl>
 class TRHQInsertionIV: public Module<RHQInsertionIVPar>
 {
