@@ -137,7 +137,7 @@ void TLoadEigenPack<Pack, GImpl>::setup(void)
     }
 }
 
-// execution ////////////////////////////////////////////////////////// /////////
+// execution ///////////////////////////////////////////////////////////////////
 template <typename Pack, typename GImpl>
 void TLoadEigenPack<Pack, GImpl>::execute(void)
 {
@@ -148,7 +148,6 @@ void TLoadEigenPack<Pack, GImpl>::execute(void)
 
     if (!par().gaugeXform.empty())
     {
-
         LOG(Message) << "Applying gauge transformation to eigenvectors " << getName()
                      << " using " << par().gaugeXform << std::endl;
 
