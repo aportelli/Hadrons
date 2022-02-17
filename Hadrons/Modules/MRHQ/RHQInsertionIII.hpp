@@ -157,6 +157,8 @@ void TRHQInsertionIII<FImpl, GImpl>::execute(void)
             HADRONS_ERROR(Argument, "Index must be in {0, 1, 2, 3}."); 
     }
     
+    // "Flag" flips between the conventions used in Chroma and a reformulation
+    // using Left and Right derivatives
     auto &out = envGet(PropagatorField, getName());
     if (par().flag == OpIIIFlag::Chroma)
     {     
