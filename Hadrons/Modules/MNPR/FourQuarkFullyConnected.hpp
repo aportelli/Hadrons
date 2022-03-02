@@ -120,9 +120,6 @@ void TFourQuarkFullyConnected<FImpl>::setup()
 template <typename FImpl>
 void TFourQuarkFullyConnected<FImpl>::execute()
 {
-    #ifdef GRID_CUDA
-    #warning "Code not yet working for GPU - currently being worked on (related to Grid issue #372)"
-    #else
     LOG(Message) << "Computing contractions '" << getName()
         << "' using source propagators '" << par().qIn << "' and '" << par().qOut << "'"
         << std::endl;
@@ -244,7 +241,6 @@ void TFourQuarkFullyConnected<FImpl>::execute()
 
     saveResult(par().output, "FourQuarkFullyConnected", result);
     LOG(Message) << "Complete. Writing results to " << par().output << std::endl;
-    #endif
 }
 
 END_MODULE_NAMESPACE
