@@ -177,7 +177,7 @@ void TFourQuarkFullyConnected<FImpl>::execute()
             bilinear_tmp = bilinear_phase * (g5 * adj(qOut) * g5 * gamma_B * qIn);
             NPRUtils<FImpl>::tensorProd(lret, bilinear, bilinear_tmp);
         }
-        r.corr.push_back( (1.0 / volume) * sumD_large(lret) );
+        r.corr.push_back( (1.0 / volume) * sum_large(lret) );
         result.push_back(r);
         //This is all still quite hacky - we probably want to think about the output format a little more!
         r.corr.erase(r.corr.begin());
