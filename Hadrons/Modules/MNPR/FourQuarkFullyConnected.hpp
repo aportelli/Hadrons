@@ -29,8 +29,6 @@
 
 /*  END LEGAL */
 
-#ifdef Hadrons_NPR_FOURQUARK
-
 #ifndef Hadrons_MNPR_FourQuarkFullyConnected_hpp_
 #define Hadrons_MNPR_FourQuarkFullyConnected_hpp_
 
@@ -252,7 +250,5 @@ void TFourQuarkFullyConnected<FImpl>::execute()
 END_MODULE_NAMESPACE
 
 END_HADRONS_NAMESPACE
-
-#endif
 
 #endif
