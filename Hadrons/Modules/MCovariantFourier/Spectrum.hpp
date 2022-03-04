@@ -31,7 +31,8 @@ public:
     GRID_SERIALIZABLE_CLASS_MEMBERS(SpectrumResult,
                                     unsigned int, basisSize,
                                     unsigned int, vectorSize,
-                                    std::vector<double>, eval,
+                                    std::vector<double>, basisEval,
+                                    std::vector<double>, vectorEval,
                                     Tensor2, power,
                                     Tensor4, spectrum);
 };
@@ -111,7 +112,6 @@ void TSpectrum<FImpl>::execute(void)
 
     res.basisSize  = basis.evec.size();
     res.vectorSize = field.evec.size();
-    res.eval.resize(res.basisSize);
     res.power.resize(res.vectorSize, res.basisSize);
     res.power.setZero();
     res.spectrum.resize(res.vectorSize, res.basisSize, Ns, Ls);
@@ -122,7 +122,8 @@ void TSpectrum<FImpl>::execute(void)
         bandEnergy = 0.;
         if (i == 0)
         {
-            res.eval = basis.eval;
+            res.basisEval  = basis.eval;
+            res.vectorEval = field.eval;
         }
         if (Ls == 1)
         {
