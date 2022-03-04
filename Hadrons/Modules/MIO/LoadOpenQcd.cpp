@@ -1,5 +1,5 @@
 /*
- * DistilPar.cpp, part of Hadrons (https://github.com/aportelli/Hadrons)
+ * LoadOpenQcd.cpp, part of Hadrons (https://github.com/aportelli/Hadrons)
  *
  * Copyright (C) 2015 - 2020
  *
@@ -23,10 +23,10 @@
  */
 
 /*  END LEGAL */
-#include <Hadrons/Modules/MDistil/DistilPar.hpp>
+#include <Hadrons/Modules/MIO/LoadOpenQcd.hpp>
 
 using namespace Grid;
 using namespace Hadrons;
-using namespace MDistil;
+using namespace MIO;
 
-template class Grid::Hadrons::MDistil::TDistilPar<FIMPL>;
+template class Grid::Hadrons::MIO::TLoadOpenQcd<GIMPL>;

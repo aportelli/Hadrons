@@ -1,11 +1,9 @@
 /*
- * LoadLapEvec.hpp, part of Hadrons (https://github.com/aportelli/Hadrons)
+ * LoadOpenQcd.hpp, part of Hadrons (https://github.com/aportelli/Hadrons)
  *
  * Copyright (C) 2015 - 2020
  *
- *  Author: Felix Erben <felix.erben@ed.ac.uk>
- *  Author: Michael Marshall <Michael.Marshall@ed.ac.uk>
- * Author: Felix Erben <felix.erben@ed.ac.uk>
+ * Author: Antonin Portelli <antonin.portelli@me.com>
  *
  * Hadrons is free software: you can redistribute it and/or modify
  * it under the terms of the GNU General Public License as published by
@@ -25,37 +23,41 @@
  */
 
 /*  END LEGAL */
-#ifndef Hadrons_MIO_LoadLapEvec_hpp_
-#define Hadrons_MIO_LoadLapEvec_hpp_
+#ifndef Hadrons_MIO_LoadOpenQcd_hpp_
+#define Hadrons_MIO_LoadOpenQcd_hpp_
 
 #include <Hadrons/Global.hpp>
 #include <Hadrons/Module.hpp>
 #include <Hadrons/ModuleFactory.hpp>
-#include <Hadrons/DilutedNoise.hpp>
 
 BEGIN_HADRONS_NAMESPACE
 
 /******************************************************************************
- *                         LoadLapEvec                                 *
+ Load an OpenQcd configuration
+
+ file    Namestem of the files to read in. In contrast to the LoadNersc
+         module, the separator between the namestem and the configuration
+         number is 'n' instead of '.' compliant with the openQCD convention.         
  ******************************************************************************/
 BEGIN_MODULE_NAMESPACE(MIO)
 
-class LoadLapEvecPar: Serializable
+class LoadOpenQcdPar: Serializable
 {
 public:
-    GRID_SERIALIZABLE_CLASS_MEMBERS(LoadLapEvecPar,
-                                    std::string, LapEvecFileName,
-                                    int, nVec);
+    GRID_SERIALIZABLE_CLASS_MEMBERS(LoadOpenQcdPar,
+                                    std::string, file);
 };
 
-template <typename FImpl>
-class TLoadLapEvec: public Module<LoadLapEvecPar>
+template <typename GImpl>
+class TLoadOpenQcd: public Module<LoadOpenQcdPar>
 {
 public:
+    GAUGE_TYPE_ALIASES(GImpl,);
+public:
     // constructor
-    TLoadLapEvec(const std::string name);
+    TLoadOpenQcd(const std::string name);
     // destructor
-    virtual ~TLoadLapEvec(void) {};
+    virtual ~TLoadOpenQcd(void) {};
     // dependency relation
     virtual std::vector<std::string> getInput(void);
     virtual std::vector<std::string> getOutput(void);
@@ -65,28 +67,28 @@ public:
     virtual void execute(void);
 };
 
-MODULE_REGISTER_TMP(LoadLapEvec, TLoadLapEvec<FIMPL>, MIO);
+MODULE_REGISTER_TMP(LoadOpenQcd,  TLoadOpenQcd<GIMPL>,  MIO);
 
 /******************************************************************************
- *                 TLoadLapEvec implementation                             *
- ******************************************************************************/
+*                       TLoadOpenQcd implementation                             *
+******************************************************************************/
 // constructor /////////////////////////////////////////////////////////////////
-template <typename FImpl>
-TLoadLapEvec<FImpl>::TLoadLapEvec(const std::string name)
-: Module<LoadLapEvecPar>(name)
+template <typename GImpl>
+TLoadOpenQcd<GImpl>::TLoadOpenQcd(const std::string name)
+: Module<LoadOpenQcdPar>(name)
 {}
 
 // dependencies/products ///////////////////////////////////////////////////////
-template <typename FImpl>
-std::vector<std::string> TLoadLapEvec<FImpl>::getInput(void)
+template <typename GImpl>
+std::vector<std::string> TLoadOpenQcd<GImpl>::getInput(void)
 {
     std::vector<std::string> in;
     
     return in;
 }
 
-template <typename FImpl>
-std::vector<std::string> TLoadLapEvec<FImpl>::getOutput(void)
+template <typename GImpl>
+std::vector<std::string> TLoadOpenQcd<GImpl>::getOutput(void)
 {
     std::vector<std::string> out = {getName()};
     
@@ -94,25 +96,28 @@ std::vector<std::string> TLoadLapEvec<FImpl>::getOutput(void)
 }
 
 // setup ///////////////////////////////////////////////////////////////////////
-template <typename FImpl>
-void TLoadLapEvec<FImpl>::setup(void)
+template <typename GImpl>
+void TLoadOpenQcd<GImpl>::setup(void)
 {
-    envCreate(typename DistillationNoise<FImpl>::LapPack, getName(), 1, par().nVec, env().getGrid());
+    envCreateLat(GaugeField, getName());
 }
 
 // execution ///////////////////////////////////////////////////////////////////
-template <typename FImpl>
-void TLoadLapEvec<FImpl>::execute(void)
+template <typename GImpl>
+void TLoadOpenQcd<GImpl>::execute(void)
 {
-    auto & LapEvec4d = envGet(typename DistillationNoise<FImpl>::LapPack, getName() );
-    std::string fileName{ par().LapEvecFileName };
-    fileName.append( 1, '.' );
-    fileName.append( std::to_string( vm().getTrajectory() ) );
-    LapEvec4d.read(fileName.c_str(),false);
+    FieldMetaData header;
+    std::string   fileName = par().file + "n"
+                             + std::to_string(vm().getTrajectory());
+    LOG(Message) << "Loading OpenQcd configuration from file '" << fileName
+                 << "'" << std::endl;
+
+    auto &U = envGet(GaugeField, getName());
+    OpenQcdIO::readConfiguration(U, header, fileName);
 }
 
 END_MODULE_NAMESPACE
 
 END_HADRONS_NAMESPACE
 
-#endif // Hadrons_MIO_LoadLapEvec_hpp_
+#endif // Hadrons_MIO_LoadOpenQcd_hpp_

@@ -28,6 +28,8 @@ nobase_libHadrons_a_HEADERS = \
 	DiskVector.hpp            \
 	DWT.hpp                   \
 	DWT_filters.hpp           \
+	DistilMatrix.hpp          \
+	DistillationVectors.hpp   \
 	EigenPack.hpp             \
 	Environment.hpp           \
 	Exceptions.hpp            \

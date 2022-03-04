@@ -43,6 +43,7 @@ public:
     GRID_SERIALIZABLE_CLASS_MEMBERS(StoutSmearingPar,
                                     std::string, gauge,
                                     unsigned int, steps,
+                                    std::string, orthogDim,
                                     double, rho);
 };
 
@@ -109,7 +110,13 @@ void TStoutSmearing<GImpl>::execute(void)
                  << " step" << ((par().steps > 1) ? "s" : "") 
                  << " of stout smearing and rho= " << par().rho << std::endl;
 
-    Smear_Stout<GImpl> smearer(par().rho);
+    int oDim = -1;
+    if(!par().orthogDim.empty())
+    {
+        LOG(Message) << "Only smearing orthogonally to dimension " << par().orthogDim << std::endl;
+        oDim=std::stoi(par().orthogDim);
+    }
+    Smear_Stout<GImpl> smearer(par().rho, oDim);
     auto               &U    = envGet(GaugeField, par().gauge);
     auto               &Usmr = envGet(GaugeField, getName());
 
@@ -117,6 +124,8 @@ void TStoutSmearing<GImpl>::execute(void)
     buf = U;
     LOG(Message) << "plaquette= " << WilsonLoops<GImpl>::avgPlaquette(U)
                  << std::endl;
+    // This is only here to return the original field in case steps=0. Not sure whether it's needed.
+    Usmr = U;
     for (unsigned int n = 0; n < par().steps; ++n)
     {
         smearer.smear(Usmr, buf);

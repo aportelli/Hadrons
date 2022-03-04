@@ -172,14 +172,12 @@ void TMixedPrecisionRBPrecCG<FImplInner, FImplOuter, nBasis>
         return [&imat, &omat, guesserPt32, guesserPt64, subGuess, Ls, this]
         (FermionFieldOuter &sol, const FermionFieldOuter &source) 
         {
-            typedef typename FermionFieldInner::vector_type VTypeInner;
-
             SchurFMatInner simat(imat);
             SchurFMatOuter somat(omat);
             MixedPrecisionConjugateGradient<FermionFieldOuter, FermionFieldInner> 
                 mpcg(par().residual, par().maxInnerIteration, 
                      par().maxOuterIteration, 
-                     env().template getRbGrid<VTypeInner>(Ls),
+                     getGrid<FermionFieldInner>(true, Ls),
                      simat, somat);
                 mpcg.useGuesser(*guesserPt32);
             OperatorFunctionWrapper<FermionFieldOuter> wmpcg(mpcg);
