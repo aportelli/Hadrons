@@ -119,7 +119,7 @@ void TWilsonClover<FImpl>::setup(void)
     auto &U      = envGet(GaugeField, par().gauge);
     auto &grid   = *envGetGrid(FermionField);
     auto &gridRb = *envGetRbGrid(FermionField);
-    typename WilsonCloverFermion<FImpl>::ImplParams implParams;
+    typename CompactWilsonCloverFermion<FImpl, CompactCloverHelpers<FImpl>>::ImplParams implParams;
     if (!par().boundary.empty())
     {
         implParams.boundary_phases = strToVec<Complex>(par().boundary);
@@ -140,7 +140,7 @@ void TWilsonClover<FImpl>::setup(void)
     {
         HADRONS_ERROR(Size, "Wrong number of twist");
     }
-    envCreateDerived(FMat, CompactWilsonCloverFermion<FImpl>, getName(), 1, U, grid,
+    envCreateDerived(FMat, CompactWilsonClover<FImpl>, getName(), 1, U, grid,
                      gridRb, par().mass, par().csw_r, par().csw_t, par().cF,
                      par().clover_anisotropy, implParams); 
 }
