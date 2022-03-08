@@ -161,11 +161,11 @@ template <typename FImpl1, typename FImpl2>
 std::vector<std::string> TMeson<FImpl1, FImpl2>::getOutputFiles(void)
 {
     std::vector<std::string> output = {};
-    if (par().output.length())
-    { 
+    if (!par().output.empty())
+    {
         output.push_back(resultFilename(par().output));
     }
-    
+
     return output;
 }
 
@@ -262,7 +262,7 @@ void TMeson<FImpl1, FImpl2>::execute(void)
     auto &out = envGet(std::vector<Result>, getName());
     out = result;
 
-    if (par().output.length())
+    if (!par().output.empty())
     {
         saveResult(par().output, "meson", result);
     }
