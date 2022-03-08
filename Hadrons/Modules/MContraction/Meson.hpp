@@ -152,9 +152,7 @@ std::vector<std::string> TMeson<FImpl1, FImpl2>::getInput(void)
 template <typename FImpl1, typename FImpl2>
 std::vector<std::string> TMeson<FImpl1, FImpl2>::getOutput(void)
 {
-    std::vector<std::string> output = {};
-    if (!par().output.length())
-        output.push_back(getName());
+    std::vector<std::string> output = {getName()};
     
     return output;
 }
@@ -261,16 +259,14 @@ void TMeson<FImpl1, FImpl2>::execute(void)
         }
     }
 
-    
+    auto &out = envGet(std::vector<Result>, getName());
+    out = result;
+
     if (par().output.length())
     {
         saveResult(par().output, "meson", result);
     }
-    else
-    {
-        auto &out = envGet(std::vector<Result>, getName());
-        out = result;
-    }
+
 }
 
 END_MODULE_NAMESPACE
