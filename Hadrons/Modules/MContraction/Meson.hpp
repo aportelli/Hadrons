@@ -178,7 +178,7 @@ void TMeson<FImpl1, FImpl2>::setup(void)
     std::vector<GammaPair> gammaList;
     parseGammaString(gammaList);
 
-    envCreate(std::vector<Result>, getName(), 1, gammaList.size(),);
+    envCreate(std::vector<Result>, getName(), 1, gammaList.size());
 }
 
 // execution ///////////////////////////////////////////////////////////////////
