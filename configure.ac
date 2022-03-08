@@ -7,7 +7,7 @@ AC_CONFIG_SRCDIR([Hadrons/Global.cpp])
 AC_CONFIG_MACRO_DIR([.buildutils/m4])
 AC_CONFIG_HEADERS([config.h])
 AM_INIT_AUTOMAKE([-Wall -Werror foreign subdir-objects])
-AM_EXTRA_RECURSIVE_TARGETS([tests])
+AM_EXTRA_RECURSIVE_TARGETS([tests benchmarks])
 m4_ifdef([AM_SILENT_RULES],[AM_SILENT_RULES([yes])])
 
 AC_ARG_WITH([grid],
@@ -90,4 +90,5 @@ AC_CONFIG_FILES([Makefile])
 AC_CONFIG_FILES([Hadrons/Makefile])
 AC_CONFIG_FILES([utilities/Makefile])
 AC_CONFIG_FILES([tests/Makefile])
+AC_CONFIG_FILES([benchmarks/Makefile])
 AC_OUTPUT

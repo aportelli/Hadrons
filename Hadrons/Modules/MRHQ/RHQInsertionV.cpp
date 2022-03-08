@@ -1,9 +1,11 @@
 /*
- * LoadDistilNoise.cpp, part of Hadrons (https://github.com/aportelli/Hadrons)
+ * RHQInsertionV.cpp, part of Hadrons (https://github.com/aportelli/Hadrons)
  *
- * Copyright (C) 2015 - 2020
+ * Copyright (C) 2015 - 2022
  *
  * Author: Antonin Portelli <antonin.portelli@me.com>
+ * Author: Ryan Hill <rchrys.hill@gmail.com>
+ * Author: Alessandro Barone <barone1618@gmail.com>
  *
  * Hadrons is free software: you can redistribute it and/or modify
  * it under the terms of the GNU General Public License as published by
@@ -21,12 +23,13 @@
  * See the full license in the file "LICENSE" in the top level distribution 
  * directory.
  */
-
+ 
 /*  END LEGAL */
-#include <Hadrons/Modules/MIO/LoadDistilNoise.hpp>
+#include <Hadrons/Modules/MRHQ/RHQInsertionV.hpp>
 
 using namespace Grid;
 using namespace Hadrons;
-using namespace MIO;
+using namespace MRHQ;
 
-template class Grid::Hadrons::MIO::TLoadDistilNoise<FIMPL>;
+template class Grid::Hadrons::MRHQ::TRHQInsertionV<FIMPL, GIMPL>;
+

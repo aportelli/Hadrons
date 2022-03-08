@@ -58,11 +58,11 @@ public:
                                         bool,         restoreModules,
                                         bool,         restoreMemoryProfile,
                                         bool,         restoreSchedule,
-                                        bool,         makeStatDb,
+                                        std::string,  statDbBase,
                                         unsigned int, statDbPeriodMs);
         DatabasePar(void): 
         restoreModules{false}, restoreMemoryProfile{false},
-        restoreSchedule{false}, makeStatDb{false} {}
+        restoreSchedule{false}, statDbBase{""} {}
     };
 
     struct GlobalPar: Serializable

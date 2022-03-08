@@ -1,9 +1,11 @@
 /*
- * LapEvec.cpp, part of Hadrons (https://github.com/aportelli/Hadrons)
+ * DistilMesonFieldRelative.cpp, part of Hadrons (https://github.com/aportelli/Hadrons)
  *
  * Copyright (C) 2015 - 2020
  *
+ * Author: Nelson Lachini <nelson.lachini@ed.ac.uk>
  * Author: Antonin Portelli <antonin.portelli@me.com>
+ * Author: Felix Erben <felix.erben@ed.ac.uk>
  *
  * Hadrons is free software: you can redistribute it and/or modify
  * it under the terms of the GNU General Public License as published by
@@ -24,10 +26,10 @@
 
 /*  END LEGAL */
 
-#include <Hadrons/Modules/MDistil/LapEvec.hpp>
+#include <Hadrons/Modules/MDistil/DistilMesonFieldRelative.hpp>
 
 using namespace Grid;
 using namespace Hadrons;
 using namespace MDistil;
 
-template class Grid::Hadrons::MDistil::TLapEvec<FIMPL>;
+template class Grid::Hadrons::MDistil::TDistilMesonFieldRelative<FIMPL>;
