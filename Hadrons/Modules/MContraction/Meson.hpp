@@ -85,8 +85,6 @@ public:
                                         Gamma::Algebra, gamma_snk,
                                         Gamma::Algebra, gamma_src,
                                         std::vector<Complex>, corr);
-        Result() {};
-        Result(uint16_t dummy) {};
     };
 public:
     // constructor
@@ -182,7 +180,7 @@ void TMeson<FImpl1, FImpl2>::setup(void)
     std::vector<GammaPair> gammaList;
     parseGammaString(gammaList);
 
-    envCreate(std::vector<Result>, getName(), 1, gammaList.size(), 0);
+    envCreate(std::vector<Result>, getName(), 1, gammaList.size(),);
 }
 
 // execution ///////////////////////////////////////////////////////////////////
