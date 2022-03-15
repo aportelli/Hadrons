@@ -127,7 +127,7 @@ inline void TLapEvec<FImpl>::RotateEigen(std::vector<ColourVectorField> & evec)
     {
         peekSite(cv0, evec[k], siteFirst);
         const std::complex<Real> cplx0{cv0()()(0).real(), cv0()()(0).imag()};
-        if( cplx0.imag() == 0 )
+        if( cplx0.imag() == 0 && cplx0.real() >= 0  )
             LOG(Message) << "RotateEigen() : Vector " << k <<  " Site 0 : " << cplx0 << " => already meets phase convention" << std::endl;
         else
         {
