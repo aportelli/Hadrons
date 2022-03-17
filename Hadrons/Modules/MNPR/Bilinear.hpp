@@ -1,7 +1,7 @@
 /*
  * Bilinear.hpp, part of Hadrons (https://github.com/aportelli/Hadrons)
  *
- * Copyright (C) 2015 - 2020
+ * Copyright (C) 2015 - 2022
  *
  * Author: Antonin Portelli <antonin.portelli@me.com>
  * Author: Julia Kettle J.R.Kettle-2@sms.ed.ac.uk
@@ -22,7 +22,7 @@
  * You should have received a copy of the GNU General Public License
  * along with Hadrons.  If not, see <http://www.gnu.org/licenses/>.
  *
- * See the full license in the file "LICENSE" in the top level distribution 
+ * See the full license in the file "LICENSE" in the top level distribution
  * directory.
  */
 
@@ -129,7 +129,7 @@ template <typename FImpl>
 std::vector<std::string> TBilinear<FImpl>::getInput(void)
 {
     std::vector<std::string> input = {par().qIn, par().qOut};
-    
+
     return input;
 }
 
@@ -137,7 +137,7 @@ template <typename FImpl>
 std::vector<std::string> TBilinear<FImpl>::getOutput(void)
 {
     std::vector<std::string> out = {};
-    
+
     return out;
 }
 
@@ -159,10 +159,9 @@ void TBilinear<FImpl>::execute(void)
     envGetTmp(ComplexField, xMu);
 
     // momentum on legs
-    //TODO: Do we want to check the momentum input format? Not done in MSink::Point, so probably ok like this.
-    std::vector<Real>           pIn  = strToVec<Real>(par().pIn), 
+    std::vector<Real>           pIn  = strToVec<Real>(par().pIn),
 	                        pOut = strToVec<Real>(par().pOut);
-    Coordinate                  latt_size = GridDefaultLatt(); 
+    Coordinate                  latt_size = GridDefaultLatt();
     Gamma                       g5(Gamma::Algebra::Gamma5);
     Complex                     Ci(0.0,1.0);
     std::vector<Result>         result;
@@ -177,15 +176,15 @@ void TBilinear<FImpl>::execute(void)
     qIn_phased  = qIn  * exp(-Ci * pDotXIn);
     NPRUtils<FImpl>::dot(pDotXOut,pOut);
     qOut_phased = qOut * exp(-Ci * pDotXOut);
-    
-    r.info.pIn  = par().pIn; 
-    r.info.pOut = par().pOut; 
+
+    r.info.pIn  = par().pIn;
+    r.info.pOut = par().pOut;
     for (auto &G: Gamma::gall)
     {
-    	r.info.gamma = G.g;
-    	r.corr.push_back( (1.0 / volume) * sum(g5 * adj(qOut_phased) * g5 * G * qIn_phased) );
+        r.info.gamma = G.g;
+        r.corr.push_back( (1.0 / volume) * sum_large(g5 * adj(qOut_phased) * g5 * G * qIn_phased) );
         result.push_back(r);
-    	r.corr.erase(r.corr.begin());
+        r.corr.erase(r.corr.begin());
     }
 
     //////////////////////////////////////////////////

@@ -1,7 +1,7 @@
 /*
  * FourQuarkFullyConnected.hpp, part of Hadrons (https://github.com/aportelli/Hadrons)
  *
- * Copyright (C) 2015 - 2020
+ * Copyright (C) 2015 - 2022
  *
  * Author: Antonin Portelli <antonin.portelli@me.com>
  * Author: Julia Kettle <J.R.Kettle-2@sms.ed.ac.uk>
@@ -23,13 +23,11 @@
  * You should have received a copy of the GNU General Public License
  * along with Hadrons.  If not, see <http://www.gnu.org/licenses/>.
  *
- * See the full license in the file "LICENSE" in the top level distribution 
+ * See the full license in the file "LICENSE" in the top level distribution
  * directory.
  */
 
 /*  END LEGAL */
-
-#ifdef Hadrons_NPR_FOURQUARK
 
 #ifndef Hadrons_MNPR_FourQuarkFullyConnected_hpp_
 #define Hadrons_MNPR_FourQuarkFullyConnected_hpp_
@@ -122,9 +120,6 @@ void TFourQuarkFullyConnected<FImpl>::setup()
 template <typename FImpl>
 void TFourQuarkFullyConnected<FImpl>::execute()
 {
-    #ifdef GRID_CUDA
-    #warning "Code not yet working for GPU - currently being worked on (related to Grid issue #372)"
-    #else
     LOG(Message) << "Computing contractions '" << getName()
         << "' using source propagators '" << par().qIn << "' and '" << par().qOut << "'"
         << std::endl;
@@ -158,8 +153,8 @@ void TFourQuarkFullyConnected<FImpl>::execute()
 
     LOG(Message) << "Computing diagrams" << std::endl;
 
-    r.info.pIn  = par().pIn; // Redundant to write these into every group
-    r.info.pOut = par().pOut; // Redundant to write these into every group
+    r.info.pIn  = par().pIn;
+    r.info.pOut = par().pOut;
 
     auto compute_diagrams = [&](Gamma gamma_A, Gamma gamma_B, bool print = true) {
 
@@ -182,9 +177,8 @@ void TFourQuarkFullyConnected<FImpl>::execute()
             bilinear_tmp = bilinear_phase * (g5 * adj(qOut) * g5 * gamma_B * qIn);
             NPRUtils<FImpl>::tensorProd(lret, bilinear, bilinear_tmp);
         }
-        r.corr.push_back( (1.0 / volume) * sum(lret) );
+        r.corr.push_back( (1.0 / volume) * sum_large(lret) );
         result.push_back(r);
-        //This is all still quite hacky - we probably want to think about the output format a little more!
         r.corr.erase(r.corr.begin());
     };
 
@@ -220,9 +214,9 @@ void TFourQuarkFullyConnected<FImpl>::execute()
         }
         if (gamma_basis == "diagonal_va_sp_tt") {
             const std::array<const Gamma, 6> gsigma = {{
-                  Gamma(Gamma::Algebra::SigmaXT),      
-                  Gamma(Gamma::Algebra::SigmaXY),      
-                  Gamma(Gamma::Algebra::SigmaXZ),      
+                  Gamma(Gamma::Algebra::SigmaXT),
+                  Gamma(Gamma::Algebra::SigmaXY),
+                  Gamma(Gamma::Algebra::SigmaXZ),
                   Gamma(Gamma::Algebra::SigmaYT),
                   Gamma(Gamma::Algebra::SigmaYZ),
                   Gamma(Gamma::Algebra::SigmaZT)}};
@@ -246,13 +240,10 @@ void TFourQuarkFullyConnected<FImpl>::execute()
 
     saveResult(par().output, "FourQuarkFullyConnected", result);
     LOG(Message) << "Complete. Writing results to " << par().output << std::endl;
-    #endif
 }
 
 END_MODULE_NAMESPACE
 
 END_HADRONS_NAMESPACE
-
-#endif
 
 #endif

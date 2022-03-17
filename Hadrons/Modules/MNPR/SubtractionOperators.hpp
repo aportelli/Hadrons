@@ -1,7 +1,7 @@
 /*
  * SubtractionOperators.hpp, part of Hadrons (https://github.com/aportelli/Hadrons)
  *
- * Copyright (C) 2015 - 2020
+ * Copyright (C) 2015 - 2022
  *
  * Author: Antonin Portelli <antonin.portelli@me.com>
  * Author: Ryan Abbott <rabbott@mit.edu>
@@ -21,7 +21,7 @@
  * You should have received a copy of the GNU General Public License
  * along with Hadrons.  If not, see <http://www.gnu.org/licenses/>.
  *
- * See the full license in the file "LICENSE" in the top level distribution 
+ * See the full license in the file "LICENSE" in the top level distribution
  * directory.
  */
 
@@ -169,7 +169,7 @@ void TSubtractionOperators<FImpl>::execute(void)
 
     //// Compute volume
     Real volume = 1.0;
-    for (int mu = 0; mu < Nd; mu++) 
+    for (int mu = 0; mu < Nd; mu++)
     {
         volume *= latt_size[mu];
     }
@@ -189,7 +189,7 @@ void TSubtractionOperators<FImpl>::execute(void)
     SpinColourMatrixScalar spectator = sum(bilinear);
 
     //// Compute results
-    auto compute_result = [&] (typename Result::OperatorResult &res) 
+    auto compute_result = [&] (typename Result::OperatorResult &res)
     {
         bilinear = bilinear_phase * bilinear;
         res.twoq = (1.0 / volume) * sum(bilinear);

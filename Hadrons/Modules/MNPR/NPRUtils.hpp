@@ -1,7 +1,7 @@
 /*
  * NPRUtils.hpp, part of Hadrons (https://github.com/aportelli/Hadrons)
  *
- * Copyright (C) 2015 - 2020
+ * Copyright (C) 2015 - 2022
  *
  * Author: Felix Erben <ferben@ed.ac.uk>
  * Author: Antonin Portelli <antonin.portelli@me.com>
@@ -19,7 +19,7 @@
  * You should have received a copy of the GNU General Public License
  * along with Hadrons.  If not, see <http://www.gnu.org/licenses/>.
  *
- * See the full license in the file "LICENSE" in the top level distribution 
+ * See the full license in the file "LICENSE" in the top level distribution
  * directory.
  */
 
@@ -102,7 +102,7 @@ void NPRUtils<FImpl>::dslash(PropagatorField &out, const PropagatorField &in,
     out = Zero();
     PropagatorField tmp(Umu.Grid());
     typename FImpl::GaugeLinkField U(Umu.Grid());
-    for (int mu = 0; mu < Nd; mu++) 
+    for (int mu = 0; mu < Nd; mu++)
     {
         // Overall formula:
         // tmp(x) = U_\mu(x) in(x + \hat{\mu}) - U_\mu^\dag(x - \hat{\mu}) in(x - \hat{\mu})
@@ -124,8 +124,8 @@ void NPRUtils<FImpl>::phase(ComplexField &bilinearPhase, std::vector<Real> pIn, 
 {
     bilinearPhase = Zero();
     ComplexField coordinate(bilinearPhase.Grid());
-    Coordinate                  latt_size = GridDefaultLatt(); 
-    for (int mu = 0; mu < Nd; mu++) 
+    Coordinate                  latt_size = GridDefaultLatt();
+    for (int mu = 0; mu < Nd; mu++)
     {
         LatticeCoordinate(coordinate, mu);
         coordinate = (2 * M_PI / latt_size[mu]) * coordinate;
@@ -142,9 +142,9 @@ template <typename FImpl>
 void NPRUtils<FImpl>::dot(ComplexField &pDotX, std::vector<Real> p)
 {
     ComplexField coordinate(pDotX.Grid());
-    Coordinate                  latt_size = GridDefaultLatt(); 
+    Coordinate                  latt_size = GridDefaultLatt();
     pDotX = Zero();
-    for (int mu = 0; mu < Nd; mu++) 
+    for (int mu = 0; mu < Nd; mu++)
     {
         LatticeCoordinate(coordinate, mu);
         coordinate = (2 * M_PI / latt_size[mu]) * coordinate;
