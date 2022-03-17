@@ -187,7 +187,7 @@ void TBilinear<FImpl>::execute(void)
         lret = g5 * adj(qOut_phased) * g5 * G * qIn_phased;
         r.corr.push_back( (1.0 / volume) * sum_large(lret) );
         result.push_back(r);
-    	r.corr.erase(r.corr.begin());
+        r.corr.erase(r.corr.begin());
     }
 
     //////////////////////////////////////////////////
