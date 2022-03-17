@@ -181,10 +181,10 @@ void TBilinear<FImpl>::execute(void)
     r.info.pOut = par().pOut;
     for (auto &G: Gamma::gall)
     {
-    	r.info.gamma = G.g;
-    	r.corr.push_back( (1.0 / volume) * sum(g5 * adj(qOut_phased) * g5 * G * qIn_phased) );
+        r.info.gamma = G.g;
+        r.corr.push_back( (1.0 / volume) * sum_large(g5 * adj(qOut_phased) * g5 * G * qIn_phased) );
         result.push_back(r);
-    	r.corr.erase(r.corr.begin());
+        r.corr.erase(r.corr.begin());
     }
 
     //////////////////////////////////////////////////
