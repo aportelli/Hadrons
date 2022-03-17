@@ -1,7 +1,7 @@
 /*
  * ExternalLeg.hpp, part of Hadrons (https://github.com/aportelli/Hadrons)
  *
- * Copyright (C) 2015 - 2020
+ * Copyright (C) 2015 - 2022
  *
  * Author: Antonin Portelli <antonin.portelli@me.com>
  * Author: Julia Kettle J.R.Kettle-2@sms.ed.ac.uk

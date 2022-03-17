@@ -21,7 +21,7 @@
  * You should have received a copy of the GNU General Public License
  * along with Hadrons.  If not, see <http://www.gnu.org/licenses/>.
  *
- * See the full license in the file "LICENSE" in the top level distribution 
+ * See the full license in the file "LICENSE" in the top level distribution
  * directory.
  */
 
@@ -152,7 +152,7 @@ void TG1<FImpl>::execute(void)
 
     //// Compute volume
     Real volume = 1.0;
-    for (int mu = 0; mu < Nd; mu++) 
+    for (int mu = 0; mu < Nd; mu++)
     {
         volume *= latt_size[mu];
     }
@@ -161,15 +161,12 @@ void TG1<FImpl>::execute(void)
 
     NPRUtils<FImpl>::phase(bilinear_phase,pIn,pOut);
 
-    /*
-    WARNING: This module still enforces Iwasaki gauge action. This needs to be worked on soon.
-    */
     LOG(Warning) << "Iwasaki gauge action enforced by this module. Needs re-writing to allow for other actions!" << std::endl;
 
     IwasakiGaugeAction<FImpl> action(1.0); // Include freedom to choose the gauge action?
     action.deriv(Umu, dSdU);
 
-    for (int mu = 0; mu < Nd; mu++) 
+    for (int mu = 0; mu < Nd; mu++)
     {
         Gamma gmu = Gamma::gmu[mu];
 

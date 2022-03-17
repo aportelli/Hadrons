@@ -1,7 +1,7 @@
 /*
  * FourQuarkLoop.hpp, part of Hadrons (https://github.com/aportelli/Hadrons)
  *
- * Copyright (C) 2015 - 2020
+ * Copyright (C) 2015 - 2022
  *
  * Author: Antonin Portelli <antonin.portelli@me.com>
  * Author: Ryan Abbott <rabbott@mit.edu>
@@ -21,7 +21,7 @@
  * You should have received a copy of the GNU General Public License
  * along with Hadrons.  If not, see <http://www.gnu.org/licenses/>.
  *
- * See the full license in the file "LICENSE" in the top level distribution 
+ * See the full license in the file "LICENSE" in the top level distribution
  * directory.
  */
 
@@ -198,7 +198,7 @@ void TFourQuarkLoop<FImpl>::setup()
 {
     LOG(Message) << "Running setup for FourQuarkLoop"
         << std::endl;
-    if (par().loop_type != "connected" && par().loop_type != "disconnected") 
+    if (par().loop_type != "connected" && par().loop_type != "disconnected")
     {
         HADRONS_ERROR(Definition, "Unkown loop type");
     }
@@ -207,7 +207,7 @@ void TFourQuarkLoop<FImpl>::setup()
     envTmpLat(PropagatorField, "bilinear");
 
     envTmpLat(ComplexField, "bilinear_phase");
-    if (par().loop_type == "disconnected") 
+    if (par().loop_type == "disconnected")
     {
         envTmpLat(ComplexField, "loop_trace");
     }
@@ -228,7 +228,7 @@ void TFourQuarkLoop<FImpl>::execute()
     // The loop is supposed to be an average, but the A2ALoop module doesn't
     // divide out by the number of all-to-all vectors; therefore we must divide
     // here.
-    // TODO: We don't really want this, do we? We probably don't even want to assume 
+    // TODO: We don't really want this, do we? We probably don't even want to assume
     // A2ALoop as the only module which can produce those, and the normalisation can be
     // done later, or directly in the A2ALoop module?
     loop = loop_raw * (1.0 / par().num_a2a_vectors);
@@ -251,7 +251,7 @@ void TFourQuarkLoop<FImpl>::execute()
     envGetTmp(ComplexField, bilinear_phase);
 
     Real volume = 1.0;
-    for (int mu = 0; mu < Nd; mu++) 
+    for (int mu = 0; mu < Nd; mu++)
     {
         volume *= latt_size[mu];
     }
@@ -265,20 +265,20 @@ void TFourQuarkLoop<FImpl>::execute()
     const bool loop_disconnected = par().loop_type == "disconnected";
 
     auto compute_diagrams = [&](Gamma gamma_A, Gamma gamma_B, bool print = true) {
-	
+
         twoq_result.info.gammaA.push_back(gamma_A.g);
         twoq_result.info.gammaB.push_back(gamma_B.g);
         fourq_result.info.gammaA.push_back(gamma_A.g);
         fourq_result.info.gammaB.push_back(gamma_B.g);
 
-        if (print) 
+        if (print)
 	{
             LOG(Message) << "Computing diagrams with GammaA = "
                 << gamma_A.g << ", " << "GammaB = " << gamma_B.g
                 << std::endl;
         }
 
-        if (loop_disconnected) 
+        if (loop_disconnected)
 	{
             // Disconnected loop diagram
             envGetTmp(ComplexField, loop_trace);
@@ -286,7 +286,7 @@ void TFourQuarkLoop<FImpl>::execute()
             bilinear = g5 * adj(qOut) * g5 * gamma_A * qIn;
             bilinear = (bilinear_phase * loop_trace) * bilinear;
         }
-        else 
+        else
 	{
             // Connected loop diagram
             bilinear = bilinear_phase * (g5 * adj(qOut) * g5 * gamma_A * loop * gamma_B * qIn);
@@ -305,7 +305,7 @@ void TFourQuarkLoop<FImpl>::execute()
          *
          * and we can take the tensor product later.          *
          *
-	 * TODO: Do we want to do this tensor product as part of the module? 
+	 * TODO: Do we want to do this tensor product as part of the module?
 	 *
          * Note that at this point bilinear already has a factor of
          * bilinear_phase = exp(-i (pIn - pOut) \cdot x), so we only need one
@@ -338,26 +338,26 @@ void TFourQuarkLoop<FImpl>::execute()
      */
 
     std::string gamma_basis = par().gamma_basis;
-    if (gamma_basis == "all") 
+    if (gamma_basis == "all")
     {
-        for (Gamma gammaA: Gamma::gall) 
+        for (Gamma gammaA: Gamma::gall)
 	{
-            for (Gamma gammaB: Gamma::gall) 
+            for (Gamma gammaB: Gamma::gall)
 	    {
                 compute_diagrams(gammaA, gammaB);
             }
         }
     }
-    else if (gamma_basis == "diagonal") 
+    else if (gamma_basis == "diagonal")
     {
-        for (Gamma g: Gamma::gall) 
+        for (Gamma g: Gamma::gall)
 	{
             compute_diagrams(g, g);
         }
     }
-    else if (gamma_basis == "diagonal_va" || gamma_basis == "diagonal_va_sp" || gamma_basis == "diagonal_va_sp_tt") 
+    else if (gamma_basis == "diagonal_va" || gamma_basis == "diagonal_va_sp" || gamma_basis == "diagonal_va_sp_tt")
     {
-        for (int mu = 0; mu < 4; mu++) 
+        for (int mu = 0; mu < 4; mu++)
 	{
             Gamma gmu = Gamma::gmu[mu];
             Gamma gmug5 = Gamma::mul[gmu.g][Gamma::Algebra::Gamma5];
@@ -366,7 +366,7 @@ void TFourQuarkLoop<FImpl>::execute()
             compute_diagrams(gmug5, gmu);
             compute_diagrams(gmug5, gmug5);
         }
-        if (gamma_basis == "diagonal_va_sp" || gamma_basis == "diagonal_va_sp_tt") 
+        if (gamma_basis == "diagonal_va_sp" || gamma_basis == "diagonal_va_sp_tt")
 	{
             Gamma identity = Gamma(Gamma::Algebra::Identity);
 
@@ -396,7 +396,7 @@ void TFourQuarkLoop<FImpl>::execute()
             compute_diagrams(Gamma(Gamma::Algebra::SigmaZT), Gamma(Gamma::Algebra::SigmaXY));
         }
     }
-    else 
+    else
     {
         LOG(Error) << "Error: unkown gamma_basis: '" << gamma_basis << "'"
             << std::endl;
