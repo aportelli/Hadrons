@@ -119,6 +119,7 @@ void TBilinear<FImpl>::setup(void)
 
     envTmpLat(PropagatorField, "qIn_phased");
     envTmpLat(PropagatorField, "qOut_phased");
+    envTmpLat(PropagatorField, "lret");
     envTmpLat(ComplexField, "pDotXIn");
     envTmpLat(ComplexField, "pDotXOut");
     envTmpLat(ComplexField, "xMu");
@@ -154,6 +155,7 @@ void TBilinear<FImpl>::execute(void)
     auto  &qOut   = envGet(PropagatorField, par().qOut);
     envGetTmp(PropagatorField, qIn_phased);
     envGetTmp(PropagatorField, qOut_phased);
+    envGetTmp(PropagatorField, lret);
     envGetTmp(ComplexField, pDotXIn);
     envGetTmp(ComplexField, pDotXOut);
     envGetTmp(ComplexField, xMu);
@@ -181,8 +183,9 @@ void TBilinear<FImpl>::execute(void)
     r.info.pOut = par().pOut;
     for (auto &G: Gamma::gall)
     {
-    	r.info.gamma = G.g;
-    	r.corr.push_back( (1.0 / volume) * sum(g5 * adj(qOut_phased) * g5 * G * qIn_phased) );
+        r.info.gamma = G.g;
+        lret = g5 * adj(qOut_phased) * g5 * G * qIn_phased;
+        r.corr.push_back( (1.0 / volume) * sum_large(lret) );
         result.push_back(r);
     	r.corr.erase(r.corr.begin());
     }
