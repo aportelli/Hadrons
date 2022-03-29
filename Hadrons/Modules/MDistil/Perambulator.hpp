@@ -290,7 +290,7 @@ void TPerambulator<FImpl>::execute(void)
                 {
                     START_P_TIMER("solver");
                     solver(fermion4dtmp, dist_source);
-                    START_P_TIMER("solver");
+                    STOP_P_TIMER("solver");
                 }
                 else
                 {
