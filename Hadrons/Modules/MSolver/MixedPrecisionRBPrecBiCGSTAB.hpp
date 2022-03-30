@@ -181,7 +181,7 @@ void TMixedPrecisionRBPrecBiCGSTAB<FImplInner, FImplOuter, nBasis>
                      simat, somat);
                 mpcg.useGuesser(*guesserPt32);
             OperatorFunctionWrapper<FermionFieldOuter> wmpcg(mpcg);
-            NonHermitianSchurDiagTwoOperator<FermionFieldOuter> schurSolver(wmpcg);
+            NonHermitianSchurRedBlackDiagTwoSolve<FermionFieldOuter> schurSolver(wmpcg);
             schurSolver.subtractGuess(subGuess);
             schurSolver(omat, source, sol, *guesserPt64);
         };
