@@ -60,8 +60,8 @@ public:
     FERM_TYPE_ALIASES(FImplInner, Inner);
     FERM_TYPE_ALIASES(FImplOuter, Outer);
     SOLVER_TYPE_ALIASES(FImplOuter,);
-    typedef HADRONS_DEFAULT_SCHUR_OP<FMatInner, FermionFieldInner> SchurFMatInner;
-    typedef HADRONS_DEFAULT_SCHUR_OP<FMatOuter, FermionFieldOuter> SchurFMatOuter;
+    typedef NonHermitianSchurDiagTwoOperator<FMatInner, FermionFieldInner> SchurFMatInner;
+    typedef NonHermitianSchurDiagTwoOperator<FMatOuter, FermionFieldOuter> SchurFMatOuter;
 private:
     template <typename Field>
     class OperatorFunctionWrapper: public OperatorFunction<Field>
@@ -70,7 +70,7 @@ private:
         using OperatorFunction<Field>::operator();
         OperatorFunctionWrapper(LinearFunction<Field> &fn): fn_(fn) {};
         virtual ~OperatorFunctionWrapper(void) = default;
-        virtual void operator()(LinearOperatorBase<Field> &op, 
+        virtual void operator()(LinearOperatorBase<Field> &op,
                                 const Field &in, Field &out)
         {
             fn_(in, out);
@@ -112,7 +112,7 @@ std::vector<std::string> TMixedPrecisionRBPrecBiCGSTAB<FImplInner, FImplOuter, n
 ::getInput(void)
 {
     std::vector<std::string> in;
-    
+
     return in;
 }
 
@@ -121,12 +121,12 @@ std::vector<std::string> TMixedPrecisionRBPrecBiCGSTAB<FImplInner, FImplOuter, n
 ::getReference(void)
 {
     std::vector<std::string> ref = {par().innerAction, par().outerAction};
-    
+
     if (!par().eigenPack.empty())
     {
         ref.push_back(par().eigenPack);
     }
-    
+
     return ref;
 }
 
@@ -145,9 +145,9 @@ void TMixedPrecisionRBPrecBiCGSTAB<FImplInner, FImplOuter, nBasis>
 ::setup(void)
 {
     LOG(Message) << "Setting up Schur red-black preconditioned mixed-precision "
-                 << "BiCGSTAB for inner/outer action '" << par().innerAction 
+                 << "BiCGSTAB for inner/outer action '" << par().innerAction
                  << "'/'" << par().outerAction << "', residual "
-                 << par().residual << ", and maximum inner/outer iteration " 
+                 << par().residual << ", and maximum inner/outer iteration "
                  << par().maxInnerIteration << "/" << par().maxOuterIteration
                  << std::endl;
 
@@ -170,18 +170,18 @@ void TMixedPrecisionRBPrecBiCGSTAB<FImplInner, FImplOuter, nBasis>
     auto makeSolver = [&imat, &omat, guesserPt32, guesserPt64, Ls, this](bool subGuess)
     {
         return [&imat, &omat, guesserPt32, guesserPt64, subGuess, Ls, this]
-        (FermionFieldOuter &sol, const FermionFieldOuter &source) 
+        (FermionFieldOuter &sol, const FermionFieldOuter &source)
         {
             SchurFMatInner simat(imat);
             SchurFMatOuter somat(omat);
-            MixedPrecisionBiCGSTAB<FermionFieldOuter, FermionFieldInner> 
-                mpcg(par().residual, par().maxInnerIteration, 
-                     par().maxOuterIteration, 
+            MixedPrecisionBiCGSTAB<FermionFieldOuter, FermionFieldInner>
+                mpcg(par().residual, par().maxInnerIteration,
+                     par().maxOuterIteration,
                      getGrid<FermionFieldInner>(true, Ls),
                      simat, somat);
                 mpcg.useGuesser(*guesserPt32);
             OperatorFunctionWrapper<FermionFieldOuter> wmpcg(mpcg);
-            HADRONS_DEFAULT_SCHUR_SOLVE<FermionFieldOuter> schurSolver(wmpcg);
+            NonHermitianSchurDiagTwoOperator<FermionFieldOuter> schurSolver(wmpcg);
             schurSolver.subtractGuess(subGuess);
             schurSolver(omat, source, sol, *guesserPt64);
         };
