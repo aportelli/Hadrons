@@ -65,11 +65,11 @@ class ConservedBilinearPar: Serializable
 {
 public:
     GRID_SERIALIZABLE_CLASS_MEMBERS(ConservedBilinearPar,
+                                    std::string,    action,
                                     std::string,    qIn,
                                     std::string,    qOut,
                                     std::string,    pIn,
                                     std::string,    pOut,
-                                    std::string,    action,
                                     std::string,    output);
 };
 
@@ -122,7 +122,7 @@ void TConservedBilinear<FImpl>::setup(void)
 
     // The propagator can be 4d or 5d, but must match the action
     const unsigned int ActionLs_{ env().getObjectLs(par().action) };
-    Ls_ = env().getObjectLs( par().pIn );
+    Ls_ = env().getObjectLs( par().qIn );
     if (Ls_ != ActionLs_)
     {
         std::string sError{ "Ls mismatch: propagator Ls="};
@@ -145,7 +145,7 @@ void TConservedBilinear<FImpl>::setup(void)
 template <typename FImpl>
 std::vector<std::string> TConservedBilinear<FImpl>::getInput(void)
 {
-    std::vector<std::string> input = {par().qIn, par().qOut, par().action};
+    std::vector<std::string> input = {par().action, par().qIn, par().qOut};
 
     return input;
 }
@@ -183,7 +183,6 @@ void TConservedBilinear<FImpl>::execute(void)
     std::vector<Real>           pIn  = strToVec<Real>(par().pIn),
 	                        pOut = strToVec<Real>(par().pOut);
     Coordinate                  latt_size = GridDefaultLatt();
-    Gamma                       g5(Gamma::Algebra::Gamma5);
     Complex                     Ci(0.0,1.0);
     std::vector<Result>         result;
     Result                      r;
@@ -197,6 +196,7 @@ void TConservedBilinear<FImpl>::execute(void)
     qIn_phased  = qIn  * exp(-Ci * pDotXIn);
     NPRUtils<FImpl>::dot(pDotXOut,pOut);
     qOut_phased = qOut * exp(-Ci * pDotXOut);
+
 
     r.info.pIn  = par().pIn;
     r.info.pOut = par().pOut;
