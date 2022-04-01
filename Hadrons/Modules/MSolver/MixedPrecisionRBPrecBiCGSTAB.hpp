@@ -60,8 +60,8 @@ public:
     FERM_TYPE_ALIASES(FImplInner, Inner);
     FERM_TYPE_ALIASES(FImplOuter, Outer);
     SOLVER_TYPE_ALIASES(FImplOuter,);
-    typedef NonHermitianSchurDiagTwoOperator<FMatInner, FermionFieldInner> SchurFMatInner;
-    typedef NonHermitianSchurDiagTwoOperator<FMatOuter, FermionFieldOuter> SchurFMatOuter;
+    typedef HADRONS_DEFAULT_NON_HERMITIAN_SCHUR_OP<FMatInner, FermionFieldInner> SchurFMatInner;
+    typedef HADRONS_DEFAULT_NON_HERMITIAN_SCHUR_OP<FMatOuter, FermionFieldOuter> SchurFMatOuter;
 private:
     template <typename Field>
     class OperatorFunctionWrapper: public OperatorFunction<Field>
@@ -181,7 +181,7 @@ void TMixedPrecisionRBPrecBiCGSTAB<FImplInner, FImplOuter, nBasis>
                      simat, somat);
                 mpcg.useGuesser(*guesserPt32);
             OperatorFunctionWrapper<FermionFieldOuter> wmpcg(mpcg);
-            NonHermitianSchurRedBlackDiagTwoSolve<FermionFieldOuter> schurSolver(wmpcg);
+            HADRONS_DEFAULT_NON_HERMITIAN_SCHUR_SOLVE<FermionFieldOuter> schurSolver(wmpcg);
             schurSolver.subtractGuess(subGuess);
             schurSolver(omat, source, sol, *guesserPt64);
         };
