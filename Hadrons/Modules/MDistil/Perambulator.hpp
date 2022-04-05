@@ -188,7 +188,7 @@ void TPerambulator<FImpl>::setup(void)
     envTmp(FermionField,         "fermion3dtmp", 1, grid3d);
     envTmpLat(ColourVectorField, "cv4dtmp");
     envTmp(ColourVectorField,    "cv3dtmp", 1, grid3d);
-    envTmp(ColourVectorField,    "evec3d",  1, grid3d);
+    //envTmp(ColourVectorField,    "evec3d",  1, grid3d);
 
     // No solver needed if an already existing solve is recycled    
     if(perambMode != pMode::inputSolve)
@@ -236,18 +236,14 @@ void TPerambulator<FImpl>::execute(void)
     envGetTmp(FermionField,      fermion3dtmp);
     envGetTmp(ColourVectorField, cv4dtmp);
     envGetTmp(ColourVectorField, cv3dtmp);
-    envGetTmp(ColourVectorField, evec3d);
+    //envGetTmp(ColourVectorField, evec3d);
     GridCartesian * grid4d = envGetGrid(FermionField);
     GridCartesian * grid3d = envGetSliceGrid(FermionField,grid4d->Nd() -1);
     const int Ntlocal{grid4d->LocalDimensions()[3]};
     const int Ntfirst{grid4d->LocalStarts()[3]};
 
-    //typedef decltype(coalescedRead(evec3d)) CVFtype;
-    //typedef(typeid(evec3d)) CVFtype;
-
-    //Grid::Vector<ColourVectorField> evec_test(Ntlocal * nVec, grid3d);
-    std::vector<ColourVectorField> evec_test(Ntlocal * nVec, evec3d.Grid());
-    //Grid::Vector<CVFtype> evec_test(Ntlocal * nVec, grid3d);
+    ColourVectorField evec3d(grid3d);
+    std::vector<ColourVectorField> evec_test(Ntlocal * nVec, evec3d.getGrid());
     for (int t = Ntfirst; t < Ntfirst + Ntlocal; t++)
     {
         for (int ivec = 0; ivec < nVec; ivec++)
@@ -255,7 +251,6 @@ void TPerambulator<FImpl>::execute(void)
             int jvec= ivec + nVec * t;
             ExtractSliceLocal(evec3d,epack.evec[ivec],0,t-Ntfirst,Tdir);
             evec_test[jvec] = evec3d;
-            //coalescedWrite(evec_test[jvec], evec3d);
         }
     }
 
@@ -356,7 +351,6 @@ void TPerambulator<FImpl>::execute(void)
                     {
                         int jvec= ivec + nVec * t;
                         evec3d = evec_test[jvec];
-                        //coalescedWrite(evec3d, evec_test[jvec]);
                         //ExtractSliceLocal(evec3d,epack.evec[ivec],0,t-Ntfirst,Tdir);
                         pokeSpin(perambulator.tensor(t, ivec, dk, inoise,idt,ds),static_cast<Complex>(innerProduct(evec3d, cv3dtmp)),is);
                     }
