@@ -41,23 +41,10 @@ BEGIN_HADRONS_NAMESPACE
 /******************************************************************************
  *                                TConservedBilinear                                       *
         Performs bilinear contractions of the type tr[g5*adj(qOut')*g5*G*qIn']
-        Suitable for non exceptional momenta in Rome-Southampton NPR
-
-Compute the bilinear vertex needed for the NPR.
-V(G) = sum_x  [ g5 * adj(S'(x,p2)) * g5 * G * S'(x,p1) ]_{si,sj,ci,cj}
-G is one of the 16 gamma vertices [I,gmu,g5,g5gmu,sig(mu,nu)]
-
-        * G
-       / \
-    p1/   \p2
-     /     \
-    /       \
+        Suitable for non exceptional momenta in Rome-Southampton NPR where G is
+        the non-local conserved vector current which depends on the action.
 
 Returns a spin-colour matrix, with indices si,sj, ci,cj
-
-Conventions:
-p1 - incoming momenta
-p2 - outgoing momenta
 **************************************************************************/
 BEGIN_MODULE_NAMESPACE(MNPR)
 
@@ -100,7 +87,6 @@ public:
     // execution
     virtual void execute(void);
 private:
-    unsigned int Ls_;
 };
 
 MODULE_REGISTER_TMP(ConservedBilinear, ARG(TConservedBilinear<FIMPL>), MNPR);
@@ -122,13 +108,9 @@ void TConservedBilinear<FImpl>::setup(void)
 
     // The propagator can be 4d or 5d, but must match the action
     const unsigned int ActionLs_{ env().getObjectLs(par().action) };
-    Ls_ = env().getObjectLs( par().qIn );
-    if (Ls_ != ActionLs_)
+    if (ActionLs_ != 1)
     {
-        std::string sError{ "Ls mismatch: propagator Ls="};
-        sError.append( std::to_string( Ls_ ) );
-        sError.append( ", action Ls=" );
-        sError.append( std::to_string( ActionLs_ ) );
+        std::string sError{ "ConservedBilinear currently only implemented for 4d actions."};
         HADRONS_ERROR(Size, sError);
     }
 
@@ -181,7 +163,7 @@ void TConservedBilinear<FImpl>::execute(void)
 
     // momentum on legs
     std::vector<Real>           pIn  = strToVec<Real>(par().pIn),
-	                        pOut = strToVec<Real>(par().pOut);
+                                pOut = strToVec<Real>(par().pOut);
     Coordinate                  latt_size = GridDefaultLatt();
     Complex                     Ci(0.0,1.0);
     std::vector<Result>         result;
