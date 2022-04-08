@@ -244,7 +244,6 @@ void TPerambulator<FImpl>::execute(void)
     const int Ntlocal{grid4d->LocalDimensions()[3]};
     const int Ntfirst{grid4d->LocalStarts()[3]};
 
-    //std::vector<ColourVectorField> evec_test(Ntlocal * nVec, evec3d.getGrid());
     envGetTmp(std::vector<ColourVectorField>, evec3d_tmp);
     for (int t = Ntfirst; t < Ntfirst + Ntlocal; t++)
     {
@@ -353,7 +352,6 @@ void TPerambulator<FImpl>::execute(void)
                     {
                         int jvec= ivec + nVec * (t-Ntfirst);
                         evec3d = evec3d_tmp[jvec];
-                        //ExtractSliceLocal(evec3d,epack.evec[ivec],0,t-Ntfirst,Tdir);
                         pokeSpin(perambulator.tensor(t, ivec, dk, inoise,idt,ds),static_cast<Complex>(innerProduct(evec3d, cv3dtmp)),is);
                     }
                 }
