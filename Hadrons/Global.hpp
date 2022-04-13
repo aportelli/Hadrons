@@ -124,7 +124,9 @@ typedef HADRONS_DEFAULT_SCHUR_OP<FMat##suffix, FermionField##suffix> FSchurOp##s
 typedef HADRONS_DEFAULT_NON_HERMITIAN_SCHUR_OP<FMat##suffix, FermionField##suffix> FNonHermitianSchurOp##suffix;\
 typedef Lattice<iSpinMatrix<typename FImpl::Simd>> SpinMatrixField##suffix;\
 typedef Lattice<iColourVector<typename FImpl::Simd>> ColourVectorField##suffix;\
-typedef Lattice<iColourMatrix<typename FImpl::Simd>> ColourMatrixField##suffix;
+typedef Lattice<iColourMatrix<typename FImpl::Simd>> ColourMatrixField##suffix;\
+typedef typename PropagatorField##suffix::vector_object::scalar_object    SpinColourMatrixScalar##suffix;\
+typedef Lattice<iSpinColourSpinColourMatrix<typename FImpl::Simd>> SpinColourSpinColourMatrixField##suffix;
 
 #define GAUGE_TYPE_ALIASES(GImpl, suffix)\
 typedef typename GImpl::GaugeField GaugeField##suffix;\
