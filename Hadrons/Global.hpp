@@ -121,6 +121,7 @@ typedef LinearOperatorBase<FermionField##suffix>   FBaseOp##suffix;\
 typedef NonHermitianLinearOperator<FMat##suffix, FermionField##suffix>   FOp##suffix;\
 typedef MdagMLinearOperator<FMat##suffix, FermionField##suffix>   FHermOp##suffix;\
 typedef HADRONS_DEFAULT_SCHUR_OP<FMat##suffix, FermionField##suffix> FSchurOp##suffix;\
+typedef HADRONS_DEFAULT_NON_HERMITIAN_SCHUR_OP<FMat##suffix, FermionField##suffix> FNonHermitianSchurOp##suffix;\
 typedef Lattice<iSpinMatrix<typename FImpl::Simd>> SpinMatrixField##suffix;\
 typedef Lattice<iColourVector<typename FImpl::Simd>> ColourVectorField##suffix;\
 typedef Lattice<iColourMatrix<typename FImpl::Simd>> ColourMatrixField##suffix;\
@@ -261,9 +262,15 @@ void        makeFileDir(const std::string filename, GridBase *g = nullptr);
 #define _HADRONS_SCHUR_OP_(conv) Schur##conv##Operator
 #define HADRONS_SCHUR_OP(conv) _HADRONS_SCHUR_OP_(conv)
 #define HADRONS_DEFAULT_SCHUR_OP HADRONS_SCHUR_OP(HADRONS_DEFAULT_SCHUR)
+#define _HADRONS_NON_HERMITIAN_SCHUR_OP_(conv) NonHermitianSchur##conv##Operator
+#define HADRONS_NON_HERMITIAN_SCHUR_OP(conv) _HADRONS_NON_HERMITIAN_SCHUR_OP_(conv)
+#define HADRONS_DEFAULT_NON_HERMITIAN_SCHUR_OP HADRONS_NON_HERMITIAN_SCHUR_OP(HADRONS_DEFAULT_SCHUR)
 #define _HADRONS_SCHUR_SOLVE_(conv) SchurRedBlack##conv##Solve
 #define HADRONS_SCHUR_SOLVE(conv) _HADRONS_SCHUR_SOLVE_(conv)
 #define HADRONS_DEFAULT_SCHUR_SOLVE HADRONS_SCHUR_SOLVE(HADRONS_DEFAULT_SCHUR)
+#define _HADRONS_NON_HERMITIAN_SCHUR_SOLVE_(conv) NonHermitianSchurRedBlack##conv##Solve
+#define HADRONS_NON_HERMITIAN_SCHUR_SOLVE(conv) _HADRONS_NON_HERMITIAN_SCHUR_SOLVE_(conv)
+#define HADRONS_DEFAULT_NON_HERMITIAN_SCHUR_SOLVE HADRONS_NON_HERMITIAN_SCHUR_SOLVE(HADRONS_DEFAULT_SCHUR)
 #define _HADRONS_SCHUR_A2A_(conv) A2AVectorsSchur##conv
 #define HADRONS_SCHUR_A2A(conv) _HADRONS_SCHUR_A2A_(conv)
 #define HADRONS_DEFAULT_SCHUR_A2A HADRONS_SCHUR_A2A(HADRONS_DEFAULT_SCHUR)
