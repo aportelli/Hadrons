@@ -105,7 +105,7 @@ int main(int argc, char *argv[])
     globalPar.database.restoreSchedule      = false;
     globalPar.database.restoreModules       = false;
     globalPar.database.restoreMemoryProfile = false;
-    globalPar.database.makeStatDb           = false;
+    //globalPar.database.makeStatDb           = false;
     application.setPar(globalPar);
     // gauge field
     application.createModule<MGauge::Random>("gauge");

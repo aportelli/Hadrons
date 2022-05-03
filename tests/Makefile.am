@@ -1,7 +1,8 @@
 AM_LDFLAGS  += -L$(top_builddir)/Hadrons
 AM_CXXFLAGS += -I$(top_srcdir)
- 
+
 EXTRA_PROGRAMS = \
+  Test_conserved_bilinear   \
   Test_QED_Local            \
   Test_QED                  \
   Test_database             \
@@ -20,7 +21,10 @@ CLEANFILES = $(EXTRA_PROGRAMS)
 
 tests-local: $(EXTRA_PROGRAMS)
 
-Test_QED_Local_SOURCES=Test_QED_LOCAL.cpp
+Test_conserved_bilinear_SOURCES=Test_conserved_bilinear.cpp
+Test_conserved_bilinear_LDADD=-lHadrons -lGrid
+
+Test_QED_Local_SOURCES=Test_QED_Local.cpp
 Test_QED_Local_LDADD=-lHadrons -lGrid
 
 Test_QED_SOURCES=Test_QED.cpp
