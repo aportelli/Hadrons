@@ -4,6 +4,6 @@ using namespace Grid;
 using namespace Hadrons;
 using namespace MGuesser;
 
-template class Grid::Hadrons::MGuesser::TBatchExactDeflation<FermionEigenPack<FIMPL>, GIMPL>;
-template class Grid::Hadrons::MGuesser::TBatchExactDeflation<FermionEigenPack<FIMPLF>, GIMPLF>;
-template class Grid::Hadrons::MGuesser::TBatchExactDeflation<FermionEigenPack<FIMPL, FIMPLF>, GIMPL>;
+template class Grid::Hadrons::MGuesser::TBatchExactDeflation<FIMPL,BaseFermionEigenPack<FIMPL>>;
+template class Grid::Hadrons::MGuesser::TBatchExactDeflation<FIMPLF,BaseFermionEigenPack<FIMPLF>>;
+template class Grid::Hadrons::MGuesser::TBatchExactDeflation<FIMPL,BaseFermionEigenPack<FIMPLF>>;

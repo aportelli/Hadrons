@@ -1,5 +1,5 @@
-#ifndef Hadrons_MGuesser_BatchExactDeflationPreload_hpp_
-#define Hadrons_MGuesser_BatchExactDeflationPreload_hpp_
+#ifndef Hadrons_MGuesser_BatchExactDeflationPreloadSrcCast_hpp_
+#define Hadrons_MGuesser_BatchExactDeflationPreloadSrcCast_hpp_
 
 #include <Hadrons/Global.hpp>
 #include <Hadrons/Module.hpp>
@@ -14,10 +14,10 @@ BEGIN_HADRONS_NAMESPACE
  ******************************************************************************/
 BEGIN_MODULE_NAMESPACE(MGuesser)
 
-class BatchExactDeflationPreloadPar: Serializable
+class BatchExactDeflationSrcCastPar: Serializable
 {
 public:
-    GRID_SERIALIZABLE_CLASS_MEMBERS(BatchExactDeflationPreloadPar,
+    GRID_SERIALIZABLE_CLASS_MEMBERS(BatchExactDeflationSrcCastPar,
                                     std::string, eigenPack,
                                     unsigned int, epSize,
                                     unsigned int, evBatchSize,
@@ -25,16 +25,16 @@ public:
 };
 
 template <typename FImpl, typename EPack>
-class TBatchExactDeflationPreload: public Module<BatchExactDeflationPreloadPar>
+class TBatchExactDeflationSrcCast: public Module<BatchExactDeflationSrcCastPar>
 {
 public:
     typedef typename FImpl::FermionField Field;
     typedef typename EPack::Field   EPackField;
 public:
     // constructor
-    TBatchExactDeflationPreload(const std::string name);
+    TBatchExactDeflationSrcCast(const std::string name);
     // destructor
-    virtual ~TBatchExactDeflationPreload(void) {};
+    virtual ~TBatchExactDeflationSrcCast(void) {};
     // dependency relation
     virtual std::vector<std::string> getInput(void);
     virtual std::vector<std::string> getOutput(void);
@@ -45,31 +45,19 @@ public:
     virtual void execute(void);
 };
 
-MODULE_REGISTER_TMP(BatchExactDeflationPreload, ARG(TBatchExactDeflationPreload<FIMPL,BaseFermionEigenPack<FIMPL>>), MGuesser);
-MODULE_REGISTER_TMP(BatchExactDeflationPreloadF, ARG(TBatchExactDeflationPreload<FIMPLF,BaseFermionEigenPack<FIMPLF>>), MGuesser);
-MODULE_REGISTER_TMP(BatchExactDeflationPreloadEPackF, ARG(TBatchExactDeflationPreload<FIMPL,BaseFermionEigenPack<FIMPLF>>), MGuesser);
+MODULE_REGISTER_TMP(BatchExactDeflationPreloadSrcCast, ARG(TBatchExactDeflationSrcCast<FIMPL,BaseFermionEigenPack<FIMPLF>>), MGuesser);
 
 /******************************************************************************
  *                            The guesser itself                              *
  ******************************************************************************/
 template <typename FImpl, typename EPack>
-class BatchExactDeflationPreloadGuesser: public LinearFunction<typename FImpl::FermionField>
+class BatchExactDeflationSrcCastGuesser: public LinearFunction<typename FImpl::FermionField>
 {
 public:
     typedef typename FImpl::FermionField Field;
     typedef typename EPack::Field   EPackField;
-private:
-    static constexpr bool requireCast_ = !(std::is_same<Field,EPackField>::value);
-    static constexpr std::size_t CastBufferSize_( std::size_t n ){ return requireCast_ ? n : 0; };
 
-    template <typename O>
-    typename std::enable_if<std::is_same<Field,O>::value, const std::vector<Field> &>::type
-    CopyOrOriginal( const std::vector<Field> &Copy, const std::vector<O> &Original ) { return Original; }
-    template <typename O>
-    typename std::enable_if<!std::is_same<Field,O>::value, const std::vector<Field> &>::type
-    CopyOrOriginal( const std::vector<Field> &Copy, const std::vector<O> &Original ) { return Copy; }
-public:
-    BatchExactDeflationPreloadGuesser(const std::vector<EPackField> & evec,const std::vector<RealD> & eval, 
+    BatchExactDeflationSrcCastGuesser(const std::vector<EPackField> & evec,const std::vector<RealD> & eval, 
                                         const unsigned int epSize,
                                         const unsigned int evBatchSize,
                                         const unsigned int sourceBatchSize)
@@ -85,15 +73,11 @@ public:
 
     virtual void operator() (const std::vector<Field> &in, std::vector<Field> &out)
     {
+        assert(in.size() == out.size());
+
         unsigned int sourceSize = out.size();
 
-        std::vector<Field> evecCast( CastBufferSize_(evBatchSize_) , Field(in[0].Grid()) );
-        std::vector<RealD> evalCast( CastBufferSize_(evBatchSize_) , 0. );
-
         LOG(Message) << "=== BATCH DEFLATION GUESSER START" << std::endl;
-        if (requireCast_) {
-            LOG(Message) << "Eigenpack requires precision change" << std::endl;
-        }
 
         for (auto &v: out)
         {
@@ -103,41 +87,45 @@ public:
         double cast_t = 0.;
         double proj_t = 0.;
 
+        std::vector<EPackField> inCast( sourceSize , EPackField(evec_[0].Grid()) );
+        std::vector<EPackField> outCast( sourceSize , EPackField(evec_[0].Grid()) );
+
+        cast_t -= usecond();
+        for (unsigned int i = 0; i < sourceSize; ++i) {
+            precisionChange(inCast[i],in[i]);
+            outCast[i] = Zero();
+        }
+        cast_t += usecond();
+
         for (unsigned int bv = 0; bv < epSize_; bv += evBatchSize_)
         {
             unsigned int evBlockSize = std::min(epSize_ - bv, evBatchSize_);
-
-            if (requireCast_) {
-                cast_t -= usecond();
-                for (unsigned int i = 0; i < evBlockSize; ++i) {
-                    precisionChange(evecCast[i],evec_[bv+i]);
-                    evalCast[i] = eval_[bv+i];
-                }
-                cast_t += usecond();
-            }
 
             proj_t -= usecond();
             for (unsigned int bs = 0; bs < sourceSize; bs += sourceBatchSize_)
             {
                 unsigned int sourceBlockSize = std::min(sourceSize - bs, sourceBatchSize_);
 
-                BatchDeflationUtils::projAccumulate(in, out, 
-                    CopyOrOriginal(evecCast, evec_),
-                    requireCast_ ? evalCast : eval_,
-                    requireCast_ ? 0 : bv,
-                    requireCast_ ? evBlockSize : bv + evBlockSize,
+                BatchDeflationUtils::projAccumulate(inCast, outCast, 
+                    evec_, eval_,
+                    bv, bv + evBlockSize,
                     bs, bs + sourceBlockSize);
             }
             proj_t += usecond();
         }
 
-        if (requireCast_) {
-            LOG(Message) << "Total precision change time " << cast_t/1.e6 << " s" << std::endl;
+        cast_t -= usecond();
+        for (unsigned int i = 0; i < sourceSize; ++i) {
+            precisionChange(out[i],outCast[i]);
         }
+        cast_t += usecond();
+
+        LOG(Message) << "Total precision change time " << cast_t/1.e6 << " s" << std::endl;
         LOG(Message) << "Total projection time " << proj_t/1.e6 << " s" <<  std::endl;
         
         LOG(Message) << "=== BATCH DEFLATION GUESSER END" << std::endl;
     }
+
 private:
     const std::vector<EPackField> &  evec_;
     const std::vector<RealD> &  eval_;
@@ -146,17 +134,17 @@ private:
 
 
 /******************************************************************************
- *                     TBatchExactDeflationPreload implementation                    *
+ *                     TBatchExactDeflationSrcCast implementation                    *
  ******************************************************************************/
 // constructor /////////////////////////////////////////////////////////////////
 template <typename FImpl, typename EPack>
-TBatchExactDeflationPreload<FImpl, EPack>::TBatchExactDeflationPreload(const std::string name)
-: Module<BatchExactDeflationPreloadPar>(name)
+TBatchExactDeflationSrcCast<FImpl, EPack>::TBatchExactDeflationSrcCast(const std::string name)
+: Module<BatchExactDeflationSrcCastPar>(name)
 {}
 
 // dependencies/products ///////////////////////////////////////////////////////
 template <typename FImpl, typename EPack>
-std::vector<std::string> TBatchExactDeflationPreload<FImpl, EPack>::getInput(void)
+std::vector<std::string> TBatchExactDeflationSrcCast<FImpl, EPack>::getInput(void)
 {
     std::vector<std::string> in = {par().eigenPack};
     
@@ -164,7 +152,7 @@ std::vector<std::string> TBatchExactDeflationPreload<FImpl, EPack>::getInput(voi
 }
 
 template <typename FImpl, typename EPack>
-std::vector<std::string> TBatchExactDeflationPreload<FImpl, EPack>::getOutput(void)
+std::vector<std::string> TBatchExactDeflationSrcCast<FImpl, EPack>::getOutput(void)
 {
     std::vector<std::string> out = {getName()};
     
@@ -172,7 +160,7 @@ std::vector<std::string> TBatchExactDeflationPreload<FImpl, EPack>::getOutput(vo
 }
 
 template <typename FImpl, typename EPack>
-DependencyMap TBatchExactDeflationPreload<FImpl, EPack>::getObjectDependencies(void)
+DependencyMap TBatchExactDeflationSrcCast<FImpl, EPack>::getObjectDependencies(void)
 {
     DependencyMap dep;
     
@@ -183,7 +171,7 @@ DependencyMap TBatchExactDeflationPreload<FImpl, EPack>::getObjectDependencies(v
 
 // setup ///////////////////////////////////////////////////////////////////////
 template <typename FImpl, typename EPack>
-void TBatchExactDeflationPreload<FImpl, EPack>::setup(void)
+void TBatchExactDeflationSrcCast<FImpl, EPack>::setup(void)
 {
     LOG(Message) << "Setting batch exact deflation guesser with preloaded eigenPack '" << par().eigenPack << "'"
                  << "' (" << par().epSize << " modes) and batch size " 
@@ -192,7 +180,7 @@ void TBatchExactDeflationPreload<FImpl, EPack>::setup(void)
 
     auto &epack = envGet(EPack, par().eigenPack);
 
-    envCreateDerived(LinearFunction<Field>, ARG(BatchExactDeflationPreloadGuesser<FImpl,EPack>),
+    envCreateDerived(LinearFunction<Field>, ARG(BatchExactDeflationSrcCastGuesser<FImpl,EPack>),
                      getName(), env().getObjectLs(par().eigenPack),
                      epack.evec, epack.eval, par().epSize, par().evBatchSize,
                      par().sourceBatchSize);
@@ -200,7 +188,7 @@ void TBatchExactDeflationPreload<FImpl, EPack>::setup(void)
 
 // execution ///////////////////////////////////////////////////////////////////
 template <typename FImpl, typename EPack>
-void TBatchExactDeflationPreload<FImpl, EPack>::execute(void)
+void TBatchExactDeflationSrcCast<FImpl, EPack>::execute(void)
 {
     
 }
@@ -209,4 +197,4 @@ END_MODULE_NAMESPACE
 
 END_HADRONS_NAMESPACE
 
-#endif // Hadrons_MGuesser_BatchExactDeflationPreload_hpp_
+#endif // Hadrons_MGuesser_BatchExactDeflationPreloadSrcCast_hpp_
