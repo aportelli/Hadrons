@@ -48,7 +48,7 @@ public:
 
 MODULE_REGISTER_TMP(BatchExactDeflationLoad, ARG(TBatchExactDeflationLoad<FermionEigenPack<FIMPL>, GIMPL>), MGuesser);
 MODULE_REGISTER_TMP(BatchExactDeflationLoadF, ARG(TBatchExactDeflationLoad<FermionEigenPack<FIMPLF>, GIMPLF>), MGuesser);
-MODULE_REGISTER_TMP(BatchExactDeflationLoadDIOF, ARG(TBatchExactDeflationLoad<FermionEigenPack<FIMPL, FIMPLF>, GIMPL>), MGuesser);
+MODULE_REGISTER_TMP(BatchExactDeflationLoadDIoF, ARG(TBatchExactDeflationLoad<FermionEigenPack<FIMPL, FIMPLF>, GIMPL>), MGuesser);
 
 /******************************************************************************
  *                            The guesser itself                              *

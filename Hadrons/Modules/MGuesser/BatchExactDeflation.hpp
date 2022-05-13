@@ -45,9 +45,9 @@ public:
     virtual void execute(void);
 };
 
-MODULE_REGISTER_TMP(BatchExactDeflationPreload, ARG(TBatchExactDeflation<FIMPL,BaseFermionEigenPack<FIMPL>>), MGuesser);
-MODULE_REGISTER_TMP(BatchExactDeflationPreloadF, ARG(TBatchExactDeflation<FIMPLF,BaseFermionEigenPack<FIMPLF>>), MGuesser);
-MODULE_REGISTER_TMP(BatchExactDeflationPreloadEPackF, ARG(TBatchExactDeflation<FIMPL,BaseFermionEigenPack<FIMPLF>>), MGuesser);
+MODULE_REGISTER_TMP(BatchExactDeflation, ARG(TBatchExactDeflation<FIMPL,BaseFermionEigenPack<FIMPL>>), MGuesser);
+MODULE_REGISTER_TMP(BatchExactDeflationF, ARG(TBatchExactDeflation<FIMPLF,BaseFermionEigenPack<FIMPLF>>), MGuesser);
+MODULE_REGISTER_TMP(BatchExactDeflationEPackF, ARG(TBatchExactDeflation<FIMPL,BaseFermionEigenPack<FIMPLF>>), MGuesser);
 
 /******************************************************************************
  *                            The guesser itself                              *
