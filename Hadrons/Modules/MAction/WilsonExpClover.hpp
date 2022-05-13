@@ -1,5 +1,5 @@
 /*
- * WilsonClover.hpp, part of Hadrons (https://github.com/aportelli/Hadrons)
+ * WilsonExpClover.hpp, part of Hadrons (https://github.com/aportelli/Hadrons)
  *
  * Copyright (C) 2015 - 2020
  *
@@ -26,8 +26,8 @@
 
 /*  END LEGAL */
 
-#ifndef Hadrons_MAction_WilsonClover_hpp_
-#define Hadrons_MAction_WilsonClover_hpp_
+#ifndef Hadrons_MAction_WilsonExpClover_hpp_
+#define Hadrons_MAction_WilsonExpClover_hpp_
 
 #include <Hadrons/Global.hpp>
 #include <Hadrons/Module.hpp>
@@ -36,14 +36,14 @@
 BEGIN_HADRONS_NAMESPACE
 
 /******************************************************************************
- *                         Wilson clover quark action                         *
+ *                         Wilson exponential clover quark action                         *
  ******************************************************************************/
 BEGIN_MODULE_NAMESPACE(MAction)
 
-class WilsonCloverPar: Serializable
+class WilsonExpCloverPar: Serializable
 {
 public:
-    GRID_SERIALIZABLE_CLASS_MEMBERS(WilsonCloverPar,
+    GRID_SERIALIZABLE_CLASS_MEMBERS(WilsonExpCloverPar,
                                     std::string, gauge,
                                     double     , mass,
 				                    double     , csw_r,
@@ -56,15 +56,15 @@ public:
 };
 
 template <typename FImpl>
-class TWilsonClover: public Module<WilsonCloverPar>
+class TWilsonExpClover: public Module<WilsonExpCloverPar>
 {
 public:
     FERM_TYPE_ALIASES(FImpl,);
 public:
     // constructor
-    TWilsonClover(const std::string name);
+    TWilsonExpClover(const std::string name);
     // destructor
-    virtual ~TWilsonClover(void) {};
+    virtual ~TWilsonExpClover(void) {};
     // dependencies/products
     virtual std::vector<std::string> getInput(void);
     virtual std::vector<std::string> getOutput(void);
@@ -74,23 +74,23 @@ public:
     virtual void execute(void);
 };
 
-MODULE_REGISTER_TMP(WilsonClover, TWilsonClover<FIMPL>, MAction);
+MODULE_REGISTER_TMP(WilsonExpClover, TWilsonExpClover<FIMPL>, MAction);
 #ifdef GRID_DEFAULT_PRECISION_DOUBLE
-MODULE_REGISTER_TMP(WilsonCloverF, TWilsonClover<FIMPLF>, MAction);
+MODULE_REGISTER_TMP(WilsonExpCloverF, TWilsonExpClover<FIMPLF>, MAction);
 #endif
 
 /******************************************************************************
- *                    TWilsonClover template implementation                   *
+ *                    TWilsonExpClover template implementation                   *
  ******************************************************************************/
 // constructor /////////////////////////////////////////////////////////////////
 template <typename FImpl>
-TWilsonClover<FImpl>::TWilsonClover(const std::string name)
-: Module<WilsonCloverPar>(name)
+TWilsonExpClover<FImpl>::TWilsonExpClover(const std::string name)
+: Module<WilsonExpCloverPar>(name)
 {}
 
 // dependencies/products ///////////////////////////////////////////////////////
 template <typename FImpl>
-std::vector<std::string> TWilsonClover<FImpl>::getInput(void)
+std::vector<std::string> TWilsonExpClover<FImpl>::getInput(void)
 {
     std::vector<std::string> in = {par().gauge};
 
@@ -98,7 +98,7 @@ std::vector<std::string> TWilsonClover<FImpl>::getInput(void)
 }
 
 template <typename FImpl>
-std::vector<std::string> TWilsonClover<FImpl>::getOutput(void)
+std::vector<std::string> TWilsonExpClover<FImpl>::getOutput(void)
 {
     std::vector<std::string> out = {getName()};
 
@@ -107,9 +107,9 @@ std::vector<std::string> TWilsonClover<FImpl>::getOutput(void)
 
 // setup ///////////////////////////////////////////////////////////////////////
 template <typename FImpl>
-void TWilsonClover<FImpl>::setup(void)
+void TWilsonExpClover<FImpl>::setup(void)
 {
-    LOG(Message) << "Setting up Wilson clover fermion matrix with m = " << par().mass
+    LOG(Message) << "Setting up Wilson exponential clover fermion matrix with m = " << par().mass
                  << " using gauge field '" << par().gauge << "'" << std::endl;
     LOG(Message) << "Clover term csw_r: " << par().csw_r
                  << " csw_t: " << par().csw_t << std::endl;
@@ -119,7 +119,7 @@ void TWilsonClover<FImpl>::setup(void)
     auto &U      = envGet(GaugeField, par().gauge);
     auto &grid   = *envGetGrid(FermionField);
     auto &gridRb = *envGetRbGrid(FermionField);
-    typename CompactWilsonCloverFermion<FImpl, CompactCloverHelpers<FImpl>>::ImplParams implParams;
+    typename CompactWilsonCloverFermion<FImpl, CompactExpCloverHelpers<FImpl>>::ImplParams implParams;
     if (!par().boundary.empty())
     {
         implParams.boundary_phases = strToVec<Complex>(par().boundary);
@@ -140,18 +140,18 @@ void TWilsonClover<FImpl>::setup(void)
     {
         HADRONS_ERROR(Size, "Wrong number of twist");
     }
-    envCreateDerived(FMat, CompactWilsonClover<FImpl>, getName(), 1, U, grid,
-                     gridRb, par().mass, par().csw_r, par().csw_t, par().cF,
+    envCreateDerived(FMat, CompactWilsonExpClover<FImpl>, getName(), 1, U, grid,
+                     gridRb, par().mass, par().csw_r, par().csw_t, par().cF, 
                      par().clover_anisotropy, implParams); 
 }
 
 // execution ///////////////////////////////////////////////////////////////////
 template <typename FImpl>
-void TWilsonClover<FImpl>::execute()
+void TWilsonExpClover<FImpl>::execute()
 {}
 
 END_MODULE_NAMESPACE
 
 END_HADRONS_NAMESPACE
 
-#endif // Hadrons_WilsonClover_hpp_
+#endif // Hadrons_WilsonExpClover_hpp_
