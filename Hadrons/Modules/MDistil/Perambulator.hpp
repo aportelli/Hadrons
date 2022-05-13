@@ -189,6 +189,8 @@ void TPerambulator<FImpl>::setup(void)
     envTmpLat(ColourVectorField, "cv4dtmp");
     envTmp(ColourVectorField,    "cv3dtmp", 1, grid3d);
     envTmp(ColourVectorField,    "evec3d",  1, grid3d);
+    const int Ntlocal{grid4d->LocalDimensions()[3]};
+    envTmp(std::vector<ColourVectorField>,    "evec3d_tmp",  1, Ntlocal * nVec,  grid3d);
 
     // No solver needed if an already existing solve is recycled    
     if(perambMode != pMode::inputSolve)
@@ -242,6 +244,18 @@ void TPerambulator<FImpl>::execute(void)
     const int Ntlocal{grid4d->LocalDimensions()[3]};
     const int Ntfirst{grid4d->LocalStarts()[3]};
 
+    envGetTmp(std::vector<ColourVectorField>, evec3d_tmp);
+    for (int t = Ntfirst; t < Ntfirst + Ntlocal; t++)
+    {
+        for (int ivec = 0; ivec < nVec; ivec++)
+        {
+            int jvec= ivec + nVec * (t-Ntfirst);
+            ExtractSliceLocal(evec3d,epack.evec[ivec],0,t-Ntfirst,Tdir);
+            evec3d_tmp[jvec] = evec3d;
+        }
+    }
+
+
     std::string sourceT = par().timeSources;
     int nSourceT;
     std::vector<int> invT;
@@ -290,7 +304,7 @@ void TPerambulator<FImpl>::execute(void)
                 {
                     START_P_TIMER("solver");
                     solver(fermion4dtmp, dist_source);
-                    START_P_TIMER("solver");
+                    STOP_P_TIMER("solver");
                 }
                 else
                 {
@@ -336,7 +350,8 @@ void TPerambulator<FImpl>::execute(void)
                     ExtractSliceLocal(cv3dtmp,cv4dtmp,0,t-Ntfirst,Tdir); 
                     for (int ivec = 0; ivec < nVec; ivec++)
                     {
-                        ExtractSliceLocal(evec3d,epack.evec[ivec],0,t-Ntfirst,Tdir);
+                        int jvec= ivec + nVec * (t-Ntfirst);
+                        evec3d = evec3d_tmp[jvec];
                         pokeSpin(perambulator.tensor(t, ivec, dk, inoise,idt,ds),static_cast<Complex>(innerProduct(evec3d, cv3dtmp)),is);
                     }
                 }
