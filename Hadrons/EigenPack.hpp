@@ -424,6 +424,12 @@ public:
         readCoarse(fileStem, multiFile, traj);
     }
 
+    virtual void read(const std::string fileStem, const bool multiFile, 
+                      const unsigned int ki, const unsigned kf, const int traj = -1)
+    {
+        HADRONS_ERROR(Implementation, "partial read not supported for CoarseEigenPack");
+    }
+
     void writeFine(const std::string fileStem, const bool multiFile, const int traj = -1)
     {
         EigenPack<FineF, FineFIo>::write(fileStem + "_fine", multiFile, traj);

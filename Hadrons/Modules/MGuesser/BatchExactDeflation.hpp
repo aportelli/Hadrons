@@ -6,6 +6,7 @@
 #include <Hadrons/ModuleFactory.hpp>
 #include <Hadrons/Modules/MIO/LoadEigenPack.hpp>
 #include <Hadrons/TimerArray.hpp>
+#include <Hadrons/Modules/MGuesser/BatchDeflationUtils.hpp>
 
 BEGIN_HADRONS_NAMESPACE
 
@@ -81,7 +82,6 @@ public:
 
     virtual void operator() (const std::vector<Field> &in, std::vector<Field> &out)
     {
-        unsigned int nBatch     = epPar_.size/evBatchSize_ + (((epPar_.size % evBatchSize_) != 0) ? 1 : 0);
         unsigned int sourceSize = out.size();
 
         LOG(Message) << "=== BATCH DEFLATION GUESSER START" << std::endl;
@@ -132,7 +132,10 @@ public:
             {
                 unsigned int sourceBlockSize = std::min(sourceSize - bs, sourceBatchSize_);
                 LOG(Message) << "--- Source batch " << bs/sourceBatchSize_ << std::endl;
-                projAccumulate(in, out, epack_, evBlockSize, bs, bs + sourceBlockSize);
+                BatchDeflationUtils::projAccumulate(in, out, 
+                                                    epack_.evec, epack_.eval, 
+                                                    0, evBlockSize, 
+                                                    bs, bs + sourceBlockSize);
             }
             trA.stopTimer("Proj");
             ProjAccum += trA.getDTimer("Proj");
@@ -146,31 +149,6 @@ public:
         LOG(Message) << "Total Project time: " << ProjAccum/1.0e6 << std::endl;
         LOG(Message) << "=== BATCH DEFLATION GUESSER END" << std::endl;
     }
-
-    template<typename Field>
-    static void projAccumulate(const std::vector<Field> &in, std::vector<Field> &out,
-                        Pack &epack, const unsigned int evBatchSize,
-                        const unsigned int si, const unsigned int sf)
-    {
-        GridBase *g       = in[0].Grid();
-        double   lVol     = g->lSites();
-        double   siteSize = sizeof(typename Field::scalar_object);
-        double   lSizeGB  = lVol*siteSize/1024./1024./1024.;
-        double   nIt      = evBatchSize*(sf - si);
-        double   t        = 0.;
-        
-        t -= usecond();
-        for (unsigned int i = 0; i < evBatchSize; ++i)
-        for (unsigned int j = si; j < sf; ++j)
-        {
-            axpy(out[j], 
-                 TensorRemove(innerProduct(epack.evec[i], in[j]))/epack.eval[i], 
-                 epack.evec[i], out[j]);
-        }
-        t += usecond();
-        // performance (STREAM convention): innerProduct 2 reads + axpy 2 reads 1 write = 5 transfers
-        LOG(Message) << "projAccumulate: " << t << " us | " << 5.*nIt*lSizeGB << " GB | " << 5.*nIt*lSizeGB/t*1.0e6 << " GB/s" << std::endl;
-    };
 private:
     MIO::LoadEigenPackPar epPar_;
     unsigned int          evBatchSize_, sourceBatchSize_;
@@ -229,7 +207,7 @@ DependencyMap TBatchExactDeflation<Pack, GImpl>::getObjectDependencies(void)
 template <typename Pack, typename GImpl>
 void TBatchExactDeflation<Pack, GImpl>::setup(void)
 {
-    GridBase       *grid, *gridIo = nullptr, *gridRb = nullptr;
+    GridBase       *gridIo = nullptr, *gridRb = nullptr;
     GaugeLinkField *transform = nullptr;
 
     LOG(Message) << "Setting batch exact deflation guesser with eigenpack "
@@ -241,7 +219,6 @@ void TBatchExactDeflation<Pack, GImpl>::setup(void)
     {
         transform = &envGet(GaugeLinkField, par().eigenPack.gaugeXform);
     }
-    grid   = getGrid<Field>(par().eigenPack.Ls);
     gridRb = getGrid<Field>(par().eigenPack.redBlack, par().eigenPack.Ls);
     if (typeHash<Field>() != typeHash<FieldIo>())
     {

@@ -3,6 +3,7 @@
 #include <Hadrons/Modules.hpp>
 #include <Hadrons/Module.hpp>
 #include <Hadrons/Environment.hpp>
+#include <Hadrons/Modules/MGuesser/BatchDeflationUtils.hpp>
 
 using namespace Grid;
 using namespace Hadrons;
@@ -50,7 +51,8 @@ void ProjAccumRunner(std::vector<Field> &in, std::vector<Field> &out, unsigned i
             LOG(Message) << "srcBlockSize: " << srcBlockSize << std::endl;
 
             w1.Start();
-            MGuesser::BatchExactDeflationGuesser<FermionEigenPack<FIMPL>, GIMPL>::projAccumulate<Field>(in, out, Epack, evBlockSize, j, j + srcBlockSize);
+            BatchDeflationUtils::projAccumulate(in, out, Epack.evec, Epack.eval,
+                                                0, evBlockSize, j, j + srcBlockSize);
             w1.Stop();
             ProjAccum += w1.Elapsed();
             w1.Reset();

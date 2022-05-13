@@ -5,6 +5,7 @@
 #include <Hadrons/Module.hpp>
 #include <Hadrons/ModuleFactory.hpp>
 #include <Hadrons/EigenPack.hpp>
+#include <Hadrons/Modules/MGuesser/BatchDeflationUtils.hpp>
 
 BEGIN_HADRONS_NAMESPACE
 
@@ -74,7 +75,6 @@ public:
     {
         assert(in.size() == out.size());
 
-        unsigned int nBatch = epSize_/evBatchSize_ + (((epSize_ % evBatchSize_) != 0) ? 1 : 0);
         unsigned int sourceSize = out.size();
 
         LOG(Message) << "=== BATCH DEFLATION GUESSER START" << std::endl;
@@ -106,10 +106,10 @@ public:
             {
                 unsigned int sourceBlockSize = std::min(sourceSize - bs, sourceBatchSize_);
 
-                projAccumulate(inCast, outCast, 
-                            evec_, eval_,
-                            bv, bv + evBlockSize,
-                            bs, bs + sourceBlockSize);
+                BatchDeflationUtils::projAccumulate(inCast, outCast, 
+                    evec_, eval_,
+                    bv, bv + evBlockSize,
+                    bs, bs + sourceBlockSize);
             }
             proj_t += usecond();
         }
@@ -125,32 +125,6 @@ public:
         
         LOG(Message) << "=== BATCH DEFLATION GUESSER END" << std::endl;
     }
-private:
-    static void projAccumulate(const std::vector<EPackField> &in, std::vector<EPackField> &out,
-                        const std::vector<EPackField>& evec,
-                        const std::vector<RealD>& eval,
-                        const unsigned int ei, const unsigned int ef,
-                        const unsigned int si, const unsigned int sf)
-    {
-        GridBase *g       = in[0].Grid();
-        double   lVol     = g->lSites();
-        double   siteSize = sizeof(typename EPackField::scalar_object);
-        double   lSizeGB  = lVol*siteSize/1024./1024./1024.;
-        double   nIt      = (ef-ei)*(sf - si);
-        double   t        = 0.;
-
-        t -= usecond();
-        for (unsigned int i = ei; i < ef; ++i)
-        for (unsigned int j = si; j < sf; ++j)
-        {
-            axpy(out[j], 
-                 TensorRemove(innerProduct(evec[i], in[j]))/eval[i], 
-                 evec[i], out[j]);
-        }
-        t += usecond();
-        // performance (STREAM convention): innerProduct 2 reads + axpy 2 reads 1 write = 5 transfers
-        LOG(Message) << "projAccumulate: " << t << " us | " << 5.*nIt*lSizeGB << " GB | " << 5.*nIt*lSizeGB/t*1.0e6 << " GB/s" << std::endl;
-    };
 
 private:
     const std::vector<EPackField> &  evec_;
