@@ -1,18 +1,21 @@
+
 #include <Grid/Grid.h>
 #include <Hadrons/Application.hpp>
 #include <Hadrons/Modules.hpp>
 #include <Hadrons/Module.hpp>
 #include <Hadrons/Environment.hpp>
-#include <Hadrons/Modules/MGuesser/BatchDeflationUtils.hpp>
+#include <Hadrons/Global.hpp>
 
+using namespace std;
 using namespace Grid;
 using namespace Hadrons;
 
-template<typename Field>
-void ProjAccumRunner(std::vector<Field> &in, std::vector<Field> &out, unsigned int eb, unsigned int sb, unsigned int totSizeE)
+
+template<typename F, typename G>
+void ProjAccumRunner(std::vector<typename F::FermionField> &in, std::vector<typename F::FermionField> &out, unsigned int eb, unsigned int sb, unsigned int totSizeE)
 {
     GridBase *g       = in[0].Grid();
-    EigenPack<Field> Epack(eb, g, g);
+    EigenPack<typename F::FermionField> Epack(eb, g, g);
     
     std::vector<int> seeds({1,2,3,4});
     std::vector<int> seeds5({5,6,7,8});
@@ -51,8 +54,7 @@ void ProjAccumRunner(std::vector<Field> &in, std::vector<Field> &out, unsigned i
             LOG(Message) << "srcBlockSize: " << srcBlockSize << std::endl;
 
             w1.Start();
-            BatchDeflationUtils::projAccumulate(in, out, Epack.evec, Epack.eval,
-                                                0, evBlockSize, j, j + srcBlockSize);
+            MGuesser::BatchExactDeflationGuesser<FermionEigenPack<F>,G>::projAccumulate(in, out, Epack, evBlockSize, j, j + srcBlockSize);
             w1.Stop();
             ProjAccum += w1.Elapsed();
             w1.Reset();
@@ -61,51 +63,208 @@ void ProjAccumRunner(std::vector<Field> &in, std::vector<Field> &out, unsigned i
 
     LOG(Message) << "ProjAccumRunner end" << std::endl;
     LOG(Message) << "ProjAccum total: " << ProjAccum << std::endl;
+    LOG(Message) << "ProjAccum out norm: " << norm2(out[0]) << std::endl;
 
 }
 
-GridBase * makeGrid(const unsigned int Ls = 1, const bool rb = false)
+template<typename F, typename G>
+void ProjAccumRunnerF(std::vector<typename F::FermionField> &in, std::vector<typename F::FermionField> &out, unsigned int eb, unsigned int sb, unsigned int totSizeE)
 {
-  auto &env  = Environment::getInstance();
-  env.createGrid(Ls);
-  
-   if (rb)
-   {
-        if (Ls > 1)
+    GridBase *g       = in[0].Grid();
+    EigenPack<typename F::FermionField> Epack(eb, g, g);
+    
+    std::vector<int> seeds({1,2,3,4});
+    std::vector<int> seeds5({5,6,7,8});
+    GridSerialRNG            RNG;      RNG.SeedFixedIntegers(seeds);
+    GridParallelRNG          RNG5(g);  RNG5.SeedFixedIntegers(seeds5);
+
+    LOG(Message) << "Grid type of ev: " << typeid(Epack.evec[0]).name() << std::endl;
+
+    GridStopWatch w1;
+    GridTime ProjAccum = GridTime::zero();
+
+    LOG(Message) << "ProjAccumRunner start" << std::endl;
+    
+    for (int i = 0; i < totSizeE; i += eb)
+    {
+        unsigned int evBlockSize = std::min(totSizeE - i, eb);
+        
+        LOG(Message) << "New eigenvector picks" << std::endl;
+
+        for (auto &e: Epack.evec)
         {
-            return env.getRbGrid(Ls);
+            random(RNG5,e);
+        }
+
+        for (auto &e: Epack.eval)
+        {
+            random(RNG,e);
+
+            LOG(Debug) << "eigenval random pick: " << e << std::endl;
+        }
+
+        LOG(Message) << "evBlockSize: " << evBlockSize << std::endl;
+
+        for(unsigned int j = 0; j < in.size(); j += sb)
+        {
+            unsigned int srcBlockSize = std::min((int)in.size() - j, sb);
+
+            LOG(Message) << "srcBlockSize: " << srcBlockSize << std::endl;
+
+            w1.Start();
+            MGuesser::BatchExactDeflationGuesser<FermionEigenPack<F>,G>::projAccumulateF(in, out, Epack, evBlockSize, j, j + srcBlockSize);
+            w1.Stop();
+            ProjAccum += w1.Elapsed();
+            w1.Reset();
+        }
+    }
+
+    LOG(Message) << "ProjAccumRunner end" << std::endl;
+    LOG(Message) << "ProjAccum total: " << ProjAccum << std::endl;
+    LOG(Message) << "ProjAccum out norm: " << norm2(out[0]) << std::endl;
+
+}
+
+GridBase * makeGrid(const unsigned int Ls, const bool rb, const bool single=false, const bool coarse=false, std::vector<int> blockSize={1,1,1,1,1})
+{
+  auto &env = Environment::getInstance();
+
+  if(coarse)
+  {
+    if(single)
+    {
+        env.createCoarseGrid<vComplexF>(blockSize, Ls);
+
+        if (rb)
+        {
+            LOG(Error) << "No Rb Coarse grid in hadrons" << std::endl;
+            exit(1);
         }
         else
         {
-            return env.getRbGrid();
+            if (Ls > 1)
+            {   
+            return env.getCoarseGrid<vComplexF>(blockSize, Ls);
+            }
+            else
+            {
+            return env.getCoarseGrid<vComplexF>(blockSize);
+            }
         }
+
     }
     else
     {
-        if (Ls > 1)
-        {   
-            return env.getGrid(Ls);
+        env.createCoarseGrid(blockSize, Ls);
+
+        if (rb)
+        {
+            LOG(Error) << "No Rb Coarse grid in hadrons" << std::endl;
+            exit(2); 
         }
         else
         {
+            if (Ls > 1)
+            {   
+            return env.getCoarseGrid(blockSize, Ls);
+            }
+            else
+            {
+            return env.getCoarseGrid(blockSize);
+            }
+        }
+    }      
+  }
+  else
+  {
+    if(single)
+    {
+        env.createGrid<vComplexF>(Ls);
+
+        if (rb)
+        {
+            if (Ls > 1)
+            {
+            return env.getRbGrid<vComplexF>(Ls);
+            }
+            else
+            {
+            return env.getRbGrid<vComplexF>();
+            }
+        }
+        else
+        {
+            if (Ls > 1)
+            {   
+            return env.getGrid<vComplexF>(Ls);
+            }
+            else
+            {
+            return env.getGrid<vComplexF>();
+            }
+        }
+
+    }
+    else
+    {
+        env.createGrid(Ls);
+
+        if (rb)
+        {
+            if (Ls > 1)
+            {
+            return env.getRbGrid(Ls);
+            }
+            else
+            {
+            return env.getRbGrid();
+            }
+        }
+        else
+        {
+            if (Ls > 1)
+            {   
+            return env.getGrid(Ls);
+            }
+            else
+            {
             return env.getGrid();
+            }
         }
     }
+  } 
 }
 
-void scanner(unsigned int Ls, bool rb,
+template <typename F, typename G>
+typename std::enable_if<std::is_same<FIMPL,F>::value, void>::type
+projtype( std::vector<typename F::FermionField> srcVec, std::vector<typename F::FermionField> outVec,
+          unsigned int eb, unsigned int sb, unsigned int totSizeE)
+        {
+            //ProjAccumRunner<F,G>(srcVec, outVec, eb, sb, totSizeE);
+            LOG(Message) << "Double precision not supported by ProjectAccumF" << std::endl;
+          
+        }
+template <typename F, typename G>
+typename std::enable_if<std::is_same<FIMPLF,F>::value, void>::type
+projtype( std::vector<typename F::FermionField> srcVec, std::vector<typename F::FermionField> outVec,
+          unsigned int eb, unsigned int sb, unsigned int totSizeE)
+          { ProjAccumRunnerF<F,G>(srcVec, outVec, eb, sb, totSizeE); }
+
+
+
+
+template <typename F, typename G> void scanner(GridBase *g, bool single,
              unsigned int minBatchSizeE, unsigned int maxBatchSizeE, 
              unsigned int minBatchSizeS, unsigned int maxBatchSizeS,
-             unsigned int totSizeE, unsigned int totSizeS, unsigned int stepSize)
+             unsigned int totSizeE, unsigned int totSizeS, unsigned int stepSize,
+             unsigned int version)
 {
-    auto *g = makeGrid(Ls, rb);
-
     LOG(Debug) << "Check Grid type" << std::endl;
     LOG(Debug) << " - cb  : " << g->_isCheckerBoarded << std::endl;
     LOG(Debug) << " - fdim: " << g->_fdimensions << std::endl;
 
-    std::vector<LatticeFermion> srcVec(1,g);
-    std::vector<LatticeFermion> outVec(1,g);
+    std::vector<typename F::FermionField> srcVec(1,g);
+    std::vector<typename F::FermionField> outVec(1,g);
 
     srcVec.resize(totSizeS,g);
     outVec.resize(totSizeS,g);
@@ -131,10 +290,101 @@ void scanner(unsigned int Ls, bool rb,
                 v = Zero();
             }
 
-            ProjAccumRunner<LatticeFermion>(srcVec, outVec, eb, sb, totSizeE);        
+            if(version == 0)
+            {
+                ProjAccumRunner<F,G>(srcVec, outVec, eb, sb, totSizeE);
+
+            }
+            if(version == 1)
+            {
+                projtype<F,G>(srcVec, outVec, eb, sb, totSizeE);
+            }
         }
     }
 }
+
+template <typename F> void scannerCoarse(GridBase *g, GridBase *gc,
+             unsigned int minSubspaceSize, unsigned int maxSubspaceSize,
+             unsigned int totSizeE, unsigned int totSizeS, 
+             unsigned int stepSize, unsigned int version)
+{
+    LOG(Debug) << "Check Grid type" << std::endl;
+    LOG(Debug) << " - cb  : " << g->_isCheckerBoarded << std::endl;
+    LOG(Debug) << " - fdim: " << g->_fdimensions << std::endl;
+
+    const int nbasis = 60; 
+    maxSubspaceSize = nbasis;
+    minSubspaceSize = nbasis;
+
+    typedef iVector<vTComplex, nbasis>         CoarseSiteVector;
+    typedef Lattice<CoarseSiteVector>          CoarseField;
+
+    unsigned int coarseEvecSize;
+
+    std::vector<typename F::FermionField> srcVec(totSizeS,g);
+    std::vector<typename F::FermionField> outVec(totSizeS,g);
+    CoarseEigenPack<typename F::FermionField, CoarseField> Epack(1,1,g,gc); 
+
+    std::vector<int> seeds({1,2,3,4});
+    std::vector<int> seeds5({5,6,7,8});
+    std::vector<int> seeds5C({9,10,11,12});
+    GridSerialRNG            RNG;      RNG.SeedFixedIntegers(seeds);
+    GridParallelRNG          RNG5(g);  RNG5.SeedFixedIntegers(seeds5);
+    GridParallelRNG          RNG5C(gc);  RNG5.SeedFixedIntegers(seeds5C);
+
+    GridStopWatch w1;
+    GridTime Guesser = GridTime::zero();
+
+    for (int ss = minSubspaceSize; ss <= maxSubspaceSize; ss += stepSize)
+    {
+        LOG(Message) << "Scan Subspace size: " << ss << std::endl;
+
+        coarseEvecSize = totSizeE - ss;
+
+        Epack.resize(ss, coarseEvecSize, g, gc);
+        
+        for (auto &s: srcVec)
+        {
+            random(RNG5,s);
+        }
+
+        for (auto &e: Epack.evec)
+        {
+            random(RNG5,e);
+        }
+
+        for (auto &e: Epack.eval)
+        {
+            random(RNG,e);
+        }
+            
+        for (auto &e: Epack.evecCoarse)
+        {
+            random(RNG5C,e);
+        }
+
+        for (auto &e: Epack.evalCoarse)
+        {
+            random(RNG,e);
+        }
+
+        for (auto &v: outVec)
+        {
+            v = Zero();
+        }
+        LOG(Message) << "Start LC Deflation with subspace of size " << ss << std::endl;
+        
+        LocalCoherenceDeflatedGuesser<typename F::FermionField, CoarseField> Guesser(Epack.evec, Epack.evecCoarse, Epack.evalCoarse);
+
+        w1.Start();
+        Guesser(srcVec, outVec);
+        w1.Stop();
+        LOG(Message) << "LC Deflation with subspace of size " << ss << " took: " << w1.Elapsed() << std::endl;
+        w1.Reset();
+    }
+
+}
+
 
 int main(int argc, char *argv[])
 {
@@ -146,23 +396,29 @@ int main(int argc, char *argv[])
     unsigned int totSizeS;
     unsigned int stepSize;
     unsigned int Ls;
+    unsigned int version;
+    bool single;
+    bool coarse;
     bool rb;
 
     if (argc < 9)
     {
-        std::cerr << "usage: " << argv[0] << " <Ls> <RB {0|1}> <minBatchSizeEV> <maxBatchSizeEV> <minBatchSizeSrc> <maxBatchSizeSrc> <Total EV> <Total Src> <Step Size> [Grid options]";
+        std::cerr << "usage: " << argv[0] << " <Ls> <RB {0|1}> <coarse {0|1}> <single {0|1}> <minBatchSizeEV> <maxBatchSizeEV> <minBatchSizeSrc> <maxBatchSizeSrc> <Total EV> <Total Src> <Step Size> <version> [Grid options]";
         std::cerr << std::endl;
     }
 
     Ls = std::stoi(argv[1]);
     rb = (std::string(argv[2]) == "1");
-    minBatchSizeE = std::stoi(argv[3]);
-    maxBatchSizeE = std::stoi(argv[4]);
-    minBatchSizeS = std::stoi(argv[5]);
-    maxBatchSizeS = std::stoi(argv[6]);
-    totSizeE      = std::stoi(argv[7]);
-    totSizeS      = std::stoi(argv[8]);
-    stepSize      = std::stoi(argv[9]);
+    coarse = (std::string(argv[3]) == "1");
+    single = (std::string(argv[4]) == "1");
+    minBatchSizeE = std::stoi(argv[5]);
+    maxBatchSizeE = std::stoi(argv[6]);
+    minBatchSizeS = std::stoi(argv[7]);
+    maxBatchSizeS = std::stoi(argv[8]);
+    totSizeE      = std::stoi(argv[9]);
+    totSizeS      = std::stoi(argv[10]);
+    stepSize      = std::stoi(argv[11]);
+    version       = std::stoi(argv[12]);
 
     if (minBatchSizeE < 1 || minBatchSizeS < 1)
     {
@@ -182,10 +438,38 @@ int main(int argc, char *argv[])
     int64_t threads = GridThread::GetThreads();
     auto    mpi     = GridDefaultMpi();
 
+    auto *g = makeGrid(Ls, rb, single);
+
     LOG(Message) << "Grid is setup to use " << threads << " threads" << std::endl;
     LOG(Message) << "MPI partition " << mpi << std::endl;
 
-    scanner(Ls, rb, minBatchSizeE, maxBatchSizeE, minBatchSizeS, maxBatchSizeS, totSizeE, totSizeS, stepSize);
+    const uint64_t nsimd = g->Nsimd();
+    const uint64_t sites = g->oSites();
+
+    LOG(Debug) << "Check Grid type" << std::endl;
+    LOG(Debug) << " - cb  : " << g->_isCheckerBoarded << std::endl;
+    LOG(Debug) << " - fdim: " << g->_fdimensions << std::endl;
+
+    if (coarse)
+    {
+        auto *g = makeGrid(Ls, rb, 0, 0);
+        auto *gc = makeGrid(Ls, rb, 0, 1,{2,2,2,2});
+
+        scannerCoarse<FIMPL>(g, gc, minBatchSizeE, maxBatchSizeE, totSizeE, totSizeS, stepSize, version);
+    }
+    else
+    {
+        auto *g = makeGrid(Ls, rb, single);
+
+        if(single)
+        {
+            scanner<FIMPLF,GIMPLF>(g, single, minBatchSizeE, maxBatchSizeE, minBatchSizeS, maxBatchSizeS, totSizeE, totSizeS, stepSize, version);
+        }
+        else
+        {
+            scanner<FIMPL,GIMPL>(g, single, minBatchSizeE, maxBatchSizeE, minBatchSizeS, maxBatchSizeS, totSizeE, totSizeS, stepSize, version);
+        }
+    }
 
     LOG(Message) << "---End of Scan---" << std::endl;
 
