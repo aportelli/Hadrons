@@ -12,7 +12,7 @@ using namespace Grid;
 using namespace Hadrons;
 
 
-template<typename F, typename G>
+template<typename F>
 void ProjAccumRunner(std::vector<typename F::FermionField> &in, std::vector<typename F::FermionField> &out, unsigned int eb, unsigned int sb, unsigned int totSizeE)
 {
     GridBase *g       = in[0].Grid();
@@ -56,7 +56,7 @@ void ProjAccumRunner(std::vector<typename F::FermionField> &in, std::vector<type
 
             w1.Start();
             //MGuesser::BatchExactDeflationGuesser<FermionEigenPack<F>,G>::projAccumulate(in, out, Epack, evBlockSize, j, j + srcBlockSize);
-            BatchDeflationUtils::projAccumulate<F>(in, out, Epack.evec, Epack.eval, 0, evBlockSize, j, j+1)
+            BatchDeflationUtils::projAccumulate<typename F::FermionField>(in, out, Epack.evec, Epack.eval, 0, evBlockSize, j, j+1);
             w1.Stop();
             ProjAccum += w1.Elapsed();
             w1.Reset();
@@ -68,8 +68,8 @@ void ProjAccumRunner(std::vector<typename F::FermionField> &in, std::vector<type
     LOG(Message) << "ProjAccum out norm: " << norm2(out[0]) << std::endl;
 
 }
-/*
-template<typename F, typename G>
+
+template<typename F>
 void ProjAccumRunnerF(std::vector<typename F::FermionField> &in, std::vector<typename F::FermionField> &out, unsigned int eb, unsigned int sb, unsigned int totSizeE)
 {
     GridBase *g       = in[0].Grid();
@@ -127,7 +127,7 @@ void ProjAccumRunnerF(std::vector<typename F::FermionField> &in, std::vector<typ
     LOG(Message) << "ProjAccum out norm: " << norm2(out[0]) << std::endl;
 
 }
-*/
+
 GridBase * makeGrid(const unsigned int Ls, const bool rb, const bool single=false, const bool coarse=false, std::vector<int> blockSize={1,1,1,1,1})
 {
   auto &env = Environment::getInstance();
@@ -237,8 +237,8 @@ GridBase * makeGrid(const unsigned int Ls, const bool rb, const bool single=fals
     }
   } 
 }
-/*
-template <typename F, typename G>
+
+template <typename F>
 typename std::enable_if<std::is_same<FIMPL,F>::value, void>::type
 projtype( std::vector<typename F::FermionField> srcVec, std::vector<typename F::FermionField> outVec,
           unsigned int eb, unsigned int sb, unsigned int totSizeE)
@@ -247,16 +247,17 @@ projtype( std::vector<typename F::FermionField> srcVec, std::vector<typename F::
             LOG(Message) << "Double precision not supported by ProjectAccumF" << std::endl;
           
         }
-template <typename F, typename G>
+template <typename F>
 typename std::enable_if<std::is_same<FIMPLF,F>::value, void>::type
 projtype( std::vector<typename F::FermionField> srcVec, std::vector<typename F::FermionField> outVec,
           unsigned int eb, unsigned int sb, unsigned int totSizeE)
-          { ProjAccumRunnerF<F,G>(srcVec, outVec, eb, sb, totSizeE); }
-*/
+          { ProjAccumRunnerF<F>(srcVec, outVec, eb, sb, totSizeE); }
 
 
 
-template <typename F, typename G> void scanner(GridBase *g, bool single,
+
+template <typename F> 
+void scanner(GridBase *g, bool single,
              unsigned int minBatchSizeE, unsigned int maxBatchSizeE, 
              unsigned int minBatchSizeS, unsigned int maxBatchSizeS,
              unsigned int totSizeE, unsigned int totSizeS, unsigned int stepSize,
@@ -295,18 +296,19 @@ template <typename F, typename G> void scanner(GridBase *g, bool single,
 
             if(version == 0)
             {
-                ProjAccumRunner<F,G>(srcVec, outVec, eb, sb, totSizeE);
+                ProjAccumRunner<F>(srcVec, outVec, eb, sb, totSizeE);
 
             }
-            //if(version == 1)
-            //{
-            //    projtype<F,G>(srcVec, outVec, eb, sb, totSizeE);
-            //}
+            if(version == 1)
+            {
+                projtype<F>(srcVec, outVec, eb, sb, totSizeE);
+            }
         }
     }
 }
 
-template <typename F> void scannerCoarse(GridBase *g, GridBase *gc,
+template <typename F> 
+void scannerCoarse(GridBase *g, GridBase *gc,
              unsigned int minSubspaceSize, unsigned int maxSubspaceSize,
              unsigned int totSizeE, unsigned int totSizeS, 
              unsigned int stepSize, unsigned int version)
