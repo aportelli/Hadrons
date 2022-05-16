@@ -5,6 +5,7 @@
 #include <Hadrons/Module.hpp>
 #include <Hadrons/Environment.hpp>
 #include <Hadrons/Global.hpp>
+#include <Hadrons/Modules/MGuesser/BatchDeflationUtils.hpp>
 
 using namespace std;
 using namespace Grid;
@@ -54,7 +55,8 @@ void ProjAccumRunner(std::vector<typename F::FermionField> &in, std::vector<type
             LOG(Message) << "srcBlockSize: " << srcBlockSize << std::endl;
 
             w1.Start();
-            MGuesser::BatchExactDeflationGuesser<FermionEigenPack<F>,G>::projAccumulate(in, out, Epack, evBlockSize, j, j + srcBlockSize);
+            //MGuesser::BatchExactDeflationGuesser<FermionEigenPack<F>,G>::projAccumulate(in, out, Epack, evBlockSize, j, j + srcBlockSize);
+            BatchDeflationUtils::projAccumulate<F>(in, out, Epack.evec, Epack.eval, 0, evBlockSize, j, j+1)
             w1.Stop();
             ProjAccum += w1.Elapsed();
             w1.Reset();
@@ -66,7 +68,7 @@ void ProjAccumRunner(std::vector<typename F::FermionField> &in, std::vector<type
     LOG(Message) << "ProjAccum out norm: " << norm2(out[0]) << std::endl;
 
 }
-
+/*
 template<typename F, typename G>
 void ProjAccumRunnerF(std::vector<typename F::FermionField> &in, std::vector<typename F::FermionField> &out, unsigned int eb, unsigned int sb, unsigned int totSizeE)
 {
@@ -112,7 +114,8 @@ void ProjAccumRunnerF(std::vector<typename F::FermionField> &in, std::vector<typ
             LOG(Message) << "srcBlockSize: " << srcBlockSize << std::endl;
 
             w1.Start();
-            MGuesser::BatchExactDeflationGuesser<FermionEigenPack<F>,G>::projAccumulateF(in, out, Epack, evBlockSize, j, j + srcBlockSize);
+            //MGuesser::BatchExactDeflationGuesser<FermionEigenPack<F>,G>::projAccumulateF(in, out, Epack, evBlockSize, j, j + srcBlockSize);
+            BatchDeflationUtils::projAccumulate<F>(in, out, Epack.evec, Epack.eval, 0, evBlockSize, j, j+1)
             w1.Stop();
             ProjAccum += w1.Elapsed();
             w1.Reset();
@@ -124,7 +127,7 @@ void ProjAccumRunnerF(std::vector<typename F::FermionField> &in, std::vector<typ
     LOG(Message) << "ProjAccum out norm: " << norm2(out[0]) << std::endl;
 
 }
-
+*/
 GridBase * makeGrid(const unsigned int Ls, const bool rb, const bool single=false, const bool coarse=false, std::vector<int> blockSize={1,1,1,1,1})
 {
   auto &env = Environment::getInstance();
@@ -234,7 +237,7 @@ GridBase * makeGrid(const unsigned int Ls, const bool rb, const bool single=fals
     }
   } 
 }
-
+/*
 template <typename F, typename G>
 typename std::enable_if<std::is_same<FIMPL,F>::value, void>::type
 projtype( std::vector<typename F::FermionField> srcVec, std::vector<typename F::FermionField> outVec,
@@ -249,7 +252,7 @@ typename std::enable_if<std::is_same<FIMPLF,F>::value, void>::type
 projtype( std::vector<typename F::FermionField> srcVec, std::vector<typename F::FermionField> outVec,
           unsigned int eb, unsigned int sb, unsigned int totSizeE)
           { ProjAccumRunnerF<F,G>(srcVec, outVec, eb, sb, totSizeE); }
-
+*/
 
 
 
@@ -295,10 +298,10 @@ template <typename F, typename G> void scanner(GridBase *g, bool single,
                 ProjAccumRunner<F,G>(srcVec, outVec, eb, sb, totSizeE);
 
             }
-            if(version == 1)
-            {
-                projtype<F,G>(srcVec, outVec, eb, sb, totSizeE);
-            }
+            //if(version == 1)
+            //{
+            //    projtype<F,G>(srcVec, outVec, eb, sb, totSizeE);
+            //}
         }
     }
 }
