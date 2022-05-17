@@ -7,6 +7,10 @@
 #include <Hadrons/Global.hpp>
 #include <Hadrons/Modules/MGuesser/BatchDeflationUtils.hpp>
 
+#ifndef
+#define NBASIS 60
+#endif
+
 using namespace std;
 using namespace Grid;
 using namespace Hadrons;
@@ -307,7 +311,6 @@ void scanner(GridBase *g, bool single,
 
 template <typename F> 
 void scannerCoarse(GridBase *g, GridBase *gc,
-             unsigned int minSubspaceSize, unsigned int maxSubspaceSize,
              unsigned int totSizeE, unsigned int totSizeS, 
              unsigned int stepSize, unsigned int version)
 {
@@ -315,9 +318,9 @@ void scannerCoarse(GridBase *g, GridBase *gc,
     LOG(Debug) << " - cb  : " << g->_isCheckerBoarded << std::endl;
     LOG(Debug) << " - fdim: " << g->_fdimensions << std::endl;
 
-    //const int nbasis = 60; 
-    maxSubspaceSize = nbasis;
-    minSubspaceSize = nbasis;
+    const int nbasis = NBASIS; 
+    unsigned int maxSubspaceSize = nbasis;
+    unsigned int minSubspaceSize = nbasis-10;
 
     assert(nbasis<totSizeE);
 
