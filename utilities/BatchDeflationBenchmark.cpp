@@ -114,8 +114,7 @@ void ProjAccumRunnerF(std::vector<typename F::FermionField> &in, std::vector<typ
             LOG(Message) << "srcBlockSize: " << srcBlockSize << std::endl;
 
             w1.Start();
-            //MGuesser::BatchExactDeflationGuesser<FermionEigenPack<F>,G>::projAccumulateF(in, out, Epack, evBlockSize, j, j + srcBlockSize);
-            BatchDeflationUtils::projAccumulate<typename F::FermionField>(in, out, Epack.evec, Epack.eval, 0, evBlockSize, j, j+1)
+            BatchDeflationUtils::projAccumulate<typename F::FermionField>(in, out, Epack.evec, Epack.eval, 0, evBlockSize, j, j+1);
             w1.Stop();
             ProjAccum += w1.Elapsed();
             w1.Reset();
@@ -243,7 +242,6 @@ typename std::enable_if<std::is_same<FIMPL,F>::value, void>::type
 projtype( std::vector<typename F::FermionField> srcVec, std::vector<typename F::FermionField> outVec,
           unsigned int eb, unsigned int sb, unsigned int totSizeE)
         {
-            //ProjAccumRunner<F,G>(srcVec, outVec, eb, sb, totSizeE);
             LOG(Message) << "Double precision not supported by ProjectAccumF" << std::endl;
           
         }
@@ -317,9 +315,11 @@ void scannerCoarse(GridBase *g, GridBase *gc,
     LOG(Debug) << " - cb  : " << g->_isCheckerBoarded << std::endl;
     LOG(Debug) << " - fdim: " << g->_fdimensions << std::endl;
 
-    const int nbasis = 60; 
+    //const int nbasis = 60; 
     maxSubspaceSize = nbasis;
     minSubspaceSize = nbasis;
+
+    assert(nbasis<totSizeE);
 
     typedef iVector<vTComplex, nbasis>         CoarseSiteVector;
     typedef Lattice<CoarseSiteVector>          CoarseField;
@@ -340,7 +340,7 @@ void scannerCoarse(GridBase *g, GridBase *gc,
     GridStopWatch w1;
     GridTime Guesser = GridTime::zero();
 
-    for (int ss = minSubspaceSize; ss <= maxSubspaceSize; ss += stepSize)
+    for (int ss = minSubspaceSize; ss <= maxSubspaceSize; ss = ss + stepSize)
     {
         LOG(Message) << "Scan Subspace size: " << ss << std::endl;
 
@@ -468,11 +468,11 @@ int main(int argc, char *argv[])
 
         if(single)
         {
-            scanner<FIMPLF,GIMPLF>(g, single, minBatchSizeE, maxBatchSizeE, minBatchSizeS, maxBatchSizeS, totSizeE, totSizeS, stepSize, version);
+            scanner<FIMPLF>(g, single, minBatchSizeE, maxBatchSizeE, minBatchSizeS, maxBatchSizeS, totSizeE, totSizeS, stepSize, version);
         }
         else
         {
-            scanner<FIMPL,GIMPL>(g, single, minBatchSizeE, maxBatchSizeE, minBatchSizeS, maxBatchSizeS, totSizeE, totSizeS, stepSize, version);
+            scanner<FIMPL>(g, single, minBatchSizeE, maxBatchSizeE, minBatchSizeS, maxBatchSizeS, totSizeE, totSizeS, stepSize, version);
         }
     }
 
