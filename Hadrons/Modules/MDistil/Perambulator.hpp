@@ -181,8 +181,8 @@ void TPerambulator<FImpl>::setup(void)
         HADRONS_ERROR(Argument, "sourceBatchSize must divide nNoise * nD");
     }
     //need a vector here
-    envTmp(std::vector<FermionField>,  "dist_source_vec",  sourceBatchSize, 1, grid4d);
-    envTmp(std::vector<FermionField>,  "fermion4dtmp_vec", sourceBatchSize, 1, grid4d);
+    envTmp(std::vector<FermionField>,  "dist_source_vec",  1, sourceBatchSize, envGetGrid(FermionField));
+    envTmp(std::vector<FermionField>,  "fermion4dtmp_vec", 1, sourceBatchSize, envGetGrid(FermionField));
 
     // Perambulator dimensions need to use the reduced value for nDL     
     envCreate(PerambTensor, getName(), 1, Nt, nVec, nDL_reduced, nNoise, nSourceT, nDS);
@@ -209,8 +209,8 @@ void TPerambulator<FImpl>::setup(void)
         Ls_ = env().getObjectLs(par().solver);
         envTmpLat(FermionField, "v5dtmp", Ls_);
         envTmpLat(FermionField, "v5dtmp_sol", Ls_);
-        envTmp(std::vector<FermionField>, "v5dtmp_vec", sourceBatchSize, Ls_, grid4d);
-        envTmp(std::vector<FermionField>, "v5dtmp_sol_vec", sourceBatchSize, Ls_, grid4d);
+        envTmp(std::vector<FermionField>, "v5dtmp_vec", Ls_, sourceBatchSize, envGetGrid(FermionField, Ls_));
+        envTmp(std::vector<FermionField>, "v5dtmp_sol_vec", Ls_,  sourceBatchSize, envGetGrid(FermionField, Ls_));
     }
 }
 
@@ -274,7 +274,7 @@ void TPerambulator<FImpl>::execute(void)
     std::vector<int> invT;
     nSourceT = getSourceTimesFromInput(sourceT,nDT,dilNoise,invT);    
     perambulator.MetaData.timeSources = invT;
-
+    
     int sourceBatchSize = par().sourceBatchSize;
     envGetTmp(std::vector<FermionField>, dist_source_vec);
     envGetTmp(std::vector<FermionField>, fermion4dtmp_vec);
@@ -382,7 +382,7 @@ void TPerambulator<FImpl>::execute(void)
                     START_P_TIMER("output solve");
                     dIndexSolve = ds + nDS * dk + nDL * nDS * idt;
                     auto &solveOut = envGet(std::vector<FermionField>, getName()+"_full_solve");
-                    solveOut[inoise+nNoise*dIndexSolve] = fermion4dtmp;
+                    solveOut[inoise+nNoise*dIndexSolve] = fermion4dtmp_vec[iSource];
                     STOP_P_TIMER("output solve");
                 }
                 if(perambMode == pMode::saveSolve)
@@ -393,7 +393,7 @@ void TPerambulator<FImpl>::execute(void)
                     std::string sFileName(par().fullSolveFileName);
                     sFileName.append("_noise");
                     sFileName.append(std::to_string(inoise));
-                    DistillationVectorsIo::writeComponent(sFileName, fermion4dtmp, "fullSolve", nNoise, nDL, nDS, nDT, invT, inoise+nNoise*dIndexSolve, vm().getTrajectory());
+                    DistillationVectorsIo::writeComponent(sFileName, fermion4dtmp_vec[iSource], "fullSolve", nNoise, nDL, nDS, nDT, invT, inoise+nNoise*dIndexSolve, vm().getTrajectory());
                     STOP_P_TIMER("save solve");
                 }
             }
