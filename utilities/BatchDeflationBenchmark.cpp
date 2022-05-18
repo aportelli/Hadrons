@@ -339,7 +339,6 @@ void scannerCoarse(GridBase *g, GridBase *gc,
     GridParallelRNG          RNG5C(gc);  RNG5.SeedFixedIntegers(seeds5C);
 
     GridStopWatch w1;
-    GridTime Guesser = GridTime::zero();
 
     coarseEvecSize = totSizeE - nbasis;
 
