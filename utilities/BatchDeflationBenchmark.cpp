@@ -318,9 +318,7 @@ void scannerCoarse(GridBase *g, GridBase *gc,
     LOG(Debug) << " - cb  : " << g->_isCheckerBoarded << std::endl;
     LOG(Debug) << " - fdim: " << g->_fdimensions << std::endl;
 
-    const int nbasis = NBASIS; 
-    unsigned int maxSubspaceSize = nbasis;
-    unsigned int minSubspaceSize = nbasis-10;
+    const int nbasis = NBASIS;
 
     assert(nbasis<totSizeE);
 
@@ -343,53 +341,48 @@ void scannerCoarse(GridBase *g, GridBase *gc,
     GridStopWatch w1;
     GridTime Guesser = GridTime::zero();
 
-    for (int ss = minSubspaceSize; ss <= maxSubspaceSize; ss = ss + stepSize)
+    coarseEvecSize = totSizeE - nbasis;
+
+    Epack.resize(nbasis, coarseEvecSize, g, gc);
+    
+    for (auto &s: srcVec)
     {
-        LOG(Message) << "Scan Subspace size: " << ss << std::endl;
-
-        coarseEvecSize = totSizeE - ss;
-
-        Epack.resize(ss, coarseEvecSize, g, gc);
-        
-        for (auto &s: srcVec)
-        {
-            random(RNG5,s);
-        }
-
-        for (auto &e: Epack.evec)
-        {
-            random(RNG5,e);
-        }
-
-        for (auto &e: Epack.eval)
-        {
-            random(RNG,e);
-        }
-            
-        for (auto &e: Epack.evecCoarse)
-        {
-            random(RNG5C,e);
-        }
-
-        for (auto &e: Epack.evalCoarse)
-        {
-            random(RNG,e);
-        }
-
-        for (auto &v: outVec)
-        {
-            v = Zero();
-        }
-        LOG(Message) << "Start LC Deflation with subspace of size " << ss << std::endl;
-        
-        LocalCoherenceDeflatedGuesser<typename F::FermionField, CoarseField> Guesser(Epack.evec, Epack.evecCoarse, Epack.evalCoarse);
-
-        w1.Start();
-        Guesser(srcVec, outVec);
-        w1.Stop();
-        LOG(Message) << "LC Deflation with subspace of size " << ss << " took: " << w1.Elapsed() << std::endl;
-        w1.Reset();
+        random(RNG5,s);
     }
+
+    for (auto &e: Epack.evec)
+    {
+        random(RNG5,e);
+    }
+
+    for (auto &e: Epack.eval)
+    {
+        random(RNG,e);
+    }
+        
+    for (auto &e: Epack.evecCoarse)
+    {
+        random(RNG5C,e);
+    }
+
+    for (auto &e: Epack.evalCoarse)
+    {
+        random(RNG,e);
+    }
+
+    for (auto &v: outVec)
+    {
+        v = Zero();
+    }
+    LOG(Message) << "Start LC Deflation with subspace of size " << nbasis << std::endl;
+    
+    LocalCoherenceDeflatedGuesser<typename F::FermionField, CoarseField> Guesser(Epack.evec, Epack.evecCoarse, Epack.evalCoarse);
+
+    w1.Start();
+    Guesser(srcVec, outVec);
+    w1.Stop();
+    LOG(Message) << "LC Deflation with subspace of size " << nbasis << " took: " << w1.Elapsed() << std::endl;
+    w1.Reset();
 
 }
 
@@ -463,7 +456,7 @@ int main(int argc, char *argv[])
         auto *g = makeGrid(Ls, rb, 0, 0);
         auto *gc = makeGrid(Ls, rb, 0, 1,{2,2,2,2});
 
-        scannerCoarse<FIMPL>(g, gc, minBatchSizeE, maxBatchSizeE, totSizeE, totSizeS, stepSize, version);
+        scannerCoarse<FIMPL>(g, gc, totSizeE, minBatchSizeE, maxBatchsizeE, totSizeS, stepSize, version);
     }
     else
     {
