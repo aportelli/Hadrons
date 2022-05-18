@@ -32,8 +32,8 @@ public:
     virtual ~TExactDistillation(void) {};
     // dependency relation
     virtual std::vector<std::string> getInput(void);
-    virtual std::vector<std::string> getReference(void);
     virtual std::vector<std::string> getOutput(void);
+    virtual DependencyMap getObjectDependencies(void);
     // setup
     virtual void setup(void);
     // execution
@@ -56,17 +56,19 @@ TExactDistillation<FImpl>::TExactDistillation(const std::string name)
 template <typename FImpl>
 std::vector<std::string> TExactDistillation<FImpl>::getInput(void)
 {
-    std::vector<std::string> in = {};
+    std::vector<std::string> in = {par().lapEigenPack};
     
     return in;
 }
 
 template <typename FImpl>
-std::vector<std::string> TExactDistillation<FImpl>::getReference(void)
+DependencyMap TExactDistillation<FImpl>::getObjectDependencies(void)
 {
-    std::vector<std::string> ref = {par().lapEigenPack};
+    DependencyMap dep;
 
-    return ref;
+    dep.insert({par().lapEigenPack, getName()});
+
+    return dep;
 }
 
 template <typename FImpl>
