@@ -7,7 +7,7 @@
 #include <Hadrons/Global.hpp>
 #include <Hadrons/Modules/MGuesser/BatchDeflationUtils.hpp>
 
-#ifndef
+#ifndef NBASIS
 #define NBASIS 60
 #endif
 
@@ -456,7 +456,7 @@ int main(int argc, char *argv[])
         auto *g = makeGrid(Ls, rb, 0, 0);
         auto *gc = makeGrid(Ls, rb, 0, 1,{2,2,2,2});
 
-        scannerCoarse<FIMPL>(g, gc, totSizeE, minBatchSizeE, maxBatchsizeE, totSizeS, stepSize, version);
+        scannerCoarse<FIMPL>(g, gc, totSizeE, totSizeS, stepSize, version);
     }
     else
     {
