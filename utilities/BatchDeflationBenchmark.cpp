@@ -260,11 +260,6 @@ void scannerCoarse(GridBase *g, GridBase *gc,
     coarseEvecSize = totSizeE - nbasis;
 
     Epack.resize(nbasis, coarseEvecSize, g, gc);
-    
-    //for (auto &s: srcVec)
-    //{
-    //    random(RNG5,s);
-    //}
 
     for (auto &e: Epack.evec)
     {
@@ -286,10 +281,6 @@ void scannerCoarse(GridBase *g, GridBase *gc,
         random(RNG,e);
     }
 
-    //for (auto &v: outVec)
-    //{
-    //    v = Zero();
-    //}
     LOG(Message) << "Start LC Deflation with subspace of size " << nbasis << std::endl;
     
     LocalCoherenceDeflatedGuesser<typename F::FermionField, CoarseField> Guesser(Epack.evec, Epack.evecCoarse, Epack.evalCoarse);
