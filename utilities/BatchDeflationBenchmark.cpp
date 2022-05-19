@@ -230,7 +230,7 @@ template <typename F>
 void scannerCoarse(GridBase *g, GridBase *gc,
              unsigned int minBatchSizeS, unsigned int maxBatchSizeS,
              unsigned int totSizeE, unsigned int totSizeS, 
-             unsigned int stepSize, unsigned int version)
+             unsigned int stepSize)
 {
     LOG(Debug) << "Check Grid type" << std::endl;
     LOG(Debug) << " - cb  : " << g->_isCheckerBoarded << std::endl;
@@ -330,7 +330,6 @@ int main(int argc, char *argv[])
     unsigned int totSizeS;
     unsigned int stepSize;
     unsigned int Ls;
-    unsigned int version;
     bool single;
     bool coarse;
     bool rb;
@@ -388,7 +387,7 @@ int main(int argc, char *argv[])
         auto *g = makeGrid(Ls, rb, 0, 0);
         auto *gc = makeGrid(Ls, rb, 0, 1,{2,2,2,2});
 
-        scannerCoarse<FIMPL>(g, gc, totSizeE, totSizeS, stepSize, version);
+        scannerCoarse<FIMPL>(g, gc, minBatchSizeS, maxBatchSizeS, totSizeE, totSizeS, stepSize);
     }
     else
     {
@@ -396,11 +395,11 @@ int main(int argc, char *argv[])
 
         if(single)
         {
-            scanner<FIMPLF>(g, single, minBatchSizeE, maxBatchSizeE, minBatchSizeS, maxBatchSizeS, totSizeE, totSizeS, stepSize, version);
+            scanner<FIMPLF>(g, single, minBatchSizeE, maxBatchSizeE, minBatchSizeS, maxBatchSizeS, totSizeE, totSizeS, stepSize);
         }
         else
         {
-            scanner<FIMPL>(g, single, minBatchSizeE, maxBatchSizeE, minBatchSizeS, maxBatchSizeS, totSizeE, totSizeS, stepSize, version);
+            scanner<FIMPL>(g, single, minBatchSizeE, maxBatchSizeE, minBatchSizeS, maxBatchSizeS, totSizeE, totSizeS, stepSize);
         }
     }
 
