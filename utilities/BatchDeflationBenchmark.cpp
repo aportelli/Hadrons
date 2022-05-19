@@ -186,8 +186,7 @@ template <typename F>
 void scanner(GridBase *g, bool single,
              unsigned int minBatchSizeE, unsigned int maxBatchSizeE, 
              unsigned int minBatchSizeS, unsigned int maxBatchSizeS,
-             unsigned int totSizeE, unsigned int totSizeS, unsigned int stepSize,
-             unsigned int version)
+             unsigned int totSizeE, unsigned int totSizeS, unsigned int stepSize)
 {
     LOG(Debug) << "Check Grid type" << std::endl;
     LOG(Debug) << " - cb  : " << g->_isCheckerBoarded << std::endl;
