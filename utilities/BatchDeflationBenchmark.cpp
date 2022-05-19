@@ -59,7 +59,6 @@ void ProjAccumRunner(std::vector<typename F::FermionField> &in, std::vector<type
             LOG(Message) << "srcBlockSize: " << srcBlockSize << std::endl;
 
             w1.Start();
-            //MGuesser::BatchExactDeflationGuesser<FermionEigenPack<F>,G>::projAccumulate(in, out, Epack, evBlockSize, j, j + srcBlockSize);
             BatchDeflationUtils::projAccumulate<typename F::FermionField>(in, out, Epack.evec, Epack.eval, 0, evBlockSize, j, j+1);
             w1.Stop();
             ProjAccum += w1.Elapsed();
