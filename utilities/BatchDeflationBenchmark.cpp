@@ -8,7 +8,7 @@
 #include <Hadrons/Modules/MGuesser/BatchDeflationUtils.hpp>
 
 #ifndef NBASIS
-#define NBASIS 60
+#define NBASIS 50
 #endif
 
 using namespace std;
@@ -26,64 +26,6 @@ void ProjAccumRunner(std::vector<typename F::FermionField> &in, std::vector<type
     std::vector<int> seeds5({5,6,7,8});
     GridSerialRNG            RNG;      RNG.SeedFixedIntegers(seeds);
     GridParallelRNG          RNG5(g);  RNG5.SeedFixedIntegers(seeds5);
-
-    GridStopWatch w1;
-    GridTime ProjAccum = GridTime::zero();
-
-    LOG(Message) << "ProjAccumRunner start" << std::endl;
-    
-    for (int i = 0; i < totSizeE; i += eb)
-    {
-        unsigned int evBlockSize = std::min(totSizeE - i, eb);
-        
-        LOG(Message) << "New eigenvector picks" << std::endl;
-
-        for (auto &e: Epack.evec)
-        {
-            random(RNG5,e);
-        }
-
-        for (auto &e: Epack.eval)
-        {
-            random(RNG,e);
-
-            LOG(Debug) << "eigenval random pick: " << e << std::endl;
-        }
-
-        LOG(Message) << "evBlockSize: " << evBlockSize << std::endl;
-
-        for(unsigned int j = 0; j < in.size(); j += sb)
-        {
-            unsigned int srcBlockSize = std::min((int)in.size() - j, sb);
-
-            LOG(Message) << "srcBlockSize: " << srcBlockSize << std::endl;
-
-            w1.Start();
-            BatchDeflationUtils::projAccumulate<typename F::FermionField>(in, out, Epack.evec, Epack.eval, 0, evBlockSize, j, j+1);
-            w1.Stop();
-            ProjAccum += w1.Elapsed();
-            w1.Reset();
-        }
-    }
-
-    LOG(Message) << "ProjAccumRunner end" << std::endl;
-    LOG(Message) << "ProjAccum total: " << ProjAccum << std::endl;
-    LOG(Message) << "ProjAccum out norm: " << norm2(out[0]) << std::endl;
-
-}
-
-template<typename F>
-void ProjAccumRunnerF(std::vector<typename F::FermionField> &in, std::vector<typename F::FermionField> &out, unsigned int eb, unsigned int sb, unsigned int totSizeE)
-{
-    GridBase *g       = in[0].Grid();
-    EigenPack<typename F::FermionField> Epack(eb, g, g);
-    
-    std::vector<int> seeds({1,2,3,4});
-    std::vector<int> seeds5({5,6,7,8});
-    GridSerialRNG            RNG;      RNG.SeedFixedIntegers(seeds);
-    GridParallelRNG          RNG5(g);  RNG5.SeedFixedIntegers(seeds5);
-
-    LOG(Message) << "Grid type of ev: " << typeid(Epack.evec[0]).name() << std::endl;
 
     GridStopWatch w1;
     GridTime ProjAccum = GridTime::zero();
@@ -240,23 +182,6 @@ GridBase * makeGrid(const unsigned int Ls, const bool rb, const bool single=fals
   } 
 }
 
-template <typename F>
-typename std::enable_if<std::is_same<FIMPL,F>::value, void>::type
-projtype( std::vector<typename F::FermionField> srcVec, std::vector<typename F::FermionField> outVec,
-          unsigned int eb, unsigned int sb, unsigned int totSizeE)
-        {
-            LOG(Message) << "Double precision not supported by ProjectAccumF" << std::endl;
-          
-        }
-template <typename F>
-typename std::enable_if<std::is_same<FIMPLF,F>::value, void>::type
-projtype( std::vector<typename F::FermionField> srcVec, std::vector<typename F::FermionField> outVec,
-          unsigned int eb, unsigned int sb, unsigned int totSizeE)
-          { ProjAccumRunnerF<F>(srcVec, outVec, eb, sb, totSizeE); }
-
-
-
-
 template <typename F> 
 void scanner(GridBase *g, bool single,
              unsigned int minBatchSizeE, unsigned int maxBatchSizeE, 
@@ -295,21 +220,15 @@ void scanner(GridBase *g, bool single,
                 v = Zero();
             }
 
-            if(version == 0)
-            {
-                ProjAccumRunner<F>(srcVec, outVec, eb, sb, totSizeE);
+            ProjAccumRunner<F>(srcVec, outVec, eb, sb, totSizeE);
 
-            }
-            if(version == 1)
-            {
-                projtype<F>(srcVec, outVec, eb, sb, totSizeE);
-            }
         }
     }
 }
 
 template <typename F> 
 void scannerCoarse(GridBase *g, GridBase *gc,
+             unsigned int minBatchSizeS, unsigned int maxBatchSizeS,
              unsigned int totSizeE, unsigned int totSizeS, 
              unsigned int stepSize, unsigned int version)
 {
@@ -343,10 +262,10 @@ void scannerCoarse(GridBase *g, GridBase *gc,
 
     Epack.resize(nbasis, coarseEvecSize, g, gc);
     
-    for (auto &s: srcVec)
-    {
-        random(RNG5,s);
-    }
+    //for (auto &s: srcVec)
+    //{
+    //    random(RNG5,s);
+    //}
 
     for (auto &e: Epack.evec)
     {
@@ -368,22 +287,38 @@ void scannerCoarse(GridBase *g, GridBase *gc,
         random(RNG,e);
     }
 
-    for (auto &v: outVec)
-    {
-        v = Zero();
-    }
+    //for (auto &v: outVec)
+    //{
+    //    v = Zero();
+    //}
     LOG(Message) << "Start LC Deflation with subspace of size " << nbasis << std::endl;
     
     LocalCoherenceDeflatedGuesser<typename F::FermionField, CoarseField> Guesser(Epack.evec, Epack.evecCoarse, Epack.evalCoarse);
 
-    w1.Start();
-    Guesser(srcVec, outVec);
-    w1.Stop();
-    LOG(Message) << "LC Deflation with subspace of size " << nbasis << " took: " << w1.Elapsed() << std::endl;
-    w1.Reset();
+    for (int sb = minBatchSizeS; sb <= maxBatchSizeS; sb += stepSize)
+    {
+        LOG(Message) << "Scan Source size: " << sb << std::endl;
 
+        srcVec.resize(sb,g);
+        outVec.resize(sb,g);
+            
+        for (auto &s: srcVec)
+        {
+            random(RNG5,s);
+        }
+
+        for (auto &v: outVec)
+        {
+            v = Zero();
+        }
+
+        w1.Start();
+        Guesser(srcVec, outVec);
+        w1.Stop();
+        LOG(Message) << "LC Deflation with subspace of size " << nbasis << " took: " << w1.Elapsed() << std::endl;
+        w1.Reset();
+    }
 }
-
 
 int main(int argc, char *argv[])
 {
@@ -400,9 +335,9 @@ int main(int argc, char *argv[])
     bool coarse;
     bool rb;
 
-    if (argc < 9)
+    if (argc < 11)
     {
-        std::cerr << "usage: " << argv[0] << " <Ls> <RB {0|1}> <coarse {0|1}> <single {0|1}> <minBatchSizeEV> <maxBatchSizeEV> <minBatchSizeSrc> <maxBatchSizeSrc> <Total EV> <Total Src> <Step Size> <version> [Grid options]";
+        std::cerr << "usage: " << argv[0] << " <Ls> <RB {0|1}> <coarse {0|1}> <single {0|1}> <minBatchSizeEV> <maxBatchSizeEV> <minBatchSizeSrc> <maxBatchSizeSrc> <Total EV> <Total Src> <Step Size> [Grid options]";
         std::cerr << std::endl;
     }
 
@@ -417,7 +352,6 @@ int main(int argc, char *argv[])
     totSizeE      = std::stoi(argv[9]);
     totSizeS      = std::stoi(argv[10]);
     stepSize      = std::stoi(argv[11]);
-    version       = std::stoi(argv[12]);
 
     if (minBatchSizeE < 1 || minBatchSizeS < 1)
     {
