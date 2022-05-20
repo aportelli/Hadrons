@@ -21,7 +21,7 @@ public:
                                     unsigned int, size);
 };
 
-template <typename EPack>
+template <typename EPack, int nBasis>
 class TCoarseExactDeflation: public Module<CoarseExactDeflationPar>
 {
 public:
@@ -96,7 +96,7 @@ void TCoarseExactDeflation<EPack, nbasis>::setup(void)
 
 // execution ///////////////////////////////////////////////////////////////////
 template <typename EPack, int nbasis>
-void TCoarseExactDeflation<EPack>::execute(void)
+void TCoarseExactDeflation<EPack, nBasis>::execute(void)
 {}
 
 END_MODULE_NAMESPACE
