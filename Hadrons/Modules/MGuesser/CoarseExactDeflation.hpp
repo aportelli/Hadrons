@@ -21,7 +21,7 @@ public:
                                     unsigned int, size);
 };
 
-template <typename EPack, int nBasis>
+template <typename EPack, int nbasis>
 class TCoarseExactDeflation: public Module<CoarseExactDeflationPar>
 {
 public:
@@ -48,14 +48,14 @@ MODULE_REGISTER_TMP(CoarseExactDeflationF, TCoarseExactDeflation<CoarseFermionEi
  *                 TExactDeflation implementation                             *
  ******************************************************************************/
 // constructor /////////////////////////////////////////////////////////////////
-template <typename EPack>
-TCoarseExactDeflation<EPack>::TCoarseExactDeflation(const std::string name)
+template <typename EPack, int nbasis>
+TCoarseExactDeflation<EPack, nbasis>::TCoarseExactDeflation(const std::string name)
 : Module<CoarseExactDeflationPar>(name)
 {}
 
 // dependencies/products ///////////////////////////////////////////////////////
-template <typename EPack>
-std::vector<std::string> TCoarseExactDeflation<EPack>::getInput(void)
+template <typename EPack, int nbasis>
+std::vector<std::string> TCoarseExactDeflation<EPack, nbasis>::getInput(void)
 {
     std::vector<std::string> in = {par().eigenPack};
     
@@ -63,7 +63,7 @@ std::vector<std::string> TCoarseExactDeflation<EPack>::getInput(void)
 }
 
 template <typename EPack, int nbasis>
-std::vector<std::string> TCoarseExactDeflation<EPack>::getOutput(void)
+std::vector<std::string> TCoarseExactDeflation<EPack, nbasis>::getOutput(void)
 {
     std::vector<std::string> out = {getName()};
     
@@ -96,7 +96,7 @@ void TCoarseExactDeflation<EPack, nbasis>::setup(void)
 
 // execution ///////////////////////////////////////////////////////////////////
 template <typename EPack, int nbasis>
-void TCoarseExactDeflation<EPack, nBasis>::execute(void)
+void TCoarseExactDeflation<EPack, nbasis>::execute(void)
 {}
 
 END_MODULE_NAMESPACE
