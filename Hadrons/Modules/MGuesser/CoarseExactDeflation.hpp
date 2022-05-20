@@ -21,11 +21,12 @@ public:
                                     unsigned int, size);
 };
 
-template <typename EPack, int nbasis>
+template <typename EPack>
 class TCoarseExactDeflation: public Module<CoarseExactDeflationPar>
 {
 public:
     typedef typename EPack::Field Field;
+    typedef typename EPack::CoarseField CoarseField;
 public:
     // constructor
     TCoarseExactDeflation(const std::string name);
@@ -41,37 +42,37 @@ public:
     virtual void execute(void);
 };
 
-MODULE_REGISTER_TMP(CoarseExactDeflation, TCoarseExactDeflation<CoarseFermionEigenPack<FIMPL,HADRONS_DEFAULT_LANCZOS_NBASIS>>, MGuesser);
-MODULE_REGISTER_TMP(CoarseExactDeflationF, TCoarseExactDeflation<CoarseFermionEigenPack<FIMPLF,HADRONS_DEFAULT_LANCZOS_NBASIS>>, MGuesser);
+MODULE_REGISTER_TMP(CoarseExactDeflation, ARG(TCoarseExactDeflation<CoarseFermionEigenPack<FIMPL,HADRONS_DEFAULT_LANCZOS_NBASIS>>), MGuesser);
+MODULE_REGISTER_TMP(CoarseExactDeflationF, ARG(TCoarseExactDeflation<CoarseFermionEigenPack<FIMPLF,HADRONS_DEFAULT_LANCZOS_NBASIS>>), MGuesser);
 
 /******************************************************************************
  *                 TExactDeflation implementation                             *
  ******************************************************************************/
 // constructor /////////////////////////////////////////////////////////////////
-template <typename EPack, int nbasis>
-TCoarseExactDeflation<EPack, nbasis>::TCoarseExactDeflation(const std::string name)
+template <typename EPack>
+TCoarseExactDeflation<EPack>::TCoarseExactDeflation(const std::string name)
 : Module<CoarseExactDeflationPar>(name)
 {}
 
 // dependencies/products ///////////////////////////////////////////////////////
-template <typename EPack, int nbasis>
-std::vector<std::string> TCoarseExactDeflation<EPack, nbasis>::getInput(void)
+template <typename EPack>
+std::vector<std::string> TCoarseExactDeflation<EPack>::getInput(void)
 {
     std::vector<std::string> in = {par().eigenPack};
     
     return in;
 }
 
-template <typename EPack, int nbasis>
-std::vector<std::string> TCoarseExactDeflation<EPack, nbasis>::getOutput(void)
+template <typename EPack>
+std::vector<std::string> TCoarseExactDeflation<EPack>::getOutput(void)
 {
     std::vector<std::string> out = {getName()};
     
     return out;
 }
 
-template <typename EPack, int nbasis>
-DependencyMap TCoarseExactDeflation<EPack, nbasis>::getObjectDependencies(void)
+template <typename EPack>
+DependencyMap TCoarseExactDeflation<EPack>::getObjectDependencies(void)
 {
     DependencyMap dep;
     
@@ -81,22 +82,21 @@ DependencyMap TCoarseExactDeflation<EPack, nbasis>::getObjectDependencies(void)
 }
 
 // setup ///////////////////////////////////////////////////////////////////////
-template <typename EPack, int nbasis>
-void TCoarseExactDeflation<EPack, nbasis>::setup(void)
+template <typename EPack>
+void TCoarseExactDeflation<EPack>::setup(void)
 {
     LOG(Message) << "Setting exact deflation guesser with eigenpack '"
-                 << par().eigenPack << "' (" 
-                 << par().size << " modes)" << std::endl;
+                 << par().eigenPack << std::endl;
     
     auto &epack = envGet(EPack, par().eigenPack);
-    envCreateDerived(LinearFunction<Field>,  LocalCoherenceDeflatedGuesser<Field,nbasis>, getName(),
-                     env().getObjectLs(par().eigenPack), epack.evec, epack.eval, par().size);
+    envCreateDerived(LinearFunction<Field>,  LocalCoherenceDeflatedGuesser<Field, CoarseField>, getName(),
+                     env().getObjectLs(par().eigenPack), epack.evec, epack.evecCoarse, epack.evalCoarse);
 
 }
 
 // execution ///////////////////////////////////////////////////////////////////
-template <typename EPack, int nbasis>
-void TCoarseExactDeflation<EPack, nbasis>::execute(void)
+template <typename EPack>
+void TCoarseExactDeflation<EPack>::execute(void)
 {}
 
 END_MODULE_NAMESPACE
