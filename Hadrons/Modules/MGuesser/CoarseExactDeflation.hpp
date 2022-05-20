@@ -89,7 +89,7 @@ void TCoarseExactDeflation<EPack>::setup(void)
                  << par().eigenPack << std::endl;
     
     auto &epack = envGet(EPack, par().eigenPack);
-    envCreateDerived(LinearFunction<Field>,  LocalCoherenceDeflatedGuesser<Field, CoarseField>, getName(),
+    envCreateDerived(LinearFunction<Field>, ARG(LocalCoherenceDeflatedGuesser<Field, CoarseField>), getName(),
                      env().getObjectLs(par().eigenPack), epack.evec, epack.evecCoarse, epack.evalCoarse);
 
 }
