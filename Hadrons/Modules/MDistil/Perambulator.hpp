@@ -284,65 +284,48 @@ void TPerambulator<FImpl>::execute(void)
         {
             // create batched sources
             // save all the inoise, d indices looped through to unroll them later
-            bool continueBatching = false;
-            if(iSource < sourceBatchSize)
+            index = dilNoise.dilutionCoordinates(d);
+            dt = index[DistillationNoise<FImpl>::Index::t];
+            dk = index[DistillationNoise<FImpl>::Index::l];
+            // Skip laplacian dilution indices which are larger than (reduced) number of eigenvectors used for the perambulator 
+            if(dk>=nDL_reduced)
             {
-                index = dilNoise.dilutionCoordinates(d);
-                dt = index[DistillationNoise<FImpl>::Index::t];
-                dk = index[DistillationNoise<FImpl>::Index::l];
-                // Skip laplacian dilution indices which are larger than (reduced) number of eigenvectors used for the perambulator 
-                if(dk>=nDL_reduced)
-                {
-                    continueBatching = true;
-                    break;
-                }
-                ds = index[DistillationNoise<FImpl>::Index::s];
-                std::vector<int>::iterator it = std::find(std::begin(invT), std::end(invT), dt);
-                // Skip dilution indices which are not in invT
-                if(it == std::end(invT))
-                {
-                    continueBatching = true;
-                    break;
-                }
-                idt=it - std::begin(invT);
-                // there is no reason to use this batched, but it works just as well
-                if(perambMode == pMode::inputSolve)
-                {
-                    START_P_TIMER("input solve");
-                    auto &solveIn = envGet(std::vector<FermionField>, par().fullSolve);
-                    // Index of the solve just has the reduced time dimension & uses nDL from solveIn
-                    dIndexSolve = ds + nDS * dk + nDL * nDS * idt;
-                    fermion4dtmp_vec[iSource] = solveIn[inoise+nNoise*dIndexSolve];
-                    STOP_P_TIMER("input solve");
-                    LOG(Message) << "re-using source vector: noise " << inoise << " dilution (d_t,d_k,d_alpha) : (" << dt << ","<< dk << "," << ds << ")" << std::endl;
-                } 
-                else 
-                {
-                    // Fill batched vector of distillation sources
-                    // also set solution batch vector to zero
-                    dist_source_vec[iSource] = dilNoise.makeSource(d,inoise);
-                    fermion4dtmp_vec[iSource]=0;
-                }
-                LOG(Message) <<  "fill index: " << inoise+nNoise*d << std::endl;
-                LOG(Message) <<  "source: " << iSource << std::endl;
-                sourceIndices[iSource]=inoise+nNoise*d;
-                iSource++;
-                continueBatching = true;
-            }
-            if(continueBatching)
-            {
-                LOG(Message) <<  "continue index: " << inoise+nNoise*d << std::endl;
                 continue;
             }
-            //overcounted by one, need to decrement indices
-            if(d==0)
+            ds = index[DistillationNoise<FImpl>::Index::s];
+            std::vector<int>::iterator it = std::find(std::begin(invT), std::end(invT), dt);
+            // Skip dilution indices which are not in invT
+            if(it == std::end(invT))
             {
-                d=nD-1;
-                inoise--;
+                continue;
             }
-            else
+            idt=it - std::begin(invT);
+            // there is no reason to use this batched, but it works just as well
+            if(perambMode == pMode::inputSolve)
             {
-                d--;
+                START_P_TIMER("input solve");
+                auto &solveIn = envGet(std::vector<FermionField>, par().fullSolve);
+                // Index of the solve just has the reduced time dimension & uses nDL from solveIn
+                dIndexSolve = ds + nDS * dk + nDL * nDS * idt;
+                fermion4dtmp_vec[iSource] = solveIn[inoise+nNoise*dIndexSolve];
+                STOP_P_TIMER("input solve");
+                LOG(Message) << "re-using source vector: noise " << inoise << " dilution (d_t,d_k,d_alpha) : (" << dt << ","<< dk << "," << ds << ")" << std::endl;
+            } 
+            else 
+            {
+                // Fill batched vector of distillation sources
+                // also set solution batch vector to zero
+                dist_source_vec[iSource] = dilNoise.makeSource(d,inoise);
+                fermion4dtmp_vec[iSource]=0;
+            }
+            LOG(Message) <<  "fill index: " << inoise+nNoise*d << std::endl;
+            LOG(Message) <<  "source: " << iSource << std::endl;
+            sourceIndices[iSource]=inoise+nNoise*d;
+            iSource++;
+            // if batch size not yet reached, continue batching
+            if(iSource < sourceBatchSize)
+            {
+                continue;
             }
             LOG(Message) <<  "batch built from indices: " << sourceIndices << std::endl;
             if(perambMode != pMode::inputSolve)
