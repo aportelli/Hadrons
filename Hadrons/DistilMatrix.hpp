@@ -391,6 +391,12 @@ private:
                                       unsigned int                      dt,
                                       unsigned int                      iibatch,
                                       std::map<Side, PerambTensor&>     peramb={});
+    void makeDvLapSpinCacheBlock(DistilVector&                      dv_cache,
+                               unsigned int                         dv_idx,
+                               std::map<Side, unsigned int>         n_idx,
+                               LapPack&                             epack,
+                               Side                                 s,
+                               std::map<Side, PerambTensor&>        peramb);
     void makeDvLapSpinBatch(std::map<Side, DistilVector&>               dv,
                                       std::map<Side, unsigned int>      n_idx,
                                       LapPack&                          epack,
@@ -591,6 +597,36 @@ void DmfComputation<FImpl,T,Tio>
         else if(isRho(s))
         {
             makeRhoComponent(dv.at(s)[iD] , distilNoise_.at(s) , n_idx.at(s) , D);
+        }
+    }
+}
+//makeDvLapSpinCacheBlock(dv.at(Side::left)[0],n_idx,epack,batch_dtL,peramb);
+template <typename FImpl, typename T, typename Tio>
+void DmfComputation<FImpl,T,Tio>
+::makeDvLapSpinCacheBlock(DistilVector&                             dv_cache,
+                               unsigned int                         dv_idx,
+                               std::map<Side, unsigned int>         n_idx,
+                               LapPack&                             epack,
+                               Side                                 s,
+                               std::map<Side, PerambTensor&>        peramb)
+{
+    for(unsigned int iD=0 ; iD<cacheSize_ ; iD++)
+    {
+        unsigned int D = iD + dv_idx;
+        if(isPhi(s))
+        {
+            if(vectorStem_.at(s).empty())
+            {
+                makePhiComponent(dv_cache[iD] , distilNoise_.at(s) , n_idx.at(s) , D , peramb.at(s), epack);
+            }
+            else
+            {
+                loadPhiComponent(dv_cache[iD] , distilNoise_.at(s) , n_idx.at(s) , D , vectorStem_.at(s), epack);
+            }
+        }
+        else if(isRho(s))
+        {
+            makeRhoComponent(dv_cache[iD] , distilNoise_.at(s) , n_idx.at(s) , D);
         }
     }
 }
@@ -945,12 +981,19 @@ void DmfComputation<FImpl,T,Tio>
     for (unsigned int ibatchL=0 ; ibatchL<time_dil_source.at(Side::left).size()/dvBatchSize_ ; ibatchL++)   //loop over left dv batches
     {
         std::vector<unsigned int> batch_dtL = fetchDvBatchIdxs(ibatchL,time_dil_source.at(Side::left));
+        START_TIMER("distil vectors");
+        //makeDvLapSpinBatch(dv, n_idx, epack, Side::left, batch_dtL, peramb);
+        STOP_TIMER("distil vectors");
         for (unsigned int idtL=0 ; idtL<batch_dtL.size() ; idtL++)
         {
             unsigned int dtL = batch_dtL[idtL];
             for (unsigned int ibatchR=0 ; ibatchR<time_dil_source.at(Side::right).size()/dvBatchSize_ ; ibatchR++)  //loop over right dv batches
             {
                 std::vector<unsigned int> batch_dtR = fetchDvBatchIdxs(ibatchR,time_dil_source.at(Side::right), diag_shift);
+
+                START_TIMER("distil vectors");
+                makeDvLapSpinBatch(dv, n_idx, epack, Side::right, batch_dtR, peramb);
+                STOP_TIMER("distil vectors");
                 for (unsigned int idtR=0 ; idtR<batch_dtR.size() ; idtR++)
                 {
                     unsigned int dtR = batch_dtR[idtR];
@@ -981,11 +1024,11 @@ void DmfComputation<FImpl,T,Tio>
                         LOG(Message) << "------------------------ " << dtL << "-" << dtR << " ------------------------" << std::endl; 
                         LOG(Message) << "Saving time slices : " << MDistil::timeslicesDump(ts_intersection) << std::endl;
 
-                        START_TIMER("distil vectors");
+/*                        START_TIMER("distil vectors");
                         makeDvLapSpinBatch(dv, n_idx, epack, Side::left, batch_dtL, peramb);
                         makeDvLapSpinBatch(dv, n_idx, epack, Side::right, batch_dtR, peramb);
                         STOP_TIMER("distil vectors");
-
+*/
                         unsigned int nblocki = dilSizeLS_.at(Side::left)/blockSize_ + (((dilSizeLS_.at(Side::left) % blockSize_) != 0) ? 1 : 0);
                         unsigned int nblockj = dilSizeLS_.at(Side::right)/blockSize_ + (((dilSizeLS_.at(Side::right) % blockSize_) != 0) ? 1 : 0);
 
@@ -1012,12 +1055,16 @@ void DmfComputation<FImpl,T,Tio>
                                 unsigned int icache_size = MIN(iblock_size-ii,cacheSize_);      
                                 unsigned int jcache_size = MIN(jblock_size-jj,cacheSize_);
                                 A2AMatrixSet<T> cache(cBuf_.data(), nExt_, nStr_, nt_, icache_size, jcache_size);
-
                                 double timer = 0.0;
                                 START_TIMER("kernel");
-                                unsigned int dv_idxL = idtL*dilSizeLS_.at(Side::left) +i+ii;
+                                //unsigned int dv_idxL = idtL*dilSizeLS_.at(Side::left) +i+ii;
+                                unsigned int dv_idxL = dtL*dilSizeLS_.at(Side::left) +i+ii;
                                 unsigned int dv_idxR = idtR*dilSizeLS_.at(Side::right) +j+jj;
-                                A2Autils<FImpl>::MesonField(cache, &dv.at(Side::left)[dv_idxL], &dv.at(Side::right)[dv_idxR], gamma, ph, nd_ - 1, &timer);
+                                // here, create left dilution component of size cacheBlock.
+                                // i.e. dv.at(Side::left)[dv_idxL]
+                                makeDvLapSpinCacheBlock(dv.at(Side::left),dv_idxL,n_idx,epack,Side::left,peramb);
+                                //A2Autils<FImpl>::MesonField(cache, &dv.at(Side::left)[dv_idxL], &dv.at(Side::right)[dv_idxR], gamma, ph, nd_ - 1, &timer);
+                                A2Autils<FImpl>::MesonField(cache, &dv.at(Side::left)[0], &dv.at(Side::right)[dv_idxR], gamma, ph, nd_ - 1, &timer);
                                 STOP_TIMER("kernel");
                                 time_kernel += timer;
 
