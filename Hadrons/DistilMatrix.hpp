@@ -981,9 +981,9 @@ void DmfComputation<FImpl,T,Tio>
     for (unsigned int ibatchL=0 ; ibatchL<time_dil_source.at(Side::left).size()/dvBatchSize_ ; ibatchL++)   //loop over left dv batches
     {
         std::vector<unsigned int> batch_dtL = fetchDvBatchIdxs(ibatchL,time_dil_source.at(Side::left));
-        START_TIMER("distil vectors");
+        //START_TIMER("distil vectors");
         //makeDvLapSpinBatch(dv, n_idx, epack, Side::left, batch_dtL, peramb);
-        STOP_TIMER("distil vectors");
+        //STOP_TIMER("distil vectors");
         for (unsigned int idtL=0 ; idtL<batch_dtL.size() ; idtL++)
         {
             unsigned int dtL = batch_dtL[idtL];
