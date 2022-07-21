@@ -807,11 +807,12 @@ void DmfComputation<FImpl,T,Tio>
         //loop over left dv batches
         for (unsigned int ibatchAnchored=0 ; ibatchAnchored<time_dil_source.at(anchored_side).size()/dvBatchSize_ ; ibatchAnchored++)
         {
-            START_TIMER("distil vectors");
             std::vector<unsigned int> batch_dtAnchored;
             batch_dtAnchored = fetchDvBatchIdxs(ibatchAnchored,time_dil_source.at(anchored_side));
-            makeDvLapSpinBatch(dv, n_idx, epack, anchored_side, batch_dtAnchored, peramb);
-            STOP_TIMER("distil vectors");
+            // this has to go deeper
+            //START_TIMER("distil vectors");
+            //makeDvLapSpinBatch(dv, n_idx, epack, anchored_side, batch_dtAnchored, peramb);
+            //STOP_TIMER("distil vectors");
             for (unsigned int idtAnchored=0 ; idtAnchored<batch_dtAnchored.size() ; idtAnchored++)
             {
                 unsigned int Tanchored = batch_dtAnchored[idtAnchored];
@@ -854,10 +855,18 @@ void DmfComputation<FImpl,T,Tio>
                         A2AMatrixSet<T> cache(cBuf_.data(), nExt_, nStr_, nt_, icache_size, jcache_size);
 
                         double timer = 0.0;
-                        START_TIMER("kernel");
                         unsigned int dv_idxLeftOffset = (relative_side==Side::right) ? idtAnchored*dilSizeLS_.at(Side::left) : 0;
                         unsigned int dv_idxRightOffset = (relative_side==Side::left) ? idtAnchored*dilSizeLS_.at(Side::right) : 0;
-                        A2Autils<FImpl>::MesonField(cache, &dv.at(Side::left)[dv_idxLeftOffset +i+ii], &dv.at(Side::right)[dv_idxRightOffset +j+jj], gamma, ph, nd_ - 1, &timer);
+                        // new stuff
+                        unsigned int dv_idxLeft  = (anchored_side==Side::left)  ? 0 : idtAnchored*dilSizeLS_.at(Side::left) + i + ii;
+                        unsigned int dv_idxRight = (anchored_side==Side::right) ? 0 : idtAnchored*dilSizeLS_.at(Side::right) + j + jj;
+                        unsigned int dv_idx_anchored = Tanchored*dilSizeLS_.at(anchored_side);
+                        // dv_idx_anchored needs +i+ii or +j+jj in it!!!!!      
+                        START_TIMER("distil vectors");
+                        makeDvLapSpinCacheBlock(dv.at(anchored_side),dv_idx_anchored,n_idx,epack,anchored_side,peramb);
+                        STOP_TIMER("distil vectors");
+                        START_TIMER("kernel");
+                        A2Autils<FImpl>::MesonField(cache, &dv.at(Side::left)[dv_idxLeft], &dv.at(Side::right)[dv_idxRight], gamma, ph, nd_ - 1, &timer);
                         STOP_TIMER("kernel");
                         time_kernel += timer;
 
@@ -981,9 +990,9 @@ void DmfComputation<FImpl,T,Tio>
     for (unsigned int ibatchL=0 ; ibatchL<time_dil_source.at(Side::left).size()/dvBatchSize_ ; ibatchL++)   //loop over left dv batches
     {
         std::vector<unsigned int> batch_dtL = fetchDvBatchIdxs(ibatchL,time_dil_source.at(Side::left));
-        //START_TIMER("distil vectors");
-        //makeDvLapSpinBatch(dv, n_idx, epack, Side::left, batch_dtL, peramb);
-        //STOP_TIMER("distil vectors");
+        START_TIMER("distil vectors");
+        makeDvLapSpinBatch(dv, n_idx, epack, Side::left, batch_dtL, peramb);
+        STOP_TIMER("distil vectors");
         for (unsigned int idtL=0 ; idtL<batch_dtL.size() ; idtL++)
         {
             unsigned int dtL = batch_dtL[idtL];
@@ -991,9 +1000,9 @@ void DmfComputation<FImpl,T,Tio>
             {
                 std::vector<unsigned int> batch_dtR = fetchDvBatchIdxs(ibatchR,time_dil_source.at(Side::right), diag_shift);
 
-                START_TIMER("distil vectors");
-                makeDvLapSpinBatch(dv, n_idx, epack, Side::right, batch_dtR, peramb);
-                STOP_TIMER("distil vectors");
+                //START_TIMER("distil vectors");
+                //makeDvLapSpinBatch(dv, n_idx, epack, Side::right, batch_dtR, peramb);
+                //STOP_TIMER("distil vectors");
                 for (unsigned int idtR=0 ; idtR<batch_dtR.size() ; idtR++)
                 {
                     unsigned int dtR = batch_dtR[idtR];
@@ -1057,14 +1066,17 @@ void DmfComputation<FImpl,T,Tio>
                                 A2AMatrixSet<T> cache(cBuf_.data(), nExt_, nStr_, nt_, icache_size, jcache_size);
                                 double timer = 0.0;
                                 START_TIMER("kernel");
-                                //unsigned int dv_idxL = idtL*dilSizeLS_.at(Side::left) +i+ii;
-                                unsigned int dv_idxL = dtL*dilSizeLS_.at(Side::left) +i+ii;
-                                unsigned int dv_idxR = idtR*dilSizeLS_.at(Side::right) +j+jj;
+                                unsigned int dv_idxL = idtL*dilSizeLS_.at(Side::left) +i+ii;
+                                //unsigned int dv_idxL = dtL*dilSizeLS_.at(Side::left) +i+ii;
+                                unsigned int dv_idxR = dtR*dilSizeLS_.at(Side::right) +j+jj;
+                                //unsigned int dv_idxR = idtR*dilSizeLS_.at(Side::right) +j+jj;
                                 // here, create left dilution component of size cacheBlock.
                                 // i.e. dv.at(Side::left)[dv_idxL]
-                                makeDvLapSpinCacheBlock(dv.at(Side::left),dv_idxL,n_idx,epack,Side::left,peramb);
+                                //makeDvLapSpinCacheBlock(dv.at(Side::left),dv_idxL,n_idx,epack,Side::left,peramb);
+                                makeDvLapSpinCacheBlock(dv.at(Side::right),dv_idxR,n_idx,epack,Side::right,peramb);
                                 //A2Autils<FImpl>::MesonField(cache, &dv.at(Side::left)[dv_idxL], &dv.at(Side::right)[dv_idxR], gamma, ph, nd_ - 1, &timer);
-                                A2Autils<FImpl>::MesonField(cache, &dv.at(Side::left)[0], &dv.at(Side::right)[dv_idxR], gamma, ph, nd_ - 1, &timer);
+                                //A2Autils<FImpl>::MesonField(cache, &dv.at(Side::left)[0], &dv.at(Side::right)[dv_idxR], gamma, ph, nd_ - 1, &timer);
+                                A2Autils<FImpl>::MesonField(cache, &dv.at(Side::left)[dv_idxL], &dv.at(Side::right)[0], gamma, ph, nd_ - 1, &timer);
                                 STOP_TIMER("kernel");
                                 time_kernel += timer;
 
