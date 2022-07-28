@@ -1061,7 +1061,17 @@ void DmfComputation<FImpl,T,Tio>
                             // iblock_size is the size of the current block (indexed by i); N_i-i is the size of the possible remainder block
                             unsigned int iblock_size = MIN(dilSizeLS_.at(Side::left)-i,blockSize_);
                             unsigned int jblock_size = MIN(dilSizeLS_.at(Side::right)-j,blockSize_);
-                            A2AMatrixSet<Tio> block(bBuf.data(), nExt_ , nStr_ , nt_, iblock_size, jblock_size);
+                            
+                            
+                            // compute the right local size of ext and str IO blocks; these will be used to identify which ext/str to copy from 
+                            // cBuf to bBuf and then which will be saved to disk using bBuf in the local node
+                            //need to know this on the Module class if buffers are external
+                            unsigned int inode = g_->ThisRank();
+                            unsigned int nnode = g_->RankCount();
+                            unsigned int nExtLocal = g_->IsBoss() ? nExt_/nnode + nExt_%nnode : nExt_/nnode; // put remainder in boss node
+                            unsigned int nStrLocal = g_->IsBoss() ? nStr_/nnode + nStr_%nnode : nStr_/nnode;
+                            // std::cout << std::endl << "Local node " << inode << " : nExtLocal=" << nExtLocal << " nStrLocal="  << nStrLocal << std::endl;
+                            A2AMatrixSet<Tio> block(bBuf.data(), nExtLocal , nStrLocal , nt_, iblock_size, jblock_size);
 
                             LOG(Message) << "Distil matrix block " 
                             << j/blockSize_ + nblocki*i/blockSize_ + 1 
@@ -1088,7 +1098,10 @@ void DmfComputation<FImpl,T,Tio>
                                 makeDvLapSpinCacheBlock(dv.at(Side::right),dv_idxR,n_idx,epack,Side::right,peramb);
                                 //A2Autils<FImpl>::MesonField(cache, &dv.at(Side::left)[dv_idxL], &dv.at(Side::right)[dv_idxR], gamma, ph, nd_ - 1, &timer);
                                 //A2Autils<FImpl>::MesonField(cache, &dv.at(Side::left)[0], &dv.at(Side::right)[dv_idxR], gamma, ph, nd_ - 1, &timer);
-                                A2Autils<FImpl>::MesonField(cache, &dv.at(Side::left)[dv_idxL], &dv.at(Side::right)[0], gamma, ph, nd_ - 1, &timer);
+                                
+                                // multinode operation saving answer to cBuf
+                                A2Autils<FImpl>::MesonField(cache, &dv.at(Side::left)[dv_idxL], &dv.at(Side::right)[0], gamma, ph, nd_ - 1, &timer); 
+                                
                                 STOP_TIMER("kernel");
                                 time_kernel += timer;
 
@@ -1096,16 +1109,21 @@ void DmfComputation<FImpl,T,Tio>
                                 bytes += vol*(12.0*sizeof(T))*icache_size*jcache_size
                                         +  vol*(2.0*sizeof(T)*nExt_)*icache_size*jcache_size*nStr_;
 
-                                // copy cache to block
+                                // copy cache to ioblock
                                 START_TIMER("cache copy");
                                 unsigned int ts_size = ts_intersection.size();
-                                thread_for_collapse(5,iext,nExt_,{
-                                for(unsigned int istr=0;istr<nStr_;istr++)
+                                thread_for_collapse(5,iext_local,nExtLocal,{
+                                for(unsigned int istr_local=0;istr_local<nStrLocal;istr_local++)
                                 for(unsigned int it=0;it<ts_size;it++)
                                 for(unsigned int iii=0;iii<icache_size;iii++)
                                 for(unsigned int jjj=0;jjj<jcache_size;jjj++)
                                 {
-                                    block(iext,istr,ts_intersection[it],ii+iii,jj+jjj)=cache(iext,istr,ts_intersection[it],iii,jjj);
+                                    // loop over nExtLocal , nStrLocal  and then find out the global ones indices iext istr
+                                    unsigned int iext = iext_local + inode * nExtLocal + (g_->IsBoss() ? 0 : nExt_%nnode );
+                                    unsigned int istr = istr_local + inode * nStrLocal + (g_->IsBoss() ? 0 : nStr_%nnode );
+                                    // std::cout << "iext_local=" << iext_local << " iext=" << iext << std::endl; 
+                                    // std::cout << "istr_local=" << istr_local << " istr=" << istr << std::endl; 
+                                    block(iext_local,istr_local,ts_intersection[it],ii+iii,jj+jjj) = cache(iext,istr,ts_intersection[it],iii,jjj);  //copy part of the answer that the local node will need to save to disk
                                 }
                                 });
                                 STOP_TIMER("cache copy");
@@ -1120,8 +1138,8 @@ void DmfComputation<FImpl,T,Tio>
                             blockBytes_ += bytes/time_kernel*1.0e6/1024/1024/1024/nodes;
 
                             // io section
-                            unsigned int inode = g_->ThisRank();
-                            unsigned int nnode = g_->RankCount(); 
+                            // unsigned int inode = g_->ThisRank();
+                            // unsigned int nnode = g_->RankCount(); 
                             LOG(Message) << "Starting parallel IO. Rank count=" << nnode << std::endl;
                             for(unsigned int t=0 ; t<nt_ ; t++)
                             {
@@ -1133,7 +1151,8 @@ void DmfComputation<FImpl,T,Tio>
                                 if( !( isRho(Side::left) and std::count(left_partition.begin(), left_partition.end(), t)==0  ) 
                                     and !(isRho(Side::right) and std::count(right_partition.begin(), right_partition.end(), t)==0) )
                                 {
-                                    DistilMatrixSet<Tio> block_relative(bBuf.data(), nExt_ , nStr_ , iblock_size, jblock_size);
+                                    // follow the same buffer size reduction as block
+                                    DistilMatrixSet<Tio> block_relative(bBuf.data(), nExtLocal , nStrLocal , iblock_size, jblock_size); 
                                     std::string dataset_name = std::to_string(dtL)+"-"+std::to_string(dtR);
                                     LOG(Message)    << "Saving block block " << dataset_name << " , t=" << t << std::endl;
 
@@ -1141,12 +1160,19 @@ void DmfComputation<FImpl,T,Tio>
                                     START_TIMER("IO: total");
 #ifdef HADRONS_A2AM_PARALLEL_IO
                                     g_->Barrier();
-                                    for(unsigned int k=inode ; k<nExt_*nStr_ ; k+=nnode)
+                                    // for(unsigned int k=inode ; k<nExt_*nStr_ ; k+=nnode)    // change to local variables nStrLocal and nExtLocal?
+                                    // {
+                                    //     unsigned int iext = k/nStr_;
+                                    //     unsigned int istr = k%nStr_;
+                                    for(unsigned int iext_local=0;iext_local<nExtLocal;iext_local++)
+                                    for(unsigned int istr_local=0;istr_local<nStrLocal;istr_local++)
                                     {
-                                        unsigned int iext = k/nStr_;
-                                        unsigned int istr = k%nStr_;
-
-                                        // metadata;
+                                        unsigned int iext = iext_local + inode * nExtLocal + (g_->IsBoss() ? 0 : nExt_%nnode );
+                                        unsigned int istr = istr_local + inode * nStrLocal + (g_->IsBoss() ? 0 : nStr_%nnode );
+                                        // std::cout << "iext_local=" << iext_local << " iext=" << iext << std::endl; 
+                                        // std::cout << "istr_local=" << istr_local << " istr=" << istr << std::endl; 
+                                        
+                                        // metadata
                                         DistilMatrixIo<HADRONS_DISTIL_IO_TYPE> matrix_io(filenameDmfFn(iext, istr, n_idx.at(Side::left), n_idx.at(Side::right)),
                                                 DISTIL_MATRIX_NAME, nt_, dilSizeLS_.at(Side::left), dilSizeLS_.at(Side::right));
 
@@ -1165,7 +1191,7 @@ void DmfComputation<FImpl,T,Tio>
                                             STOP_TIMER("IO: file creation");
                                         }
                                         START_TIMER("IO: write block");
-                                        matrix_io.saveBlock(block_relative, iext, istr, i, j, dataset_name, t, blockSize_);
+                                        matrix_io.saveBlock(block_relative, iext_local, istr_local, i, j, dataset_name, t, blockSize_);
                                         STOP_TIMER("IO: write block");
                                     }
                                     g_->Barrier();
@@ -1174,7 +1200,7 @@ void DmfComputation<FImpl,T,Tio>
 #endif              
                                     STOP_TIMER("IO: total");
                                     ioTime    += GET_TIMER("IO: write block");
-                                    unsigned int bytesBlockSize  = static_cast<double>(nExt_*nStr_*iblock_size*jblock_size*sizeof(Tio));
+                                    unsigned int bytesBlockSize  = static_cast<double>(nExtLocal*nStrLocal*iblock_size*jblock_size*sizeof(Tio));
                                     double iospeed = bytesBlockSize/ioTime*1.0e6/1024/1024;
                                     LOG(Message)    << "HDF5 IO done " << sizeString(bytesBlockSize) << " in "
                                                     << ioTime  << " us (" << iospeed << " MB/s)" << std::endl;

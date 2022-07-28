@@ -252,7 +252,10 @@ void TDistilMesonFieldFixed<FImpl>::setup(void)
     //envTmp(DistilVector,                "dvl",          1, par().cacheSize, g);
     //envTmp(DistilVector,                "dvr",          1, DISTILVECTOR_TIME_cBATCH_SIZE*dilSizeLS_.at(Side::right), g);
     envTmp(DistilVector,                "dvr",          1, par().cacheSize, g);
-    envTmp(Vector<HADRONS_DISTIL_IO_TYPE>, "block_buf", 1, nt * nExt * nStr * par().blockSize * par().blockSize);
+    unsigned int nnode = g->RankCount();
+    unsigned int nExtLocal = g->IsBoss() ? nExt/nnode + nExt%nnode : nExt/nnode; // put remainder in boss node
+    unsigned int nStrLocal = g->IsBoss() ? nStr/nnode + nStr%nnode : nStr/nnode;
+    envTmp(Vector<HADRONS_DISTIL_IO_TYPE>, "block_buf", 1, nt * nExtLocal * nStrLocal * par().blockSize * par().blockSize);
     envTmp(Vector<HADRONS_DISTIL_TYPE>,    "cache_buf", 1, nt * nExt * nStr * par().cacheSize * par().cacheSize);
     envTmp(Computation,                 "computation",  1, dmfType_, g, g3d, noisel, noiser, par().blockSize, 
                 par().cacheSize, env().getDim(g->Nd() - 1), momenta_.size(), gamma_.size(), isExact_, vm().getTrajectory(), par().leftVectorStem, par().rightVectorStem);
