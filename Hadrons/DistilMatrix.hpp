@@ -41,6 +41,10 @@
 #define HADRONS_DISTIL_IO_TYPE ComplexF
 #endif
 
+#ifndef HADRONS_DISTIL_TYPE
+#define HADRONS_DISTIL_TYPE ComplexD
+#endif
+
 // number of distil vector time-dilution components held in memory at the same time
 #ifndef DISTILVECTOR_TIME_BATCH_SIZE
 #define DISTILVECTOR_TIME_BATCH_SIZE 1
@@ -337,8 +341,8 @@ private:
     GridCartesian*                      g3d_;
     ColourVectorField                   evec3d_;
     FermionField                        tmp3d_, tmp4d_;
-    std::vector<Tio>                    bBuf_;
-    std::vector<T>                      cBuf_;
+    // std::vector<Tio>                    bBuf_;
+    // std::vector<T>                      cBuf_;
     const unsigned int                  blockSize_; //eventually turns into io chunk size
     const unsigned int                  cacheSize_;
     const unsigned int                  traj_;
@@ -428,8 +432,10 @@ private:
                                const unsigned int                   delta_t,
                                std::map<Side, PerambTensor&>        peramb);
 public:
-    void executeRelative(const FilenameFn                             &filenameDmfFn,
-                       const MetadataFn                               &metadataDmfFn,
+    void executeRelative(const FilenameFn&                            filenameDmfFn,
+                       const MetadataFn&                              metadataDmfFn,
+                       Vector<Tio>&                                   bBuf,
+                       Vector<T>&                                     cBuf,
                        std::vector<Gamma::Algebra>                    gamma,
                        std::map<Side, DistilVector&>                  dv,
                        std::map<Side, unsigned int>                   n_idx,
@@ -440,8 +446,10 @@ public:
                        Side                                           relative_side,
                        std::vector<unsigned int>                      delta_t_list,
                        std::map<Side, PerambTensor&>                  peramb={});
-    void executeFixed(const FilenameFn                               &filenameDmfFn,
-                 const MetadataFn                               &metadataDmfFn,
+    void executeFixed(const FilenameFn&                         filenameDmfFn,
+                 const MetadataFn&                              metadataDmfFn,
+                 Vector<Tio>&                                   bBuf,
+                 Vector<T>&                                     cBuf,
                  std::vector<Gamma::Algebra>                    gamma,
                  std::map<Side, DistilVector&>                  dv,
                  std::map<Side, unsigned int>                   n_idx,
@@ -478,8 +486,8 @@ DmfComputation<FImpl,T,Tio>
 , nt_(nt) , nd_(g->Nd()), blockSize_(block_size) , cacheSize_(cache_size)
 , nExt_(n_ext) , nStr_(n_str) , isExact_(is_exact), traj_(traj)
 {
-    cBuf_.resize(nExt_*nStr_*nt_*cacheSize_*cacheSize_);
-    bBuf_.resize(nExt_*nStr_*nt_*blockSize_*blockSize_); //maximum size
+    // cBuf_.resize(nExt_*nStr_*nt_*cacheSize_*cacheSize_);
+    // bBuf_.resize(nExt_*nStr_*nt_*blockSize_*blockSize_); //maximum size
 
     distilNoise_ = std::map<Side, DistillationNoise&> ({{Side::left,nl},{Side::right,nr}});
     dilSizeLS_ = { {Side::left,nl.dilutionSize(Index::l)*nl.dilutionSize(Index::s)} ,
@@ -782,8 +790,10 @@ void DmfComputation<FImpl,T,Tio>
 
 template <typename FImpl, typename T, typename Tio>
 void DmfComputation<FImpl,T,Tio>
-::executeRelative(const FilenameFn                            &filenameDmfFn,
-                const MetadataFn                              &metadataDmfFn,
+::executeRelative(const FilenameFn&                           filenameDmfFn,
+                const MetadataFn&                             metadataDmfFn,
+                Vector<Tio>&                                  bBuf,
+                Vector<T>&                                    cBuf,
                 std::vector<Gamma::Algebra>                   gamma,
                 std::map<Side, DistilVector&>                 dv,
                 std::map<Side, unsigned int>                  n_idx,
@@ -838,7 +848,7 @@ void DmfComputation<FImpl,T,Tio>
                     // iblock_size is the size of the current block (indexed by i); N_i-i is the size of the possible remainder block
                     unsigned int iblock_size = MIN(dilSizeLS_.at(Side::left)-i,blockSize_);
                     unsigned int jblock_size = MIN(dilSizeLS_.at(Side::right)-j,blockSize_);
-                    A2AMatrixSet<Tio> block(bBuf_.data(), nExt_ , nStr_ , nt_, iblock_size, jblock_size);
+                    A2AMatrixSet<Tio> block(bBuf.data(), nExt_ , nStr_ , nt_, iblock_size, jblock_size);
 
                     LOG(Message) << "Distil matrix block " 
                     << j/blockSize_ + nblocki*i/blockSize_ + 1 
@@ -852,7 +862,7 @@ void DmfComputation<FImpl,T,Tio>
                     {
                         unsigned int icache_size = MIN(iblock_size-ii,cacheSize_);      
                         unsigned int jcache_size = MIN(jblock_size-jj,cacheSize_);
-                        A2AMatrixSet<T> cache(cBuf_.data(), nExt_, nStr_, nt_, icache_size, jcache_size);
+                        A2AMatrixSet<T> cache(cBuf.data(), nExt_, nStr_, nt_, icache_size, jcache_size);
 
                         double timer = 0.0;
                         unsigned int dv_idxLeftOffset = (relative_side==Side::right) ? idtAnchored*dilSizeLS_.at(Side::left) : 0;
@@ -906,7 +916,7 @@ void DmfComputation<FImpl,T,Tio>
                         unsigned int t = (time_dil_source.at(relative_side)[it] + delta_t)%nt_;
                         const unsigned int Trelative = time_dil_source.at(relative_side)[it];
 
-                        DistilMatrixSet<Tio> block_relative(bBuf_.data(), nExt_ , nStr_ , iblock_size, jblock_size);
+                        DistilMatrixSet<Tio> block_relative(bBuf.data(), nExt_ , nStr_ , iblock_size, jblock_size);
 
                         std::string dataset_name;
                         dataset_name = std::to_string( (relative_side==Side::right) ? Tanchored : Trelative ) 
@@ -971,8 +981,10 @@ void DmfComputation<FImpl,T,Tio>
 
 template <typename FImpl, typename T, typename Tio>
 void DmfComputation<FImpl,T,Tio>
-::executeFixed(const FilenameFn                         &filenameDmfFn,
-          const MetadataFn                              &metadataDmfFn,
+::executeFixed(const FilenameFn&                        filenameDmfFn,
+          const MetadataFn&                             metadataDmfFn,
+          Vector<Tio>&                                  bBuf,
+          Vector<T>&                                    cBuf,
           std::vector<Gamma::Algebra>                   gamma,
           std::map<Side, DistilVector&>                 dv,
           std::map<Side, unsigned int>                  n_idx,
@@ -1049,7 +1061,7 @@ void DmfComputation<FImpl,T,Tio>
                             // iblock_size is the size of the current block (indexed by i); N_i-i is the size of the possible remainder block
                             unsigned int iblock_size = MIN(dilSizeLS_.at(Side::left)-i,blockSize_);
                             unsigned int jblock_size = MIN(dilSizeLS_.at(Side::right)-j,blockSize_);
-                            A2AMatrixSet<Tio> block(bBuf_.data(), nExt_ , nStr_ , nt_, iblock_size, jblock_size);
+                            A2AMatrixSet<Tio> block(bBuf.data(), nExt_ , nStr_ , nt_, iblock_size, jblock_size);
 
                             LOG(Message) << "Distil matrix block " 
                             << j/blockSize_ + nblocki*i/blockSize_ + 1 
@@ -1063,7 +1075,7 @@ void DmfComputation<FImpl,T,Tio>
                             {
                                 unsigned int icache_size = MIN(iblock_size-ii,cacheSize_);      
                                 unsigned int jcache_size = MIN(jblock_size-jj,cacheSize_);
-                                A2AMatrixSet<T> cache(cBuf_.data(), nExt_, nStr_, nt_, icache_size, jcache_size);
+                                A2AMatrixSet<T> cache(cBuf.data(), nExt_, nStr_, nt_, icache_size, jcache_size);
                                 double timer = 0.0;
                                 START_TIMER("kernel");
                                 unsigned int dv_idxL = idtL*dilSizeLS_.at(Side::left) +i+ii;
@@ -1121,7 +1133,7 @@ void DmfComputation<FImpl,T,Tio>
                                 if( !( isRho(Side::left) and std::count(left_partition.begin(), left_partition.end(), t)==0  ) 
                                     and !(isRho(Side::right) and std::count(right_partition.begin(), right_partition.end(), t)==0) )
                                 {
-                                    DistilMatrixSet<Tio> block_relative(bBuf_.data(), nExt_ , nStr_ , iblock_size, jblock_size);
+                                    DistilMatrixSet<Tio> block_relative(bBuf.data(), nExt_ , nStr_ , iblock_size, jblock_size);
                                     std::string dataset_name = std::to_string(dtL)+"-"+std::to_string(dtR);
                                     LOG(Message)    << "Saving block block " << dataset_name << " , t=" << t << std::endl;
 

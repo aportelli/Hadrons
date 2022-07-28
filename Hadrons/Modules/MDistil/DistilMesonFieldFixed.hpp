@@ -72,7 +72,7 @@ class TDistilMesonFieldFixed: public Module<DistilMesonFieldFixedPar>
 {
 public:
     FERM_TYPE_ALIASES(FImpl,);
-    typedef DmfComputation<FImpl, Complex, HADRONS_DISTIL_IO_TYPE>    Computation;
+    typedef DmfComputation<FImpl, HADRONS_DISTIL_TYPE, HADRONS_DISTIL_IO_TYPE>    Computation;
 public:
     typedef typename Computation::Index Index;
     typedef typename Computation::DistilVector DistilVector;
@@ -245,12 +245,15 @@ void TDistilMesonFieldFixed<FImpl>::setup(void)
         diagShift_=0;
     }
 
+    unsigned int nExt = momenta_.size() , nStr = gamma_.size();
     envTmpLat(ComplexField,             "coor");
-    envTmp(std::vector<ComplexField>,   "phase",        1, momenta_.size(), g );
+    envTmp(std::vector<ComplexField>,   "phase",        1, nExt, g );
     envTmp(DistilVector,                "dvl",          1, DISTILVECTOR_TIME_BATCH_SIZE*dilSizeLS_.at(Side::left), g);
     //envTmp(DistilVector,                "dvl",          1, par().cacheSize, g);
-    //envTmp(DistilVector,                "dvr",          1, DISTILVECTOR_TIME_BATCH_SIZE*dilSizeLS_.at(Side::right), g);
+    //envTmp(DistilVector,                "dvr",          1, DISTILVECTOR_TIME_cBATCH_SIZE*dilSizeLS_.at(Side::right), g);
     envTmp(DistilVector,                "dvr",          1, par().cacheSize, g);
+    envTmp(Vector<HADRONS_DISTIL_IO_TYPE>, "block_buf", 1, nt * nExt * nStr * par().blockSize * par().blockSize);
+    envTmp(Vector<HADRONS_DISTIL_TYPE>,    "cache_buf", 1, nt * nExt * nStr * par().cacheSize * par().cacheSize);
     envTmp(Computation,                 "computation",  1, dmfType_, g, g3d, noisel, noiser, par().blockSize, 
                 par().cacheSize, env().getDim(g->Nd() - 1), momenta_.size(), gamma_.size(), isExact_, vm().getTrajectory(), par().leftVectorStem, par().rightVectorStem);
 }
@@ -262,6 +265,8 @@ void TDistilMesonFieldFixed<FImpl>::execute(void)
     // temps
     envGetTmp(DistilVector, dvl);
     envGetTmp(DistilVector, dvr);
+    envGetTmp(Vector<HADRONS_DISTIL_IO_TYPE>, block_buf);
+    envGetTmp(Vector<HADRONS_DISTIL_TYPE>, cache_buf);
     envGetTmp(Computation,  computation);
     envGetTmp(std::vector<ComplexField>, phase);
 
@@ -453,11 +458,11 @@ void TDistilMesonFieldFixed<FImpl>::execute(void)
                     peramb.emplace(s , perambtemp);
                 }
             }
-            computation.executeFixed(filenameDmfFn, metadataDmfFn, gamma_, dist_vecs, noise_idx, phase, time_sources, epack, this, onlyDiag_, diagShift_, peramb);
+            computation.executeFixed(filenameDmfFn, metadataDmfFn, block_buf, cache_buf, gamma_, dist_vecs, noise_idx, phase, time_sources, epack, this, onlyDiag_, diagShift_, peramb);
         }
         else
         {
-            computation.executeFixed(filenameDmfFn, metadataDmfFn, gamma_, dist_vecs, noise_idx, phase, time_sources, epack, this, onlyDiag_, diagShift_);
+            computation.executeFixed(filenameDmfFn, metadataDmfFn, block_buf, cache_buf, gamma_, dist_vecs, noise_idx, phase, time_sources, epack, this, onlyDiag_, diagShift_);
         }
         LOG(Message) << "Meson fields saved to " << outputMFPath_ << std::endl;
     }

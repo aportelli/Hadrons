@@ -272,11 +272,14 @@ void TDistilMesonFieldRelative<FImpl>::setup(void)
 
     std::map<Side, unsigned int> dilSizeT = { {Side::left, relative_side_==Side::left ? 1 : DISTILVECTOR_TIME_BATCH_SIZE},
                                                 {Side::right, relative_side_==Side::right ? 1 : DISTILVECTOR_TIME_BATCH_SIZE} };  //the relative distilvector has always time-dilution dimension 1
-
+    
+    unsigned int nExt = momenta_.size() , nStr = gamma_.size();
     envTmpLat(ComplexField,             "coor");
-    envTmp(std::vector<ComplexField>,   "phase",        1, momenta_.size(), g );
+    envTmp(std::vector<ComplexField>,   "phase",        1, nExt, g );
     envTmp(DistilVector,                "dvl",          1, dilSizeT.at(Side::left)*dilSizeLS_.at(Side::left), g);
     envTmp(DistilVector,                "dvr",          1, dilSizeT.at(Side::right)*dilSizeLS_.at(Side::right), g);
+    envTmp(Vector<HADRONS_DISTIL_IO_TYPE>, "block_buf", 1, nt * nExt * nStr * par().blockSize * par().blockSize);
+    envTmp(Vector<HADRONS_DISTIL_TYPE>,    "cache_buf", 1, nt * nExt * nStr * par().cacheSize * par().cacheSize);
     envTmp(Computation,                 "computation",  1, dmfType_, g, g3d, noisel, noiser, par().blockSize, 
                 par().cacheSize, env().getDim(g->Nd() - 1), momenta_.size(), gamma_.size(), isExact_, vm().getTrajectory(), par().leftVectorStem, par().rightVectorStem);
 }
@@ -288,6 +291,8 @@ void TDistilMesonFieldRelative<FImpl>::execute(void)
     // temps
     envGetTmp(DistilVector, dvl);
     envGetTmp(DistilVector, dvr);
+    envGetTmp(Vector<HADRONS_DISTIL_IO_TYPE>, block_buf);
+    envGetTmp(Vector<HADRONS_DISTIL_TYPE>, cache_buf);
     envGetTmp(Computation,  computation);
     envGetTmp(std::vector<ComplexField>, phase);
 
@@ -479,11 +484,11 @@ void TDistilMesonFieldRelative<FImpl>::execute(void)
                     peramb.emplace(s , perambtemp);
                 }
             }
-            computation.executeRelative(filenameDmfFn, metadataDmfFn, gamma_, dist_vecs, noise_idx, phase, time_sources, epack, this, relative_side_, delta_t_list_, peramb);
+            computation.executeRelative(filenameDmfFn, metadataDmfFn, block_buf, cache_buf, gamma_, dist_vecs, noise_idx, phase, time_sources, epack, this, relative_side_, delta_t_list_, peramb);
         }
         else
         {
-            computation.executeRelative(filenameDmfFn, metadataDmfFn, gamma_, dist_vecs, noise_idx, phase, time_sources, epack, this, relative_side_, delta_t_list_);
+            computation.executeRelative(filenameDmfFn, metadataDmfFn, block_buf, cache_buf, gamma_, dist_vecs, noise_idx, phase, time_sources, epack, this, relative_side_, delta_t_list_);
         }
         LOG(Message) << "Meson fields saved to " << outputMFPath_ << std::endl;
     }
