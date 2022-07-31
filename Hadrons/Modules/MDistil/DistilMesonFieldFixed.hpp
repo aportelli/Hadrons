@@ -248,8 +248,8 @@ void TDistilMesonFieldFixed<FImpl>::setup(void)
     unsigned int nExt = momenta_.size() , nStr = gamma_.size();
     envTmpLat(ComplexField,             "coor");
     envTmp(std::vector<ComplexField>,   "phase",        1, nExt, g );
-    envTmp(DistilVector,                "dvl",          1, DISTILVECTOR_TIME_BATCH_SIZE*dilSizeLS_.at(Side::left), g);
-    //envTmp(DistilVector,                "dvl",          1, par().cacheSize, g);
+    // envTmp(DistilVector,                "dvl",          1, DISTILVECTOR_TIME_BATCH_SIZE*dilSizeLS_.at(Side::left), g);
+    envTmp(DistilVector,                "dvl",          1, par().cacheSize, g);
     //envTmp(DistilVector,                "dvr",          1, DISTILVECTOR_TIME_cBATCH_SIZE*dilSizeLS_.at(Side::right), g);
     envTmp(DistilVector,                "dvr",          1, par().cacheSize, g);
     unsigned int nnode = g->RankCount();

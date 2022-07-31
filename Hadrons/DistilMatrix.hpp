@@ -1034,9 +1034,9 @@ void DmfComputation<FImpl,T,Tio>
     for (unsigned int ibatchL=0 ; ibatchL<time_dil_source.at(Side::left).size()/dvBatchSize_ ; ibatchL++)   //loop over left dv batches
     {
         std::vector<unsigned int> batch_dtL = fetchDvBatchIdxs(ibatchL,time_dil_source.at(Side::left));
-        START_TIMER("distil vectors");
-        makeDvLapSpinBatch(dv, n_idx, epack, Side::left, batch_dtL, peramb);
-        STOP_TIMER("distil vectors");
+        // START_TIMER("distil vectors");
+        // makeDvLapSpinBatch(dv, n_idx, epack, Side::left, batch_dtL, peramb);
+        // STOP_TIMER("distil vectors");
         for (unsigned int idtL=0 ; idtL<batch_dtL.size() ; idtL++)
         {
             unsigned int dtL = batch_dtL[idtL];
@@ -1104,51 +1104,60 @@ void DmfComputation<FImpl,T,Tio>
 
                             // loop over cache blocks within the current block
                             for(unsigned int ii=0 ; ii<iblock_size ; ii+=cacheSize_)
-                            for(unsigned int jj=0 ; jj<jblock_size ; jj+=cacheSize_)
                             {
-                                unsigned int icache_size = MIN(iblock_size-ii,cacheSize_);      
-                                unsigned int jcache_size = MIN(jblock_size-jj,cacheSize_);
-                                DistilMatrixSetCache<T> cache(cBuf.data(), nExt_, nStr_, nt_, icache_size, jcache_size);
-                                double timer = 0.0;
-                                START_TIMER("kernel");
-                                unsigned int dv_idxL = idtL*dilSizeLS_.at(Side::left) +i+ii;
-                                //unsigned int dv_idxL = dtL*dilSizeLS_.at(Side::left) +i+ii;
-                                unsigned int dv_idxR = dtR*dilSizeLS_.at(Side::right) +j+jj;
-                                //unsigned int dv_idxR = idtR*dilSizeLS_.at(Side::right) +j+jj;
-                                // here, create left dilution component of size cacheBlock.
-                                // i.e. dv.at(Side::left)[dv_idxL]
-                                //makeDvLapSpinCacheBlock(dv.at(Side::left),dv_idxL,n_idx,epack,Side::left,peramb);
-                                makeDvLapSpinCacheBlock(dv.at(Side::right),dv_idxR,n_idx,epack,Side::right,peramb);
-                                //A2Autils<FImpl>::MesonField(cache, &dv.at(Side::left)[dv_idxL], &dv.at(Side::right)[dv_idxR], gamma, ph, nd_ - 1, &timer);
-                                //A2Autils<FImpl>::MesonField(cache, &dv.at(Side::left)[0], &dv.at(Side::right)[dv_idxR], gamma, ph, nd_ - 1, &timer);
-                                
-                                // multinode operation saving answer to cBuf
-                                A2Autils<FImpl>::MesonField(cache, &dv.at(Side::left)[dv_idxL], &dv.at(Side::right)[0], gamma, ph, nd_ - 1, &timer); 
-                                
-                                STOP_TIMER("kernel");
-                                time_kernel += timer;
+                                //unsigned int dv_idxL = idtL*dilSizeLS_.at(Side::left) +i+ii;
+                                unsigned int dv_idxL = dtL*dilSizeLS_.at(Side::left) +i+ii;
+                                START_TIMER("distil vectors");
+                                makeDvLapSpinCacheBlock(dv.at(Side::left),dv_idxL,n_idx,epack,Side::left,peramb);
+                                STOP_TIMER("distil vectors");
 
-                                flops += vol*(2*8.0+6.0+8.0*nExt_)*icache_size*jcache_size*nStr_;
-                                bytes += vol*(12.0*sizeof(T))*icache_size*jcache_size
-                                        +  vol*(2.0*sizeof(T)*nExt_)*icache_size*jcache_size*nStr_;
-
-                                // copy cache to ioblock
-                                g_->Barrier();
-                                START_TIMER("cache copy");
-                                unsigned int ts_size = ts_intersection.size();
-                                thread_for_collapse(4,iextstr_local,nExtStrLocal,{
-                                for(unsigned int it=0;it<ts_size;it++)
-                                for(unsigned int iii=0;iii<icache_size;iii++)
-                                for(unsigned int jjj=0;jjj<jcache_size;jjj++)
+                                for(unsigned int jj=0 ; jj<jblock_size ; jj+=cacheSize_)
                                 {
-                                    const unsigned int iextstr = iextstr_local + i_rank * nExtStrLocal + (g_->IsBoss() ? 0 : nExtStr%N_ranks );
-                                    const unsigned int iext = iextstr/nStr_;
-                                    const unsigned int istr = iextstr%nStr_;
-                                    block(iextstr_local,ts_intersection[it],ii+iii,jj+jjj) = cache(iext,istr,ts_intersection[it],iii,jjj);
+                                    unsigned int dv_idxR = dtR*dilSizeLS_.at(Side::right) +j+jj;
+                                    START_TIMER("distil vectors");
+                                    makeDvLapSpinCacheBlock(dv.at(Side::right),dv_idxR,n_idx,epack,Side::right,peramb);
+                                    STOP_TIMER("distil vectors");
+                                    
+                                    unsigned int icache_size = MIN(iblock_size-ii,cacheSize_);      
+                                    unsigned int jcache_size = MIN(jblock_size-jj,cacheSize_);
+                                    DistilMatrixSetCache<T> cache(cBuf.data(), nExt_, nStr_, nt_, icache_size, jcache_size);
+                                    double timer = 0.0;
+                                    //unsigned int dv_idxR = idtR*dilSizeLS_.at(Side::right) +j+jj;
+                                    // here, create left dilution component of size cacheBlock.
+                                    // i.e. dv.at(Side::left)[dv_idxL]
+                                    //makeDvLapSpinCacheBlock(dv.at(Side::left),dv_idxL,n_idx,epack,Side::left,peramb);
+                                    //A2Autils<FImpl>::MesonField(cache, &dv.at(Side::left)[dv_idxL], &dv.at(Side::right)[dv_idxR], gamma, ph, nd_ - 1, &timer);
+                                    //A2Autils<FImpl>::MesonField(cache, &dv.at(Side::left)[0], &dv.at(Side::right)[dv_idxR], gamma, ph, nd_ - 1, &timer);
+                                    
+                                    START_TIMER("kernel");
+                                    // multinode operation saving answer to cBuf
+                                    A2Autils<FImpl>::MesonField(cache, &dv.at(Side::left)[0], &dv.at(Side::right)[0], gamma, ph, nd_ - 1, &timer); 
+                                    STOP_TIMER("kernel");
+                                    
+                                    time_kernel += timer;
+
+                                    flops += vol*(2*8.0+6.0+8.0*nExt_)*icache_size*jcache_size*nStr_;
+                                    bytes += vol*(12.0*sizeof(T))*icache_size*jcache_size
+                                            +  vol*(2.0*sizeof(T)*nExt_)*icache_size*jcache_size*nStr_;
+
+                                    // copy cache to ioblock
+                                    g_->Barrier();
+                                    START_TIMER("cache copy");
+                                    unsigned int ts_size = ts_intersection.size();
+                                    thread_for_collapse(4,iextstr_local,nExtStrLocal,{
+                                    for(unsigned int it=0;it<ts_size;it++)
+                                    for(unsigned int iii=0;iii<icache_size;iii++)
+                                    for(unsigned int jjj=0;jjj<jcache_size;jjj++)
+                                    {
+                                        const unsigned int iextstr = iextstr_local + i_rank * nExtStrLocal + (g_->IsBoss() ? 0 : nExtStr%N_ranks );
+                                        const unsigned int iext = iextstr/nStr_;
+                                        const unsigned int istr = iextstr%nStr_;
+                                        block(iextstr_local,ts_intersection[it],ii+iii,jj+jjj) = cache(iext,istr,ts_intersection[it],iii,jjj);
+                                    }
+                                    });
+                                    STOP_TIMER("cache copy");
+                                    g_->Barrier();
                                 }
-                                });
-                                STOP_TIMER("cache copy");
-                                g_->Barrier();
                             }
 
                             LOG(Message) << "Kernel perf (flops) " << flops/time_kernel/1.0e3/nodes 
