@@ -278,7 +278,10 @@ void TDistilMesonFieldRelative<FImpl>::setup(void)
     envTmp(std::vector<ComplexField>,   "phase",        1, nExt, g );
     envTmp(DistilVector,                "dvl",          1, dilSizeT.at(Side::left)*dilSizeLS_.at(Side::left), g);
     envTmp(DistilVector,                "dvr",          1, dilSizeT.at(Side::right)*dilSizeLS_.at(Side::right), g);
-    envTmp(Vector<HADRONS_DISTIL_IO_TYPE>, "block_buf", 1, nt * nExt * nStr * par().blockSize * par().blockSize);
+     unsigned int nnode = g->RankCount();
+    const unsigned int nExtStr = nExt*nStr;
+    const unsigned int nExtStrLocal = g->IsBoss() ? nExtStr/nnode + nExtStr%nnode : nExtStr/nnode; // put remainder in boss node
+    envTmp(Vector<HADRONS_DISTIL_IO_TYPE>, "block_buf", 1, nt * nExtStrLocal * par().blockSize * par().blockSize);
     envTmp(Vector<HADRONS_DISTIL_TYPE>,    "cache_buf", 1, nt * nExt * nStr * par().cacheSize * par().cacheSize);
     envTmp(Computation,                 "computation",  1, dmfType_, g, g3d, noisel, noiser, par().blockSize, 
                 par().cacheSize, env().getDim(g->Nd() - 1), momenta_.size(), gamma_.size(), isExact_, vm().getTrajectory(), par().leftVectorStem, par().rightVectorStem);
