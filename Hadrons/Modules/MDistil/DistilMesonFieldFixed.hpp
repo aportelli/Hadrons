@@ -126,10 +126,10 @@ std::vector<std::string> TDistilMesonFieldFixed<FImpl>::getInput(void)
     dmfType_.emplace(Side::right  , (par().rightPeramb.empty() and par().rightVectorStem.empty()) ? "rho" : "phi");
     perambNames_ = {{Side::left,par().leftPeramb},{Side::right,par().rightPeramb}};
     vectorNames_ = {{Side::left,par().leftVectorStem},{Side::right,par().rightVectorStem}};
-    //require peramb dependency if phi case
+    //require peramb dependency if phi case and vector not passed
     for(Side s : sides)
     {
-        if(dmfType_.at(s)=="phi")
+        if(dmfType_.at(s)=="phi" and vectorNames_.at(s).empty())
         {
             in.push_back( s==Side::left ? par().leftPeramb : par().rightPeramb);
         }
@@ -239,6 +239,10 @@ void TDistilMesonFieldFixed<FImpl>::setup(void)
          dmfType_.at(Side::left)=="phi" and dmfType_.at(Side::right)=="phi" and !par().deltaT.empty()) //enables diagonal dtR shift only for phiphi field
     {
         diagShift_ = std::stoi(par().deltaT);
+        if(tSourceL_!=tSourceR_)
+        {
+            HADRONS_ERROR(Argument,"When in onlyDiagonal mode, time sources must be the same on left and right.");
+        }
     }
     else
     {
@@ -249,8 +253,6 @@ void TDistilMesonFieldFixed<FImpl>::setup(void)
     envTmpLat(ComplexField,             "coor");
     envTmp(std::vector<ComplexField>,   "phase",        1, nExt, g );
     envTmp(DistilVector,                "dvl",          1, DISTILVECTOR_TIME_BATCH_SIZE*dilSizeLS_.at(Side::left), g);
-    //envTmp(DistilVector,                "dvl",          1, par().cacheSize, g);
-    //envTmp(DistilVector,                "dvr",          1, DISTILVECTOR_TIME_cBATCH_SIZE*dilSizeLS_.at(Side::right), g);
     envTmp(DistilVector,                "dvr",          1, par().cacheSize, g);
     unsigned int nnode = g->RankCount();
     const unsigned int nExtStr = nExt*nStr;
@@ -298,24 +300,35 @@ void TDistilMesonFieldFixed<FImpl>::execute(void)
     std::map<Side, std::vector<int>> ts_peramb;
     for(Side s : sides)     
     {
-        if(computation.isPhi(s))
+        if(computation.isPhi(s)) // try fetching perambulator if side is phi
         {
-            auto & inPeramb = envGet(PerambTensor , perambNames_.at(s));
-            ts_peramb.emplace(s , inPeramb.MetaData.timeSources);
-            if(time_sources.at(s).empty())  //in case it's empty and it's a phi, include all available peramb time sources
+            if(vectorNames_.at(s).empty())  // and only if vector is not passed
             {
-                for(auto tperamb : ts_peramb.at(s))
+                auto & inPeramb = envGet(PerambTensor , perambNames_.at(s));
+                ts_peramb.emplace(s , inPeramb.MetaData.timeSources);
+                if(time_sources.at(s).empty())  //in case it's empty and it's a phi, include all available peramb time sources
                 {
-                    time_sources.at(s).push_back(static_cast<unsigned int>(tperamb));
+                    for(auto tperamb : ts_peramb.at(s))
+                    {
+                        time_sources.at(s).push_back(static_cast<unsigned int>(tperamb));
+                    }
+                }
+                else    // if it's not empty, validate it against peramb time sources (check if it is subset of that)
+                {
+                    if( !std::includes(ts_peramb.at(s).begin(), ts_peramb.at(s).end(),
+                                    time_sources.at(s).begin(), time_sources.at(s).end()) )
+                    {
+                        std::string errside = (s==Side::left) ? "left" : "right";
+                        HADRONS_ERROR(Argument,"Time sources are not available on " + errside + " perambulator");
+                    }
                 }
             }
-            else    // if it's not empty, validate it against peramb time sources (check if it is subset of that)
+            else // if vector is passed 
             {
-                if( !std::includes(ts_peramb.at(s).begin(), ts_peramb.at(s).end(),
-                                time_sources.at(s).begin(), time_sources.at(s).end()) )
+                if(time_sources.at(s).empty())   // assume all time sources are available if input is empty
                 {
-                    std::string errside = (s==Side::left) ? "left" : "right";
-                    HADRONS_ERROR(Argument,"Time sources are not available on " + errside + " perambulator");
+                    time_sources.at(s).resize(noises.at(s).dilutionSize(Index::t));
+                    std::iota( time_sources.at(s).begin() , time_sources.at(s).end() , 0);
                 }
             }
         }
@@ -456,7 +469,7 @@ void TDistilMesonFieldFixed<FImpl>::execute(void)
             std::map<Side, PerambTensor&> peramb;
             for(Side s : sides)
             {
-                if(computation.isPhi(s) and !perambNames_.at(s).empty()){
+                if(computation.isPhi(s) and !perambNames_.at(s).empty() and vectorNames_.at(s).empty()){
                     PerambTensor &perambtemp = envGet( PerambTensor , perambNames_.at(s));
                     peramb.emplace(s , perambtemp);
                 }

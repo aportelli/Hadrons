@@ -616,6 +616,68 @@ void DmfComputation<FImpl,T,Tio>
             else
             {
                 loadPhiComponent(dv.at(s)[iD] , distilNoise_.at(s) , n_idx.at(s) , D , vectorStem_.at(s), epack);
+
+                // // hack to check correctness on vector_solve reading: compute perambulator and smeared phi vector
+                // int nDL = n_idx.at(s).dilutionSize(DistillationNoise::Index::l);        
+                // int nDS = n_idx.at(s).dilutionSize(DistillationNoise::Index::s);        
+                // int nDT = n_idx.at(s).dilutionSize(DistillationNoise::Index::t);
+                // int nNoise = n_idx.at(s).size();
+                // const unsigned int nVec = epack.evec.size();
+                // const unsigned int Nt_first = g_->LocalStarts()[nd_ - 1];
+                // const unsigned int Nt_local = g_->LocalDimensions()[nd_ - 1];
+                // ColourVectorField cv4dtmp(g_);
+                // ColourVectorField cv3dtmp(g3d_);
+                // ColourVectorField evec3d(g3d_);
+                // std::vector<ColourVectorField> evec3d_tmp(Ntlocal * nVec, g3d_);
+                // std::vector<int> invT = {0,1,2,3,4,5,6,7}; //testing using all time sources
+                // MDistil::PerambTensor perambulator(Nt, nVec, nDL, nNoise, invT.size(), nDS);
+
+                // // split lapevec in slices
+                // for (int t = Nt_first; t < Nt_first + Nt_local; t++)
+                // {
+                //     for (int ivec = 0; ivec < nVec; ivec++)
+                //     {
+                //         int jvec= ivec + nVec * (t-Nt_first);
+                //         ExtractSliceLocal(evec3d,epack.evec[ivec],0,t-Nt_first,Tdir);
+                //         evec3d_tmp[jvec] = evec3d;
+                //     }
+                // }
+
+                // // compute peramb
+                // std::vector<int>::iterator it = std::find(std::begin(invT), std::end(invT), dt);
+                // auto index = n_idx.at(s).dilutionCoordinates(D);
+                // int dt = index[DistillationNoise::Index::t];
+                // int dk = index[DistillationNoise::Index::l];
+                // int ds = index[DistillationNoise::Index::s];
+                // int idt=it - std::begin(invT);
+                // for (int is = 0; is < Ns; is++)
+                // {
+                //     cv4dtmp = peekSpin(dv.at(s)[iD],is);
+                //     for (int t = Nt_first; t < Nt_first + Nt_local; t++)
+                //     {
+                //         ExtractSliceLocal(cv3dtmp,cv4dtmp,0,t-Nt_first,Tdir); 
+                //         for (int ivec = 0; ivec < nVec; ivec++)
+                //         {
+                //             int jvec= ivec + nVec * (t-Nt_first);
+                //             evec3d_ = evec3d_tmp[jvec];
+                //             pokeSpin(perambulator.tensor(t, ivec, dk, n_idx,idt,ds),static_cast<Complex>(innerProduct(evec3d_, cv3dtmp)),is);
+                //         }
+                //     }
+                // }
+
+                // // compute smeared phi
+                // for (unsigned int t = Nt_first; t < Nt_first + Nt_local; t++)
+                // {
+                //     tmp3d_ = Zero();
+                //     for (unsigned int k = 0; k < nVec; k++)
+                //     {
+                //         ExtractSliceLocal(evec3d_,epack.evec[k],0,t-Nt_first,nd_ - 1);
+                //         tmp3d_ += evec3d_ * perambulator.tensor(t, k, dk, n_idx, idt, ds);
+                //     }
+                //     InsertSliceLocal(tmp3d_,dv.at(s)[iD],0,t-Nt_first,nd_ - 1);
+                //     // by here dv.at(s)[iD] should now be the smeared source
+                // }
+
             }
         }
         else if(isRho(s))
@@ -842,10 +904,6 @@ void DmfComputation<FImpl,T,Tio>
         { 
             std::vector<unsigned int> batch_dtAnchored;
             batch_dtAnchored = fetchDvBatchIdxs(ibatchAnchored,time_dil_source.at(anchored_side));
-            // this has to go deeper
-            //START_TIMER("distil vectors");
-            //makeDvLapSpinBatch(dv, n_idx, epack, anchored_side, batch_dtAnchored, peramb);
-            //STOP_TIMER("distil vectors");
             for (unsigned int idtAnchored=0 ; idtAnchored<batch_dtAnchored.size() ; idtAnchored++)
             {
                 unsigned int Tanchored = batch_dtAnchored[idtAnchored];
@@ -1033,6 +1091,7 @@ void DmfComputation<FImpl,T,Tio>
     //loop over left dv batches
     for (unsigned int ibatchL=0 ; ibatchL<time_dil_source.at(Side::left).size()/dvBatchSize_ ; ibatchL++)   //loop over left dv batches
     {
+        LOG(Message) << "Computing (or loading) left distil vector:" << std::endl; 
         std::vector<unsigned int> batch_dtL = fetchDvBatchIdxs(ibatchL,time_dil_source.at(Side::left));
         START_TIMER("distil vectors");
         makeDvLapSpinBatch(dv, n_idx, epack, Side::left, batch_dtL, peramb);
@@ -1043,10 +1102,6 @@ void DmfComputation<FImpl,T,Tio>
             for (unsigned int ibatchR=0 ; ibatchR<time_dil_source.at(Side::right).size()/dvBatchSize_ ; ibatchR++)  //loop over right dv batches
             {
                 std::vector<unsigned int> batch_dtR = fetchDvBatchIdxs(ibatchR,time_dil_source.at(Side::right), diag_shift);
-
-                //START_TIMER("distil vectors");
-                //makeDvLapSpinBatch(dv, n_idx, epack, Side::right, batch_dtR, peramb);
-                //STOP_TIMER("distil vectors");
                 for (unsigned int idtR=0 ; idtR<batch_dtR.size() ; idtR++)
                 {
                     unsigned int dtR = batch_dtR[idtR];
@@ -1074,14 +1129,8 @@ void DmfComputation<FImpl,T,Tio>
                     if( !ts_intersection.empty() and 
                         ( !only_diag or ((dtL+diag_shift)%distilNoise_.at(Side::right).dilutionSize(Index::t)==dtR) ) )
                     {
-                        LOG(Message) << "------------------------ " << dtL << "-" << dtR << " ------------------------" << std::endl; 
-                        LOG(Message) << "Saving time slices : " << MDistil::timeslicesDump(ts_intersection) << std::endl;
-
-/*                        START_TIMER("distil vectors");
-                        makeDvLapSpinBatch(dv, n_idx, epack, Side::left, batch_dtL, peramb);
-                        makeDvLapSpinBatch(dv, n_idx, epack, Side::right, batch_dtR, peramb);
-                        STOP_TIMER("distil vectors");
-*/
+                        LOG(Message) << "------------ time-dilution block " << dtL << "-" << dtR << " ------------------------" << std::endl; 
+                        
                         unsigned int nblocki = dilSizeLS_.at(Side::left)/blockSize_ + (((dilSizeLS_.at(Side::left) % blockSize_) != 0) ? 1 : 0);
                         unsigned int nblockj = dilSizeLS_.at(Side::right)/blockSize_ + (((dilSizeLS_.at(Side::right) % blockSize_) != 0) ? 1 : 0);
 
@@ -1103,54 +1152,55 @@ void DmfComputation<FImpl,T,Tio>
                             << std::endl;
 
                             // loop over cache blocks within the current block
-                            for(unsigned int ii=0 ; ii<iblock_size ; ii+=cacheSize_)
                             for(unsigned int jj=0 ; jj<jblock_size ; jj+=cacheSize_)
                             {
-                                unsigned int icache_size = MIN(iblock_size-ii,cacheSize_);      
-                                unsigned int jcache_size = MIN(jblock_size-jj,cacheSize_);
-                                DistilMatrixSetCache<T> cache(cBuf.data(), nExt_, nStr_, nt_, icache_size, jcache_size);
-                                double timer = 0.0;
-                                START_TIMER("kernel");
-                                unsigned int dv_idxL = idtL*dilSizeLS_.at(Side::left) +i+ii;
-                                //unsigned int dv_idxL = dtL*dilSizeLS_.at(Side::left) +i+ii;
+                                LOG(Message) << "Computing (or loading) right distil vector block " << j+jj << std::endl;
+
                                 unsigned int dv_idxR = dtR*dilSizeLS_.at(Side::right) +j+jj;
-                                //unsigned int dv_idxR = idtR*dilSizeLS_.at(Side::right) +j+jj;
-                                // here, create left dilution component of size cacheBlock.
-                                // i.e. dv.at(Side::left)[dv_idxL]
-                                //makeDvLapSpinCacheBlock(dv.at(Side::left),dv_idxL,n_idx,epack,Side::left,peramb);
+                                START_TIMER("distil vectors");
                                 makeDvLapSpinCacheBlock(dv.at(Side::right),dv_idxR,n_idx,epack,Side::right,peramb);
-                                //A2Autils<FImpl>::MesonField(cache, &dv.at(Side::left)[dv_idxL], &dv.at(Side::right)[dv_idxR], gamma, ph, nd_ - 1, &timer);
-                                //A2Autils<FImpl>::MesonField(cache, &dv.at(Side::left)[0], &dv.at(Side::right)[dv_idxR], gamma, ph, nd_ - 1, &timer);
-                                
-                                // multinode operation saving answer to cBuf
-                                A2Autils<FImpl>::MesonField(cache, &dv.at(Side::left)[dv_idxL], &dv.at(Side::right)[0], gamma, ph, nd_ - 1, &timer); 
-                                
-                                STOP_TIMER("kernel");
-                                time_kernel += timer;
+                                STOP_TIMER("distil vectors");
 
-                                flops += vol*(2*8.0+6.0+8.0*nExt_)*icache_size*jcache_size*nStr_;
-                                bytes += vol*(12.0*sizeof(T))*icache_size*jcache_size
-                                        +  vol*(2.0*sizeof(T)*nExt_)*icache_size*jcache_size*nStr_;
-
-                                // copy cache to ioblock
-                                g_->Barrier();
-                                START_TIMER("cache copy");
-                                unsigned int ts_size = ts_intersection.size();
-                                thread_for_collapse(4,iextstr_local,nExtStrLocal,{
-                                for(unsigned int it=0;it<ts_size;it++)
-                                for(unsigned int iii=0;iii<icache_size;iii++)
-                                for(unsigned int jjj=0;jjj<jcache_size;jjj++)
+                                for(unsigned int ii=0 ; ii<iblock_size ; ii+=cacheSize_)
                                 {
-                                    const unsigned int iextstr = iextstr_local + i_rank * nExtStrLocal + (g_->IsBoss() ? 0 : nExtStr%N_ranks );
-                                    const unsigned int iext = iextstr/nStr_;
-                                    const unsigned int istr = iextstr%nStr_;
-                                    block(iextstr_local,ts_intersection[it],ii+iii,jj+jjj) = cache(iext,istr,ts_intersection[it],iii,jjj);
-                                }
-                                });
-                                STOP_TIMER("cache copy");
-                                g_->Barrier();
-                            }
+                                    unsigned int icache_size = MIN(iblock_size-ii,cacheSize_);      
+                                    unsigned int jcache_size = MIN(jblock_size-jj,cacheSize_);
 
+                                    DistilMatrixSetCache<T> cache(cBuf.data(), nExt_, nStr_, nt_, icache_size, jcache_size);
+                                    
+                                    unsigned int dv_idxL = idtL*dilSizeLS_.at(Side::left) +i+ii;
+                                    
+                                    double timer = 0.0;
+                                    START_TIMER("kernel");
+                                    // multinode operation saving answer to cBuf
+                                    A2Autils<FImpl>::MesonField(cache, &dv.at(Side::left)[dv_idxL], &dv.at(Side::right)[0], gamma, ph, nd_ - 1, &timer); 
+                                    STOP_TIMER("kernel");
+
+                                    time_kernel += timer;
+
+                                    flops += vol*(2*8.0+6.0+8.0*nExt_)*icache_size*jcache_size*nStr_;
+                                    bytes += vol*(12.0*sizeof(T))*icache_size*jcache_size
+                                            +  vol*(2.0*sizeof(T)*nExt_)*icache_size*jcache_size*nStr_;
+
+                                    // copy cache to ioblock
+                                    g_->Barrier();
+                                    START_TIMER("cache copy");
+                                    unsigned int ts_size = ts_intersection.size();
+                                    thread_for_collapse(4,iextstr_local,nExtStrLocal,{
+                                    for(unsigned int it=0;it<ts_size;it++)
+                                    for(unsigned int iii=0;iii<icache_size;iii++)
+                                    for(unsigned int jjj=0;jjj<jcache_size;jjj++)
+                                    {
+                                        const unsigned int iextstr = iextstr_local + i_rank * nExtStrLocal + (g_->IsBoss() ? 0 : nExtStr%N_ranks );
+                                        const unsigned int iext = iextstr/nStr_;
+                                        const unsigned int istr = iextstr%nStr_;
+                                        block(iextstr_local,ts_intersection[it],ii+iii,jj+jjj) = cache(iext,istr,ts_intersection[it],iii,jjj);
+                                    }
+                                    });
+                                    STOP_TIMER("cache copy");
+                                    g_->Barrier();
+                                }
+                            }
                             LOG(Message) << "Kernel perf (flops) " << flops/time_kernel/1.0e3/nodes 
                                         << " Gflop/s/node " << std::endl;
                             LOG(Message) << "Kernel perf (read) " << bytes/time_kernel*1.0e6/1024/1024/1024/nodes
@@ -1161,6 +1211,7 @@ void DmfComputation<FImpl,T,Tio>
 
                             // io section
                             LOG(Message) << "Starting parallel IO. Rank count=" << N_ranks << std::endl;
+                            LOG(Message) << "Saving time slices : " << MDistil::timeslicesDump(ts_intersection) << std::endl;
                             for(unsigned int t=0 ; t<nt_ ; t++)
                             {
                                 // TODO: generalise to dilution
@@ -1229,7 +1280,6 @@ void DmfComputation<FImpl,T,Tio>
     }
 }
 
-// END_MODULE_NAMESPACE
 END_HADRONS_NAMESPACE
 
 #endif // Distil_matrix_hpp_
