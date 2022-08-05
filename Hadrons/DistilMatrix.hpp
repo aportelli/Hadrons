@@ -618,19 +618,19 @@ void DmfComputation<FImpl,T,Tio>
                 loadPhiComponent(dv.at(s)[iD] , distilNoise_.at(s) , n_idx.at(s) , D , vectorStem_.at(s), epack);
 
                 // // hack to check correctness on vector_solve reading: compute perambulator and smeared phi vector
-                // int nDL = n_idx.at(s).dilutionSize(DistillationNoise::Index::l);        
-                // int nDS = n_idx.at(s).dilutionSize(DistillationNoise::Index::s);        
-                // int nDT = n_idx.at(s).dilutionSize(DistillationNoise::Index::t);
-                // int nNoise = n_idx.at(s).size();
+                // int nDL = distilNoise_.at(s).dilutionSize(DistillationNoise::Index::l);        
+                // int nDS = distilNoise_.at(s).dilutionSize(DistillationNoise::Index::s);        
+                // int nDT = distilNoise_.at(s).dilutionSize(DistillationNoise::Index::t);
+                // int nNoise = distilNoise_.at(s).size();
                 // const unsigned int nVec = epack.evec.size();
                 // const unsigned int Nt_first = g_->LocalStarts()[nd_ - 1];
                 // const unsigned int Nt_local = g_->LocalDimensions()[nd_ - 1];
                 // ColourVectorField cv4dtmp(g_);
                 // ColourVectorField cv3dtmp(g3d_);
                 // ColourVectorField evec3d(g3d_);
-                // std::vector<ColourVectorField> evec3d_tmp(Ntlocal * nVec, g3d_);
-                // std::vector<int> invT = {0,1,2,3,4,5,6,7}; //testing using all time sources
-                // MDistil::PerambTensor perambulator(Nt, nVec, nDL, nNoise, invT.size(), nDS);
+                // std::vector<ColourVectorField> evec3d_tmp(Nt_local * nVec, g3d_);
+                // std::vector<int> invT = {0};
+                // MDistil::PerambTensor perambulator(nt_, nVec, nDL, nNoise, invT.size(), nDS);
 
                 // // split lapevec in slices
                 // for (int t = Nt_first; t < Nt_first + Nt_local; t++)
@@ -645,11 +645,11 @@ void DmfComputation<FImpl,T,Tio>
 
                 // // compute peramb
                 // std::vector<int>::iterator it = std::find(std::begin(invT), std::end(invT), dt);
-                // auto index = n_idx.at(s).dilutionCoordinates(D);
+                // auto index = distilNoise_.at(s).dilutionCoordinates(D);
                 // int dt = index[DistillationNoise::Index::t];
                 // int dk = index[DistillationNoise::Index::l];
                 // int ds = index[DistillationNoise::Index::s];
-                // int idt=it - std::begin(invT);
+                // int idt = 0; //it - std::begin(invT);
                 // for (int is = 0; is < Ns; is++)
                 // {
                 //     cv4dtmp = peekSpin(dv.at(s)[iD],is);
@@ -660,7 +660,7 @@ void DmfComputation<FImpl,T,Tio>
                 //         {
                 //             int jvec= ivec + nVec * (t-Nt_first);
                 //             evec3d_ = evec3d_tmp[jvec];
-                //             pokeSpin(perambulator.tensor(t, ivec, dk, n_idx,idt,ds),static_cast<Complex>(innerProduct(evec3d_, cv3dtmp)),is);
+                //             pokeSpin(perambulator.tensor(t, ivec, dk, n_idx.at(s),idt,ds),static_cast<Complex>(innerProduct(evec3d_, cv3dtmp)),is);
                 //         }
                 //     }
                 // }
@@ -672,7 +672,7 @@ void DmfComputation<FImpl,T,Tio>
                 //     for (unsigned int k = 0; k < nVec; k++)
                 //     {
                 //         ExtractSliceLocal(evec3d_,epack.evec[k],0,t-Nt_first,nd_ - 1);
-                //         tmp3d_ += evec3d_ * perambulator.tensor(t, k, dk, n_idx, idt, ds);
+                //         tmp3d_ += evec3d_ * perambulator.tensor(t, k, dk, n_idx.at(s), idt, ds);
                 //     }
                 //     InsertSliceLocal(tmp3d_,dv.at(s)[iD],0,t-Nt_first,nd_ - 1);
                 //     // by here dv.at(s)[iD] should now be the smeared source
@@ -708,6 +708,68 @@ void DmfComputation<FImpl,T,Tio>
             else
             {
                 loadPhiComponent(dv_cache[iD] , distilNoise_.at(s) , n_idx.at(s) , D , vectorStem_.at(s), epack);
+
+                // // hack to check correctness on vector_solve reading: compute perambulator and smeared phi vector
+                // int nDL = distilNoise_.at(s).dilutionSize(DistillationNoise::Index::l);        
+                // int nDS = distilNoise_.at(s).dilutionSize(DistillationNoise::Index::s);        
+                // int nDT = distilNoise_.at(s).dilutionSize(DistillationNoise::Index::t);
+                // int nNoise = distilNoise_.at(s).size();
+                // const unsigned int nVec = epack.evec.size();
+                // const unsigned int Nt_first = g_->LocalStarts()[nd_ - 1];
+                // const unsigned int Nt_local = g_->LocalDimensions()[nd_ - 1];
+                // ColourVectorField cv4dtmp(g_);
+                // ColourVectorField cv3dtmp(g3d_);
+                // ColourVectorField evec3d(g3d_);
+                // std::vector<ColourVectorField> evec3d_tmp(Nt_local * nVec, g3d_);
+                // std::vector<int> invT = {0};
+                // MDistil::PerambTensor perambulator(nt_, nVec, nDL, nNoise, invT.size(), nDS);
+
+                // // split lapevec in slices
+                // for (int t = Nt_first; t < Nt_first + Nt_local; t++)
+                // {
+                //     for (int ivec = 0; ivec < nVec; ivec++)
+                //     {
+                //         int jvec= ivec + nVec * (t-Nt_first);
+                //         ExtractSliceLocal(evec3d,epack.evec[ivec],0,t-Nt_first,Tdir);
+                //         evec3d_tmp[jvec] = evec3d;
+                //     }
+                // }
+
+                // // compute peramb
+                // auto index = distilNoise_.at(s).dilutionCoordinates(D);
+                // int dt = index[DistillationNoise::Index::t];
+                // int dk = index[DistillationNoise::Index::l];
+                // int ds = index[DistillationNoise::Index::s];
+                // std::vector<int>::iterator it = std::find(std::begin(invT), std::end(invT), dt);
+                // int idt = 0; //it - std::begin(invT);
+                // for (int is = 0; is < Ns; is++)
+                // {
+                //     cv4dtmp = peekSpin(dv_cache[iD],is);
+                //     for (int t = Nt_first; t < Nt_first + Nt_local; t++)
+                //     {
+                //         ExtractSliceLocal(cv3dtmp,cv4dtmp,0,t-Nt_first,Tdir); 
+                //         for (int ivec = 0; ivec < nVec; ivec++)
+                //         {
+                //             int jvec= ivec + nVec * (t-Nt_first);
+                //             evec3d_ = evec3d_tmp[jvec];
+                //             pokeSpin(perambulator.tensor(t, ivec, dk, n_idx.at(s),idt,ds),static_cast<Complex>(innerProduct(evec3d_, cv3dtmp)),is);
+                //         }
+                //     }
+                // }
+
+                // // compute smeared phi
+                // for (unsigned int t = Nt_first; t < Nt_first + Nt_local; t++)
+                // {
+                //     tmp3d_ = Zero();
+                //     for (unsigned int k = 0; k < nVec; k++)
+                //     {
+                //         ExtractSliceLocal(evec3d_,epack.evec[k],0,t-Nt_first,nd_ - 1);
+                //         tmp3d_ += evec3d_ * perambulator.tensor(t, k, dk, n_idx.at(s), idt, ds);
+                //     }
+                //     InsertSliceLocal(tmp3d_,dv_cache[iD],0,t-Nt_first,nd_ - 1);
+                //     // by here dv_cache.at(s)[iD] should now be the smeared source
+                // }
+
             }
         }
         else if(isRho(s))
