@@ -146,8 +146,10 @@ public:
                                const unsigned int i, const unsigned int j, std::string datasetName,
                                const unsigned int t, const unsigned int chunkSize);
 
-    template <template <class> class Vec, typename VecT>
+    template <template <class> class Vec, typename VecT>    // compatibility with A2A
     void load(Vec<VecT> &v, const unsigned int t, const std::string dataset_name, double *tRead = nullptr, GridBase *grid = nullptr);
+    template <typename Mat>
+    void load(Mat &v, const unsigned int t, const std::string dataset_name, double *tRead = nullptr, GridBase *grid = nullptr);
 private:
     std::string  filename_{""}, dataname_{""};
     unsigned int nt_{0}, ni_{0}, nj_{0};
@@ -327,6 +329,67 @@ void DistilMatrixIo<T>::load(Vec<VecT> &v, const unsigned int t, const std::stri
     if (tRead) *tRead += usecond();
     v[0] = buf.template cast<VecT>();
     std::cout << std::endl;
+#else
+    HADRONS_ERROR(Implementation, "distil matrix I/O needs HDF5 library");
+#endif
+}
+
+template <typename T>
+template <typename Mat>
+void DistilMatrixIo<T>::load(Mat &v, const unsigned int t, const std::string dataset_name, double *tRead, GridBase *grid)
+{
+#ifdef HAVE_HDF5
+    std::vector<hsize_t> hdim;
+    H5NS::DataSet        dataset;
+    H5NS::DataSpace      dataspace;
+    H5NS::CompType       datatype;
+
+    Hdf5Reader reader(filename_);
+    push(reader, dataname_);
+    auto &root_group = reader.getGroup();
+    std::string t_name = std::to_string(t);
+    auto t_group = root_group.openGroup(t_name);
+    dataset = t_group.openDataSet(dataset_name);
+    datatype = dataset.getCompType();
+    dataspace = dataset.getSpace();
+    hdim.resize(dataspace.getSimpleExtentNdims());
+    dataspace.getSimpleExtentDims(hdim.data());
+    if ((ni_ * nj_ != 0) and
+        ((hdim[0] != ni_) or (hdim[0] != nj_)))
+    {
+        HADRONS_ERROR(Size, "distil matrix size mismatch (got "
+            + std::to_string(hdim[0]) + "x" + std::to_string(hdim[1]) + ", expected "
+            + std::to_string(ni_) + "x" + std::to_string(nj_));
+    }
+    ni_ = hdim[0];
+    nj_ = hdim[1];
+
+    DistilMesonFieldMatrix<T>         buf(ni_, nj_);
+    int broadcastSize =  sizeof(T) * buf.size();
+    std::vector<hsize_t> count    = {static_cast<hsize_t>(ni_),
+                                     static_cast<hsize_t>(nj_)},
+                         stride   = {1, 1},
+                         block    = {1, 1},
+                         memCount = {static_cast<hsize_t>(ni_),
+                                     static_cast<hsize_t>(nj_)};
+    H5NS::DataSpace      memspace(memCount.size(), memCount.data());
+
+    // LOG(Message) << "Loading timeslice " << std::to_string(t) << " block " << dataset_name << std::endl;
+    std::cout.flush();
+    *tRead = 0.;
+
+    std::vector<hsize_t> offset = {0, 0};
+
+    dataspace.selectHyperslab(H5S_SELECT_SET, count.data(), offset.data(),
+                                stride.data(), block.data());
+
+    if (tRead) *tRead -= usecond();
+
+    dataset.read(buf.data(), datatype, memspace, dataspace);
+    if (tRead) *tRead += usecond();
+    // v = static_cast<Mat>(buf);
+    // v = buf.template cast<VecT>();
+    v = buf ;       //bring this up in meeting
 #else
     HADRONS_ERROR(Implementation, "distil matrix I/O needs HDF5 library");
 #endif
