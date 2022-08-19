@@ -132,10 +132,10 @@ std::vector<std::string> TDistilMesonFieldRelative<FImpl>::getInput(void)
     dmfType_.emplace(Side::right  , (par().rightPeramb.empty() and par().rightVectorStem.empty()) ? "rho" : "phi");
     perambNames_ = {{Side::left,par().leftPeramb},{Side::right,par().rightPeramb}};
     vectorNames_ = {{Side::left,par().leftVectorStem},{Side::right,par().rightVectorStem}};
-    //require peramb dependency if phi case
+    //require peramb dependency if phi case and vector not passed
     for(Side s : sides)
     {
-        if(dmfType_.at(s)=="phi")
+        if(dmfType_.at(s)=="phi" and vectorNames_.at(s).empty())
         {
             in.push_back( s==Side::left ? par().leftPeramb : par().rightPeramb);
         }
@@ -322,28 +322,38 @@ void TDistilMesonFieldRelative<FImpl>::execute(void)
 
     // fetch time sources input
     std::map<Side, std::vector<unsigned int>> time_sources = {{Side::left,tSourceL_},{Side::right,tSourceR_}};
-    std::map<Side, std::string> peramb_input = {{Side::left,par().leftPeramb},{Side::right,par().rightPeramb}}; // perambulator time sources
     std::map<Side, std::vector<int>> ts_peramb;
     for(Side s : sides)     
     {
-        if(computation.isPhi(s))
+        if(computation.isPhi(s))    // try fetching perambulator if side is phi
         {
-            auto & inPeramb = envGet(PerambTensor , peramb_input.at(s));
-            ts_peramb.emplace(s , inPeramb.MetaData.timeSources);
-            if(time_sources.at(s).empty())  //in case it's empty and it's a phi, include all available peramb time sources
+            if(vectorNames_.at(s).empty())  // and only if vector is not passed
             {
-                for(auto tperamb : ts_peramb.at(s))
+                auto & inPeramb = envGet(PerambTensor , perambNames_.at(s));
+                ts_peramb.emplace(s , inPeramb.MetaData.timeSources);
+                if(time_sources.at(s).empty())  //in case it's empty and it's a phi, include all available peramb time sources
                 {
-                    time_sources.at(s).push_back(static_cast<unsigned int>(tperamb));
+                    for(auto tperamb : ts_peramb.at(s))
+                    {
+                        time_sources.at(s).push_back(static_cast<unsigned int>(tperamb));
+                    }
+                }
+                else    // if it's not empty, validate it against peramb time sources (check if it is subset of that)
+                {
+                    if( !std::includes(ts_peramb.at(s).begin(), ts_peramb.at(s).end(),
+                                    time_sources.at(s).begin(), time_sources.at(s).end()) )
+                    {
+                        std::string errside = (s==Side::left) ? "left" : "right";
+                        HADRONS_ERROR(Argument,"Time sources are not available on " + errside + " perambulator");
+                    }
                 }
             }
-            else    // if it's not empty, validate it against peramb time sources (check if it is subset of that)
+            else // if vector is passed 
             {
-                if( !std::includes(ts_peramb.at(s).begin(), ts_peramb.at(s).end(),
-                                time_sources.at(s).begin(), time_sources.at(s).end()) )
+                if(time_sources.at(s).empty())   // assume all time sources are available if input is empty
                 {
-                    std::string errside = (s==Side::left) ? "left" : "right";
-                    HADRONS_ERROR(Argument,"Time sources are not available on " + errside + " perambulator");
+                    time_sources.at(s).resize(noises.at(s).dilutionSize(Index::t));
+                    std::iota( time_sources.at(s).begin() , time_sources.at(s).end() , 0);
                 }
             }
         }
@@ -483,8 +493,8 @@ void TDistilMesonFieldRelative<FImpl>::execute(void)
             std::map<Side, PerambTensor&> peramb;
             for(Side s : sides)
             {
-                if(computation.isPhi(s)){
-                    PerambTensor &perambtemp = envGet( PerambTensor , s==Side::left ? par().leftPeramb : par().rightPeramb);
+                if(computation.isPhi(s) and !perambNames_.at(s).empty() and vectorNames_.at(s).empty()){
+                    PerambTensor &perambtemp = envGet( PerambTensor , perambNames_.at(s));
                     peramb.emplace(s , perambtemp);
                 }
             }
