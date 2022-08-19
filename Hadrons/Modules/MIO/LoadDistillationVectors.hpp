@@ -44,7 +44,7 @@ class LoadDistillationVectorsPar: Serializable
 {
 public:
     GRID_SERIALIZABLE_CLASS_MEMBERS(LoadDistillationVectorsPar,
-                                    std::string,  filestem,
+                                    std::string,  fileStem,
                                     std::string, distilNoise,
                                     std::string, timeSources);
 };
@@ -66,6 +66,8 @@ public:
     virtual void setup(void);
     // execution
     virtual void execute(void);
+private:
+    unsigned int nSourceT_;
 };
 
 MODULE_REGISTER_TMP(LoadDistillationVectors, TLoadDistillationVectors<FIMPL>, MIO);
@@ -109,7 +111,7 @@ void TLoadDistillationVectors<FImpl>::setup(void)
     std::string sourceT = par().timeSources;
     if(par().timeSources.empty())
     {
-    nSourceT=nDT;
+        nSourceT_=nDT;
     }
     else
     {
@@ -123,8 +125,8 @@ void TLoadDistillationVectors<FImpl>::setup(void)
         }
         std::istringstream is(sourceT);
         std::vector<int> iT ( ( std::istream_iterator<int>( is )  ), (std::istream_iterator<int>() ) );
-        nSourceT = iT.size();
-        for (int ii = 0; ii < nSourceT; ii++)
+        nSourceT_ = iT.size();
+        for (int ii = 0; ii < nSourceT_; ii++)
         {
             if (iT[ii] >= nDT)
             {
@@ -133,7 +135,7 @@ void TLoadDistillationVectors<FImpl>::setup(void)
         }
     }
         
-    envCreate(std::vector<FermionField>, getName(), 1, nNoise*nDL*nDS*nSourceT,
+    envCreate(std::vector<FermionField>, getName(), 1, nNoise*nDL*nDS*nSourceT_,
                   envGetGrid(FermionField));
 }
 
@@ -147,8 +149,21 @@ void TLoadDistillationVectors<FImpl>::execute(void)
     int nNoise = dilNoise.size();        
     int nDL = dilNoise.dilutionSize(DistillationNoise<FImpl>::Index::l);        
     int nDS = dilNoise.dilutionSize(DistillationNoise<FImpl>::Index::s);        
-    int nDT = dilNoise.dilutionSize(DistillationNoise<FImpl>::Index::t);        
-    DistillationVectorsIo::read(vec, par().filestem, nNoise, nDL, nDS, nDT, 1, vm().getTrajectory());
+    int nDT = dilNoise.dilutionSize(DistillationNoise<FImpl>::Index::t);        //full time dilution size
+    std::vector<unsigned int> dt_list = strToVec<unsigned int>(par().timeSources);
+
+    LOG(Message) << "Loading time sources (dt) : " <<  dt_list << std::endl;
+
+    unsigned int iD=0;
+    for (unsigned int D = 0; D < dilNoise.dilutionSize(); ++D)
+    {
+        unsigned int dt = dilNoise.dilutionCoordinates(D)[DistillationNoise<FImpl>::Index::t];
+        if( std::count(dt_list.begin(), dt_list.end(), dt)!=0 ) // dt is in the list of input time sources
+        {
+            DistillationVectorsIo::readComponent(vec[iD], par().fileStem, nNoise, nDL, nDS, nDT, D, vm().getTrajectory());
+            iD++;
+        }
+    }
 }
 
 END_MODULE_NAMESPACE
