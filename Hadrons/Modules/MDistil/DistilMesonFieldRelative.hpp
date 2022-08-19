@@ -269,16 +269,17 @@ void TDistilMesonFieldRelative<FImpl>::setup(void)
     {
         delta_t_list_ = {0};    //pinning a relative rho field implies in only delta_t=0 by definition
     }
-
-    std::map<Side, unsigned int> dilSizeT = { {Side::left, relative_side_==Side::left ? 1 : DISTILVECTOR_TIME_BATCH_SIZE},
-                                                {Side::right, relative_side_==Side::right ? 1 : DISTILVECTOR_TIME_BATCH_SIZE} };  //the relative distilvector has always time-dilution dimension 1
     
     unsigned int nExt = momenta_.size() , nStr = gamma_.size();
     envTmpLat(ComplexField,             "coor");
     envTmp(std::vector<ComplexField>,   "phase",        1, nExt, g );
-    envTmp(DistilVector,                "dvl",          1, dilSizeT.at(Side::left)*dilSizeLS_.at(Side::left), g);
-    envTmp(DistilVector,                "dvr",          1, dilSizeT.at(Side::right)*dilSizeLS_.at(Side::right), g);
-     unsigned int nnode = g->RankCount();
+    //make dv's aware of anchor/relative sides and cached size also (anchored side is being compute in cache loop
+    unsigned int left_dv_size  = (Side::left==relative_side_)   ? dilSizeLS_.at(relative_side_)    : par().cacheSize ;
+    unsigned int right_dv_size = (Side::right==relative_side_) ? dilSizeLS_.at(relative_side_)  : par().cacheSize ;
+    envTmp(DistilVector,                "dvl",          1, left_dv_size, g);
+    envTmp(DistilVector,                "dvr",          1, right_dv_size, g);
+
+    unsigned int nnode = g->RankCount();
     const unsigned int nExtStr = nExt*nStr;
     const unsigned int nExtStrLocal = g->IsBoss() ? nExtStr/nnode + nExtStr%nnode : nExtStr/nnode; // put remainder in boss node
     envTmp(Vector<HADRONS_DISTIL_IO_TYPE>, "block_buf", 1, nt * nExtStrLocal * par().blockSize * par().blockSize);

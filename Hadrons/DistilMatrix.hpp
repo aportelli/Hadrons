@@ -1060,10 +1060,10 @@ void DmfComputation<FImpl,T,Tio>
                     unsigned int right_block_size = (Side::right==relative_side) ? rel_block_size : anchor_block_size;
                     DistilMatrixSetIo<Tio> block(bBuf.data(), nExtStrLocal , nt_, left_block_size, right_block_size);
 
-                    LOG(Message) << "Distil matrix block (relative,anchor)" 
+                    LOG(Message) << "Distil matrix block" 
                     << jAnchor/blockSize_ + nblockRel*iRel/blockSize_ + 1 
                     << "/" << nblockRel*nblockAnchor << " [" << iRel << " .. " 
-                    << iRel+rel_block_size-1 << ", " << jAnchor << " .. " << jAnchor+anchor_block_size-1 << "]" 
+                    << iRel+rel_block_size-1 << ", " << jAnchor << " .. " << jAnchor+anchor_block_size-1 << "] : [relative, anchor]" 
                     << std::endl;
 
                     // loop over cache blocks within the current block
@@ -1072,7 +1072,8 @@ void DmfComputation<FImpl,T,Tio>
                     // jAnchor and jjAnchor needs to be associated with anchored_side: can be either left or right!
                     {
                         //fine here, but need to make sure remaining code treats jAnchor,jjAnchor as the anchored side (not right side necessarily)
-                        unsigned int dv_idx_anchoredOffset = Tanchored*dilSizeLS_.at(anchored_side) + jAnchor+jjAnchor; 
+                        // this makes anchored side == cached side
+                        unsigned int dv_idx_anchoredOffset = Tanchored*dilSizeLS_.at(anchored_side) + jAnchor+jjAnchor; //offsetting time direction, then the block and the cache coordinates
                         START_TIMER("distil vectors");
                         makeDvLapSpinCacheBlock(dv.at(anchored_side),dv_idx_anchoredOffset,n_idx,epack,anchored_side,peramb);
                         STOP_TIMER("distil vectors");
@@ -1088,8 +1089,8 @@ void DmfComputation<FImpl,T,Tio>
                             DistilMatrixSetCache<T> cache(cBuf.data(), nExt_, nStr_, nt_, left_cache_size, right_cache_size);
 
                             //translate relative/anchored into left/right
-                            unsigned int left_dv_idx_offset  = (Side::left==relative_side)  ? iRel+iiRel : idx_dtAnchored*dilSizeLS_.at(anchored_side)+jAnchor+jjAnchor;
-                            unsigned int right_dv_idx_offset = (Side::right==relative_side) ? iRel+iiRel : idx_dtAnchored*dilSizeLS_.at(anchored_side)+jAnchor+jjAnchor;
+                            unsigned int left_dv_idx_offset  = (Side::left==relative_side)  ? iRel+iiRel : 0; //idx_dtAnchored*dilSizeLS_.at(anchored_side)+jAnchor+jjAnchor;
+                            unsigned int right_dv_idx_offset = (Side::right==relative_side) ? iRel+iiRel : 0; //idx_dtAnchored*dilSizeLS_.at(anchored_side)+jAnchor+jjAnchor;
 
                             double timer = 0.0;
                             START_TIMER("kernel");
