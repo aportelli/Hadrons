@@ -669,7 +669,7 @@ void DmfComputation<FImpl,T,Tio>
     unsigned int iD_offset = iibatch*dilSizeLS_.at(s);
     for(unsigned int iD=iD_offset ; iD<iD_offset+dilSizeLS_.at(s) ; iD++)
     {
-        unsigned int D = iD + D_offset - iD_offset;
+        unsigned int D = (iD - iD_offset) + D_offset ;
         if(isPhi(s))
         {
             if(vectorStem_.at(s).empty())
@@ -753,7 +753,7 @@ void DmfComputation<FImpl,T,Tio>
 template <typename FImpl, typename T, typename Tio>
 void DmfComputation<FImpl,T,Tio>
 ::makeDvLapSpinCacheBlock(DistilVector&                             dv_cache,
-                               unsigned int                         dv_idx,
+                               unsigned int                         dv_idx, //offset variable
                                std::map<Side, unsigned int>         n_idx,
                                LapPack&                             epack,
                                Side                                 s,
@@ -1016,7 +1016,7 @@ void DmfComputation<FImpl,T,Tio>
     const unsigned int nExtStrLocal = g_->IsBoss() ? nExtStr/N_ranks 
                                         + nExtStr%N_ranks : nExtStr/N_ranks; // put remainder in boss node
 
-    Side anchored_side = (relative_side==Side::right ? Side::left : Side::right);
+    Side anchored_side = (Side::right==relative_side ? Side::left : Side::right);
 
     for(auto delta_t : delta_t_list)
     {        
@@ -1029,11 +1029,11 @@ void DmfComputation<FImpl,T,Tio>
         { 
             std::vector<unsigned int> batch_dtAnchored;
             batch_dtAnchored = fetchDvBatchIdxs(ibatchAnchored,time_dil_source.at(anchored_side));
-            for (unsigned int idtAnchored=0 ; idtAnchored<batch_dtAnchored.size() ; idtAnchored++)
+            for (unsigned int idx_dtAnchored=0 ; idx_dtAnchored<batch_dtAnchored.size() ; idx_dtAnchored++)
             {
-                unsigned int Tanchored = batch_dtAnchored[idtAnchored];
+                unsigned int Tanchored = batch_dtAnchored[idx_dtAnchored];
 
-                if(relative_side==Side::right)
+                if(Side::right==relative_side)
                 {
                     LOG(Message) << "------------ " << Tanchored << " X ( " << MDistil::timeslicesDump(time_dil_source.at(relative_side)) << ") ------------" << std::endl; 
                 }
@@ -1043,70 +1043,87 @@ void DmfComputation<FImpl,T,Tio>
                 }
                 LOG(Message) << "Time shift (deltaT) : " << delta_t << std::endl; 
 
-                unsigned int nblocki = dilSizeLS_.at(Side::left)/blockSize_ + (((dilSizeLS_.at(Side::left) % blockSize_) != 0) ? 1 : 0);
-                unsigned int nblockj = dilSizeLS_.at(Side::right)/blockSize_ + (((dilSizeLS_.at(Side::right) % blockSize_) != 0) ? 1 : 0);
+                unsigned int nblockRel = dilSizeLS_.at(relative_side)/blockSize_ + (((dilSizeLS_.at(relative_side) % blockSize_) != 0) ? 1 : 0);
+                unsigned int nblockAnchor = dilSizeLS_.at(anchored_side)/blockSize_ + (((dilSizeLS_.at(anchored_side) % blockSize_) != 0) ? 1 : 0);
 
                 // loop over blocks within the current time-dilution block
-                for(unsigned int i=0 ; i<dilSizeLS_.at(Side::left) ; i+=blockSize_) //set according to memory size
-                for(unsigned int j=0 ; j<dilSizeLS_.at(Side::right) ; j+=blockSize_)
+                for(unsigned int iRel=0 ; iRel<dilSizeLS_.at(relative_side) ; iRel+=blockSize_) //set according to memory size
+                for(unsigned int jAnchor=0 ; jAnchor<dilSizeLS_.at(anchored_side) ; jAnchor+=blockSize_)
                 {
                     double flops=0.0, bytes=0.0, time_kernel=0.0, nodes=g_->NodeCount();
-                    // iblock_size is the size of the current block (indexed by i); N_i-i is the size of the possible remainder block
-                    unsigned int iblock_size = MIN(dilSizeLS_.at(Side::left)-i,blockSize_);
-                    unsigned int jblock_size = MIN(dilSizeLS_.at(Side::right)-j,blockSize_);
+                    // rel_block_size is the size of the current block (indexed by iRel); N_i-iRel is the size of the possible remainder block
+                    unsigned int rel_block_size = MIN(dilSizeLS_.at(relative_side)-iRel,blockSize_);
+                    unsigned int anchor_block_size = MIN(dilSizeLS_.at(anchored_side)-jAnchor,blockSize_);
 
-                    DistilMatrixSetIo<Tio> block(bBuf.data(), nExtStrLocal , nt_, iblock_size, jblock_size);
+                    //translate relative/anchored into left/right
+                    unsigned int left_block_size = (Side::left==relative_side) ? rel_block_size : anchor_block_size;
+                    unsigned int right_block_size = (Side::right==relative_side) ? rel_block_size : anchor_block_size;
+                    DistilMatrixSetIo<Tio> block(bBuf.data(), nExtStrLocal , nt_, left_block_size, right_block_size);
 
-                    LOG(Message) << "Distil matrix block " 
-                    << j/blockSize_ + nblocki*i/blockSize_ + 1 
-                    << "/" << nblocki*nblockj << " [" << i << " .. " 
-                    << i+iblock_size-1 << ", " << j << " .. " << j+jblock_size-1 << "]" 
+                    LOG(Message) << "Distil matrix block (relative,anchor)" 
+                    << jAnchor/blockSize_ + nblockRel*iRel/blockSize_ + 1 
+                    << "/" << nblockRel*nblockAnchor << " [" << iRel << " .. " 
+                    << iRel+rel_block_size-1 << ", " << jAnchor << " .. " << jAnchor+anchor_block_size-1 << "]" 
                     << std::endl;
 
                     // loop over cache blocks within the current block
-                    for(unsigned int ii=0 ; ii<iblock_size ; ii+=cacheSize_)
-                    for(unsigned int jj=0 ; jj<jblock_size ; jj+=cacheSize_)
+                    for(unsigned int jjAnchor=0 ; jjAnchor<anchor_block_size ; jjAnchor+=cacheSize_)
+                    // cached dv computation needs to be done here, so it doesnt repeat unnecessarily on inner loop
+                    // jAnchor and jjAnchor needs to be associated with anchored_side: can be either left or right!
                     {
-                        unsigned int icache_size = MIN(iblock_size-ii,cacheSize_);      
-                        unsigned int jcache_size = MIN(jblock_size-jj,cacheSize_);
-                        DistilMatrixSetCache<T> cache(cBuf.data(), nExt_, nStr_, nt_, icache_size, jcache_size);
-
-                        double timer = 0.0;
-                        unsigned int dv_idxLeftOffset = (relative_side==Side::right) ? idtAnchored*dilSizeLS_.at(Side::left) : 0;
-                        unsigned int dv_idxRightOffset = (relative_side==Side::left) ? idtAnchored*dilSizeLS_.at(Side::right) : 0;
-                        // new stuff
-                        unsigned int dv_idxLeft  = (anchored_side==Side::left)  ? 0 : idtAnchored*dilSizeLS_.at(Side::left) + i + ii;
-                        unsigned int dv_idxRight = (anchored_side==Side::right) ? 0 : idtAnchored*dilSizeLS_.at(Side::right) + j + jj;
-                        unsigned int dv_idx_anchored = Tanchored*dilSizeLS_.at(anchored_side);
-                        // dv_idx_anchored needs +i+ii or +j+jj in it!!!!!      
+                        //fine here, but need to make sure remaining code treats jAnchor,jjAnchor as the anchored side (not right side necessarily)
+                        unsigned int dv_idx_anchoredOffset = Tanchored*dilSizeLS_.at(anchored_side) + jAnchor+jjAnchor; 
                         START_TIMER("distil vectors");
-                        makeDvLapSpinCacheBlock(dv.at(anchored_side),dv_idx_anchored,n_idx,epack,anchored_side,peramb);
+                        makeDvLapSpinCacheBlock(dv.at(anchored_side),dv_idx_anchoredOffset,n_idx,epack,anchored_side,peramb);
                         STOP_TIMER("distil vectors");
-                        START_TIMER("kernel");
-                        A2Autils<FImpl>::MesonField(cache, &dv.at(Side::left)[dv_idxLeft], &dv.at(Side::right)[dv_idxRight], gamma, ph, nd_ - 1, &timer);
-                        STOP_TIMER("kernel");
-                        time_kernel += timer;
 
-                        flops += vol*(2*8.0+6.0+8.0*nExt_)*icache_size*jcache_size*nStr_;
-                        bytes += vol*(12.0*sizeof(T))*icache_size*jcache_size
-                                +  vol*(2.0*sizeof(T)*nExt_)*icache_size*jcache_size*nStr_;
-
-                        // copy cache to ioblock
-                        g_->Barrier();
-                        START_TIMER("cache copy");
-                        thread_for_collapse(4,iextstr_local,nExtStrLocal,{
-                        for(unsigned int t=0;t<nt_;t++)
-                        for(unsigned int iii=0;iii<icache_size;iii++)
-                        for(unsigned int jjj=0;jjj<jcache_size;jjj++)
+                        for(unsigned int iiRel=0 ; iiRel<rel_block_size ; iiRel+=cacheSize_)
                         {
-                            const unsigned int iextstr = iextstr_local + i_rank * nExtStrLocal + (g_->IsBoss() ? 0 : nExtStr%N_ranks );
-                            const unsigned int iext = iextstr/nStr_;
-                            const unsigned int istr = iextstr%nStr_;
-                            block(iextstr_local,t,ii+iii,jj+jjj) = cache(iext,istr,t,iii,jjj);
+                            unsigned int rel_cache_size = MIN(rel_block_size-iiRel,cacheSize_);      
+                            unsigned int anchor_cache_size = MIN(anchor_block_size-jjAnchor,cacheSize_);
+
+                            //translate relative/anchored into left/right
+                            unsigned int left_cache_size = (Side::left==relative_side) ? rel_cache_size : anchor_cache_size;
+                            unsigned int right_cache_size = (Side::right==relative_side) ? rel_cache_size : anchor_cache_size;
+                            DistilMatrixSetCache<T> cache(cBuf.data(), nExt_, nStr_, nt_, left_cache_size, right_cache_size);
+
+                            //translate relative/anchored into left/right
+                            unsigned int left_dv_idx_offset  = (Side::left==relative_side)  ? iRel+iiRel : idx_dtAnchored*dilSizeLS_.at(anchored_side)+jAnchor+jjAnchor;
+                            unsigned int right_dv_idx_offset = (Side::right==relative_side) ? iRel+iiRel : idx_dtAnchored*dilSizeLS_.at(anchored_side)+jAnchor+jjAnchor;
+
+                            double timer = 0.0;
+                            START_TIMER("kernel");
+                            A2Autils<FImpl>::MesonField(cache, &dv.at(Side::left)[left_dv_idx_offset], &dv.at(Side::right)[right_dv_idx_offset]
+                                                            , gamma, ph, nd_ - 1, &timer);
+                            STOP_TIMER("kernel");
+                            time_kernel += timer;
+
+                            flops += vol*(2*8.0+6.0+8.0*nExt_)*rel_cache_size*anchor_cache_size*nStr_;
+                            bytes += vol*(12.0*sizeof(T))*rel_cache_size*anchor_cache_size
+                                    +  vol*(2.0*sizeof(T)*nExt_)*rel_cache_size*anchor_cache_size*nStr_;
+
+                            //// copy cache to ioblock
+
+                            //translate relative/anchored into left/right
+                            unsigned int left_ii   = (Side::left==relative_side)  ? iiRel : jjAnchor;
+                            unsigned int right_jj  = (Side::right==relative_side) ? iiRel : jjAnchor;
+
+                            g_->Barrier();
+                            START_TIMER("cache copy");
+                            thread_for_collapse(4,iextstr_local,nExtStrLocal,{
+                            for(unsigned int t=0;t<nt_;t++)
+                            for(unsigned int iii=0;iii<left_cache_size;iii++)
+                            for(unsigned int jjj=0;jjj<right_cache_size;jjj++)
+                            {
+                                const unsigned int iextstr = iextstr_local + i_rank * nExtStrLocal + (g_->IsBoss() ? 0 : nExtStr%N_ranks );
+                                const unsigned int iext = iextstr/nStr_;
+                                const unsigned int istr = iextstr%nStr_;
+                                block(iextstr_local,t,left_ii+iii,right_jj+jjj) = cache(iext,istr,t,iii,jjj);
+                            }
+                            });
+                            STOP_TIMER("cache copy");
+                            g_->Barrier();
                         }
-                        });
-                        STOP_TIMER("cache copy");
-                        g_->Barrier();
                     }
 
                     LOG(Message) << "Kernel perf (flops) " << flops/time_kernel/1.0e3/nodes 
@@ -1125,9 +1142,9 @@ void DmfComputation<FImpl,T,Tio>
                         unsigned int t = (time_dil_source.at(relative_side)[it] + delta_t)%nt_;
                         const unsigned int Trelative = time_dil_source.at(relative_side)[it];
 
-                        DistilMatrixSetTimeSliceIo<Tio> block_relative(bBuf.data(), nExtStrLocal , iblock_size, jblock_size);
-                        std::string dataset_name = std::to_string( (relative_side==Side::right) ? Tanchored : Trelative ) 
-                            + "-" + std::to_string( (relative_side==Side::right) ? Trelative : Tanchored );
+                        DistilMatrixSetTimeSliceIo<Tio> block_relative(bBuf.data(), nExtStrLocal , rel_block_size, anchor_block_size);
+                        std::string dataset_name = std::to_string( (Side::right==relative_side) ? Tanchored : Trelative ) 
+                            + "-" + std::to_string( (Side::right==relative_side) ? Trelative : Tanchored );
 
                         std::vector<unsigned int> relative_partition = distilNoise_.at(relative_side).dilutionPartition(Index::t,Trelative);
                         std::vector<unsigned int> anchored_partition = distilNoise_.at(anchored_side).dilutionPartition(Index::t,Tanchored);
@@ -1155,7 +1172,7 @@ void DmfComputation<FImpl,T,Tio>
                                 if( ( Tanchored==time_dil_source.at(anchored_side).front() ) and      //first time-dilution idx at one side
                                     ( Trelative==time_dil_source.at(relative_side).front() ) and    // same as above for the other side
                                     ( t==(time_dil_source.at(relative_side).front() + delta_t_list.front())%nt_ ) and    //first time slice
-                                    (i==0) and (j==0) )  //first IO block
+                                    (iRel==0) and (jAnchor==0) )  //first IO block
                                 {
                                     //fetch metadata
                                     DistilMesonFieldMetadata<FImpl> md = metadataDmfFn(iext,istr,n_idx.at(Side::left),n_idx.at(Side::right),
@@ -1165,8 +1182,11 @@ void DmfComputation<FImpl,T,Tio>
                                     matrix_io.initFile(md);
                                     STOP_TIMER("IO: file creation");
                                 }
+                                //translate relative/anchored into left/right
+                                unsigned int left_i  = (Side::left==relative_side)  ? iRel : jAnchor;
+                                unsigned int right_j  = (Side::right==relative_side)  ? iRel : jAnchor;
                                 START_TIMER("IO: write block");
-                                matrix_io.saveBlock(block_relative, iextstr_local, i, j, dataset_name, t, blockSize_);
+                                matrix_io.saveBlock(block_relative, iextstr_local, left_i, right_j, dataset_name, t, blockSize_);
                                 STOP_TIMER("IO: write block");
                             }
                             g_->Barrier();
@@ -1175,7 +1195,7 @@ void DmfComputation<FImpl,T,Tio>
 #endif              
                             STOP_TIMER("IO: total");
                             ioTime    += GET_TIMER("IO: write block");
-                            unsigned int bytesBlockSize  = static_cast<double>(nExt_*nStr_*iblock_size*jblock_size*sizeof(Tio));
+                            unsigned int bytesBlockSize  = static_cast<double>(nExt_*nStr_*rel_block_size*anchor_block_size*sizeof(Tio));
                             double iospeed = bytesBlockSize/ioTime*1.0e6/1024/1024;
                             LOG(Message)    << "HDF5 IO done " << sizeString(bytesBlockSize) << " in "
                                             << ioTime  << " us (" << iospeed << " MB/s)" << std::endl;
@@ -1183,6 +1203,8 @@ void DmfComputation<FImpl,T,Tio>
                         }
                     }
                 }
+
+                
             }
         }
     }
@@ -1205,204 +1227,204 @@ void DmfComputation<FImpl,T,Tio>
           const unsigned int                            diag_shift,
           std::map<Side, MDistil::PerambTensor&>                 peramb)
 {
-    const unsigned int vol = g_->_gsites;
-    //parallel IO info
-    const unsigned int i_rank = g_->ThisRank();
-    const unsigned int N_ranks = g_->RankCount();
-    const unsigned int nExtStr = nExt_*nStr_;
-    const unsigned int nExtStrLocal = g_->IsBoss() ? nExtStr/N_ranks 
-                                        + nExtStr%N_ranks : nExtStr/N_ranks; // put remainder in boss node
+//     const unsigned int vol = g_->_gsites;
+//     //parallel IO info
+//     const unsigned int i_rank = g_->ThisRank();
+//     const unsigned int N_ranks = g_->RankCount();
+//     const unsigned int nExtStr = nExt_*nStr_;
+//     const unsigned int nExtStrLocal = g_->IsBoss() ? nExtStr/N_ranks 
+//                                         + nExtStr%N_ranks : nExtStr/N_ranks; // put remainder in boss node
 
-    //loop over left dv batches
-    for (unsigned int ibatchL=0 ; ibatchL<time_dil_source.at(Side::left).size()/dvBatchSize_ ; ibatchL++)   //loop over left dv batches
-    {
-        LOG(Message) << "Computing (or loading) left distil vector:" << std::endl; 
-        std::vector<unsigned int> batch_dtL = fetchDvBatchIdxs(ibatchL,time_dil_source.at(Side::left));
-        START_TIMER("distil vectors");
-        makeDvLapSpinBatch(dv, n_idx, epack, Side::left, batch_dtL, peramb);
-        STOP_TIMER("distil vectors");
-        for (unsigned int idtL=0 ; idtL<batch_dtL.size() ; idtL++)
-        {
-            unsigned int dtL = batch_dtL[idtL];
-            for (unsigned int ibatchR=0 ; ibatchR<time_dil_source.at(Side::right).size()/dvBatchSize_ ; ibatchR++)  //loop over right dv batches
-            {
-                std::vector<unsigned int> batch_dtR = fetchDvBatchIdxs(ibatchR,time_dil_source.at(Side::right), diag_shift);
-                for (unsigned int idtR=0 ; idtR<batch_dtR.size() ; idtR++)
-                {
-                    unsigned int dtR = batch_dtR[idtR];
-                    // fetch necessary time slices for this time-dilution block
-                    std::map<Side,std::vector<unsigned int>> time_partition = { {Side::left,{}} , {Side::right,{}}};
-                    for(auto s : sides)
-                    {
-                        if(isPhi(s))
-                        {
-                            time_partition.at(s).resize(nt_);
-                            //phi: fill with all time slices so the intersection with a vector X is equal to X
-                            std::iota(std::begin(time_partition.at(s)), std::end(time_partition.at(s)), 0); 
-                        }
-                        else
-                        {
-                            time_partition.at(s) = distilNoise_.at(s).dilutionPartition(Index::t, s==Side::left ? dtL : dtR);
-                        }
-                    }
-                    std::vector<unsigned int> ts_intersection;
-                    std::set_intersection(time_partition.at(Side::left).begin(), time_partition.at(Side::left).end(), 
-                                        time_partition.at(Side::right).begin(), time_partition.at(Side::right).end(),
-                                        std::back_inserter(ts_intersection));
+//     //loop over left dv batches
+//     for (unsigned int ibatchL=0 ; ibatchL<time_dil_source.at(Side::left).size()/dvBatchSize_ ; ibatchL++)   //loop over left dv batches
+//     {
+//         LOG(Message) << "Computing (or loading) left distil vector:" << std::endl; 
+//         std::vector<unsigned int> batch_dtL = fetchDvBatchIdxs(ibatchL,time_dil_source.at(Side::left));
+//         START_TIMER("distil vectors");
+//         makeDvLapSpinBatch(dv, n_idx, epack, Side::left, batch_dtL, peramb);
+//         STOP_TIMER("distil vectors");
+//         for (unsigned int idtL=0 ; idtL<batch_dtL.size() ; idtL++)
+//         {
+//             unsigned int dtL = batch_dtL[idtL];
+//             for (unsigned int ibatchR=0 ; ibatchR<time_dil_source.at(Side::right).size()/dvBatchSize_ ; ibatchR++)  //loop over right dv batches
+//             {
+//                 std::vector<unsigned int> batch_dtR = fetchDvBatchIdxs(ibatchR,time_dil_source.at(Side::right), diag_shift);
+//                 for (unsigned int idtR=0 ; idtR<batch_dtR.size() ; idtR++)
+//                 {
+//                     unsigned int dtR = batch_dtR[idtR];
+//                     // fetch necessary time slices for this time-dilution block
+//                     std::map<Side,std::vector<unsigned int>> time_partition = { {Side::left,{}} , {Side::right,{}}};
+//                     for(auto s : sides)
+//                     {
+//                         if(isPhi(s))
+//                         {
+//                             time_partition.at(s).resize(nt_);
+//                             //phi: fill with all time slices so the intersection with a vector X is equal to X
+//                             std::iota(std::begin(time_partition.at(s)), std::end(time_partition.at(s)), 0); 
+//                         }
+//                         else
+//                         {
+//                             time_partition.at(s) = distilNoise_.at(s).dilutionPartition(Index::t, s==Side::left ? dtL : dtR);
+//                         }
+//                     }
+//                     std::vector<unsigned int> ts_intersection;
+//                     std::set_intersection(time_partition.at(Side::left).begin(), time_partition.at(Side::left).end(), 
+//                                         time_partition.at(Side::right).begin(), time_partition.at(Side::right).end(),
+//                                         std::back_inserter(ts_intersection));
 
-                    // only execute when partitions have at least one time slice in common; only computes diagonal (up to diag_shift) when onlydiag true
-                    if( !ts_intersection.empty() and 
-                        ( !only_diag or ((dtL+diag_shift)%distilNoise_.at(Side::right).dilutionSize(Index::t)==dtR) ) )
-                    {
-                        LOG(Message) << "------------ time-dilution block " << dtL << "-" << dtR << " ------------------------" << std::endl; 
+//                     // only execute when partitions have at least one time slice in common; only computes diagonal (up to diag_shift) when onlydiag true
+//                     if( !ts_intersection.empty() and 
+//                         ( !only_diag or ((dtL+diag_shift)%distilNoise_.at(Side::right).dilutionSize(Index::t)==dtR) ) )
+//                     {
+//                         LOG(Message) << "------------ time-dilution block " << dtL << "-" << dtR << " ------------------------" << std::endl; 
                         
-                        unsigned int nblocki = dilSizeLS_.at(Side::left)/blockSize_ + (((dilSizeLS_.at(Side::left) % blockSize_) != 0) ? 1 : 0);
-                        unsigned int nblockj = dilSizeLS_.at(Side::right)/blockSize_ + (((dilSizeLS_.at(Side::right) % blockSize_) != 0) ? 1 : 0);
+//                         unsigned int nblocki = dilSizeLS_.at(Side::left)/blockSize_ + (((dilSizeLS_.at(Side::left) % blockSize_) != 0) ? 1 : 0);
+//                         unsigned int nblockj = dilSizeLS_.at(Side::right)/blockSize_ + (((dilSizeLS_.at(Side::right) % blockSize_) != 0) ? 1 : 0);
 
-                        // loop over blocks within the current time-dilution block
-                        for(unsigned int i=0 ; i<dilSizeLS_.at(Side::left) ; i+=blockSize_) //set according to memory size
-                        for(unsigned int j=0 ; j<dilSizeLS_.at(Side::right) ; j+=blockSize_)
-                        {
-                            double flops=0.0, bytes=0.0, time_kernel=0.0, nodes=g_->NodeCount();
-                            // iblock_size is the size of the current block (indexed by i); N_i-i is the size of the possible remainder block
-                            unsigned int iblock_size = MIN(dilSizeLS_.at(Side::left)-i,blockSize_);
-                            unsigned int jblock_size = MIN(dilSizeLS_.at(Side::right)-j,blockSize_);
+//                         // loop over blocks within the current time-dilution block
+//                         for(unsigned int i=0 ; i<dilSizeLS_.at(Side::left) ; i+=blockSize_) //set according to memory size
+//                         for(unsigned int j=0 ; j<dilSizeLS_.at(Side::right) ; j+=blockSize_)
+//                         {
+//                             double flops=0.0, bytes=0.0, time_kernel=0.0, nodes=g_->NodeCount();
+//                             // iblock_size is the size of the current block (indexed by i); N_i-i is the size of the possible remainder block
+//                             unsigned int iblock_size = MIN(dilSizeLS_.at(Side::left)-i,blockSize_);
+//                             unsigned int jblock_size = MIN(dilSizeLS_.at(Side::right)-j,blockSize_);
                             
-                            DistilMatrixSetIo<Tio> block(bBuf.data(), nExtStrLocal , nt_, iblock_size, jblock_size);
+//                             DistilMatrixSetIo<Tio> block(bBuf.data(), nExtStrLocal , nt_, iblock_size, jblock_size);
 
-                            LOG(Message) << "Distil matrix block " 
-                            << j/blockSize_ + nblocki*i/blockSize_ + 1 
-                            << "/" << nblocki*nblockj << " [" << i << " .. " 
-                            << i+iblock_size-1 << ", " << j << " .. " << j+jblock_size-1 << "]" 
-                            << std::endl;
+//                             LOG(Message) << "Distil matrix block " 
+//                             << j/blockSize_ + nblocki*i/blockSize_ + 1 
+//                             << "/" << nblocki*nblockj << " [" << i << " .. " 
+//                             << i+iblock_size-1 << ", " << j << " .. " << j+jblock_size-1 << "]" 
+//                             << std::endl;
 
-                            // loop over cache blocks within the current block
-                            for(unsigned int jj=0 ; jj<jblock_size ; jj+=cacheSize_)
-                            {
-                                LOG(Message) << "Computing (or loading) right distil vector block " << j+jj << std::endl;
+//                             // loop over cache blocks within the current block
+//                             for(unsigned int jj=0 ; jj<jblock_size ; jj+=cacheSize_)
+//                             {
+//                                 LOG(Message) << "Computing (or loading) right distil vector block " << j+jj << std::endl;
 
-                                unsigned int dv_idxR = dtR*dilSizeLS_.at(Side::right) +j+jj;
-                                START_TIMER("distil vectors");
-                                makeDvLapSpinCacheBlock(dv.at(Side::right),dv_idxR,n_idx,epack,Side::right,peramb);
-                                STOP_TIMER("distil vectors");
+//                                 unsigned int dv_idxR = dtR*dilSizeLS_.at(Side::right) +j+jj;
+//                                 START_TIMER("distil vectors");
+//                                 makeDvLapSpinCacheBlock(dv.at(Side::right),dv_idxR,n_idx,epack,Side::right,peramb);
+//                                 STOP_TIMER("distil vectors");
 
-                                for(unsigned int ii=0 ; ii<iblock_size ; ii+=cacheSize_)
-                                {
-                                    unsigned int icache_size = MIN(iblock_size-ii,cacheSize_);      
-                                    unsigned int jcache_size = MIN(jblock_size-jj,cacheSize_);
+//                                 for(unsigned int ii=0 ; ii<iblock_size ; ii+=cacheSize_)
+//                                 {
+//                                     unsigned int icache_size = MIN(iblock_size-ii,cacheSize_);      
+//                                     unsigned int jcache_size = MIN(jblock_size-jj,cacheSize_);
 
-                                    DistilMatrixSetCache<T> cache(cBuf.data(), nExt_, nStr_, nt_, icache_size, jcache_size);
+//                                     DistilMatrixSetCache<T> cache(cBuf.data(), nExt_, nStr_, nt_, icache_size, jcache_size);
                                     
-                                    unsigned int dv_idxL = idtL*dilSizeLS_.at(Side::left) +i+ii;
+//                                     unsigned int dv_idxL = idtL*dilSizeLS_.at(Side::left) +i+ii;
                                     
-                                    double timer = 0.0;
-                                    START_TIMER("kernel");
-                                    // multinode operation saving answer to cBuf
-                                    A2Autils<FImpl>::MesonField(cache, &dv.at(Side::left)[dv_idxL], &dv.at(Side::right)[0], gamma, ph, nd_ - 1, &timer); 
-                                    STOP_TIMER("kernel");
+//                                     double timer = 0.0;
+//                                     START_TIMER("kernel");
+//                                     // multinode operation saving answer to cBuf
+//                                     A2Autils<FImpl>::MesonField(cache, &dv.at(Side::left)[dv_idxL], &dv.at(Side::right)[0], gamma, ph, nd_ - 1, &timer); 
+//                                     STOP_TIMER("kernel");
 
-                                    time_kernel += timer;
+//                                     time_kernel += timer;
 
-                                    flops += vol*(2*8.0+6.0+8.0*nExt_)*icache_size*jcache_size*nStr_;
-                                    bytes += vol*(12.0*sizeof(T))*icache_size*jcache_size
-                                            +  vol*(2.0*sizeof(T)*nExt_)*icache_size*jcache_size*nStr_;
+//                                     flops += vol*(2*8.0+6.0+8.0*nExt_)*icache_size*jcache_size*nStr_;
+//                                     bytes += vol*(12.0*sizeof(T))*icache_size*jcache_size
+//                                             +  vol*(2.0*sizeof(T)*nExt_)*icache_size*jcache_size*nStr_;
 
-                                    // copy cache to ioblock
-                                    g_->Barrier();
-                                    START_TIMER("cache copy");
-                                    unsigned int ts_size = ts_intersection.size();
-                                    thread_for_collapse(4,iextstr_local,nExtStrLocal,{
-                                    for(unsigned int it=0;it<ts_size;it++)
-                                    for(unsigned int iii=0;iii<icache_size;iii++)
-                                    for(unsigned int jjj=0;jjj<jcache_size;jjj++)
-                                    {
-                                        const unsigned int iextstr = iextstr_local + i_rank * nExtStrLocal + (g_->IsBoss() ? 0 : nExtStr%N_ranks );
-                                        const unsigned int iext = iextstr/nStr_;
-                                        const unsigned int istr = iextstr%nStr_;
-                                        block(iextstr_local,ts_intersection[it],ii+iii,jj+jjj) = cache(iext,istr,ts_intersection[it],iii,jjj);
-                                    }
-                                    });
-                                    STOP_TIMER("cache copy");
-                                    g_->Barrier();
-                                }
-                            }
-                            LOG(Message) << "Kernel perf (flops) " << flops/time_kernel/1.0e3/nodes 
-                                        << " Gflop/s/node " << std::endl;
-                            LOG(Message) << "Kernel perf (read) " << bytes/time_kernel*1.0e6/1024/1024/1024/nodes
-                                        << " GB/s/node "  << std::endl;
-                            blockCounter_++;
-                            blockFlops_ += flops/time_kernel/1.0e3/nodes ;
-                            blockBytes_ += bytes/time_kernel*1.0e6/1024/1024/1024/nodes;
+//                                     // copy cache to ioblock
+//                                     g_->Barrier();
+//                                     START_TIMER("cache copy");
+//                                     unsigned int ts_size = ts_intersection.size();
+//                                     thread_for_collapse(4,iextstr_local,nExtStrLocal,{
+//                                     for(unsigned int it=0;it<ts_size;it++)
+//                                     for(unsigned int iii=0;iii<icache_size;iii++)
+//                                     for(unsigned int jjj=0;jjj<jcache_size;jjj++)
+//                                     {
+//                                         const unsigned int iextstr = iextstr_local + i_rank * nExtStrLocal + (g_->IsBoss() ? 0 : nExtStr%N_ranks );
+//                                         const unsigned int iext = iextstr/nStr_;
+//                                         const unsigned int istr = iextstr%nStr_;
+//                                         block(iextstr_local,ts_intersection[it],ii+iii,jj+jjj) = cache(iext,istr,ts_intersection[it],iii,jjj);
+//                                     }
+//                                     });
+//                                     STOP_TIMER("cache copy");
+//                                     g_->Barrier();
+//                                 }
+//                             }
+//                             LOG(Message) << "Kernel perf (flops) " << flops/time_kernel/1.0e3/nodes 
+//                                         << " Gflop/s/node " << std::endl;
+//                             LOG(Message) << "Kernel perf (read) " << bytes/time_kernel*1.0e6/1024/1024/1024/nodes
+//                                         << " GB/s/node "  << std::endl;
+//                             blockCounter_++;
+//                             blockFlops_ += flops/time_kernel/1.0e3/nodes ;
+//                             blockBytes_ += bytes/time_kernel*1.0e6/1024/1024/1024/nodes;
 
-                            // io section
-                            LOG(Message) << "Starting parallel IO. Rank count=" << N_ranks << std::endl;
-                            LOG(Message) << "Saving time slices : " << MDistil::timeslicesDump(ts_intersection) << std::endl;
-                            for(unsigned int t=0 ; t<nt_ ; t++)
-                            {
-                                // TODO: generalise to dilution
-                                // unsigned int t = ts_intersection[it];
-                                std::vector<unsigned int> left_partition = distilNoise_.at(Side::left).dilutionPartition(Index::t,dtL);
-                                std::vector<unsigned int> right_partition = distilNoise_.at(Side::right).dilutionPartition(Index::t,dtR);
+//                             // io section
+//                             LOG(Message) << "Starting parallel IO. Rank count=" << N_ranks << std::endl;
+//                             LOG(Message) << "Saving time slices : " << MDistil::timeslicesDump(ts_intersection) << std::endl;
+//                             for(unsigned int t=0 ; t<nt_ ; t++)
+//                             {
+//                                 // TODO: generalise to dilution
+//                                 // unsigned int t = ts_intersection[it];
+//                                 std::vector<unsigned int> left_partition = distilNoise_.at(Side::left).dilutionPartition(Index::t,dtL);
+//                                 std::vector<unsigned int> right_partition = distilNoise_.at(Side::right).dilutionPartition(Index::t,dtR);
 
-                                if( !( isRho(Side::left) and std::count(left_partition.begin(), left_partition.end(), t)==0  ) 
-                                    and !(isRho(Side::right) and std::count(right_partition.begin(), right_partition.end(), t)==0) )
-                                {
-                                    // use same buffer but map it differently 
-                                    DistilMatrixSetTimeSliceIo<Tio> block_relative(bBuf.data(), nExtStrLocal , iblock_size, jblock_size); 
-                                    std::string dataset_name = std::to_string(dtL)+"-"+std::to_string(dtR);
-                                    LOG(Message)    << "Saving block block " << dataset_name << " , t=" << t << std::endl;
+//                                 if( !( isRho(Side::left) and std::count(left_partition.begin(), left_partition.end(), t)==0  ) 
+//                                     and !(isRho(Side::right) and std::count(right_partition.begin(), right_partition.end(), t)==0) )
+//                                 {
+//                                     // use same buffer but map it differently 
+//                                     DistilMatrixSetTimeSliceIo<Tio> block_relative(bBuf.data(), nExtStrLocal , iblock_size, jblock_size); 
+//                                     std::string dataset_name = std::to_string(dtL)+"-"+std::to_string(dtR);
+//                                     LOG(Message)    << "Saving block block " << dataset_name << " , t=" << t << std::endl;
 
-                                    double ioTime = -GET_TIMER("IO: write block");
-                                    START_TIMER("IO: total");
-#ifdef HADRONS_DISTIL_PARALLEL_IO
-                                    g_->Barrier();
-                                    for(unsigned int iextstr_local=0 ; iextstr_local<nExtStrLocal ; iextstr_local++)
-                                    {
-                                        const unsigned int iextstr = iextstr_local + i_rank * nExtStrLocal + (g_->IsBoss() ? 0 : nExtStr%N_ranks );
-                                        const unsigned int iext = iextstr/nStr_;
-                                        const unsigned int istr = iextstr%nStr_;
+//                                     double ioTime = -GET_TIMER("IO: write block");
+//                                     START_TIMER("IO: total");
+// #ifdef HADRONS_DISTIL_PARALLEL_IO
+//                                     g_->Barrier();
+//                                     for(unsigned int iextstr_local=0 ; iextstr_local<nExtStrLocal ; iextstr_local++)
+//                                     {
+//                                         const unsigned int iextstr = iextstr_local + i_rank * nExtStrLocal + (g_->IsBoss() ? 0 : nExtStr%N_ranks );
+//                                         const unsigned int iext = iextstr/nStr_;
+//                                         const unsigned int istr = iextstr%nStr_;
 
-                                        // io object
-                                        DistilMatrixIo<HADRONS_DISTIL_IO_TYPE> matrix_io(filenameDmfFn(iext, istr, n_idx.at(Side::left), n_idx.at(Side::right)),
-                                                DISTIL_MATRIX_NAME, nt_, dilSizeLS_.at(Side::left), dilSizeLS_.at(Side::right));
+//                                         // io object
+//                                         DistilMatrixIo<HADRONS_DISTIL_IO_TYPE> matrix_io(filenameDmfFn(iext, istr, n_idx.at(Side::left), n_idx.at(Side::right)),
+//                                                 DISTIL_MATRIX_NAME, nt_, dilSizeLS_.at(Side::left), dilSizeLS_.at(Side::right));
 
-                                        //executes once per file
-                                        if( ( dtL==time_dil_source.at(Side::left).front() ) and      //first time-dilution idx at one side
-                                            ( dtR==((time_dil_source.at(Side::right).front()+diag_shift)%distilNoise_.at(Side::right).dilutionSize(Index::t)) ) and    // same as above for the other side
-                                            ( t==ts_intersection.front() ) and    //first time slice
-                                            (i==0) and (j==0) )  //first IO block
-                                        {
-                                            // fetch metadata
-                                            DistilMesonFieldMetadata<FImpl> md = metadataDmfFn(iext,istr,n_idx.at(Side::left),n_idx.at(Side::right),
-                                                                    fetchDilutionMap(Side::left),fetchDilutionMap(Side::right));
-                                            //init file and write metadata
-                                            START_TIMER("IO: file creation");
-                                            matrix_io.initFile(md);
-                                            STOP_TIMER("IO: file creation");
-                                        }
-                                        START_TIMER("IO: write block");
-                                        matrix_io.saveBlock(block_relative, iextstr_local, i, j, dataset_name, t, blockSize_);
-                                        STOP_TIMER("IO: write block");
-                                    }
-                                    g_->Barrier();
-#else
-    HADRONS_ERROR(Implementation, "DistilMesonField serial IO not implemented.");
-#endif              
-                                    STOP_TIMER("IO: total");
-                                    ioTime    += GET_TIMER("IO: write block");
-                                    unsigned int bytesBlockSize  = static_cast<double>(nExt_*nStr_*iblock_size*jblock_size*sizeof(Tio));
-                                    double iospeed = bytesBlockSize/ioTime*1.0e6/1024/1024;
-                                    LOG(Message)    << "HDF5 IO done " << sizeString(bytesBlockSize) << " in "
-                                                    << ioTime  << " us (" << iospeed << " MB/s)" << std::endl;
-                                    blockIoSpeed_ += iospeed;
-                                }
-                            }
-                        }
-                    }
-                }
-            }
-        }
-    }
+//                                         //executes once per file
+//                                         if( ( dtL==time_dil_source.at(Side::left).front() ) and      //first time-dilution idx at one side
+//                                             ( dtR==((time_dil_source.at(Side::right).front()+diag_shift)%distilNoise_.at(Side::right).dilutionSize(Index::t)) ) and    // same as above for the other side
+//                                             ( t==ts_intersection.front() ) and    //first time slice
+//                                             (i==0) and (j==0) )  //first IO block
+//                                         {
+//                                             // fetch metadata
+//                                             DistilMesonFieldMetadata<FImpl> md = metadataDmfFn(iext,istr,n_idx.at(Side::left),n_idx.at(Side::right),
+//                                                                     fetchDilutionMap(Side::left),fetchDilutionMap(Side::right));
+//                                             //init file and write metadata
+//                                             START_TIMER("IO: file creation");
+//                                             matrix_io.initFile(md);
+//                                             STOP_TIMER("IO: file creation");
+//                                         }
+//                                         START_TIMER("IO: write block");
+//                                         matrix_io.saveBlock(block_relative, iextstr_local, i, j, dataset_name, t, blockSize_);
+//                                         STOP_TIMER("IO: write block");
+//                                     }
+//                                     g_->Barrier();
+// #else
+//     HADRONS_ERROR(Implementation, "DistilMesonField serial IO not implemented.");
+// #endif              
+//                                     STOP_TIMER("IO: total");
+//                                     ioTime    += GET_TIMER("IO: write block");
+//                                     unsigned int bytesBlockSize  = static_cast<double>(nExt_*nStr_*iblock_size*jblock_size*sizeof(Tio));
+//                                     double iospeed = bytesBlockSize/ioTime*1.0e6/1024/1024;
+//                                     LOG(Message)    << "HDF5 IO done " << sizeString(bytesBlockSize) << " in "
+//                                                     << ioTime  << " us (" << iospeed << " MB/s)" << std::endl;
+//                                     blockIoSpeed_ += iospeed;
+//                                 }
+//                             }
+//                         }
+//                     }
+//                 }
+//             }
+//         }
+//     }
 }
 
 END_HADRONS_NAMESPACE
