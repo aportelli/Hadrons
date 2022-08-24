@@ -249,6 +249,7 @@ void TPerambulator<FImpl>::execute(void)
 
     pMode perambMode{par().perambMode};
     LOG(Message)<< "Mode " << perambMode << std::endl;
+    LOG(Message)<< "Source batch size = " << par().sourceBatchSize << std::endl;
 
     envGetTmp(FermionField,      fermion3dtmp);
     envGetTmp(ColourVectorField, cv4dtmp);
