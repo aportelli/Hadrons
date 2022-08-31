@@ -945,7 +945,7 @@ void DmfComputation<FImpl,T,Tio>
                     uint right_block_size = (Side::right==relative_side) ? rel_block_size : anchor_block_size;
                     DistilMatrixSetIo<Tio> block(bBuf.data(), nExtStrLocal , nt_, left_block_size, right_block_size);
 
-                    LOG(Message) << "Distil matrix block" 
+                    LOG(Message) << "Distil matrix block " 
                     << jAnchor/blockSize_ + nblockRel*iRel/blockSize_ + 1 
                     << "/" << nblockRel*nblockAnchor << " [" << iRel << " .. " 
                     << iRel+rel_block_size-1 << ", " << jAnchor << " .. " << jAnchor+anchor_block_size-1 << "] : [relative, anchor]" 

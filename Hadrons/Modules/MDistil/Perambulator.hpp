@@ -489,6 +489,8 @@ void TPerambulator<FImpl>::execute(void)
             LOG(Message) <<  "saving perambulator dt= " << dt << std::endl;
             idt=it - std::begin(invT);
             std::string sPerambName {par().perambOutFileName};
+            sPerambName.append(".");
+            sPerambName.append(std::to_string(vm().getTrajectory()));
             sPerambName.append("/iDT_");
             sPerambName.append(std::to_string(dt));
             sPerambName.append(".");
