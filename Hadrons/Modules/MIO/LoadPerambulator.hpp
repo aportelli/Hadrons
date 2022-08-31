@@ -145,6 +145,8 @@ void TLoadPerambulator<FImpl>::execute(void)
         LOG(Message) <<  "reading perambulator dt= " << dt << std::endl;
         int idt=it - std::begin(invT);
         std::string sPerambName {par().perambFileName};
+        sPerambName.append(".");
+        sPerambName.append(std::to_string(vm().getTrajectory()));
         sPerambName.append("/iDT_");
         sPerambName.append(std::to_string(dt));
         sPerambName.append(".");
