@@ -84,6 +84,7 @@ public:
     // dependency relation
     virtual std::vector<std::string> getInput(void);
     virtual std::vector<std::string> getOutput(void);
+    virtual std::vector<std::string> getOutputFiles(void);
 
     // setup
     virtual void setup(void);
@@ -119,6 +120,13 @@ std::vector<std::string> TSubtractionOperators<FImpl>::getOutput(void)
     return out;
 }
 
+template <typename FImpl>
+std::vector<std::string> TSubtractionOperators<FImpl>::getOutputFiles(void)
+{
+    std::vector<std::string> output = {resultFilename(par().output)};
+
+    return output;
+}
 
 // setup ///////////////////////////////////////////////////////////////////////
 template <typename FImpl>
