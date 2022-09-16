@@ -38,8 +38,8 @@ public:
     virtual ~TLoadInterlacedDistillationNoise(void) {};
     // dependency relation
     virtual std::vector<std::string> getInput(void);
-    virtual std::vector<std::string> getReference(void);
     virtual std::vector<std::string> getOutput(void);
+    virtual DependencyMap getObjectDependencies(void);
     // setup
     virtual void setup(void);
     // execution
@@ -67,11 +67,13 @@ std::vector<std::string> TLoadInterlacedDistillationNoise<FImpl>::getInput(void)
 }
 
 template <typename FImpl>
-std::vector<std::string> TLoadInterlacedDistillationNoise<FImpl>::getReference(void)
+DependencyMap TLoadInterlacedDistillationNoise<FImpl>::getObjectDependencies(void)
 {
-    std::vector<std::string> ref = {par().lapEigenPack};
+    DependencyMap dep;
 
-    return ref;
+    dep.insert({par().lapEigenPack, getName()});
+
+    return dep;
 }
 
 template <typename FImpl>

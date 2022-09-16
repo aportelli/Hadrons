@@ -78,13 +78,14 @@ public:
 private:
     struct ObjInfo
     {
-        Size                    size{0};
-        Storage                 storage{Storage::standard};
-        unsigned int            Ls{0};
-        const std::type_info    *type{nullptr}, *derivedType{nullptr};
-        std::string             name;
-        int                     module{-1};
-        std::unique_ptr<Object> data{nullptr};
+        Size                      size{0};
+        Storage                   storage{Storage::standard};
+        unsigned int              Ls{0};
+        const std::type_info      *type{nullptr}, *derivedType{nullptr};
+        std::string               name;
+        int                       module{-1};
+        std::unique_ptr<Object>   data{nullptr};
+        std::set<unsigned int>    dependency;
     };
     typedef std::pair<size_t, unsigned int>     FineGridKey;
     typedef std::pair<size_t, std::vector<int>> CoarseGridKey;
@@ -136,6 +137,13 @@ public:
                                              const Environment::Storage storage);
     void                    setObjectModule(const unsigned int objAddress,
                                             const int modAddress);
+    void                    addObjectDependency(const unsigned int objAddress,
+                                                const unsigned int depAddress);
+    void                    removeObjectDependency(const unsigned int objAddress,
+                                                   const unsigned int depAddress);
+    const std::set<unsigned int> &getObjectDependencies(const unsigned int objAddress) const;
+    bool                    hasDependency(const unsigned int objAddress,
+                                          const unsigned int depAddress) const;
     template <typename B, typename T>
     T *                     getDerivedObject(const unsigned int address) const;
     template <typename B, typename T>
@@ -174,8 +182,9 @@ public:
     template <typename B, typename T>
     bool                    isObjectOfDerivedType(const std::string name) const;
     Environment::Size       getTotalSize(void) const;
-    void                    freeObject(const unsigned int address);
-    void                    freeObject(const std::string name);
+    void                    freeObject(const unsigned int address, const bool recursive = false);
+    void                    freeObject(const std::string name, const bool recursive = false);
+    void                    freeSet(const std::set<unsigned int> &objects);
     void                    freeAll(void);
     void                    protectObjects(const bool protect);
     bool                    objectsProtected(void) const;

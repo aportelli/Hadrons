@@ -35,8 +35,9 @@ using namespace Hadrons;
  *                         StatLogger implementation                          *
  ******************************************************************************/
 // constructor /////////////////////////////////////////////////////////////////
-StatLogger::StatLogger(Database &db)
+StatLogger::StatLogger(Database &db, const unsigned int periodMs)
 {
+    setPeriod(periodMs);
     setDatabase(db);
 }
 
@@ -66,10 +67,45 @@ void StatLogger::setDatabase(Database &db)
             "FROM memory                                                                               "
             "ORDER BY timeSec;                                                                         "
         );
+#ifdef GRID_CUDA_NOUVM
+        std::string periodSec = std::to_string(static_cast<double>(getPeriod())/1000.);
+        db_->createTable<DeviceMemoryEntry>("deviceMemory");
+        db_->execute(
+            "CREATE VIEW IF NOT EXISTS vDeviceMemory AS                                                "
+            "SELECT deviceMemory.time*1.0e-6 AS timeSec,                                               "
+            "       deviceMemory.totalCurrent*0.000000953674316 AS totalCurrentMB,                     "
+            "       deviceMemory.envCurrent*0.000000953674316 AS envCurrentMB,                         "
+            "       deviceMemory.gridCurrent*0.000000953674316 AS gridCurrentMB,                       "
+            "       deviceMemory.evictableCurrent*0.000000953674316 AS evictableCurrentMB,             "
+            "       deviceMemory.hostToDevice*0.000000953674316 AS hostToDeviceMB,                     "
+            "       deviceMemory.hostToDevice*0.000000953674316/" + periodSec + " AS hostToDeviceMBps, "
+            "       deviceMemory.hostToDeviceTransfers AS hostToDeviceTransfers,                       "
+            "       deviceMemory.deviceToHost*0.000000953674316 AS deviceToHostMB,                     "
+            "       deviceMemory.deviceToHost*0.000000953674316/" + periodSec + " AS deviceToHostMBps, "
+            "       deviceMemory.deviceToHostTransfers AS deviceToHostTransfers                        "
+            "FROM deviceMemory                                                                         "
+            "ORDER BY timeSec;                                                                         "
+        );
+#endif
     }
 }
 
-void StatLogger::start(const unsigned int period)
+void StatLogger::setPeriod(const unsigned int periodMs)
+{
+    periodMs_ = periodMs;
+}
+
+unsigned int StatLogger::getPeriod(void) const
+{
+    if (periodMs_ == 0)
+    {
+            HADRONS_ERROR(Argument, "stat logger period is 0 ms");
+    }
+
+    return periodMs_;
+}
+
+void StatLogger::start()
 {
     if (isRunning())
     {
@@ -78,17 +114,31 @@ void StatLogger::start(const unsigned int period)
     if (db_ and db_->isConnected())
     {
         isRunning_.store(true, std::memory_order_release);
-        thread_ = std::thread([this, period](void)
+        thread_ = std::thread([this](void)
         {
             while (isRunning_.load(std::memory_order_acquire))
             {
                 auto watch = *GridLogMessage.StopWatch;
 
-                watch.Stop();
-                auto time = watch.Elapsed().count();
+                if (watch.isRunning())
+                {
+                    watch.Stop();
+                }
+                auto time1 = watch.Elapsed().count();
                 watch.Start();
-                logMemory(time);
-                std::this_thread::sleep_for(std::chrono::milliseconds(period));
+                logMemory(time1);
+#ifdef GRID_CUDA_NOUVM
+                logDeviceMemory(time1);
+#endif
+                watch.Stop();
+                auto time2 = watch.Elapsed().count();
+                auto diff  = getPeriod()*1000 - (time2 - time1);
+                if (diff < 0)
+                {
+                    std::cerr << "warning: StatLogger period smaller than metric polling (diff " 
+                              << diff << " us)" << std::endl;
+                }
+                std::this_thread::sleep_for(std::chrono::microseconds(diff));
             }
         });
     }
@@ -113,7 +163,7 @@ void StatLogger::logMemory(const GridTime::rep time)
     MemoryEntry e;
 
     e.time         = time;
-    e.totalCurrent = MemoryUtils::getCurrentRSS();
+    e.totalCurrent = MemoryUtils::getHostCurrent();
     e.envCurrent   = Environment::getInstance().getTotalSize();
     if (Grid::MemoryProfiler::stats)
     {
@@ -124,10 +174,41 @@ void StatLogger::logMemory(const GridTime::rep time)
         e.gridCurrent = 0;
     }
     e.commsCurrent = Grid::GlobalSharedMemory::MAX_MPI_SHM_BYTES;
-    e.totalPeak    = MemoryUtils::getPeakRSS();
+    e.totalPeak    = MemoryUtils::getHostPeak();
     if (db_ and db_->isConnected())
     {
         db_->insert("memory", e);
+    }
+}
+
+void StatLogger::logDeviceMemory(const GridTime::rep time)
+{
+    struct Mem
+    {
+        uint64_t h2d{0}, h2dTr{0}, d2h{0}, d2hTr{0};
+    };
+    
+    static Mem        mem;
+    Mem               buf;
+    DeviceMemoryEntry e;
+
+    e.time                  = time;
+    e.totalCurrent          = 0;
+    e.envCurrent            = 0;
+    e.gridCurrent           = MemoryManager::DeviceBytes;
+    e.evictableCurrent      = MemoryManager::DeviceLRUBytes;
+    buf.h2d                 = MemoryManager::HostToDeviceBytes;
+    buf.h2dTr               = MemoryManager::HostToDeviceXfer;
+    buf.d2h                 = MemoryManager::DeviceToHostBytes;
+    buf.d2hTr               = MemoryManager::DeviceToHostXfer;
+    e.hostToDevice          = buf.h2d - mem.h2d;
+    e.hostToDeviceTransfers = buf.h2dTr - mem.h2dTr;
+    e.deviceToHost          = buf.d2h - mem.d2h;
+    e.deviceToHostTransfers = buf.d2hTr - mem.d2hTr;
+    mem                     = buf;
+    if (db_ and db_->isConnected())
+    {
+        db_->insert("deviceMemory", e);
     }
 }
 
@@ -135,10 +216,10 @@ void MemoryUtils::printMemory(void)
 {
     size_t total, env, comms, peak;
 
-    total = getCurrentRSS();
+    total = getHostCurrent();
     env   = Environment::getInstance().getTotalSize();
     comms = Grid::GlobalSharedMemory::MAX_MPI_SHM_BYTES;
-    peak  = getPeakRSS();
+    peak  = getHostPeak();
     LOG(Message) << "Memory: current total " << sizeString(total)
                  << " / environment "        << sizeString(env)
                  << " / comms "              << sizeString(comms);
@@ -148,6 +229,10 @@ void MemoryUtils::printMemory(void)
                   << sizeString(Grid::MemoryProfiler::stats->currentlyAllocated);
     }
     std::cout << " / peak total " << sizeString(peak) << std::endl;
+#ifdef GRID_CUDA_NOUVM
+    LOG(Message) << "Device memory: grid total " << sizeString(MemoryManager::DeviceBytes)
+                 << std::endl;
+#endif
 }
 
 /*
@@ -188,7 +273,7 @@ void MemoryUtils::printMemory(void)
  * memory use) measured in bytes, or zero if the value cannot be
  * determined on this OS.
  */
-size_t MemoryUtils::getPeakRSS(void)
+size_t MemoryUtils::getHostPeak(void)
 {
 #if defined(_WIN32)
     /* Windows -------------------------------------------------- */
@@ -230,7 +315,7 @@ size_t MemoryUtils::getPeakRSS(void)
  * Returns the current resident set size (physical memory use) measured
  * in bytes, or zero if the value cannot be determined on this OS.
  */
-size_t MemoryUtils::getCurrentRSS(void)
+size_t MemoryUtils::getHostCurrent(void)
 {
 #if defined(_WIN32)
     /* Windows -------------------------------------------------- */

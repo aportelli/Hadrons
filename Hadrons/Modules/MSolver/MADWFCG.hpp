@@ -30,8 +30,6 @@
 #include <Hadrons/Module.hpp>
 #include <Hadrons/ModuleFactory.hpp>
 #include <Hadrons/Solver.hpp>
-#include <Hadrons/EigenPack.hpp>
-#include <Hadrons/Modules/MSolver/Guesser.hpp>
 
 BEGIN_HADRONS_NAMESPACE
 
@@ -52,10 +50,10 @@ public:
                                     double      , innerResidual,
                                     double      , outerResidual,
                                     double      , PVResidual,
-                                    std::string , eigenPack);
+                                    std::string , guesser);
 };
 
-template <typename FImplInner, typename FImplOuter, int nBasis = HADRONS_DEFAULT_LANCZOS_NBASIS>
+template <typename FImplInner, typename FImplOuter>
 class TMADWFCG: public Module<MADWFCGPar>
 {
 public:
@@ -69,8 +67,8 @@ public:
     virtual ~TMADWFCG(void) {};
     // dependency relation
     virtual std::vector<std::string> getInput(void);
-    virtual std::vector<std::string> getReference(void);
     virtual std::vector<std::string> getOutput(void);
+    virtual DependencyMap getObjectDependencies(void);
     // setup
     virtual void setup(void);
     // execution
@@ -87,65 +85,71 @@ MODULE_REGISTER_TMP( MADWFCG,          ARG(TMADWFCG< FIMPLD, FIMPLD>), MSolver);
  *                        TMADWFCG implementation                             *
  ******************************************************************************/
 // constructor /////////////////////////////////////////////////////////////////
-template <typename FImplInner, typename FImplOuter, int nBasis>
-TMADWFCG<FImplInner, FImplOuter, nBasis>
-::TMADWFCG(const std::string name)
+template <typename FImplInner, typename FImplOuter>
+TMADWFCG<FImplInner, FImplOuter>::TMADWFCG(const std::string name)
 : Module<MADWFCGPar>(name)
 {}
 
 // dependencies/products ///////////////////////////////////////////////////////
-template <typename FImplInner, typename FImplOuter, int nBasis>
-std::vector<std::string> TMADWFCG<FImplInner, FImplOuter, nBasis>
-::getInput(void)
+template <typename FImplInner, typename FImplOuter>
+std::vector<std::string> TMADWFCG<FImplInner, FImplOuter>::getInput(void)
 {
-    std::vector<std::string> in;
+    std::vector<std::string> in = {par().innerAction, par().outerAction};
+    
+    if (!par().guesser.empty())
+    {
+        in.push_back(par().guesser);
+    }
     
     return in;
 }
 
-template <typename FImplInner, typename FImplOuter, int nBasis>
-std::vector<std::string> TMADWFCG<FImplInner, FImplOuter, nBasis>
-::getReference(void)
-{
-    std::vector<std::string> ref = {par().innerAction, par().outerAction};
-    
-    if (!par().eigenPack.empty())
-    {
-        ref.push_back(par().eigenPack);
-    }
-    
-    return ref;
-}
-
-template <typename FImplInner, typename FImplOuter, int nBasis>
-std::vector<std::string> TMADWFCG<FImplInner, FImplOuter, nBasis>
-::getOutput(void)
+template <typename FImplInner, typename FImplOuter>
+std::vector<std::string> TMADWFCG<FImplInner, FImplOuter>::getOutput(void)
 {
     std::vector<std::string> out = {getName(), getName() + "_subtract"};
 
     return out;
 }
 
+template <typename FImplInner, typename FImplOuter>
+DependencyMap TMADWFCG<FImplInner, FImplOuter>::getObjectDependencies(void)
+{
+    DependencyMap dep;
+
+    dep.insert({par().innerAction, getName()});
+    dep.insert({par().innerAction, getName() + "_subtract"});
+    dep.insert({par().outerAction, getName()});
+    dep.insert({par().outerAction, getName() + "_subtract"});
+    if (!par().guesser.empty())
+    {
+        dep.insert({par().guesser, getName(),             });
+        dep.insert({par().guesser, getName() + "_subtract"});
+    }
+
+    return dep;
+}
+
 
 // setup ///////////////////////////////////////////////////////////////////////
-template <typename FImplInner, typename FImplOuter, int nBasis>
-void TMADWFCG<FImplInner, FImplOuter, nBasis>
-::setup(void)
+template <typename FImplInner, typename FImplOuter>
+void TMADWFCG<FImplInner, FImplOuter>::setup(void)
 {
     LOG(Message) << "Setting up MADWF solver " << std::endl;
     LOG(Message) << "with inner/outer action  '"  << par().innerAction   << "'/'" << par().outerAction   << "'" << std::endl;
     LOG(Message) << "     inner/outer/PV residual "  << par().innerResidual <<  "/"  << par().outerResidual <<  "/"  << par().PVResidual  << std::endl;
     LOG(Message) << "     maximum inner/outer/PV iterations " << par().maxInnerIteration <<  "/"  << par().maxOuterIteration <<  "/"  << par().maxPVIteration << std::endl;
-    if (!par().eigenPack.empty())
-        LOG(Message) << "     eigenpack '" << par().eigenPack << "'" << std::endl;
 
-    auto Ls_outer  = env().getObjectLs(par().outerAction);
-    auto &omat     = envGet(FMatOuter, par().outerAction);
-    auto guesserPt = makeGuesser<FImplInner, nBasis>(par().eigenPack);
+    auto Ls_outer                                = env().getObjectLs(par().outerAction);
+    auto &omat                                   = envGet(FMatOuter, par().outerAction);
+    LinearFunction<FermionFieldInner> *guesserPt = nullptr;
+    CayleyFermion5D<FImplOuter>       &D_outer   = envGetDerived(FMatOuter, CayleyFermion5D<FImplOuter>, par().outerAction);
+    CayleyFermion5D<FImplInner>       &D_inner   = envGetDerived(FMatInner, CayleyFermion5D<FImplInner>, par().innerAction);
 
-    CayleyFermion5D<FImplOuter> &D_outer = envGetDerived(FMatOuter, CayleyFermion5D<FImplOuter>, par().outerAction);
-    CayleyFermion5D<FImplInner> &D_inner = envGetDerived(FMatInner, CayleyFermion5D<FImplInner>, par().innerAction);
-
+    if (!par().guesser.empty())
+    {
+        guesserPt = &envGet(LinearFunction<FermionFieldInner>, par().guesser);
+    }
     auto makeSolver = [&D_outer, &D_inner, guesserPt, this] (bool subGuess)
     {
         return [&D_outer, &D_inner, guesserPt, subGuess, this]
@@ -163,12 +167,15 @@ void TMADWFCG<FImplInner, FImplOuter, nBasis>
             ConjugateGradient<FermionFieldInner> CG_inner(par().innerResidual, par().maxInnerIteration, 0);
             HADRONS_DEFAULT_SCHUR_SOLVE<FermionFieldInner> SchurSolver_inner(CG_inner);
 
+            ZeroGuesser<FermionFieldInner> defaultGuesser;
+
+            LinearFunction<FermionFieldInner> &guesser = (guesserPt == nullptr) ? defaultGuesser : *guesserPt;
             MADWF<CayleyFermion5D<FImplOuter>, CayleyFermion5D<FImplInner>,
                   PVtype, HADRONS_DEFAULT_SCHUR_SOLVE<FermionFieldInner>, 
                   LinearFunction<FermionFieldInner> >  
                 madwf(D_outer, D_inner,
                       PV_outer, SchurSolver_inner,
-                      *guesserPt,
+                      guesser,
                       par().outerResidual, par().maxOuterIteration,
                       nullptr);
 
@@ -183,9 +190,8 @@ void TMADWFCG<FImplInner, FImplOuter, nBasis>
 
 
 // execution ///////////////////////////////////////////////////////////////////
-template <typename FImplInner, typename FImplOuter, int nBasis>
-void TMADWFCG<FImplInner, FImplOuter, nBasis>
-::execute(void)
+template <typename FImplInner, typename FImplOuter>
+void TMADWFCG<FImplInner, FImplOuter>::execute(void)
 {}
 
 END_MODULE_NAMESPACE

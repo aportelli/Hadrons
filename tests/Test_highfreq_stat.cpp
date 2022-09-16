@@ -1,7 +1,7 @@
 /*
- * RandomField.cpp, part of Hadrons (https://github.com/aportelli/Hadrons)
+ * Test_highfreq_stat.cpp, part of Hadrons (https://github.com/aportelli/Hadrons)
  *
- * Copyright (C) 2015 - 2020
+ * Copyright (C) 2015 - 2021
  *
  * Author: Antonin Portelli <antonin.portelli@me.com>
  *
@@ -23,13 +23,27 @@
  */
 
 /*  END LEGAL */
-#include <Hadrons/Modules/MUtilities/RandomField.hpp>
+
+#include <Hadrons/Database.hpp>
+#include <Hadrons/StatLogger.hpp>
 
 using namespace Grid;
 using namespace Hadrons;
-using namespace MUtilities;
 
-template class Grid::Hadrons::MUtilities::TRandomField<FIMPL::PropagatorField>;
-template class Grid::Hadrons::MUtilities::TRandomField<FIMPL::FermionField>;
-template class Grid::Hadrons::MUtilities::TRandomField<FIMPL::ComplexField>;
-template class Grid::Hadrons::MUtilities::TRandomField<GIMPL::GaugeLinkField>;
+int main(int argc, char *argv[])
+{
+    Grid_init(&argc, &argv);
+
+    // high-frequency stat
+    Database   db("test-highfreq-stat.db");    
+    StatLogger stat(db, 1);
+
+    stat.start();
+    // do nothing
+    std::this_thread::sleep_for(std::chrono::seconds(2));
+    stat.stop();
+
+    Grid_finalize();
+    
+    return EXIT_SUCCESS;
+}

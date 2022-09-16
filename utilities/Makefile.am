@@ -2,11 +2,15 @@ AM_LDFLAGS += -L$(top_builddir)/Hadrons
 AM_CXXFLAGS += -I$(top_srcdir)
 
 bin_PROGRAMS = \
+  BatchDeflationBenchmark    \
   HadronsContractor          \
   HadronsContractorBenchmark \
   HadronsXmlRun              \
   HadronsXmlValidate         \
   HadronsFermionEP64To32 
+
+BatchDeflationBenchmark_SOURCES = BatchDeflationBenchmark.cpp
+BatchDeflationBenchmark_LDADD = -lHadrons -lGrid
 
 HadronsXmlRun_SOURCES = HadronsXmlRun.cpp
 HadronsXmlRun_LDADD   = -lHadrons -lGrid

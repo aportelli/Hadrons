@@ -58,6 +58,7 @@ public:
     GRID_SERIALIZABLE_CLASS_MEMBERS(PerambulatorPar,
                                     std::string, lapEigenPack,
                                     std::string, solver,
+                                    int,         sourceBatchSize,
                                     std::string, perambFileName,
                                     std::string, fullSolveFileName,
                                     std::string, fullSolve,
@@ -173,6 +174,16 @@ void TPerambulator<FImpl>::setup(void)
     std::string sourceT = par().timeSources;
     nSourceT = verifyTimeSourcesInput(sourceT, nDT);
 
+    int sourceBatchSize = par().sourceBatchSize;
+    int nSources = nNoise * nDL_reduced * nDS * nSourceT;
+    if(nSources % sourceBatchSize != 0)
+    {
+        HADRONS_ERROR(Argument, "sourceBatchSize must divide nNoise * nD");
+    }
+    //need a vector here
+    envTmp(std::vector<FermionField>,  "dist_source_vec",  1, sourceBatchSize, envGetGrid(FermionField));
+    envTmp(std::vector<FermionField>,  "fermion4dtmp_vec", 1, sourceBatchSize, envGetGrid(FermionField));
+
     // Perambulator dimensions need to use the reduced value for nDL     
     envCreate(PerambTensor, getName(), 1, Nt, nVec, nDL_reduced, nNoise, nSourceT, nDS);
     envTmp(PerambIndexTensor, "PerambDT",1,Nt,nVec,nDL_reduced,nNoise,nDS);
@@ -183,8 +194,6 @@ void TPerambulator<FImpl>::setup(void)
         envGetGrid(FermionField));
     }
 
-    envTmpLat(FermionField,      "dist_source");
-    envTmpLat(FermionField,      "fermion4dtmp");
     envTmp(FermionField,         "fermion3dtmp", 1, grid3d);
     envTmpLat(ColourVectorField, "cv4dtmp");
     envTmp(ColourVectorField,    "cv3dtmp", 1, grid3d);
@@ -196,8 +205,8 @@ void TPerambulator<FImpl>::setup(void)
     if(perambMode != pMode::inputSolve)
     {
         Ls_ = env().getObjectLs(par().solver);
-        envTmpLat(FermionField, "v5dtmp", Ls_);
-        envTmpLat(FermionField, "v5dtmp_sol", Ls_);
+        envTmp(std::vector<FermionField>, "v5dtmp_vec", Ls_, sourceBatchSize, envGetGrid(FermionField, Ls_));
+        envTmp(std::vector<FermionField>, "v5dtmp_sol_vec", Ls_,  sourceBatchSize, envGetGrid(FermionField, Ls_));
     }
 }
 
@@ -233,8 +242,6 @@ void TPerambulator<FImpl>::execute(void)
     pMode perambMode{par().perambMode};
     LOG(Message)<< "Mode " << perambMode << std::endl;
 
-    envGetTmp(FermionField,      dist_source);
-    envGetTmp(FermionField,      fermion4dtmp);
     envGetTmp(FermionField,      fermion3dtmp);
     envGetTmp(ColourVectorField, cv4dtmp);
     envGetTmp(ColourVectorField, cv3dtmp);
@@ -261,13 +268,21 @@ void TPerambulator<FImpl>::execute(void)
     std::vector<int> invT;
     nSourceT = getSourceTimesFromInput(sourceT,nDT,dilNoise,invT);    
     perambulator.MetaData.timeSources = invT;
+    
+    int sourceBatchSize = par().sourceBatchSize;
+    envGetTmp(std::vector<FermionField>, dist_source_vec);
+    envGetTmp(std::vector<FermionField>, fermion4dtmp_vec);
 
     int idt,dt,dk,ds,dIndexSolve = 0; 
     std::array<unsigned int, 3> index;
+    int iSource=0;
+    std::vector<int> sourceIndices(sourceBatchSize);
     for (int inoise = 0; inoise < nNoise; inoise++)
     {
         for (int d = 0; d < nD; d++)
         {
+            // create batched sources
+            // save all the inoise, d indices looped through to unroll them later
             index = dilNoise.dilutionCoordinates(d);
             dt = index[DistillationNoise<FImpl>::Index::t];
             dk = index[DistillationNoise<FImpl>::Index::l];
@@ -284,81 +299,138 @@ void TPerambulator<FImpl>::execute(void)
                 continue;
             }
             idt=it - std::begin(invT);
+            // there is no reason to use this batched, but it works just as well
             if(perambMode == pMode::inputSolve)
             {
                 START_P_TIMER("input solve");
                 auto &solveIn = envGet(std::vector<FermionField>, par().fullSolve);
                 // Index of the solve just has the reduced time dimension & uses nDL from solveIn
                 dIndexSolve = ds + nDS * dk + nDL * nDS * idt;
-                fermion4dtmp = solveIn[inoise+nNoise*dIndexSolve];
+                fermion4dtmp_vec[iSource] = solveIn[inoise+nNoise*dIndexSolve];
                 STOP_P_TIMER("input solve");
                 LOG(Message) << "re-using source vector: noise " << inoise << " dilution (d_t,d_k,d_alpha) : (" << dt << ","<< dk << "," << ds << ")" << std::endl;
             } 
             else 
             {
-                dist_source = dilNoise.makeSource(d,inoise);
-                fermion4dtmp=0;
+                // Fill batched vector of distillation sources
+                // also set solution batch vector to zero
+                dist_source_vec[iSource] = dilNoise.makeSource(d,inoise);
+                fermion4dtmp_vec[iSource]=0;
+            }
+            sourceIndices[iSource]=inoise+nNoise*d;
+            iSource++;
+            // if batch size not yet reached, continue batching
+            if(iSource < sourceBatchSize)
+            {
+                continue;
+            }
+            LOG(Message) <<  "batch built from indices: " << sourceIndices << std::endl;
+            if(perambMode != pMode::inputSolve)
+            {
+                // Solve on batched vector
                 auto &solver=envGet(Solver, par().solver);
                 auto &mat = solver.getFMat();
                 if (Ls_ == 1)
                 {
                     START_P_TIMER("solver");
-                    solver(fermion4dtmp, dist_source);
+                    solver(fermion4dtmp_vec, dist_source_vec);
                     STOP_P_TIMER("solver");
                 }
                 else
                 {
                     START_P_TIMER("solver handling");
-                    envGetTmp(FermionField,      v5dtmp);
-                    envGetTmp(FermionField,      v5dtmp_sol);
-                    mat.ImportPhysicalFermionSource(dist_source, v5dtmp);
+                    envGetTmp(std::vector<FermionField>,      v5dtmp_vec);
+                    envGetTmp(std::vector<FermionField>,      v5dtmp_sol_vec);
+                    for (iSource = 0; iSource < sourceBatchSize; iSource ++)
+                    {  
+                        mat.ImportPhysicalFermionSource(dist_source_vec[iSource], v5dtmp_vec[iSource]);
+                    }
                     STOP_P_TIMER("solver handling");
                     START_P_TIMER("solver");
-                    solver(v5dtmp_sol, v5dtmp);
+                    solver(v5dtmp_sol_vec, v5dtmp_vec);
                     STOP_P_TIMER("solver");
                     START_P_TIMER("solver handling");
-                    mat.ExportPhysicalFermionSolution(v5dtmp_sol, fermion4dtmp);
+                    for (iSource = 0; iSource < sourceBatchSize; iSource ++)
+                    {  
+                        mat.ExportPhysicalFermionSolution(v5dtmp_sol_vec[iSource], fermion4dtmp_vec[iSource]);
+                    }
                     STOP_P_TIMER("solver handling");
                 }
                 if(perambMode == pMode::outputSolve)
                 {
-                    // Index of the solve just has the reduced time dimension 
                     START_P_TIMER("output solve");
-                    dIndexSolve = ds + nDS * dk + nDL * nDS * idt;
-                    auto &solveOut = envGet(std::vector<FermionField>, getName()+"_full_solve");
-                    solveOut[inoise+nNoise*dIndexSolve] = fermion4dtmp;
+                    for (iSource = 0; iSource < sourceBatchSize; iSource ++)
+                    {
+                        int in = sourceIndices[iSource] % nNoise;
+                        int id = sourceIndices[iSource] / nNoise;
+                        index = dilNoise.dilutionCoordinates(id);
+                        dt = index[DistillationNoise<FImpl>::Index::t];
+                        dk = index[DistillationNoise<FImpl>::Index::l];
+                        ds = index[DistillationNoise<FImpl>::Index::s];
+                        std::vector<int>::iterator it = std::find(std::begin(invT), std::end(invT), dt);
+                        idt=it - std::begin(invT);
+                        // Index of the solve just has the reduced time dimension                         
+                        dIndexSolve = ds + nDS * dk + nDL * nDS * idt;
+                        auto &solveOut = envGet(std::vector<FermionField>, getName()+"_full_solve");
+                        solveOut[in+nNoise*dIndexSolve] = fermion4dtmp_vec[iSource];                     
+                    }
                     STOP_P_TIMER("output solve");
                 }
                 if(perambMode == pMode::saveSolve)
                 {
-                    // Index of the solve just has the reduced time dimension
+                    
                     START_P_TIMER("save solve");
-                    dIndexSolve = dilNoise.dilutionIndex(dt,dk,ds);
-                    std::string sFileName(par().fullSolveFileName);
-                    sFileName.append("_noise");
-                    sFileName.append(std::to_string(inoise));
-                    DistillationVectorsIo::writeComponent(sFileName, fermion4dtmp, "fullSolve", nNoise, nDL, nDS, nDT, invT, inoise+nNoise*dIndexSolve, vm().getTrajectory());
+                    for (iSource = 0; iSource < sourceBatchSize; iSource ++)
+                    {
+                        int in = sourceIndices[iSource] % nNoise;
+                        int id = sourceIndices[iSource] / nNoise;
+                        index = dilNoise.dilutionCoordinates(id);
+                        dt = index[DistillationNoise<FImpl>::Index::t];
+                        dk = index[DistillationNoise<FImpl>::Index::l];
+                        ds = index[DistillationNoise<FImpl>::Index::s];
+                        std::vector<int>::iterator it = std::find(std::begin(invT), std::end(invT), dt);
+                        idt=it - std::begin(invT);
+                        // Index of the solve has the full time dimension
+                        dIndexSolve = dilNoise.dilutionIndex(dt,dk,ds);
+                        std::string sFileName(par().fullSolveFileName);
+                        sFileName.append("_noise");
+                        sFileName.append(std::to_string(in));
+                        DistillationVectorsIo::writeComponent(sFileName, fermion4dtmp_vec[iSource], "fullSolve", nNoise, nDL, nDS, nDT, invT, in+nNoise*dIndexSolve, vm().getTrajectory());
+                    }
                     STOP_P_TIMER("save solve");
                 }
             }
             START_P_TIMER("perambulator computation");
-            for (int is = 0; is < Ns; is++)
+            for (iSource = 0; iSource < sourceBatchSize; iSource ++)
             {
-                cv4dtmp = peekSpin(fermion4dtmp,is);
-                for (int t = Ntfirst; t < Ntfirst + Ntlocal; t++)
+                int in = sourceIndices[iSource] % nNoise;
+                int id = sourceIndices[iSource] / nNoise;
+                index = dilNoise.dilutionCoordinates(id);
+                dt = index[DistillationNoise<FImpl>::Index::t];
+                dk = index[DistillationNoise<FImpl>::Index::l];
+                ds = index[DistillationNoise<FImpl>::Index::s];
+                std::vector<int>::iterator it = std::find(std::begin(invT), std::end(invT), dt);
+                idt=it - std::begin(invT);
+                for (int is = 0; is < Ns; is++)
                 {
-                    ExtractSliceLocal(cv3dtmp,cv4dtmp,0,t-Ntfirst,Tdir); 
-                    for (int ivec = 0; ivec < nVec; ivec++)
+                    cv4dtmp = peekSpin(fermion4dtmp_vec[iSource],is);
+                    for (int t = Ntfirst; t < Ntfirst + Ntlocal; t++)
                     {
-                        int jvec= ivec + nVec * (t-Ntfirst);
-                        evec3d = evec3d_tmp[jvec];
-                        pokeSpin(perambulator.tensor(t, ivec, dk, inoise,idt,ds),static_cast<Complex>(innerProduct(evec3d, cv3dtmp)),is);
+                        ExtractSliceLocal(cv3dtmp,cv4dtmp,0,t-Ntfirst,Tdir); 
+                        for (int ivec = 0; ivec < nVec; ivec++)
+                        {
+                            int jvec= ivec + nVec * (t-Ntfirst);
+                            evec3d = evec3d_tmp[jvec];
+                            pokeSpin(perambulator.tensor(t, ivec, dk, in,idt,ds),static_cast<Complex>(innerProduct(evec3d, cv3dtmp)),is);
+                        }
                     }
                 }
             }
             STOP_P_TIMER("perambulator computation");
+            iSource=0;
         }
     }
+
     // Now share my timeslice data with other members of the grid
     const int NumSlices{grid4d->_processors[Tdir] / grid3d->_processors[Tdir]};
     if (NumSlices > 1)

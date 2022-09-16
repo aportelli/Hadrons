@@ -164,6 +164,7 @@ public:
 
     virtual std::vector<std::string> getInput();
     virtual std::vector<std::string> getOutput();
+    virtual std::vector<std::string> getOutputFiles(void);
 
 protected:
     virtual void setup(void);
@@ -191,6 +192,14 @@ std::vector<std::string> TFourQuarkLoop<FImpl>::getOutput()
     std::vector<std::string> out = {getName()};
 
     return out;
+}
+
+template <typename FImpl>
+std::vector<std::string> TFourQuarkLoop<FImpl>::getOutputFiles(void)
+{
+    std::vector<std::string> output = {resultFilename(par().output)};
+
+    return output;
 }
 
 template <typename FImpl>

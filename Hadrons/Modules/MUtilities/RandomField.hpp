@@ -33,7 +33,7 @@
 BEGIN_HADRONS_NAMESPACE
 
 /******************************************************************************
- *                         RandomField                                 *
+ *                    Generate a single random field                          *
  ******************************************************************************/
 BEGIN_MODULE_NAMESPACE(MUtilities)
 
@@ -64,9 +64,10 @@ public:
 MODULE_REGISTER_TMP(RandomPropagator, TRandomField<FIMPL::PropagatorField>, MUtilities);
 MODULE_REGISTER_TMP(RandomFermion, TRandomField<FIMPL::FermionField>, MUtilities);
 MODULE_REGISTER_TMP(RandomComplex, TRandomField<FIMPL::ComplexField>, MUtilities);
+MODULE_REGISTER_TMP(RandomColourMatrix, TRandomField<GIMPL::GaugeLinkField>, MUtilities);
 
 /******************************************************************************
- *                 TRandomField implementation                             *
+ *                    TRandomField implementation                             *
  ******************************************************************************/
 // constructor /////////////////////////////////////////////////////////////////
 template <typename Field>

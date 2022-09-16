@@ -46,9 +46,9 @@ int main(int argc, char *argv[])
     // run setup ///////////////////////////////////////////////////////////////
     Application              application;
     std::vector<std::string> flavour = {"h"}; //{"l", "s", "c1", "c2", "c3"};
-    std::vector<double>      mass    = {.2}; //{.01, .04, .2  , .25 , .3  };
+    std::vector<double>      mass    = {.05}; //{.01, .04, .2  , .25 , .3  };
     std::vector<std::string> lepton_flavour    = {"mu"};
-    std::vector<double>      lepton_mass    = {.2};
+    std::vector<double>      lepton_mass    = {.05};
 
     unsigned int  nt    = GridDefaultLatt()[Tp];
     
@@ -83,7 +83,7 @@ int main(int argc, char *argv[])
         MAction::DWF::Par actionPar_lep;
         actionPar_lep.gauge = "free_gauge";
         actionPar_lep.Ls    = 8;
-        actionPar_lep.M5    = 1.8;
+        actionPar_lep.M5    = 1.01;
         actionPar_lep.mass  = lepton_mass[i];
         actionPar_lep.boundary = boundary;
         application.createModule<MAction::DWF>("free_DWF_" + lepton_flavour[i], actionPar_lep);
@@ -95,6 +95,7 @@ int main(int argc, char *argv[])
 	freePar.twist = "0 0 0 0";
 	freePar.boundary = boundary;
         freePar.mass = lepton_mass[i];
+        freePar.outputTrace = "2pt_free/tr_DWF_" + lepton_flavour[i];
         application.createModule<MFermion::FreeProp>("Lpt_" + lepton_flavour[i],
 							 freePar);
 
@@ -112,13 +113,10 @@ int main(int argc, char *argv[])
 	freePar_W.twist = "0 0 0 0";
 	freePar_W.boundary = boundary;
         freePar_W.mass = lepton_mass[i];
+        freePar_W.outputTrace = "2pt_free/tr_W_" + lepton_flavour[i];
         application.createModule<MFermion::FreeProp>("W_Lpt_" + lepton_flavour[i],
 							 freePar_W);
-
-
     }
-
-
 
     //Propagators from inversion
     for (unsigned int i = 0; i < flavour.size(); ++i)
@@ -127,7 +125,7 @@ int main(int argc, char *argv[])
         MAction::DWF::Par actionPar;
         actionPar.gauge = "gauge";
         actionPar.Ls    = 8;
-        actionPar.M5    = 1.8;
+        actionPar.M5    = 1.01;
         actionPar.mass  = mass[i];
         actionPar.boundary = boundary;
         application.createModule<MAction::DWF>("DWF_" + flavour[i], actionPar);

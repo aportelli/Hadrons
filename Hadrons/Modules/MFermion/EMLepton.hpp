@@ -209,22 +209,22 @@ void TEMLepton<FImpl>::execute(void)
     for (unsigned int s = 0; s < Ns; ++s)
     {
         LOG(Message) << "Calculation for spin= " << s << std::endl;
-	if (Ls_ == 1)
-	{
-	    PropToFerm<FImpl>(source, sourcetmp, s, 0);
-	}
-	else
-	{
-	    PropToFerm<FImpl>(tmp, sourcetmp, s, 0);
-	    // 5D source if action is 5d
-	    mat.ImportPhysicalFermionSource(tmp, source);
-	}
+        if (Ls_ == 1)
+        {
+            PropToFerm<FImpl>(source, sourcetmp, s, 0);
+        }
+        else
+        {
+            PropToFerm<FImpl>(tmp, sourcetmp, s, 0);
+            // 5D source if action is 5d
+            mat.ImportPhysicalFermionSource(tmp, source);
+        }
         sol = Zero();
-	mat.FreePropagator(source,sol,mass,boundary,twist);
-	if (Ls_ == 1)
-	{
-            FermToProp<FImpl>(freetmp, sol, s, 0);
-	}
+        mat.FreePropagator(source,sol,mass,boundary,twist);
+        if (Ls_ == 1)
+        {
+                FermToProp<FImpl>(freetmp, sol, s, 0);
+        }
         // create 4D propagators from 5D one if necessary
         if (Ls_ > 1)
         {
@@ -233,28 +233,29 @@ void TEMLepton<FImpl>::execute(void)
         }
     }
 
-    for(unsigned int dt=0;dt<par().deltat.size();dt++){
-	PropagatorField &lep = envGet(PropagatorField, std::to_string(par().deltat[dt]) + "_" + getName() + "_free");
-	for(tl=0;tl<nt;tl++){
+    for(unsigned int dt=0;dt<par().deltat.size();dt++)
+    {
+        PropagatorField &lep = envGet(PropagatorField, std::to_string(par().deltat[dt]) + "_" + getName() + "_free");
+	    for(tl=0;tl<nt;tl++)
+        {
+            //shift free propagator to different source positions
+            //account for possible anti-periodic boundary in time
+            proptmp = Cshift(freetmp,Tp, -tl);
+            proptmp = where( tlat < tl, boundary[Tp]*proptmp, proptmp);
 
-	    //shift free propagator to different source positions
-	    //account for possible anti-periodic boundary in time
-	    proptmp = Cshift(freetmp,Tp, -tl);
-	    proptmp = where( tlat < tl, boundary[Tp]*proptmp, proptmp);
-
-            // free propagator for fixed source-sink separation
-	    lep = where(tlat == (tl-par().deltat[dt]+nt)%nt, proptmp, lep);
-	}
-	//account for possible anti-periodic boundary in time
-	lep = where( tlat >= nt-par().deltat[dt], boundary[Tp]*lep, lep);
+                // free propagator for fixed source-sink separation
+            lep = where(tlat == (tl-par().deltat[dt]+nt)%nt, proptmp, lep);
+        }
+        //account for possible anti-periodic boundary in time
+        lep = where( tlat >= nt-par().deltat[dt], boundary[Tp]*lep, lep);
     }
 
-    for(tl=0;tl<nt;tl++){
-
-	//shift free propagator to different source positions
-	//account for possible anti-periodic boundary in time
-	proptmp = Cshift(freetmp,Tp, -tl);
-	proptmp = where( tlat < tl, boundary[Tp]*proptmp, proptmp);
+    for(tl=0;tl<nt;tl++)
+    {
+        //shift free propagator to different source positions
+        //account for possible anti-periodic boundary in time
+        proptmp = Cshift(freetmp,Tp, -tl);
+        proptmp = where( tlat < tl, boundary[Tp]*proptmp, proptmp);
 
         // i*A_mu*gamma_mu
         sourcetmp = Zero();
