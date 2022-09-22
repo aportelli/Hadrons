@@ -58,7 +58,7 @@
  *   M(phi_{l/s},phi_l)   relative RHS  
  *   M(rho,phi_l)         relative LHS       
  * 
- * We use the mode 'saveSolve' in the light-quark perambulator module. In 
+ * We use the mode 'saveSolveOnly' in the light-quark perambulator module. In 
  * addition to computing the perambulators, it also saves the unsmeared 
  * solves on disk. These can late be contracted into meson fields by 
  * passing the filename via the input parameters
@@ -173,12 +173,12 @@ int main(int argc, char *argv[])
             MDistil::Perambulator::Par perambPar;
             perambPar.lapEigenPack = "lapevec";
             perambPar.solver = "cg_" + flavour[i];
-            perambPar.perambFileName = "./kpi-stoch/Peramb_" + flavour[i] + "_" + noises[j];
-            perambPar.fullSolveFileName = "./kpi-stoch/unsmeared_solve_" + flavour[i] + "_" + noises[j]; // only used for perambMode::saveSolve
-            perambPar.fullSolve = ""; // only used for perambMode::loadSolve
+            perambPar.perambOutFileName = "./kpi-stoch/Peramb_" + flavour[i] + "_" + noises[j];
+            perambPar.unsmSolveOutFileName = "./kpi-stoch/unsmeared_solve_" + flavour[i] + "_" + noises[j]; // only used for perambMode::saveSolveOnly
+            perambPar.unsmSolve = ""; // only used for perambMode::loadSolve
             perambPar.distilNoise = noises[j];
             perambPar.timeSources = tSrcs[j]; // time slices to invert on
-            perambPar.perambMode = MDistil::pMode::saveSolve; // compute perambulator from lap evecs, save unsmeared solves to disk
+            perambPar.perambMode = MDistil::pMode::saveSolveOnly; // compute perambulator from lap evecs, save unsmeared solves to disk
             perambPar.nVec = ""; // empty = match nVec in distilNoise
             application.createModule<MDistil::Perambulator>("Peramb_" + flavour[i] + "_" + noises[j], perambPar);
         }
