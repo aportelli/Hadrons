@@ -132,10 +132,10 @@ std::vector<std::string> TDistilMesonFieldRelative<FImpl>::getInput(void)
     dmfType_.emplace(Side::right  , (par().rightPeramb.empty() and par().rightVectorStem.empty()) ? "rho" : "phi");
     perambNames_ = {{Side::left,par().leftPeramb},{Side::right,par().rightPeramb}};
     vectorNames_ = {{Side::left,par().leftVectorStem},{Side::right,par().rightVectorStem}};
-    //require peramb dependency if phi case
+    //require peramb dependency if phi case and vector not passed
     for(Side s : sides)
     {
-        if(dmfType_.at(s)=="phi")
+        if(dmfType_.at(s)=="phi" and vectorNames_.at(s).empty())
         {
             in.push_back( s==Side::left ? par().leftPeramb : par().rightPeramb);
         }
@@ -269,14 +269,21 @@ void TDistilMesonFieldRelative<FImpl>::setup(void)
     {
         delta_t_list_ = {0};    //pinning a relative rho field implies in only delta_t=0 by definition
     }
-
-    std::map<Side, unsigned int> dilSizeT = { {Side::left, relative_side_==Side::left ? 1 : DISTILVECTOR_TIME_BATCH_SIZE},
-                                                {Side::right, relative_side_==Side::right ? 1 : DISTILVECTOR_TIME_BATCH_SIZE} };  //the relative distilvector has always time-dilution dimension 1
-
+    
+    unsigned int nExt = momenta_.size() , nStr = gamma_.size();
     envTmpLat(ComplexField,             "coor");
-    envTmp(std::vector<ComplexField>,   "phase",        1, momenta_.size(), g );
-    envTmp(DistilVector,                "dvl",          1, dilSizeT.at(Side::left)*dilSizeLS_.at(Side::left), g);
-    envTmp(DistilVector,                "dvr",          1, dilSizeT.at(Side::right)*dilSizeLS_.at(Side::right), g);
+    envTmp(std::vector<ComplexField>,   "phase",        1, nExt, g );
+    //make dv's aware of anchor/relative sides and cached size also (anchored side is being compute in cache loop
+    unsigned int left_dv_size  = (Side::left==relative_side_)   ? dilSizeLS_.at(relative_side_)    : par().cacheSize ;
+    unsigned int right_dv_size = (Side::right==relative_side_) ? dilSizeLS_.at(relative_side_)  : par().cacheSize ;
+    envTmp(DistilVector,                "dvl",          1, left_dv_size, g);
+    envTmp(DistilVector,                "dvr",          1, right_dv_size, g);
+
+    unsigned int nnode = g->RankCount();
+    const unsigned int nExtStr = nExt*nStr;
+    const unsigned int nExtStrLocal = g->IsBoss() ? nExtStr/nnode + nExtStr%nnode : nExtStr/nnode; // put remainder in boss node
+    envTmp(Vector<HADRONS_DISTIL_IO_TYPE>, "block_buf", 1, nt * nExtStrLocal * par().blockSize * par().blockSize);
+    envTmp(Vector<HADRONS_DISTIL_TYPE>,    "cache_buf", 1, nt * nExt * nStr * par().cacheSize * par().cacheSize);
     envTmp(Computation,                 "computation",  1, dmfType_, g, g3d, noisel, noiser, par().blockSize, 
                 par().cacheSize, env().getDim(g->Nd() - 1), momenta_.size(), gamma_.size(), isExact_, vm().getTrajectory(), par().leftVectorStem, par().rightVectorStem);
 }
@@ -288,6 +295,8 @@ void TDistilMesonFieldRelative<FImpl>::execute(void)
     // temps
     envGetTmp(DistilVector, dvl);
     envGetTmp(DistilVector, dvr);
+    envGetTmp(Vector<HADRONS_DISTIL_IO_TYPE>, block_buf);
+    envGetTmp(Vector<HADRONS_DISTIL_TYPE>, cache_buf);
     envGetTmp(Computation,  computation);
     envGetTmp(std::vector<ComplexField>, phase);
 
@@ -313,28 +322,38 @@ void TDistilMesonFieldRelative<FImpl>::execute(void)
 
     // fetch time sources input
     std::map<Side, std::vector<unsigned int>> time_sources = {{Side::left,tSourceL_},{Side::right,tSourceR_}};
-    std::map<Side, std::string> peramb_input = {{Side::left,par().leftPeramb},{Side::right,par().rightPeramb}}; // perambulator time sources
     std::map<Side, std::vector<int>> ts_peramb;
     for(Side s : sides)     
     {
-        if(computation.isPhi(s))
+        if(computation.isPhi(s))    // try fetching perambulator if side is phi
         {
-            auto & inPeramb = envGet(PerambTensor , peramb_input.at(s));
-            ts_peramb.emplace(s , inPeramb.MetaData.timeSources);
-            if(time_sources.at(s).empty())  //in case it's empty and it's a phi, include all available peramb time sources
+            if(vectorNames_.at(s).empty())  // and only if vector is not passed
             {
-                for(auto tperamb : ts_peramb.at(s))
+                auto & inPeramb = envGet(PerambTensor , perambNames_.at(s));
+                ts_peramb.emplace(s , inPeramb.MetaData.timeSources);
+                if(time_sources.at(s).empty())  //in case it's empty and it's a phi, include all available peramb time sources
                 {
-                    time_sources.at(s).push_back(static_cast<unsigned int>(tperamb));
+                    for(auto tperamb : ts_peramb.at(s))
+                    {
+                        time_sources.at(s).push_back(static_cast<unsigned int>(tperamb));
+                    }
+                }
+                else    // if it's not empty, validate it against peramb time sources (check if it is subset of that)
+                {
+                    if( !std::includes(ts_peramb.at(s).begin(), ts_peramb.at(s).end(),
+                                    time_sources.at(s).begin(), time_sources.at(s).end()) )
+                    {
+                        std::string errside = (s==Side::left) ? "left" : "right";
+                        HADRONS_ERROR(Argument,"Time sources are not available on " + errside + " perambulator");
+                    }
                 }
             }
-            else    // if it's not empty, validate it against peramb time sources (check if it is subset of that)
+            else // if vector is passed 
             {
-                if( !std::includes(ts_peramb.at(s).begin(), ts_peramb.at(s).end(),
-                                time_sources.at(s).begin(), time_sources.at(s).end()) )
+                if(time_sources.at(s).empty())   // assume all time sources are available if input is empty
                 {
-                    std::string errside = (s==Side::left) ? "left" : "right";
-                    HADRONS_ERROR(Argument,"Time sources are not available on " + errside + " perambulator");
+                    time_sources.at(s).resize(noises.at(s).dilutionSize(Index::t));
+                    std::iota( time_sources.at(s).begin() , time_sources.at(s).end() , 0);
                 }
             }
         }
@@ -474,16 +493,16 @@ void TDistilMesonFieldRelative<FImpl>::execute(void)
             std::map<Side, PerambTensor&> peramb;
             for(Side s : sides)
             {
-                if(computation.isPhi(s)){
-                    PerambTensor &perambtemp = envGet( PerambTensor , s==Side::left ? par().leftPeramb : par().rightPeramb);
+                if(computation.isPhi(s) and !perambNames_.at(s).empty() and vectorNames_.at(s).empty()){
+                    PerambTensor &perambtemp = envGet( PerambTensor , perambNames_.at(s));
                     peramb.emplace(s , perambtemp);
                 }
             }
-            computation.executeRelative(filenameDmfFn, metadataDmfFn, gamma_, dist_vecs, noise_idx, phase, time_sources, epack, this, relative_side_, delta_t_list_, peramb);
+            computation.executeRelative(filenameDmfFn, metadataDmfFn, block_buf, cache_buf, gamma_, dist_vecs, noise_idx, phase, time_sources, epack, this, relative_side_, delta_t_list_, peramb);
         }
         else
         {
-            computation.executeRelative(filenameDmfFn, metadataDmfFn, gamma_, dist_vecs, noise_idx, phase, time_sources, epack, this, relative_side_, delta_t_list_);
+            computation.executeRelative(filenameDmfFn, metadataDmfFn, block_buf, cache_buf, gamma_, dist_vecs, noise_idx, phase, time_sources, epack, this, relative_side_, delta_t_list_);
         }
         LOG(Message) << "Meson fields saved to " << outputMFPath_ << std::endl;
     }
