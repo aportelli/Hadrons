@@ -30,6 +30,6 @@ using namespace Grid;
 using namespace Hadrons;
 using namespace MGauge;
 
-template class TFundtoHirep<AdjointRepresentation>;
-template class TFundtoHirep<TwoIndexSymmetricRepresentation>;
-template class TFundtoHirep<TwoIndexAntiSymmetricRepresentation>;
+template class MGauge::TFundtoHirep<AdjointRepresentation>;
+template class MGauge::TFundtoHirep<TwoIndexSymmetricRepresentation>;
+template class MGauge::TFundtoHirep<TwoIndexAntiSymmetricRepresentation>;
