@@ -46,34 +46,31 @@ BEGIN_MODULE_NAMESPACE(MSource)
 
 class MomentumPar: Serializable
 {
-public:
-//What is meant by serializable in this context
-GRID_SERIALIZABLE_CLASS_MEMBERS(MomentumPar,
-std::string, mom);
+    public:
+    GRID_SERIALIZABLE_CLASS_MEMBERS(MomentumPar,
+                                    std::string, mom);
 };
-
 
 template <typename FImpl>
 class TMomentum: public Module<MomentumPar>
 {
-public:
-FERM_TYPE_ALIASES(FImpl,);
-public:
-// constructor
-TMomentum(const std::string name);
-// destructor
-virtual ~TMomentum(void) {};
-// dependency relation
-virtual std::vector<std::string> getInput(void);
-virtual std::vector<std::string> getOutput(void);
-// setup
-virtual void setup(void);
-// execution
-virtual void execute(void);
+    public:
+    FERM_TYPE_ALIASES(FImpl,);
+    public:
+    // constructor
+    TMomentum(const std::string name);
+    // destructor
+    virtual ~TMomentum(void) {};
+    // dependency relation
+    virtual std::vector<std::string> getInput(void);
+    virtual std::vector<std::string> getOutput(void);
+    // setup
+    virtual void setup(void);
+    // execution
+    virtual void execute(void);
 };
 
 MODULE_REGISTER_TMP(Momentum, TMomentum<FIMPL>, MSource);
-//MODULE_REGISTER_NS(Momentum, TMomentum, MSource);
 
 /******************************************************************************
 *                       TMomentum template implementation                     *
@@ -99,45 +96,39 @@ std::vector<std::string> TMomentum<FImpl>::getOutput(void)
     return out;
 }
 
-
 // setup ///////////////////////////////////////////////////////////////////////
 template <typename FImpl>
 void TMomentum<FImpl>::setup(void)
 {
     envCreateLat(PropagatorField, getName());
+    envTmpLat(ComplexField, "C");
+    envTmpLat(ComplexField, "xMu");
 }
-
 
 //execution//////////////////////////////////////////////////////////////////
 template <typename FImpl>
 void TMomentum<FImpl>::execute(void)
 {
     LOG(Message) << "Generating planewave momentum source with momentum " << par().mom << std::endl;
-    //what does this env do?
-    PropagatorField &src = envGet(PropagatorField, getName());
-    Lattice<iScalar<vInteger>> t(env().getGrid());
-    LatticeComplex             C(env().getGrid()), coor(env().getGrid());
-    std::vector<Real>          p;
-    std::vector<Real> latt_size(GridDefaultLatt().begin(), GridDefaultLatt().end()); 
-    Complex                    i(0.0,1.0);
+    PropagatorField        &src = envGet(PropagatorField, getName());
+    std::vector<Real>      p = strToVec<Real>(par().mom);;
+    Coordinate                  latt_size = GridDefaultLatt();
+    Complex                Ci(0.0,1.0);
+    envGetTmp(ComplexField, C);
+    envGetTmp(ComplexField, xMu);
 
-    LOG(Message) << " " << std::endl;
-    //get the momentum from parameters
-    p  = strToVec<Real>(par().mom);
+    src = Zero();
     C = Zero();
-    LOG(Message) << "momentum converted from string - " << std::to_string(p[0]) <<std::to_string(p[1]) <<std::to_string(p[2]) <<   std::to_string(p[3]) << std::endl;
-    for(int mu=0;mu<4;mu++){
-    Real TwoPiL =  M_PI * 2.0/ latt_size[mu];
-    LatticeCoordinate(coor,mu);
-    C = C +(TwoPiL * p[mu]) * coor;
+
+    for(int mu = 0; mu < Nd; mu++){
+        Real TwoPiL =  M_PI * 2.0 / latt_size[mu];
+        LatticeCoordinate(xMu,mu);
+        C = C + (TwoPiL * p[mu]) * xMu;
     }
-    C = exp(C*i);
-    LOG(Message) << "exponential of pdotx taken " << std::endl;
+    C = exp(C*Ci);
     src = src + C;
     LOG(Message) << "source created" << std::endl;
-
 }
-
 
 
 END_MODULE_NAMESPACE

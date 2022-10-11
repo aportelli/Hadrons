@@ -14,3 +14,5 @@ Makefile.in
 /Hadrons/sqlite
 /Hadrons/Modules.hpp
 /Hadrons/modules.inc
+.DS_Store
+*~

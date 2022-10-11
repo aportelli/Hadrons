@@ -1,7 +1,7 @@
 /*
- * FourQuark.cpp, part of Hadrons (https://github.com/aportelli/Hadrons)
+ * MixedPrecisionRBPrecBiCGSTAB.cpp, part of Hadrons (https://github.com/aportelli/Hadrons)
  *
- * Copyright (C) 2015 - 2020
+ * Copyright (C) 2015 - 2022
  *
  * Author: Antonin Portelli <antonin.portelli@me.com>
  *
@@ -23,11 +23,11 @@
  */
 
 /*  END LEGAL */
-#include <Hadrons/Modules/MNPR/FourQuark.hpp>
+#include <Hadrons/Modules/MSolver/MixedPrecisionRBPrecBiCGSTAB.hpp>
 
 using namespace Grid;
 using namespace Hadrons;
-using namespace MNPR;
+using namespace MSolver;
 
-template class Grid::Hadrons::MNPR::TFourQuark<FIMPL,FIMPL>;
-
+template class Grid::Hadrons::MSolver::TMixedPrecisionRBPrecBiCGSTAB<FIMPLF, FIMPLD>;
+template class Grid::Hadrons::MSolver::TMixedPrecisionRBPrecBiCGSTAB<ZFIMPLF, ZFIMPLD>;

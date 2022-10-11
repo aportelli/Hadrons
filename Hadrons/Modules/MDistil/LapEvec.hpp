@@ -127,22 +127,17 @@ inline void TLapEvec<FImpl>::RotateEigen(std::vector<ColourVectorField> & evec)
     {
         peekSite(cv0, evec[k], siteFirst);
         const std::complex<Real> cplx0{cv0()()(0).real(), cv0()()(0).imag()};
-        if( cplx0.imag() == 0 )
-            LOG(Message) << "RotateEigen() : Vector " << k <<  " Site 0 : " << cplx0 << " => already meets phase convention" << std::endl;
-        else
+        const Real cplx0_mag{ std::abs(cplx0) };
+        const std::complex<Real> std_phase{std::conj(cplx0/cplx0_mag)};
+        LOG(Message) << "RotateEigen() : Vector " << k <<  " Site 0 : |" << cplx0 << "|=" << cplx0_mag
+                 << " => phase=" << (std::arg(std_phase) / M_PI) << " pi" << std::endl;
         {
-            const Real cplx0_mag{ std::abs(cplx0) };
-            const std::complex<Real> std_phase{std::conj(cplx0/cplx0_mag)};
-            LOG(Message) << "RotateEigen() : Vector " << k <<  " Site 0 : |" << cplx0 << "|=" << cplx0_mag
-                     << " => phase=" << (std::arg(std_phase) / M_PI) << " pi" << std::endl;
-            {
-                const Grid::Complex phase{std_phase.real(),std_phase.imag()};
-                evec[k] *= phase;
-                // Get rid of the rounding error in imaginary phase on the very first site
-                peekSite(cv0, evec[k], siteFirst);
-                cv0()()(0).imag(0); // this should be zero after the phase multiply - force it to be so
-                pokeSite(cv0, evec[k], siteFirst);
-            }
+            const Grid::Complex phase{std_phase.real(),std_phase.imag()};
+            evec[k] *= phase;
+            // Get rid of the rounding error in imaginary phase on the very first site
+            peekSite(cv0, evec[k], siteFirst);
+            cv0()()(0).imag(0); // this should be zero after the phase multiply - force it to be so
+            pokeSite(cv0, evec[k], siteFirst);
         }
     }
 }

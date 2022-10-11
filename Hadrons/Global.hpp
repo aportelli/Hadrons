@@ -121,13 +121,27 @@ typedef LinearOperatorBase<FermionField##suffix>   FBaseOp##suffix;\
 typedef NonHermitianLinearOperator<FMat##suffix, FermionField##suffix>   FOp##suffix;\
 typedef MdagMLinearOperator<FMat##suffix, FermionField##suffix>   FHermOp##suffix;\
 typedef HADRONS_DEFAULT_SCHUR_OP<FMat##suffix, FermionField##suffix> FSchurOp##suffix;\
+typedef HADRONS_DEFAULT_NON_HERMITIAN_SCHUR_OP<FMat##suffix, FermionField##suffix> FNonHermitianSchurOp##suffix;\
 typedef Lattice<iSpinMatrix<typename FImpl::Simd>> SpinMatrixField##suffix;\
 typedef Lattice<iColourVector<typename FImpl::Simd>> ColourVectorField##suffix;\
-typedef Lattice<iColourMatrix<typename FImpl::Simd>> ColourMatrixField##suffix;
+typedef Lattice<iColourMatrix<typename FImpl::Simd>> ColourMatrixField##suffix;\
+typedef typename PropagatorField##suffix::vector_object::scalar_object    SpinColourMatrixScalar##suffix;\
+typedef Lattice<iSpinColourSpinColourMatrix<typename FImpl::Simd>> SpinColourSpinColourMatrixField##suffix;
 
+// hacky compile-time sqrt to get number of colours
+// likely bad for large N
+template <std::size_t N, std::size_t I = 1>
+struct ct_sqrt : std::integral_constant<std::size_t, (I*I<N) ? ct_sqrt<N, I+1>::value : I> {};
+
+template <std::size_t N>
+struct ct_sqrt<N, N> : std::integral_constant<std::size_t, N> {};
+
+// very hacky way to get the gauge group
+// TODO: change when Grid #369 is merged
 #define GAUGE_TYPE_ALIASES(GImpl, suffix)\
 typedef typename GImpl::GaugeField GaugeField##suffix;\
-typedef typename GImpl::GaugeLinkField GaugeLinkField##suffix;
+typedef typename GImpl::GaugeLinkField GaugeLinkField##suffix;\
+typedef typename Grid::SU<ct_sqrt<sizeof(typename GaugeLinkField::scalar_object)/sizeof(typename GImpl::Scalar)>::value> Group;
 
 #define SOLVER_TYPE_ALIASES(FImpl, suffix)\
 typedef Solver<FImpl> Solver##suffix;
@@ -259,9 +273,15 @@ void        makeFileDir(const std::string filename, GridBase *g = nullptr);
 #define _HADRONS_SCHUR_OP_(conv) Schur##conv##Operator
 #define HADRONS_SCHUR_OP(conv) _HADRONS_SCHUR_OP_(conv)
 #define HADRONS_DEFAULT_SCHUR_OP HADRONS_SCHUR_OP(HADRONS_DEFAULT_SCHUR)
+#define _HADRONS_NON_HERMITIAN_SCHUR_OP_(conv) NonHermitianSchur##conv##Operator
+#define HADRONS_NON_HERMITIAN_SCHUR_OP(conv) _HADRONS_NON_HERMITIAN_SCHUR_OP_(conv)
+#define HADRONS_DEFAULT_NON_HERMITIAN_SCHUR_OP HADRONS_NON_HERMITIAN_SCHUR_OP(HADRONS_DEFAULT_SCHUR)
 #define _HADRONS_SCHUR_SOLVE_(conv) SchurRedBlack##conv##Solve
 #define HADRONS_SCHUR_SOLVE(conv) _HADRONS_SCHUR_SOLVE_(conv)
 #define HADRONS_DEFAULT_SCHUR_SOLVE HADRONS_SCHUR_SOLVE(HADRONS_DEFAULT_SCHUR)
+#define _HADRONS_NON_HERMITIAN_SCHUR_SOLVE_(conv) NonHermitianSchurRedBlack##conv##Solve
+#define HADRONS_NON_HERMITIAN_SCHUR_SOLVE(conv) _HADRONS_NON_HERMITIAN_SCHUR_SOLVE_(conv)
+#define HADRONS_DEFAULT_NON_HERMITIAN_SCHUR_SOLVE HADRONS_NON_HERMITIAN_SCHUR_SOLVE(HADRONS_DEFAULT_SCHUR)
 #define _HADRONS_SCHUR_A2A_(conv) A2AVectorsSchur##conv
 #define HADRONS_SCHUR_A2A(conv) _HADRONS_SCHUR_A2A_(conv)
 #define HADRONS_DEFAULT_SCHUR_A2A HADRONS_SCHUR_A2A(HADRONS_DEFAULT_SCHUR)

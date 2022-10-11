@@ -182,7 +182,7 @@ public:
     // memory profile
     const MemoryProfile &getMemoryProfile(void);
     void                printMemoryProfile(void) const;
-    // garbage collector
+    // garbage collection
     GarbageSchedule     makeGarbageSchedule(const Program &p) const;
     // high-water memory function
     Size                memoryNeeded(const Program &p);

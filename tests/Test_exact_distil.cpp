@@ -72,7 +72,6 @@ int main(int argc, char *argv[])
     globalPar.database.restoreSchedule      = false;
     globalPar.database.restoreModules       = false;
     globalPar.database.restoreMemoryProfile = false;
-    globalPar.database.makeStatDb           = false;
     application.setPar(globalPar);
     // gauge field
     application.createModule<MGauge::Random>("gauge");
@@ -129,10 +128,11 @@ int main(int argc, char *argv[])
         // perabmulators
         MDistil::Perambulator::Par perambPar;
         perambPar.lapEigenPack = "lapevec";
+        perambPar.sourceBatchSize = 1; // pass by batch deflation
         perambPar.solver = "cg_" + flavour[i];
-        perambPar.perambFileName = "./Peramb_" + flavour[i] + "_nvec6";
-        perambPar.fullSolveFileName = ""; // only used for perambMode::saveSolve
-        perambPar.fullSolve = ""; // only used for perambMode::loadSolve
+        perambPar.perambOutFileName = "./Peramb_" + flavour[i] + "_nvec6";
+        perambPar.unsmSolveOutFileName = ""; // only used for perambMode::saveSolveOnly
+        perambPar.unsmSolve = ""; // only used for perambMode::loadSolve
         perambPar.distilNoise = "exact";
         perambPar.timeSources = ""; // empty -> invert on all time slices
         perambPar.perambMode = MDistil::pMode::perambOnly; // compute perambulator from lap evecs, discard unsmeared solves

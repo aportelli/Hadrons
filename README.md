@@ -1,6 +1,6 @@
 <img src="graphics/hadrons-icon-title.png" height=100px>
 
-[![License: GPL v3](https://img.shields.io/badge/License-GPLv2-blue.svg)](https://www.gnu.org/licenses/gpl-2.0) [![DOI](https://zenodo.org/badge/250348196.svg)](https://zenodo.org/badge/latestdoi/250348196) [![Teamcity status](http://ci.cliath.ph.ed.ac.uk/app/rest/builds/aggregated/strob:(buildType:(affectedProject(id:GridBasedSoftware_Hadrons)),branch:name:develop)/statusIcon.svg)](http://ci.cliath.ph.ed.ac.uk/project.html?projectId=GridBasedSoftware_Hadrons&tab=projectOverview)  
+[![License: GPL v3](https://img.shields.io/badge/License-GPLv2-blue.svg)](https://www.gnu.org/licenses/gpl-2.0) [![DOI](https://zenodo.org/badge/DOI/10.5281/zenodo.4063666.svg)](https://doi.org/10.5281/zenodo.4063666)  
 _[Grid](https://github.com/paboyle/Grid)-based workflow management system for
 lattice field theory simulations_  
 
@@ -8,7 +8,7 @@ lattice field theory simulations_
 
 __If Grid & Hadrons played an important role in the production of scientific results leading to a peer-reviewed publication, we would be grateful if you consider citing the GitHub repository in your paper, and/or invite some contributors for authorship if relevant (especially PhD students & postdoctoral researchers).__
 
-To generate a BibTeX citation, please see the [Zenodo page](https://zenodo.org/badge/latestdoi/250348196).
+To generate a BibTeX citation, please see the [Zenodo page](https://doi.org/10.5281/zenodo.4063666).
 
 Documentation (work in progress): https://aportelli.github.io/Hadrons-doc/.
 

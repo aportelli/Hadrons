@@ -290,11 +290,23 @@ QueryResult Database::getTable(const std::string tableName, const std::string ex
 
 void Database::insert(const std::string tableName, const SqlEntry &entry, const bool replace)
 {
+    std::vector<const SqlEntry *> entryPtVec;
+
+    entryPtVec.push_back(&entry);
+    insert(tableName, entryPtVec, replace);
+}
+
+void Database::insert(const std::string tableName, const std::vector<const SqlEntry *> &entryPtVec, const bool replace)
+{
     std::string query;
 
     query += (replace ? "REPLACE" : "INSERT");
-    query += " INTO \"" + tableName + "\" VALUES(";
-    query += entry.sqlInsert() + ");";
+    query += " INTO \"" + tableName + "\" VALUES";
+    for (unsigned int i = 0; i < entryPtVec.size() - 1; ++i)
+    {
+        query += " (" + entryPtVec[i]->sqlInsert() + "),";
+    }
+    query += " (" + entryPtVec.back()->sqlInsert() + ");";
     execute(query);
 }
 

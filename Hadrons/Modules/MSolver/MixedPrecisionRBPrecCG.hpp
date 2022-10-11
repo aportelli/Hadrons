@@ -31,8 +31,6 @@
 #include <Hadrons/Module.hpp>
 #include <Hadrons/ModuleFactory.hpp>
 #include <Hadrons/Solver.hpp>
-#include <Hadrons/EigenPack.hpp>
-#include <Hadrons/Modules/MSolver/Guesser.hpp>
 
 BEGIN_HADRONS_NAMESPACE
 
@@ -50,10 +48,11 @@ public:
                                     unsigned int, maxInnerIteration,
                                     unsigned int, maxOuterIteration,
                                     double      , residual,
-                                    std::string , eigenPack);
+                                    std::string , innerGuesser,
+                                    std::string , outerGuesser);
 };
 
-template <typename FImplInner, typename FImplOuter, int nBasis = HADRONS_DEFAULT_LANCZOS_NBASIS>
+template <typename FImplInner, typename FImplOuter>
 class TMixedPrecisionRBPrecCG: public Module<MixedPrecisionRBPrecCGPar>
 {
 public:
@@ -85,8 +84,8 @@ public:
     virtual ~TMixedPrecisionRBPrecCG(void) {};
     // dependency relation
     virtual std::vector<std::string> getInput(void);
-    virtual std::vector<std::string> getReference(void);
     virtual std::vector<std::string> getOutput(void);
+    virtual DependencyMap getObjectDependencies(void);
     // setup
     virtual void setup(void);
     // execution
@@ -97,52 +96,87 @@ MODULE_REGISTER_TMP(MixedPrecisionRBPrecCG, ARG(TMixedPrecisionRBPrecCG<FIMPLF, 
 MODULE_REGISTER_TMP(ZMixedPrecisionRBPrecCG, ARG(TMixedPrecisionRBPrecCG<ZFIMPLF, ZFIMPLD>), MSolver);
 
 /******************************************************************************
- *                 TMixedPrecisionRBPrecCG implementation                             *
+ *                 TMixedPrecisionRBPrecCG implementation                     *
  ******************************************************************************/
 // constructor /////////////////////////////////////////////////////////////////
-template <typename FImplInner, typename FImplOuter, int nBasis>
-TMixedPrecisionRBPrecCG<FImplInner, FImplOuter, nBasis>
-::TMixedPrecisionRBPrecCG(const std::string name)
+template <typename FImplInner, typename FImplOuter>
+TMixedPrecisionRBPrecCG<FImplInner, FImplOuter>::TMixedPrecisionRBPrecCG(const std::string name)
 : Module<MixedPrecisionRBPrecCGPar>(name)
 {}
 
 // dependencies/products ///////////////////////////////////////////////////////
-template <typename FImplInner, typename FImplOuter, int nBasis>
-std::vector<std::string> TMixedPrecisionRBPrecCG<FImplInner, FImplOuter, nBasis>
-::getInput(void)
+template <typename FImplInner, typename FImplOuter>
+std::vector<std::string> TMixedPrecisionRBPrecCG<FImplInner, FImplOuter>::getInput(void)
 {
-    std::vector<std::string> in;
+    std::vector<std::string> in = {par().innerAction, par().outerAction};
     
+    if (!par().innerGuesser.empty())
+    {
+        in.push_back(par().innerGuesser);
+    }
+    if (!par().outerGuesser.empty())
+    {
+        in.push_back(par().outerGuesser);
+    }
+
     return in;
 }
 
-template <typename FImplInner, typename FImplOuter, int nBasis>
-std::vector<std::string> TMixedPrecisionRBPrecCG<FImplInner, FImplOuter, nBasis>
-::getReference(void)
-{
-    std::vector<std::string> ref = {par().innerAction, par().outerAction};
-    
-    if (!par().eigenPack.empty())
-    {
-        ref.push_back(par().eigenPack);
-    }
-    
-    return ref;
-}
-
-template <typename FImplInner, typename FImplOuter, int nBasis>
-std::vector<std::string> TMixedPrecisionRBPrecCG<FImplInner, FImplOuter, nBasis>
-::getOutput(void)
+template <typename FImplInner, typename FImplOuter>
+std::vector<std::string> TMixedPrecisionRBPrecCG<FImplInner, FImplOuter>::getOutput(void)
 {
     std::vector<std::string> out = {getName(), getName() + "_subtract"};
 
     return out;
 }
 
+template <typename FImplInner, typename FImplOuter>
+DependencyMap TMixedPrecisionRBPrecCG<FImplInner, FImplOuter>::getObjectDependencies(void)
+{
+    DependencyMap dep;
+
+    dep.insert({par().innerAction, getName()});
+    dep.insert({par().innerAction, getName() + "_subtract"});
+    dep.insert({par().outerAction, getName()});
+    dep.insert({par().outerAction, getName() + "_subtract"});
+    if (!par().innerGuesser.empty())
+    {
+        dep.insert({par().innerGuesser, getName(),             });
+        dep.insert({par().innerGuesser, getName() + "_subtract"});
+    }
+    if (!par().outerGuesser.empty())
+    {
+        dep.insert({par().outerGuesser, getName(),             });
+        dep.insert({par().outerGuesser, getName() + "_subtract"});
+    }
+
+    return dep;
+}
+
 // setup ///////////////////////////////////////////////////////////////////////
-template <typename FImplInner, typename FImplOuter, int nBasis>
-void TMixedPrecisionRBPrecCG<FImplInner, FImplOuter, nBasis>
-::setup(void)
+// C++11 does not support template lambdas so it is easier
+// to make a macro with the solver body
+#define SOLVER_BODY                                                                                   \
+typedef typename FermionFieldInner::vector_type VTypeInner;                                           \
+ZeroGuesser<FermionFieldInner> iguesserDefault;                                                       \
+ZeroGuesser<FermionFieldOuter> oguesserDefault;                                                       \
+LinearFunction<FermionFieldInner> &iguesser = (iguesserPt == nullptr) ? iguesserDefault : *iguesserPt;\
+LinearFunction<FermionFieldOuter> &oguesser = (oguesserPt == nullptr) ? oguesserDefault : *oguesserPt;\
+SchurFMatInner simat(imat);                                                                           \
+SchurFMatOuter somat(omat);                                                                           \
+MixedPrecisionConjugateGradient<FermionFieldOuter, FermionFieldInner>                                 \
+    mpcg(par().residual, par().maxInnerIteration,                                                     \
+         par().maxOuterIteration,                                                                     \
+         getGrid<FermionFieldInner>(true, Ls),                                                        \
+         simat, somat);                                                                               \
+mpcg.useGuesser(iguesser);                                                                            \
+OperatorFunctionWrapper<FermionFieldOuter> wmpcg(mpcg);                                               \
+HADRONS_DEFAULT_SCHUR_SOLVE<FermionFieldOuter> schurSolver(wmpcg);                                    \
+schurSolver.subtractGuess(subGuess);                                                                  \
+schurSolver(omat, source, sol, oguesser);
+
+template <typename FImplInner, typename FImplOuter>
+void TMixedPrecisionRBPrecCG<FImplInner, FImplOuter>::setup(void)
 {
     LOG(Message) << "Setting up Schur red-black preconditioned mixed-precision "
                  << "CG for inner/outer action '" << par().innerAction 
@@ -151,51 +185,49 @@ void TMixedPrecisionRBPrecCG<FImplInner, FImplOuter, nBasis>
                  << par().maxInnerIteration << "/" << par().maxOuterIteration
                  << std::endl;
 
-    auto Ls        = env().getObjectLs(par().innerAction);
-    auto &imat     = envGet(FMatInner, par().innerAction);
-    auto &omat     = envGet(FMatOuter, par().outerAction);
+    auto                              Ls          = env().getObjectLs(par().innerAction);
+    auto                              &imat       = envGet(FMatInner, par().innerAction);
+    auto                              &omat       = envGet(FMatOuter, par().outerAction);
+    LinearFunction<FermionFieldInner> *iguesserPt = nullptr; 
+    LinearFunction<FermionFieldOuter> *oguesserPt = nullptr;
 
-    auto guesserPt64 = makeGuesser<FImplOuter, nBasis>("");
-    auto guesserPt32 = makeGuesser<FImplInner, nBasis>("");
-
-    try
+    if (!par().innerGuesser.empty())
     {
-        guesserPt64 = makeGuesser<FImplOuter, nBasis>(par().eigenPack);
+        iguesserPt = &envGet(LinearFunction<FermionFieldInner>, par().innerGuesser);
     }
-    catch (Exceptions::ObjectType &e)
+    if (!par().outerGuesser.empty())
     {
-        guesserPt32 = makeGuesser<FImplInner, nBasis>(par().eigenPack);
+        oguesserPt = &envGet(LinearFunction<FermionFieldOuter>, par().outerGuesser);
     }
-
-    auto makeSolver = [&imat, &omat, guesserPt32, guesserPt64, Ls, this](bool subGuess)
+    auto makeSolver = [&imat, &omat, iguesserPt, oguesserPt, Ls, this](bool subGuess)
     {
-        return [&imat, &omat, guesserPt32, guesserPt64, subGuess, Ls, this]
-        (FermionFieldOuter &sol, const FermionFieldOuter &source) 
+        return [&imat, &omat, iguesserPt, oguesserPt, subGuess, Ls, this]
+            (FermionFieldOuter &sol, const FermionFieldOuter &source) 
         {
-            SchurFMatInner simat(imat);
-            SchurFMatOuter somat(omat);
-            MixedPrecisionConjugateGradient<FermionFieldOuter, FermionFieldInner> 
-                mpcg(par().residual, par().maxInnerIteration, 
-                     par().maxOuterIteration, 
-                     getGrid<FermionFieldInner>(true, Ls),
-                     simat, somat);
-                mpcg.useGuesser(*guesserPt32);
-            OperatorFunctionWrapper<FermionFieldOuter> wmpcg(mpcg);
-            HADRONS_DEFAULT_SCHUR_SOLVE<FermionFieldOuter> schurSolver(wmpcg);
-            schurSolver.subtractGuess(subGuess);
-            schurSolver(omat, source, sol, *guesserPt64);
+            SOLVER_BODY;
         };
     };
-    auto solver = makeSolver(false);
-    envCreate(Solver, getName(), Ls, solver, omat);
-    auto solver_subtract = makeSolver(true);
-    envCreate(Solver, getName() + "_subtract", Ls, solver_subtract, omat);
+    auto makeVecSolver = [&imat, &omat, iguesserPt, oguesserPt, Ls, this](bool subGuess)
+    {
+        return [&imat, &omat, iguesserPt, oguesserPt, subGuess, Ls, this]
+            (std::vector<FermionFieldOuter> &sol, const std::vector<FermionFieldOuter> &source) 
+        {
+            SOLVER_BODY;
+        };
+    };
+    auto solver    = makeSolver(false);
+    auto vecSolver = makeVecSolver(false);
+    envCreate(Solver, getName(), Ls, solver, vecSolver, omat);
+    auto solver_subtract    = makeSolver(true);
+    auto vecSolver_subtract = makeVecSolver(true);
+    envCreate(Solver, getName() + "_subtract", Ls, solver_subtract, vecSolver_subtract, omat);
 }
 
+#undef SOLVER_BODY
+
 // execution ///////////////////////////////////////////////////////////////////
-template <typename FImplInner, typename FImplOuter, int nBasis>
-void TMixedPrecisionRBPrecCG<FImplInner, FImplOuter, nBasis>
-::execute(void)
+template <typename FImplInner, typename FImplOuter>
+void TMixedPrecisionRBPrecCG<FImplInner, FImplOuter>::execute(void)
 {}
 
 END_MODULE_NAMESPACE
