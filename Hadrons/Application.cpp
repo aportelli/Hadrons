@@ -293,6 +293,15 @@ void Application::schedule(void)
     }
 }
 
+void Application::naiveSchedule(void)
+{
+    if (!scheduled_ and !loadedSchedule_)
+    {
+        program_   = vm().naiveSchedule();
+        scheduled_ = true;
+    }
+}
+
 void Application::saveSchedule(const std::string filename)
 {
     LOG(Message) << "Saving current schedule to '" << filename << "'..."
