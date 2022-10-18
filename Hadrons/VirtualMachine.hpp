@@ -188,6 +188,8 @@ public:
     Size                memoryNeeded(const Program &p);
     // genetic scheduler
     Program             schedule(const GeneticPar &par);
+    // naive scheduler
+    Program             naiveSchedule(void);
     // general execution
     void                executeProgram(const Program &p);
     void                executeProgram(const std::vector<std::string> &p);

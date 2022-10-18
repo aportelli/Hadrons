@@ -934,6 +934,34 @@ VirtualMachine::Program VirtualMachine::schedule(const GeneticPar &par)
     return scheduler.getMinSchedule();
 }
 
+// naive scheduler ///////////////////////////////////////////////////////////
+VirtualMachine::Program VirtualMachine::naiveSchedule(void)
+{
+    LOG(Message) << "Using naive scheduler." << std::endl;
+    auto graph = getModuleGraph();
+
+    Program p;
+
+    for (unsigned int i = 0; i < graph.size(); ++i)
+    {
+        p.push_back(i);
+    }
+
+    if (hasDatabase() and makeScheduleDb_)
+    {
+        for (unsigned int i = 0; i < p.size(); ++i)
+        {
+            ScheduleEntry s;
+
+            s.step     = i;
+            s.moduleId = p[i];
+            db_->insert("schedule", s);
+        }
+    }
+
+    return p;
+}
+
 // general execution ///////////////////////////////////////////////////////////
 #define BIG_SEP   "================"
 #define SEP       "----------------"

@@ -65,12 +65,20 @@ public:
         restoreSchedule{false}, statDbBase{""} {}
     };
 
+    struct SchedulerPar: Serializable
+    {
+        GRID_SERIALIZABLE_CLASS_MEMBERS(SchedulerPar,
+                                        std::string, schedulerType,);
+        SchedulerPar(void): schedulerType{"genetic"} {}
+    };
+
     struct GlobalPar: Serializable
     {
         GRID_SERIALIZABLE_CLASS_MEMBERS(GlobalPar,
                                         TrajRange,                  trajCounter,
                                         DatabasePar,                database,
                                         VirtualMachine::GeneticPar, genetic,
+                                        SchedulerPar,               scheduler,
                                         std::string,                runId,
                                         std::string,                graphFile,
                                         std::string,                scheduleFile,
@@ -114,6 +122,7 @@ public:
     void saveParameterFile(const std::string parameterFileName, unsigned int prec = 15);
     // schedule computation
     void schedule(void);
+    void naiveSchedule(void);
     void saveSchedule(const std::string filename);
     void loadSchedule(const std::string filename);
     void printSchedule(void);

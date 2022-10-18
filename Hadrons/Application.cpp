@@ -192,7 +192,19 @@ void Application::run(void)
     }
     if (getPar().saveSchedule or getPar().scheduleFile.empty())
     {
-        schedule();
+        if (getPar().scheduler.schedulerType == "genetic")
+        {
+            schedule();
+        }
+        else if (getPar().scheduler.schedulerType == "naive")
+        {
+            naiveSchedule();
+        }
+        else
+        {
+            HADRONS_ERROR(Parsing, "Unkown scheduler '"
+                                + getPar().scheduler.schedulerType + "'");
+        }
         if (getPar().saveSchedule)
         {
             std::string filename;
@@ -289,6 +301,15 @@ void Application::schedule(void)
     if (!scheduled_ and !loadedSchedule_)
     {
         program_   = vm().schedule(par_.genetic);
+        scheduled_ = true;
+    }
+}
+
+void Application::naiveSchedule(void)
+{
+    if (!scheduled_ and !loadedSchedule_)
+    {
+        program_   = vm().naiveSchedule();
         scheduled_ = true;
     }
 }
