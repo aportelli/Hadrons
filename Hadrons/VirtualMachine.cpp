@@ -959,7 +959,6 @@ VirtualMachine::Program VirtualMachine::naiveSchedule(void)
         }
     }
 
-    LOG(Message) << "Naive scheduler finished." << std::endl;
     return p;
 }
 

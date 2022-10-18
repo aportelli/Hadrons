@@ -202,7 +202,7 @@ void Application::run(void)
         }
         else
         {
-            HADRONS_ERROR(Parsing, "Unkown scheduler "
+            HADRONS_ERROR(Parsing, "Unkown scheduler '"
                                 + getPar().scheduler.schedulerType + "'");
         }
         if (getPar().saveSchedule)
