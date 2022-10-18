@@ -945,13 +945,21 @@ VirtualMachine::Program VirtualMachine::naiveSchedule(void)
     for (unsigned int i = 0; i < graph.size(); ++i)
     {
         p.push_back(i);
-
-        ScheduleEntry s;
-        s.step     = i;
-        s.moduleId = i;
-        db_->insert("schedule", s);
     }
 
+    if (hasDatabase() and makeScheduleDb_)
+    {
+        for (unsigned int i = 0; i < p.size(); ++i)
+        {
+            ScheduleEntry s;
+
+            s.step     = i;
+            s.moduleId = p[i];
+            db_->insert("schedule", s);
+        }
+    }
+
+    LOG(Message) << "Naive scheduler finished." << std::endl;
     return p;
 }
 
