@@ -75,7 +75,7 @@ public:
     // ############ //
     // Constructors
     GenericSerializable()             {}
-    GenericSerializable(int i)        {}
+    GenericSerializable(int i)        {} // Placeholder constructor that works with variadic macros
     template<typename T>
     GenericSerializable(const T& obj) { this->hold<T>(obj); }
 

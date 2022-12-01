@@ -36,7 +36,7 @@
 BEGIN_HADRONS_NAMESPACE
 
 /******************************************************************************
- *                 Module to load a single field from disk                    *
+ *   Module to write an arbitrary collection of Grid::Serializables to disk   *
  ******************************************************************************/
 BEGIN_MODULE_NAMESPACE(MIO)
 
