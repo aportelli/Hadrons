@@ -47,7 +47,8 @@ class RHQInsertionIVPar: Serializable
 public:
     GRID_SERIALIZABLE_CLASS_MEMBERS(RHQInsertionIVPar,
                                     std::string,    q,
-                                    unsigned int,   index,
+                                    std::string,    index1,
+                                    std::string,    index2,
                                     Gamma::Algebra, gamma5,
                                     std::string,    gauge,
                                     OpIVFlag,       flag);
@@ -116,7 +117,8 @@ template <typename FImpl, typename GImpl>
 void TRHQInsertionIV<FImpl, GImpl>::execute(void)
 {
 
-    LOG(Message) << "Applying Improvement term IV with index " << par().index
+    LOG(Message) << "Applying Improvement term IV with (index1, index2)=" 
+                 << "(" << par().index1 << ", " << par().index2 << ")"
                  << " and gamma5=" << par().gamma5 
                  << " to '" << par().q 
                  << "' with flag '" << par().flag << "'"
@@ -127,6 +129,25 @@ void TRHQInsertionIV<FImpl, GImpl>::execute(void)
         HADRONS_ERROR(Argument, "gamma5 must be either 'Gamma5' or 'Identity'."); 
     }
     Gamma g5(par().gamma5);
+
+    int index1;
+    int index2;
+    bool hasIndex1 = false;
+    bool hasIndex2 = false;
+    if (!par().index1.empty())
+    {
+        index1 = std::stoi(par().index1);
+        hasIndex1 = true;
+    }
+    if (!par().index2.empty())
+    {
+        index2 = std::stoi(par().index2);
+        hasIndex2 = true;
+    }
+    if (!hasIndex1 && !hasIndex2)
+    {
+        HADRONS_ERROR(Argument, "index1 and index2 cannot be both empty."); 
+    }
     
     auto &field = envGet(PropagatorField, par().q);
     const auto &gaugefield = envGet(GaugeField, par().gauge);
@@ -142,22 +163,129 @@ void TRHQInsertionIV<FImpl, GImpl>::execute(void)
     const PropagatorField Dy = GImpl::CovShiftForward(gauge_y,1,field) - GImpl::CovShiftBackward(gauge_y,1,field);
     const PropagatorField Dz = GImpl::CovShiftForward(gauge_z,2,field) - GImpl::CovShiftBackward(gauge_z,2,field);
 
-    Gamma::Algebra gi; 
-    switch(par().index){
-        case 0:
-            gi = Gamma::Algebra::GammaX;
-            break;
-        case 1:
-            gi = Gamma::Algebra::GammaY;
-            break;
-        case 2:
-            gi = Gamma::Algebra::GammaZ;
-            break;
-        case 3:
-            gi = Gamma::Algebra::GammaT;
-            break;
-        default:
-            HADRONS_ERROR(Argument, "Index must be in {0, 1, 2, 3}."); 
+    Gamma::Algebra gi;
+    if (hasIndex1 && hasIndex2)
+    {
+        switch(index1){
+            case 0:
+                switch(index2)
+                    {
+                        case 0:
+                            gi = 0.*Gamma::Algebra::Identity;
+                            break;
+                        case 1:
+                            gi = Gamma::Algebra::SigmaXY;
+                            break;
+                        case 2:
+                            gi = Gamma::Algebra::SigmaXZ;
+                            break;
+                        case 3:
+                            gi = Gamma::Algebra::SigmaXT;
+                            break;
+                        default:
+                            HADRONS_ERROR(Argument, "index2 must be in {0, 1, 2, 3}."); 
+                    }
+                break;
+            case 1:
+                switch(index2)
+                    {
+                        case 0:
+                            gi = Gamma::Algebra::MinusSigmaXY;
+                            break;
+                        case 1:
+                            gi = 0.*Gamma::Algebra::Identity;
+                            break;
+                        case 2:
+                            gi = Gamma::Algebra::SigmaYZ;
+                            break;
+                        case 3:
+                            gi = Gamma::Algebra::SigmaYT;
+                            break;
+                        default:
+                            HADRONS_ERROR(Argument, "index2 must be in {0, 1, 2, 3}."); 
+                    }
+                break;
+            case 2:
+                switch(index2)
+                    {
+                        case 0:
+                            gi = Gamma::Algebra::MinusSigmaXZ;
+                            break;
+                        case 1:
+                            gi = Gamma::Algebra::MinusSigmaYZ;
+                            break;
+                        case 2:
+                            gi = 0.*Gamma::Algebra::Identity;
+                            break;
+                        case 3:
+                            gi = Gamma::Algebra::SigmaZT;
+                            break;
+                        default:
+                            HADRONS_ERROR(Argument, "index2 must be in {0, 1, 2, 3}."); 
+                    }
+                break;
+            case 3:
+                switch(index2)
+                    {
+                        case 0:
+                            gi = Gamma::Algebra::MinusSigmaXT;
+                            break;
+                        case 1:
+                            gi = Gamma::Algebra::MinusSigmaYT;
+                            break;
+                        case 2:
+                            gi = Gamma::Algebra::MinusSigmaZT;
+                            break;
+                        case 3:
+                            gi = 0.*Gamma::Algebra::Identity;
+                            break;
+                        default:
+                            HADRONS_ERROR(Argument, "index2 must be in {0, 1, 2, 3}."); 
+                    } 
+                break;
+            default:
+                HADRONS_ERROR(Argument, "index1 must be in {0, 1, 2, 3}."); 
+        }
+    }
+    else if (hasIndex1 && !hasIndex2)
+    {
+        switch(index1)
+            {
+                case 0:
+                    gi = Gamma::Algebra::GammaX;
+                    break;
+                case 1:
+                    gi = Gamma::Algebra::GammaY;
+                    break;
+                case 2:
+                    gi = Gamma::Algebra::GammaZ;
+                    break;
+                case 3:
+                    gi = Gamma::Algebra::GammaT;
+                    break;
+                default:
+                    HADRONS_ERROR(Argument, "index1 must be in {0, 1, 2, 3}."); 
+            }
+    }
+    else if (!hasIndex1 && hasIndex2)
+    {
+        switch(index2)
+            {
+                case 0:
+                    gi = Gamma::Algebra::GammaX;
+                    break;
+                case 1:
+                    gi = Gamma::Algebra::GammaY;
+                    break;
+                case 2:
+                    gi = Gamma::Algebra::GammaZ;
+                    break;
+                case 3:
+                    gi = Gamma::Algebra::GammaT;
+                    break;
+                default:
+                    HADRONS_ERROR(Argument, "index2 must be in {0, 1, 2, 3}."); 
+            }
     }
     
     // "Flag" flips between the conventions used in Chroma and a reformulation
@@ -173,12 +301,20 @@ void TRHQInsertionIV<FImpl, GImpl>::execute(void)
         out = insertion;
     }
     else if (par().flag == OpIVFlag::LeftRight)
-    {        
-        PropagatorField insertion = 
-            gi*gx*g5 * Dx - gx*gi*g5 * Dx
-          + gi*gy*g5 * Dy - gy*gi*g5 * Dy
-          + gi*gz*g5 * Dz - gz*gi*g5 * Dz;
+    {      
+        double sign;
+        if (hasIndex1 && hasIndex2){
+            sign = +1.;
+        }
+        else {
+            sign = -1.;
+        }
 
+        PropagatorField insertion = 
+            gi*gx*g5 * Dx + gx*gi*g5 * (sign*Dx)
+          + gi*gy*g5 * Dy + gy*gi*g5 * (sign*Dy)
+          + gi*gz*g5 * Dz + gz*gi*g5 * (sign*Dz);
+        
         out = -0.5*insertion;
     }
  
