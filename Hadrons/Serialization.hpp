@@ -171,20 +171,22 @@ public:
     }
 
     template<typename T>
-    void append(const std::string& name, const T& serializable)
+    void append(const std::string& name, const T& grid_serializable)
+    {
+        this->createElement<T>(name) = grid_serializable;
+    }
+
+    auto& createElement(const std::string& name)
     {
         this->elements.emplace_back(GroupElement{name, Element_t{}});
         auto& elem = this->elements.back();
-        auto& held = elem.serializable.template hold<T>();
-        held = serializable;
+        return elem.serializable;
     }
 
     template<typename T>
     T& createElement(const std::string& name)
     {
-        this->elements.emplace_back(GroupElement{name, Element_t{}});
-        auto& elem = this->elements.back();
-        return elem.serializable.template hold<T>();
+        return this->createElement(name).template hold<T>();
     }
 
     SerializableGroup& createSubGroup(const std::string& name)
@@ -197,7 +199,7 @@ public:
         if (!s.empty())
             wr.push(s);
         
-        for (auto& elem : output.elements)
+        for (const auto& elem : output.elements)
         {
             auto& name = elem.name;
             auto& serializable = elem.serializable;
