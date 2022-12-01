@@ -1,5 +1,5 @@
 /*
- * Test_field_io.cpp, part of Hadrons (https://github.com/aportelli/Hadrons)
+ * Test_result_bundling.cpp, part of Hadrons (https://github.com/aportelli/Hadrons)
  *
  * Copyright (C) 2015 - 2022
  *
