@@ -45,7 +45,7 @@ class RHQInsertionIPar: Serializable
 public:
     GRID_SERIALIZABLE_CLASS_MEMBERS(RHQInsertionIPar,
                                     std::string,    q,
-                                    unsigned int,   index,
+                                    std::string,    index,
                                     Gamma::Algebra, gamma5,
                                     std::string,    gauge);
 };
@@ -124,11 +124,11 @@ void TRHQInsertionI<FImpl, GImpl>::execute(void)
     }
     Gamma g5(par().gamma5);
 
-    if (par().index < 0 || par().index>3)
+    const int index = std::stoi(par().index);
+    if (index < 0 || index>3)
     {
         HADRONS_ERROR(Argument, "Index must be in {0, 1, 2, 3}."); 
     }
-    const auto &index = par().index;
 
     auto &field = envGet(PropagatorField, par().q);
     const auto &gaugefield = envGet(GaugeField, par().gauge);
