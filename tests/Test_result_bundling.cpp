@@ -97,7 +97,7 @@ int main(int argc, char *argv[])
 
     // Two Meson contractions
     MContraction::Meson::Par mesPar;
-    mesPar.output  = "";
+    mesPar.output  = "resultbundle_test/original_2pt_output";
     mesPar.q1      = "Qpt_s";
     mesPar.q2      = "Qpt_s";
     mesPar.gammas  = "(Gamma5 GammaX)";
@@ -110,7 +110,7 @@ int main(int argc, char *argv[])
     mesPar2.gammas  = "(Gamma5 GammaY) (Gamma5 GammaZ)";
     mesPar2.sink    = "sink";
     mesPar2.output  = "";
-    application.createModule<MContraction::Meson>("meson_pt_ss_5Y",
+    application.createModule<MContraction::Meson>("meson_pt_ss_5YZ",
                                                     mesPar2);
 
     // A Weak Eye contraction
@@ -127,7 +127,7 @@ int main(int argc, char *argv[])
 
     // Demonstrate the bundling of two Serializables within a group
     MIO::CorrelatorGroup::Par correlatorGroupPar;
-    correlatorGroupPar.contractions = std::vector<std::string>{"meson_pt_ss_5X", "meson_pt_ss_5Y"};
+    correlatorGroupPar.contractions = std::vector<std::string>{"meson_pt_ss_5X", "meson_pt_ss_5YZ"};
     application.createModule<MIO::CorrelatorGroup>("Group2pts",
                                                     correlatorGroupPar);
 
