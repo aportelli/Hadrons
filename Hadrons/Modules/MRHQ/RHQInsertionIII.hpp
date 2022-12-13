@@ -38,8 +38,6 @@ BEGIN_HADRONS_NAMESPACE
 /******************************************************************************
  *                             RHQInsertionIII                                *
  ******************************************************************************/
-GRID_SERIALIZABLE_ENUM(OpIIIFlag, undef, Chroma, 0, LeftRight, 1);
-
 BEGIN_MODULE_NAMESPACE(MRHQ)
 
 class RHQInsertionIIIPar: Serializable
@@ -50,12 +48,13 @@ public:
                                     std::string,    index1,
                                     std::string,    index2,
                                     Gamma::Algebra, gamma5,
-                                    std::string,    gauge,
-                                    OpIIIFlag,      flag);
+                                    std::string,    gauge);
 };
 
-// See https://arxiv.org/abs/1501.05373 equation 13 for the (Chroma convention) 
+// See https://arxiv.org/abs/1501.05373 equation 13 for the 
 // operator implemented in this module.
+// To convert to the charge conjugation "invariant" basis,
+// see ...............
 template <typename FImpl, typename GImpl>
 class TRHQInsertionIII: public Module<RHQInsertionIIIPar>
 {
@@ -120,7 +119,6 @@ void TRHQInsertionIII<FImpl, GImpl>::execute(void)
                  << "(" << par().index1 << ", " << par().index2 << ")"
                  << " and gamma5=" << par().gamma5 
                  << " to '" << par().q 
-                 << "' with flag '" << par().flag << "'"
                  << std::endl;
     
     if (par().gamma5 != Gamma::Algebra::Gamma5 && par().gamma5 != Gamma::Algebra::Identity)
@@ -287,34 +285,13 @@ void TRHQInsertionIII<FImpl, GImpl>::execute(void)
             }
     }
         
-    // "Flag" flips between the conventions used in Chroma and a reformulation
-    // using Left and Right derivatives
     auto &out = envGet(PropagatorField, getName());
-    if (par().flag == OpIIIFlag::Chroma)
-    {     
-        PropagatorField insertion =
-            gi*g5*gx * Dx
-          + gi*g5*gy * Dy
-          + gi*g5*gz * Dz;
-        
-        out = insertion;
-    }
-    else if (par().flag == OpIIIFlag::LeftRight)
-    {        
-        double sign;
-        if (hasIndex1 && hasIndex2){
-            sign = +1.;
-        }
-        else {
-            sign = -1.;
-        }
-        PropagatorField insertion = 
-            gi*gx*g5 * Dx + gx*gi*g5 * (sign*Dx)
-          + gi*gy*g5 * Dy + gy*gi*g5 * (sign*Dy)
-          + gi*gz*g5 * Dz + gz*gi*g5 * (sign*Dz);
-
-        out = 0.5*insertion;
-    }
+    PropagatorField insertion =
+        gi*g5*gx * Dx
+      + gi*g5*gy * Dy
+      + gi*g5*gz * Dz;
+    
+    out = insertion;
 }
 
 END_MODULE_NAMESPACE
