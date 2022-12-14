@@ -54,7 +54,11 @@ public:
 // See https://arxiv.org/abs/1501.05373 equation 14 for the
 // operator implemented in this module.
 // To convert to the charge conjugation "invariant" basis,
-// see ...............
+// sJ = +1 if gamma5 = Identity; sJ = -1 if gamma5 = Gamma5
+// if either index1 or index2 empty:
+//     RHQIV_mu -> sJ * RHQIV_mu - delta_{mu,i} * RHQI(D_i)
+// if both index1 and index2 used:
+//     RHQIV_{mu,nu} -> sJ * RHQIV_{mu,nu} - 2 * ( delta_{nu,i} * RHQI(gamma_mu,D_i) - delta_{mu,i} * RHQI(gamma_nu,D_i) )
 template <typename FImpl, typename GImpl>
 class TRHQInsertionIV: public Module<RHQInsertionIVPar>
 {
