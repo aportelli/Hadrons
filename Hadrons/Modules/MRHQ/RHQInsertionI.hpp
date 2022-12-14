@@ -119,7 +119,6 @@ void TRHQInsertionI<FImpl, GImpl>::execute(void)
                  << " to '" << par().q 
                  << std::endl;
 
-    }
     Gamma g(par().gamma);
 
     const int index = std::stoi(par().index);
