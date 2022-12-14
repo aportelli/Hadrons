@@ -6,6 +6,7 @@
  * Author: Antonin Portelli <antonin.portelli@me.com>
  * Author: Ryan Hill <rchrys.hill@gmail.com>
  * Author: Alessandro Barone <barone1618@gmail.com>
+ * Author: Matthew Black <matthewkblack@protonmail.com>
  *
  * Hadrons is free software: you can redistribute it and/or modify
  * it under the terms of the GNU General Public License as published by
@@ -59,6 +60,7 @@ public:
 //     RHQIV_mu -> sJ * RHQIV_mu - delta_{mu,i} * RHQI(D_i)
 // if both index1 and index2 used:
 //     RHQIV_{mu,nu} -> sJ * RHQIV_{mu,nu} - 2 * ( delta_{nu,i} * RHQI(gamma_mu,D_i) - delta_{mu,i} * RHQI(gamma_nu,D_i) )
+// also see ale-barone/feature/RHQImprTensor
 template <typename FImpl, typename GImpl>
 class TRHQInsertionIV: public Module<RHQInsertionIVPar>
 {
