@@ -47,7 +47,7 @@ public:
     GRID_SERIALIZABLE_CLASS_MEMBERS(RHQInsertionIPar,
                                     std::string,    q,
                                     std::string,    index,
-                                    Gamma::Algebra, gamma5,
+                                    Gamma::Algebra, gamma,
                                     std::string,    gauge);
 };
 
@@ -115,15 +115,12 @@ template <typename FImpl, typename GImpl>
 void TRHQInsertionI<FImpl, GImpl>::execute(void)
 {
     LOG(Message) << "Applying Improvement term I with index " << par().index
-                 << " and gamma5=" << par().gamma5 
+                 << " and gamma=" << par().gamma 
                  << " to '" << par().q 
                  << std::endl;
 
-    if (par().gamma5 != Gamma::Algebra::Gamma5 && par().gamma5 != Gamma::Algebra::Identity)
-    {
-        HADRONS_ERROR(Argument, "gamma5 must be either 'Gamma5' or 'Identity'."); 
     }
-    Gamma g5(par().gamma5);
+    Gamma g(par().gamma);
 
     const int index = std::stoi(par().index);
     if (index < 0 || index>3)
@@ -134,7 +131,7 @@ void TRHQInsertionI<FImpl, GImpl>::execute(void)
     auto &field = envGet(PropagatorField, par().q);
     const auto &gaugefield = envGet(GaugeField, par().gauge);
     const auto internal_gauge = peekLorentz(gaugefield, index);
-    PropagatorField insertion = g5*(GImpl::CovShiftForward(internal_gauge,index,field) - GImpl::CovShiftBackward(internal_gauge,index,field));
+    PropagatorField insertion = g*(GImpl::CovShiftForward(internal_gauge,index,field) - GImpl::CovShiftBackward(internal_gauge,index,field));
     
     auto &out = envGet(PropagatorField, getName());
     out = insertion;
