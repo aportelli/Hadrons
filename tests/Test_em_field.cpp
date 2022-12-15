@@ -119,6 +119,5 @@ int main(int argc, char *argv[])
     {
         zmn2 += pow(1/(pow(2.*sin(M_PI/nt*n0), 2.) + pow(1/(zeta*nl), 2.)), 2.);
     }
-    LOG(Message) << zmn2 << std::endl;
     check(w, v, zmn2);
 }
