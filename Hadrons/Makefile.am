@@ -28,6 +28,7 @@ nobase_libHadrons_a_HEADERS = \
 	DistilMatrix.hpp          \
 	DistillationVectors.hpp   \
 	EigenPack.hpp             \
+	EmField.hpp               \
 	Environment.hpp           \
 	Exceptions.hpp            \
 	Factory.hpp               \
