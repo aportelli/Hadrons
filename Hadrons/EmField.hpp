@@ -30,6 +30,8 @@
 
 BEGIN_HADRONS_NAMESPACE
 
+GRID_SERIALIZABLE_ENUM(QedGauge, undef, feynman, 0, coulomb, 1);
+
 template <typename VType>
 class TEmFieldGenerator
 {
@@ -47,6 +49,7 @@ public:
     static void makeKHat(std::vector<ScalarField> &out);
     static void makeKHatSquared(ScalarField &out);
     static void transverseProjectSpatial(GaugeField &out);
+    static TransformFn getGaugeTranform(const QedGauge gauge);
     void operator()(GaugeField &out, GridParallelRNG &rng, const ScalarField &weight, 
                     TransformFn momSpaceTransform = nullptr);
     void makeWeightsQedL(ScalarField &weight);
@@ -159,6 +162,25 @@ void TEmFieldGenerator<VType>::transverseProjectSpatial(GaugeField &out)
       pokeLorentz(out, aProj[mu], mu);
     }
 }
+
+template <typename VType>
+typename TEmFieldGenerator<VType>::TransformFn 
+TEmFieldGenerator<VType>::getGaugeTranform(const QedGauge gauge)
+{
+    switch (gauge)
+    {
+    case QedGauge::feynman:
+      return nullptr;
+      break;
+    case QedGauge::coulomb:
+      return TransformFn(&TEmFieldGenerator<VType>::transverseProjectSpatial);
+      break;
+    default:
+      HADRONS_ERROR(Definition, "invalid gauge")
+      break;
+    }
+}
+
 
 template <typename VType>
 void TEmFieldGenerator<VType>::operator()(GaugeField &out, GridParallelRNG &rng, 
