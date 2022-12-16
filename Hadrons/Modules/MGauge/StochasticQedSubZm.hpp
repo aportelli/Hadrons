@@ -93,7 +93,6 @@ void TStochasticQedSubZm<VType, scheme>::execute(void)
     envGetTmp(EmGen, gen);
     if (!weightDone_)
     {
-        ;
         switch (scheme)
         {
         case ZmScheme::qedL:
