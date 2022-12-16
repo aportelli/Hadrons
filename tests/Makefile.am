@@ -7,7 +7,8 @@ EXTRA_PROGRAMS = \
   Test_database             \
   Test_database_concurrency \
   Test_diskvector           \
-  Test_exact_distil               \
+  Test_em_field             \
+  Test_exact_distil         \
   Test_field_io             \
   Test_free_prop            \
   Test_hadrons_meson_3pt    \
@@ -35,6 +36,9 @@ Test_database_LDADD=-lHadrons -lGrid
 
 Test_database_concurrency_SOURCES=Test_database_concurrency.cpp
 Test_database_concurrency_LDADD=-lHadrons -lGrid
+
+Test_em_field_SOURCES=Test_em_field.cpp
+Test_em_field_LDADD=-lHadrons -lGrid
 
 Test_exact_distil_SOURCES=Test_exact_distil.cpp
 Test_exact_distil_LDADD=-lHadrons -lGrid

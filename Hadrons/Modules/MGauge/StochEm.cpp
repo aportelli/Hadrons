@@ -55,27 +55,11 @@ std::vector<std::string> TStochEm::getOutput(void)
 // setup ///////////////////////////////////////////////////////////////////////
 void TStochEm::setup(void)
 {
-    weightDone_ = env().hasCreatedObject("_" + getName() + "_weight");
-    envCacheLat(EmComp, "_" + getName() + "_weight");
-    envCreateLat(EmField, getName());
+    HADRONS_ERROR(Implementation, "module MGauge::StochEm is deprecated, please use MGauge::StochasticQed* modules instead");
 }
 
 // execution ///////////////////////////////////////////////////////////////////
 void TStochEm::execute(void)
 {
-    LOG(Message) << "Generating stochastic EM potential..." << std::endl;
-
-    std::vector<Real> improvements = strToVec<Real>(par().improvement);
-    PhotonR photon(envGetGrid(EmField), par().gauge, par().zmScheme, improvements);
-    auto    &a = envGet(EmField, getName());
-    auto    &w = envGet(EmComp, "_" + getName() + "_weight");
-    
-    if (!weightDone_)
-    {
-        LOG(Message) << "Caching stochastic EM potential weight (gauge: "
-                     << par().gauge << ", zero-mode scheme: "
-                     << par().zmScheme << ")..." << std::endl;
-        photon.StochasticWeight(w);
-    }
-    photon.StochasticField(a, rng4d(), w);
+    HADRONS_ERROR(Implementation, "module MGauge::StochEm is deprecated, please use MGauge::StochasticQed* modules instead");
 }
