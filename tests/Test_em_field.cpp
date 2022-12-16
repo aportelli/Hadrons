@@ -41,9 +41,13 @@ void check(const T &a, const T &b, const double result = 0.)
 
     diff   = a - b;
     n2diff = norm2(diff);
+    std::ios_base::fmtflags f(std::cout.flags());
+    std::cout << std::scientific;
+    std::cout.precision(15);
     LOG(Message) << "|a|^2 = " << norm2(a) << " / |b|^2 = " << norm2(b) << std::endl;
     LOG(Message) << "|a-b|^2 = " << n2diff << std::endl;
     LOG(Message) << "Expected: " << result << std::endl;
+    std::cout.flags(f);
     if (fabs(n2diff - result) < tolerance)
     {
         LOG(Message) << "PASSED" << std::endl;
@@ -76,42 +80,43 @@ int main(int argc, char *argv[])
     double                        nt = dim[dim.size() - 1], nl = dim[0];
 
     LOG(Message) << "============ Regressing Feynman QEDL against Grid" << std::endl;
-    rng.SeedUniqueString("bla");
+    rng.SeedUniqueString("qed-test-gauge-1000");
     photonQedl.StochasticWeight(photonW);
     photonQedl.StochasticField(photonA, rng, photonW);
-    rng.SeedUniqueString("bla");
+    rng.SeedUniqueString("qed-test-gauge-1000");
     emGen.makeWeightsQedL(w);
     emGen(a, rng, w);
     check(photonA, a);
 
     LOG(Message) << "============ Regressing Coulomb QEDL against Grid" << std::endl;
-    rng.SeedUniqueString("bla");
+    rng.SeedUniqueString("qed-test-gauge-1000");
     photonCQedl.StochasticWeight(photonW);
     photonCQedl.StochasticField(photonA, rng, photonW);
-    rng.SeedUniqueString("bla");
+    rng.SeedUniqueString("qed-test-gauge-1000");
     emGen.makeWeightsQedL(w);
     emGen(a, rng, w, &EmFieldGenerator::transverseProjectSpatial);
     check(photonA, a);
 
     LOG(Message) << "============ Regressing Feynman QEDTL against Grid" << std::endl;
-    rng.SeedUniqueString("bli");
+    rng.SeedUniqueString("qed-test-gauge-1000");
     photonQedtl.StochasticWeight(photonW);
     photonQedtl.StochasticField(photonA, rng, photonW);
-    rng.SeedUniqueString("bli");
+    rng.SeedUniqueString("qed-test-gauge-1000");
     emGen.makeWeightsQedTL(w);
     emGen(a, rng, w);
     check(photonA, a);
 
     LOG(Message) << "============ Regressing Coulomb QEDTL against Grid" << std::endl;
-    rng.SeedUniqueString("bli");
+    rng.SeedUniqueString("qed-test-gauge-1000");
     photonCQedtl.StochasticWeight(photonW);
     photonCQedtl.StochasticField(photonA, rng, photonW);
-    rng.SeedUniqueString("bli");
+    rng.SeedUniqueString("qed-test-gauge-1000");
     emGen.makeWeightsQedTL(w);
     emGen(a, rng, w, &EmFieldGenerator::transverseProjectSpatial);
     check(photonA, a);
 
     LOG(Message) << "============ Regressing Feynman weights QEDZeta against QEDL" << std::endl;
+    rng.SeedUniqueString("qed-test-gauge-1000");
     double zeta = 0.42, zmn2 = 0.;
     emGen.makeWeightsQedL(w);
     emGen.makeWeightsQedZeta(v, zeta);
