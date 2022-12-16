@@ -9,7 +9,7 @@
 BEGIN_HADRONS_NAMESPACE
 
 /******************************************************************************
- *                         StochasticQedSubZm                                 *
+ *                   Stochastic  QED_L/QED_TL                                 *
  ******************************************************************************/
 BEGIN_MODULE_NAMESPACE(MGauge)
 
@@ -49,7 +49,7 @@ MODULE_REGISTER_TMP(StochasticQedL, ARG(TStochasticQedSubZm<vComplex, ZmScheme::
 MODULE_REGISTER_TMP(StochasticQedTL, ARG(TStochasticQedSubZm<vComplex, ZmScheme::qedTL>), MGauge);
 
 /******************************************************************************
- *                 TStochasticQedSubZm implementation                             *
+ *                 TStochasticQedSubZm implementation                          *
  ******************************************************************************/
 // constructor /////////////////////////////////////////////////////////////////
 template <typename VType, ZmScheme scheme>

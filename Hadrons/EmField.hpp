@@ -30,12 +30,18 @@
 
 BEGIN_HADRONS_NAMESPACE
 
+/******************************************************************************
+ *              Class to generate stochatic EM fields                         *
+ ******************************************************************************/
+// gauge enum
 GRID_SERIALIZABLE_ENUM(QedGauge, undef, feynman, 0, coulomb, 1);
 
+// main class
 template <typename VType>
 class TEmFieldGenerator
 {
 public:
+    // type aliases
     typedef iVector<iScalar<iScalar<VType>>, Nd>  vSiteField;
     typedef iScalar<iScalar<iScalar<VType>>>      vSiteScalar;
     typedef typename vSiteScalar::scalar_object   SiteScalar;
@@ -44,17 +50,26 @@ public:
     typedef Lattice<vSiteScalar>                  ScalarField;
     typedef std::function<void(GaugeField &)>     TransformFn;
 public:
+    // constructor
     TEmFieldGenerator(GridBase *g);
+    // static functions to construct useful lattices
     static void makeSpatialNorm(LatticeInteger &out);
     static void makeKHat(std::vector<ScalarField> &out);
     static void makeKHatSquared(ScalarField &out);
+    // spatial transverse projection in momentum space (Coulomb gauge projection)
     static void transverseProjectSpatial(GaugeField &out);
+    // get gauge transformation out of enum
     static TransformFn getGaugeTranform(const QedGauge gauge);
+    // field generation using given weights
     void operator()(GaugeField &out, GridParallelRNG &rng, const ScalarField &weight, 
                     TransformFn momSpaceTransform = nullptr);
+    // QED_L weights
     void makeWeightsQedL(ScalarField &weight);
+    // QED_TL weights
     void makeWeightsQedTL(ScalarField &weight);
+    // QED_Zeta weights
     void makeWeightsQedZeta(ScalarField &weight, const double zeta);
+    // QED_M weights
     void makeWeightsQedM(ScalarField &weight, const double mass);
 private:
     GridBase       *g_;
@@ -65,8 +80,13 @@ private:
     Coordinate     zm_;
 };
 
+// default alias
 typedef TEmFieldGenerator<vComplex> EmFieldGenerator;
 
+/******************************************************************************
+ *                 TEmFieldGenerator implementation                           *
+ ******************************************************************************/
+// constructor ////////////////////////////////////////////////////////////////
 template <typename VType>
 TEmFieldGenerator<VType>::TEmFieldGenerator(GridBase *g)
 : g_(g), nd_(g->Nd()), spNrm_(g), latOne_(g), kHatSquared_(g), zm_(g->Nd(), 0)
@@ -76,6 +96,7 @@ TEmFieldGenerator<VType>::TEmFieldGenerator(GridBase *g)
     latOne_ = ComplexType(1., 0.);
 }
 
+// static functions to construct useful lattices //////////////////////////////
 template <typename VType>
 void TEmFieldGenerator<VType>::makeSpatialNorm(LatticeInteger &out)
 {
@@ -125,6 +146,7 @@ void TEmFieldGenerator<VType>::makeKHatSquared(ScalarField &out)
     }
 }
 
+// spatial transverse projection in momentum space (Coulomb gauge projection)
 template <typename VType>
 void TEmFieldGenerator<VType>::transverseProjectSpatial(GaugeField &out)
 {
@@ -163,6 +185,7 @@ void TEmFieldGenerator<VType>::transverseProjectSpatial(GaugeField &out)
     }
 }
 
+// get gauge transformation out of enum ///////////////////////////////////////
 template <typename VType>
 typename TEmFieldGenerator<VType>::TransformFn 
 TEmFieldGenerator<VType>::getGaugeTranform(const QedGauge gauge)
@@ -181,7 +204,7 @@ TEmFieldGenerator<VType>::getGaugeTranform(const QedGauge gauge)
     }
 }
 
-
+// field generation using given weights ///////////////////////////////////////
 template <typename VType>
 void TEmFieldGenerator<VType>::operator()(GaugeField &out, GridParallelRNG &rng, 
                                           const ScalarField &weight, TransformFn momSpaceTransform)
@@ -206,6 +229,7 @@ void TEmFieldGenerator<VType>::operator()(GaugeField &out, GridParallelRNG &rng,
     out = real(out);
 }
 
+// QED_L weights //////////////////////////////////////////////////////////////
 template <typename VType>
 void TEmFieldGenerator<VType>::makeWeightsQedL(ScalarField &weight)
 {
@@ -217,6 +241,7 @@ void TEmFieldGenerator<VType>::makeWeightsQedL(ScalarField &weight)
     weight = where(spNrm_ == Integer(0), 0.*weight, weight);
 }
 
+// QED_TL weights /////////////////////////////////////////////////////////////
 template <typename VType>
 void TEmFieldGenerator<VType>::makeWeightsQedTL(ScalarField &weight)
 {
@@ -226,6 +251,7 @@ void TEmFieldGenerator<VType>::makeWeightsQedTL(ScalarField &weight)
     pokeSite(z_, weight, zm_);
 }
 
+// QED_Zeta weights ///////////////////////////////////////////////////////////
 template <typename VType>
 void TEmFieldGenerator<VType>::makeWeightsQedZeta(ScalarField &weight, const double zeta)
 {
@@ -238,6 +264,7 @@ void TEmFieldGenerator<VType>::makeWeightsQedZeta(ScalarField &weight, const dou
     weight = latOne_/weight;
 }
 
+// QED_M weights //////////////////////////////////////////////////////////////
 template <typename VType>
 void TEmFieldGenerator<VType>::makeWeightsQedM(ScalarField &weight, const double m)
 {

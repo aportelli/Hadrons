@@ -9,7 +9,7 @@
 BEGIN_HADRONS_NAMESPACE
 
 /******************************************************************************
- *                         StochasticQedZeta                                 *
+ *                        Stochastic QED_Zeta                                 *
  ******************************************************************************/
 BEGIN_MODULE_NAMESPACE(MGauge)
 
@@ -47,7 +47,7 @@ private:
 MODULE_REGISTER_TMP(StochasticQedZeta, TStochasticQedZeta<vComplex>, MGauge);
 
 /******************************************************************************
- *                 TStochasticQedZeta implementation                             *
+ *                   TStochasticQedZeta implementation                        *
  ******************************************************************************/
 // constructor /////////////////////////////////////////////////////////////////
 template <typename VType>
