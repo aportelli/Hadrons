@@ -33,6 +33,7 @@
 #include <Hadrons/Global.hpp>
 #include <Hadrons/Module.hpp>
 #include <Hadrons/ModuleFactory.hpp>
+#include <Hadrons/TimerArray.hpp>
 
 BEGIN_HADRONS_NAMESPACE
 
@@ -92,7 +93,7 @@ public:
     // destructor
     virtual ~TMeson(void) {};
     // parse arguments
-    virtual void parseGammaString(std::vector<GammaPair> &gammaList);
+    virtual void parseGammaString(std::vector<GammaPair> &gammaList, std::vector<int> &gammaSnk);
     // dependencies/products
     virtual std::vector<std::string> getInput(void);
     virtual std::vector<std::string> getOutput(void);
@@ -117,7 +118,7 @@ TMeson<FImpl1, FImpl2>::TMeson(const std::string name)
 
 // parse arguments /////////////////////////////////////////////////////////////
 template <typename FImpl1, typename FImpl2>
-void TMeson<FImpl1, FImpl2>::parseGammaString(std::vector<GammaPair> &gammaList)
+void TMeson<FImpl1, FImpl2>::parseGammaString(std::vector<GammaPair> &gammaList, std::vector<int> &gammaSnk)
 {
     gammaList.clear();
     // Determine gamma matrices to insert at source/sink.
@@ -131,12 +132,37 @@ void TMeson<FImpl1, FImpl2>::parseGammaString(std::vector<GammaPair> &gammaList)
                 gammaList.push_back(std::make_pair((Gamma::Algebra)i, 
                                                    (Gamma::Algebra)j));
             }
+            gammaSnk[i/2]=1;
         }
     }
     else
     {
         // Parse individual contractions from input string.
-        gammaList = strToVec<GammaPair>(par().gammas);
+        std::vector<GammaPair> tmp;
+        tmp = strToVec<GammaPair>(par().gammas);
+        // assert that only legal Gamma matrices are used
+        for (unsigned int j = 0; j < tmp.size(); j++)
+        {
+            // wrong strings are parsed to undef, equaling (Gamma::Algebra)(-1) as defined in
+            // as defined in Grid/Grid/serialisation/MacroMagic.h, line 161 
+            if( (tmp[j].first==(Gamma::Algebra)(-1)) ||  (tmp[j].second==(Gamma::Algebra)(-1)) )
+            {
+                HADRONS_ERROR(Argument, "Wrong Argument for Gamma matrices. " + par().gammas); 
+            }
+        }
+        // order gamma pairs so that gammaSink is in the order defined by Grid
+        for (unsigned int i = 1; i < Gamma::nGamma; i += 2)
+        {
+            for (unsigned int j = 0; j < tmp.size(); j++)
+            {
+                if(tmp[j].first==(Gamma::Algebra)i)
+                {
+                    gammaSnk[i/2]=1;
+                    gammaList.push_back(tmp[j]);
+                }
+            }
+        }
+        std::cout << gammaList << std::endl;
     } 
 }
 
@@ -170,11 +196,18 @@ template <typename FImpl1, typename FImpl2>
 void TMeson<FImpl1, FImpl2>::setup(void)
 {
     envTmpLat(LatticeComplex, "c");
+    envTmp(std::vector<int>, "gammaSnk", 1, 16);
 }
 
 // execution ///////////////////////////////////////////////////////////////////
 #define mesonConnected(q1, q2, gSnk, gSrc) \
 (g5*(gSnk))*(q1)*(adj(gSrc)*g5)*adj(q2)
+
+#define mesonConnected1(q1, q2, gSnk) \
+adj(q2)*(g5*(gSnk))*(q1)
+
+#define mesonConnected2(q, gSrc) \
+(q)*(adj(gSrc)*g5)
 
 template <typename FImpl1, typename FImpl2>
 void TMeson<FImpl1, FImpl2>::execute(void)
@@ -188,8 +221,9 @@ void TMeson<FImpl1, FImpl2>::execute(void)
     Gamma                  g5(Gamma::Algebra::Gamma5);
     std::vector<GammaPair> gammaList;
     int                    nt = env().getDim(Tp);
-    
-    parseGammaString(gammaList);
+    envGetTmp(std::vector<int>, gammaSnk);
+
+    parseGammaString(gammaList, gammaSnk);
     result.resize(gammaList.size());
     for (unsigned int i = 0; i < result.size(); ++i)
     {
@@ -222,34 +256,58 @@ void TMeson<FImpl1, FImpl2>::execute(void)
         
         envGetTmp(LatticeComplex, c);
         LOG(Message) << "(using sink '" << par().sink << "')" << std::endl;
-        for (unsigned int i = 0; i < result.size(); ++i)
+        unsigned int i = 0;
+        // loop over gamma at the sink
+        for (unsigned int j = 0; j < gammaSnk.size(); ++j)
         {
+            // only continue if gamma Sink is used at least once
+            if(gammaSnk[j]==0)
+            {
+                continue;
+            }
             Gamma       gSnk(gammaList[i].first);
-            Gamma       gSrc(gammaList[i].second);
-            std::string ns;
-                
-            ns = vm().getModuleNamespace(env().getObjectModule(par().sink));
-            if (ns == "MSource")
+            auto q1Gq2 = mesonConnected1(q1,q2,gSnk);
+            // loop over all gamma matrices at the source - list ordering earlier guarantees this works
+            while(gammaList[i].first == (Gamma::Algebra)(2*j+1))
             {
-                PropagatorField1 &sink = envGet(PropagatorField1, par().sink);
-                
-                c = trace(mesonConnected(q1, q2, gSnk, gSrc)*sink);
-                sliceSum(c, buf, Tp);
-            }
-            else if (ns == "MSink")
-            {
-                SinkFnScalar &sink = envGet(SinkFnScalar, par().sink);
-                
-                c   = trace(mesonConnected(q1, q2, gSnk, gSrc));
-                buf = sink(c);
-            }
-            for (unsigned int t = 0; t < buf.size(); ++t)
-            {
-                result[i].corr[t] = TensorRemove(buf[t]);
+                Gamma       gSrc(gammaList[i].second);
+                std::string ns;
+                    
+                ns = vm().getModuleNamespace(env().getObjectModule(par().sink));
+                if (ns == "MSource")
+                {
+                    PropagatorField1 &sink = envGet(PropagatorField1, par().sink);
+                    
+                    startTimer("mesonConnected");
+                    c = trace(mesonConnected2(q1Gq2, gSrc)*sink);
+                    stopTimer("mesonConnected");
+                    startTimer("sliceSum");
+                    sliceSum(c, buf, Tp);
+                    stopTimer("sliceSum");
+                }
+                else if (ns == "MSink")
+                {
+                    SinkFnScalar &sink = envGet(SinkFnScalar, par().sink);
+                    
+                    startTimer("mesonConnected");
+                    c   = trace(mesonConnected2(q1Gq2, gSrc));
+                    stopTimer("mesonConnected");
+                    startTimer("sliceSum");
+                    buf = sink(c);
+                    stopTimer("sliceSum");
+                }
+                for (unsigned int t = 0; t < buf.size(); ++t)
+                {
+                    result[i].corr[t] = TensorRemove(buf[t]);
+                }
+
+                i++;
             }
         }
     }
+    startTimer("I/O");
     saveResult(par().output, "meson", result);
+    stopTimer("I/O");
 }
 
 END_MODULE_NAMESPACE
