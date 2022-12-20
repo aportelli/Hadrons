@@ -66,8 +66,6 @@ protected:
     virtual void setup(void);
     // execution
     virtual void execute(void);
-private:
-    bool    weightDone_;
 };
 
 MODULE_REGISTER(StochEm, TStochEm, MGauge);
