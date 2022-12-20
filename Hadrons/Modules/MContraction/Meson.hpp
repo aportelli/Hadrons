@@ -266,7 +266,9 @@ void TMeson<FImpl1, FImpl2>::execute(void)
                 continue;
             }
             Gamma       gSnk(gammaList[i].first);
+            startTimer("mesonConnectedSnk");
             auto q1Gq2 = mesonConnected1(q1,q2,gSnk);
+            stopTimer("mesonConnectedSnk");
             // loop over all gamma matrices at the source - list ordering earlier guarantees this works
             while(gammaList[i].first == (Gamma::Algebra)(2*j+1))
             {
