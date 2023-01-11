@@ -1032,13 +1032,12 @@ void VirtualMachine::executeProgram(const Program &p)
         LOG(Message) << "Garbage collection..." << std::endl;
         env().freeSet(freeProg[i]);
 
-        // Look which temporary objects exist
-        LOG(Debug) << "Remaining temporary objects:" << std::endl;
+        // Clean up remaining temporary objects
         for (unsigned int a = 0; a < env().getMaxAddress(); ++a)
         {
-            if (env().getObjectStorage(a) == Environment::Storage::temporary)
+            if (env().getObjectStorage(a) == Environment::Storage::temporary
+                and env().hasCreatedObject(a))
             {
-                LOG(Debug) << env().getObjectName(a) << std::endl;
                 env().freeObject(a);
             }
         }
