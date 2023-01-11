@@ -1035,8 +1035,7 @@ void VirtualMachine::executeProgram(const Program &p)
         // Clean up remaining temporary objects
         for (unsigned int a = 0; a < env().getMaxAddress(); ++a)
         {
-            if (env().getObjectStorage(a) == Environment::Storage::temporary
-                and env().hasCreatedObject(a))
+            if (env().getObjectStorage(a) == Environment::Storage::temporary)
             {
                 env().freeObject(a);
             }
