@@ -950,7 +950,8 @@ VirtualMachine::Program VirtualMachine::naiveSchedule(void)
         {
             if (!std::binary_search(p.begin(), p.end(), env().getObjectModule(in)))
             {
-                HADRONS_ERROR_REF(ObjectDefinition, "Dependency '" + env().getObjectName(in) + "' (address " + std::to_string(in) + ") is scheduled after "
+                HADRONS_ERROR_REF(ObjectDefinition, "Dependency '" + env().getObjectName(in)
+                                  + "' (address " + std::to_string(in) + ") is scheduled after "
                                   + env().getObjectName(env().getObjectModule(i)), in);
             }
         }
