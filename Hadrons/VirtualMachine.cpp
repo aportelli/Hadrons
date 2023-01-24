@@ -945,6 +945,16 @@ VirtualMachine::Program VirtualMachine::naiveSchedule(void)
     for (unsigned int i = 0; i < graph.size(); ++i)
     {
         p.push_back(i);
+
+        for (auto &in : module_[i].input)
+        {
+            if (env().getObjectModule(in) > i)
+            {
+                HADRONS_ERROR_REF(ObjectDefinition, "Dependency '" + env().getObjectName(in)
+                                  + "' (address " + std::to_string(in) + ") is scheduled after "
+                                  + env().getObjectName(env().getObjectModule(i)), in);
+            }
+        }
     }
 
     if (hasDatabase() and makeScheduleDb_)
