@@ -1031,6 +1031,16 @@ void VirtualMachine::executeProgram(const Program &p)
         // garbage collection for step i
         LOG(Message) << "Garbage collection..." << std::endl;
         env().freeSet(freeProg[i]);
+
+        // Clean up remaining temporary objects
+        for (unsigned int a = 0; a < env().getMaxAddress(); ++a)
+        {
+            if (env().getObjectStorage(a) == Environment::Storage::temporary)
+            {
+                env().freeObject(a);
+            }
+        }
+
         // print used memory after garbage collection if necessary
         sizeAfter = env().getTotalSize();
         if (sizeBefore != sizeAfter)
