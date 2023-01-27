@@ -273,9 +273,8 @@ void TPerambulator<FImpl>::execute(void)
 
 
     std::string sourceT = par().timeSources;
-    int nSourceT;
     std::vector<int> invT;
-    nSourceT = getSourceTimesFromInput(sourceT,nDT,dilNoise,invT);    
+    getSourceTimesFromInput(sourceT,nDT,dilNoise,invT);
     perambulator.MetaData.timeSources = invT;
     
     int sourceBatchSize = par().sourceBatchSize;

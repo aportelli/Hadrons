@@ -557,6 +557,8 @@ int ExactDistillationPolicy<FImpl>::dilutionSize(const Index ind) const
         case Index::s :
             return this->getNs();
     }
+    HADRONS_ERROR(Argument, "'ind' must be a valid index.");
+    return 0;
 }
 
 template <typename FImpl>
