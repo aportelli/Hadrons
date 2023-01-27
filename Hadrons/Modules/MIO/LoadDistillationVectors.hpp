@@ -107,7 +107,6 @@ void TLoadDistillationVectors<FImpl>::setup(void)
     int nDL = dilNoise.dilutionSize(DistillationNoise<FImpl>::Index::l);        
     int nDS = dilNoise.dilutionSize(DistillationNoise<FImpl>::Index::s);        
     int nDT = dilNoise.dilutionSize(DistillationNoise<FImpl>::Index::t);        
-    int nSourceT;
     std::string sourceT = par().timeSources;
     if(par().timeSources.empty())
     {
