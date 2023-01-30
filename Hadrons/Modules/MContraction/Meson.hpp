@@ -196,6 +196,7 @@ template <typename FImpl1, typename FImpl2>
 void TMeson<FImpl1, FImpl2>::setup(void)
 {
     envTmpLat(LatticeComplex, "c");
+    envTmpLat(LatticePropagator, "q1Gq2");
     envTmp(std::vector<int>, "gammaSnk", 1, 16);
 }
 
@@ -255,6 +256,7 @@ void TMeson<FImpl1, FImpl2>::execute(void)
         auto &q2 = envGet(PropagatorField2, par().q2);
         
         envGetTmp(LatticeComplex, c);
+        envGetTmp(LatticePropagator, q1Gq2);
         LOG(Message) << "(using sink '" << par().sink << "')" << std::endl;
         unsigned int i = 0;
         // loop over gamma at the sink
@@ -267,7 +269,7 @@ void TMeson<FImpl1, FImpl2>::execute(void)
             }
             Gamma       gSnk(gammaList[i].first);
             startTimer("mesonConnectedSnk");
-            auto q1Gq2 = mesonConnected1(q1,q2,gSnk);
+            q1Gq2 = mesonConnected1(q1,q2,gSnk);
             stopTimer("mesonConnectedSnk");
             // loop over all gamma matrices at the source - list ordering earlier guarantees this works
             while(gammaList[i].first == (Gamma::Algebra)(2*j+1))
