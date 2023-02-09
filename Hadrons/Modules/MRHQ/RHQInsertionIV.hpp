@@ -65,8 +65,7 @@ template <typename FImpl, typename GImpl>
 class TRHQInsertionIV: public Module<RHQInsertionIVPar>
 {
 public:
-    BASIC_TYPE_ALIASES(FImpl,);
-    GAUGE_TYPE_ALIASES(GImpl,);
+    FERM_TYPE_ALIASES(FImpl,);
 public:
     // constructor
     TRHQInsertionIV(const std::string name);
@@ -115,6 +114,9 @@ template <typename FImpl, typename GImpl>
 void TRHQInsertionIV<FImpl, GImpl>::setup(void)
 {
     envCreateLat(PropagatorField, getName());
+    envTmpLat(ColourMatrixField, "gauge_x");
+    envTmpLat(ColourMatrixField, "gauge_y");
+    envTmpLat(ColourMatrixField, "gauge_z");
 }
 
 // execution ///////////////////////////////////////////////////////////////////
@@ -155,9 +157,12 @@ void TRHQInsertionIV<FImpl, GImpl>::execute(void)
     
     auto &field = envGet(PropagatorField, par().q);
     const auto &gaugefield = envGet(GaugeField, par().gauge);
-    const auto gauge_x = peekLorentz(gaugefield, 0);
-    const auto gauge_y = peekLorentz(gaugefield, 1);
-    const auto gauge_z = peekLorentz(gaugefield, 2);
+    envGetTmp(ColourMatrixField, gauge_x);
+    envGetTmp(ColourMatrixField, gauge_y);
+    envGetTmp(ColourMatrixField, gauge_z);
+    gauge_x = peekLorentz(gaugefield, 0);
+    gauge_y = peekLorentz(gaugefield, 1);
+    gauge_z = peekLorentz(gaugefield, 2);
 
     Gamma gx(Gamma::Algebra::GammaX);
     Gamma gy(Gamma::Algebra::GammaY);

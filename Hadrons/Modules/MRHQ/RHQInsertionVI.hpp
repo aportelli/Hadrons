@@ -54,8 +54,7 @@ template <typename FImpl, typename GImpl>
 class TRHQInsertionVI: public Module<RHQInsertionVIPar>
 {
 public:
-    BASIC_TYPE_ALIASES(FImpl,);
-    GAUGE_TYPE_ALIASES(GImpl,);
+    FERM_TYPE_ALIASES(FImpl,);
 public:
     // constructor
     TRHQInsertionVI(const std::string name);
@@ -104,6 +103,7 @@ template <typename FImpl, typename GImpl>
 void TRHQInsertionVI<FImpl, GImpl>::setup(void)
 {
     envCreateLat(PropagatorField, getName());//, 1, env().getDim(Tp));
+    envTmpLat(ColourMatrixField, "gauge_t");
 }
 
 // execution ///////////////////////////////////////////////////////////////////
@@ -117,7 +117,8 @@ void TRHQInsertionVI<FImpl, GImpl>::execute(void)
 
     auto &field = envGet(PropagatorField, par().q);
     const auto &gaugefield = envGet(GaugeField, par().gauge);
-    const auto gauge_t = peekLorentz(gaugefield, 3);
+    envGetTmp(ColourMatrixField, gauge_t);
+    gauge_t = peekLorentz(gaugefield, 3);
 
     if (par().gamma5 != Gamma::Algebra::Gamma5 && par().gamma5 != Gamma::Algebra::Identity)
     {
