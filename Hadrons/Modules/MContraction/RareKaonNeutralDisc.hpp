@@ -32,6 +32,7 @@
 #include <Hadrons/Global.hpp>
 #include <Hadrons/Module.hpp>
 #include <Hadrons/ModuleFactory.hpp>
+#include <Hadrons/Serialization.hpp>
 
 BEGIN_HADRONS_NAMESPACE
 
@@ -146,7 +147,7 @@ std::vector<std::string> TRareKaonNeutralDisc<FImpl>::getInput(void)
 template <typename FImpl>
 std::vector<std::string> TRareKaonNeutralDisc<FImpl>::getOutput(void)
 {
-    std::vector<std::string> out = {};
+    std::vector<std::string> out = {getName()};
     
     return out;
 }
@@ -164,6 +165,7 @@ template <typename FImpl>
 void TRareKaonNeutralDisc<FImpl>::setup(void)
 {
     envTmpLat(ComplexField, "corr");
+    envCreate(HadronsSerializable, getName(), 1, 0);
 }
 
 // execution ///////////////////////////////////////////////////////////////////
@@ -212,6 +214,8 @@ void TRareKaonNeutralDisc<FImpl>::execute(void)
     }
     // IO
     saveResult(par().output, "RK_disc0", result);
+    auto &out = envGet(HadronsSerializable, getName());
+    out = result;
 }
 
 

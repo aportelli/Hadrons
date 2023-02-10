@@ -33,6 +33,7 @@
 #include <Hadrons/Module.hpp>
 #include <Hadrons/ModuleFactory.hpp>
 #include <Grid/qcd/utils/BaryonUtils.h>
+#include <Hadrons/Serialization.hpp>
 
 BEGIN_HADRONS_NAMESPACE
 
@@ -144,7 +145,7 @@ std::vector<std::string> TXiToSigmaEye<FImpl>::getInput(void)
 template <typename FImpl>
 std::vector<std::string> TXiToSigmaEye<FImpl>::getOutput(void)
 {
-    std::vector<std::string> out = {};
+    std::vector<std::string> out = {getName()};
     
     return out;
 }
@@ -161,6 +162,7 @@ template <typename FImpl>
 void TXiToSigmaEye<FImpl>::setup(void)
 {
     envTmpLat(SpinMatrixField, "c");
+    envCreate(HadronsSerializable, getName(), 1, 0);
 }
 
 // execution ///////////////////////////////////////////////////////////////////
@@ -219,6 +221,8 @@ void TXiToSigmaEye<FImpl>::execute(void)
     }
 
     saveResult(par().output, "xtsEye", result);
+    auto &out = envGet(HadronsSerializable, getName());
+    out = result;
 
 }
 
