@@ -1,5 +1,5 @@
-#ifndef Hadrons_MGauge_StochasticQedSubZm_hpp_
-#define Hadrons_MGauge_StochasticQedSubZm_hpp_
+#ifndef Hadrons_MGauge_StochasticQedTL_hpp_
+#define Hadrons_MGauge_StochasticQedTL_hpp_
 
 #include <Hadrons/Global.hpp>
 #include <Hadrons/Module.hpp>
@@ -20,10 +20,8 @@ public:
                                     QedGauge, gauge);
 };
 
-enum ZmScheme { qedL = 0, qedTL = 1 };
-
-template <typename VType, ZmScheme scheme>
-class TStochasticQedSubZm: public Module<StochasticQedSubZmPar>
+template <typename VType>
+class TStochasticQedTL: public Module<StochasticQedSubZmPar>
 {
 public:
     typedef TEmFieldGenerator<VType>    EmGen;
@@ -31,9 +29,9 @@ public:
     typedef typename EmGen::ScalarField ScalarField;
 public:
     // constructor
-    TStochasticQedSubZm(const std::string name);
+    TStochasticQedTL(const std::string name);
     // destructor
-    virtual ~TStochasticQedSubZm(void) {};
+    virtual ~TStochasticQedTL(void) {};
     // dependency relation
     virtual std::vector<std::string> getInput(void);
     virtual std::vector<std::string> getOutput(void);
@@ -45,29 +43,28 @@ private:
     bool weightDone_;
 };
 
-MODULE_REGISTER_TMP(StochasticQedL, ARG(TStochasticQedSubZm<vComplex, ZmScheme::qedL>), MGauge);
-MODULE_REGISTER_TMP(StochasticQedTL, ARG(TStochasticQedSubZm<vComplex, ZmScheme::qedTL>), MGauge);
+MODULE_REGISTER_TMP(StochasticQedTL, ARG(TStochasticQedTL<vComplex>), MGauge);
 
 /******************************************************************************
- *                 TStochasticQedSubZm implementation                          *
+ *                 TStochasticQedTL implementation                          *
  ******************************************************************************/
 // constructor /////////////////////////////////////////////////////////////////
-template <typename VType, ZmScheme scheme>
-TStochasticQedSubZm<VType, scheme>::TStochasticQedSubZm(const std::string name)
+template <typename VType>
+TStochasticQedTL<VType>::TStochasticQedTL(const std::string name)
 : Module<StochasticQedSubZmPar>(name)
 {}
 
 // dependencies/products ///////////////////////////////////////////////////////
-template <typename VType, ZmScheme scheme>
-std::vector<std::string> TStochasticQedSubZm<VType, scheme>::getInput(void)
+template <typename VType>
+std::vector<std::string> TStochasticQedTL<VType>::getInput(void)
 {
     std::vector<std::string> in;
     
     return in;
 }
 
-template <typename VType, ZmScheme scheme>
-std::vector<std::string> TStochasticQedSubZm<VType, scheme>::getOutput(void)
+template <typename VType>
+std::vector<std::string> TStochasticQedTL<VType>::getOutput(void)
 {
     std::vector<std::string> out = {getName()};
     
@@ -75,8 +72,8 @@ std::vector<std::string> TStochasticQedSubZm<VType, scheme>::getOutput(void)
 }
 
 // setup ///////////////////////////////////////////////////////////////////////
-template <typename VType, ZmScheme scheme>
-void TStochasticQedSubZm<VType, scheme>::setup(void)
+template <typename VType>
+void TStochasticQedTL<VType>::setup(void)
 {
     weightDone_ = env().hasCreatedObject("_" + getName() + "_weight");
     envCacheLat(ScalarField, "_" + getName() + "_weight");
@@ -85,28 +82,16 @@ void TStochasticQedSubZm<VType, scheme>::setup(void)
 }
 
 // execution ///////////////////////////////////////////////////////////////////
-template <typename VType, ZmScheme scheme>
-void TStochasticQedSubZm<VType, scheme>::execute(void)
+template <typename VType>
+void TStochasticQedTL<VType>::execute(void)
 {
     auto &a = envGet(GaugeField, getName());
     auto &w = envGet(ScalarField, "_" + getName() + "_weight");
     envGetTmp(EmGen, gen);
     if (!weightDone_)
     {
-        switch (scheme)
-        {
-        case ZmScheme::qedL:
-            LOG(Message) << "Caching stochastic EM potential weights, zero-mode scheme: QED_L" << std::endl;
-            gen.makeWeightsQedL(w);
-            break;
-        case ZmScheme::qedTL:
-            LOG(Message) << "Caching stochastic EM potential weights, zero-mode scheme: QED_TL" << std::endl;
-            gen.makeWeightsQedTL(w);
-            break;
-        default:
-            HADRONS_ERROR(Definition, "invalid zero-mode scheme")
-            break;
-        }
+        LOG(Message) << "Caching stochastic QED_TL EM potential weights" << std::endl;
+        gen.makeWeightsQedTL(w);
     }
     LOG(Message) << "Generating stochastic EM potential (gauge: " << par().gauge << ")" << std::endl;
     auto tr = gen.getGaugeTranform(par().gauge);
@@ -117,4 +102,4 @@ END_MODULE_NAMESPACE
 
 END_HADRONS_NAMESPACE
 
-#endif // Hadrons_MGauge_StochasticQedSubZm_hpp_
+#endif // Hadrons_MGauge_StochasticQedTL_hpp_
