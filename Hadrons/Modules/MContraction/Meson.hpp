@@ -145,7 +145,7 @@ void TMeson<FImpl1, FImpl2>::parseGammaString(std::vector<GammaPair> &gammaList,
         {
             // wrong strings are parsed to undef, equaling (Gamma::Algebra)(-1) as defined in
             // as defined in Grid/Grid/serialisation/MacroMagic.h, line 161 
-            if( (tmp[j].first==(Gamma::Algebra)(-1)) ||  (tmp[j].second==(Gamma::Algebra)(-1)) )
+            if( (tmp[j].first==Gamma::Algebra::undef) ||  (tmp[j].second==Gamma::Algebra::undef) )
             {
                 HADRONS_ERROR(Argument, "Wrong Argument for Gamma matrices. " + par().gammas); 
             }
