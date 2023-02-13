@@ -33,6 +33,7 @@
 #include <Hadrons/Global.hpp>
 #include <Hadrons/Module.hpp>
 #include <Hadrons/ModuleFactory.hpp>
+#include <Hadrons/Solver.hpp>
 
 BEGIN_HADRONS_NAMESPACE
 
@@ -51,7 +52,10 @@ BEGIN_HADRONS_NAMESPACE
 *
 *
 * options:
+*  - feynmanRules (bool): True if free propagator calculated with Feynman Rules
+*				false for using a solver
 *  - action: fermion action used for propagator (string)
+*  - solver: solver for the propagator. Only needed if FeynmanRules=false
 *  - emField: photon field A_mu (string)
 *  - mass: input mass for the lepton propagator
 *  - boundary: boundary conditions for the lepton propagator, e.g. "1 1 1 -1"
@@ -70,7 +74,9 @@ class EMLeptonPar: Serializable
 {
 public:
     GRID_SERIALIZABLE_CLASS_MEMBERS(EMLeptonPar,
+				    bool, feynmanRules,
 				    std::string,  action,
+				    std::string, solver,
 				    std::string, emField,
 				    double, mass,
                                     std::string , boundary,
@@ -83,6 +89,7 @@ class TEMLepton: public Module<EMLeptonPar>
 {
 public:
     FERM_TYPE_ALIASES(FImpl,);
+    SOLVER_TYPE_ALIASES(FImpl,);
 public:
     typedef PhotonR::GaugeField     EmField;
 public:
@@ -100,6 +107,7 @@ protected:
     virtual void execute(void);
 private:
     unsigned int Ls_;
+    Solver       *solver_{nullptr};
 };
 
 MODULE_REGISTER_TMP(EMLepton, TEMLepton<FIMPL>, MFermion);
@@ -118,6 +126,7 @@ template <typename FImpl>
 std::vector<std::string> TEMLepton<FImpl>::getInput(void)
 {
     std::vector<std::string> in = {par().action, par().emField};
+    if(!par().feynmanRules) in.push_back(par().solver);
     
     return in;
 }
@@ -139,7 +148,8 @@ std::vector<std::string> TEMLepton<FImpl>::getOutput(void)
 template <typename FImpl>
 void TEMLepton<FImpl>::setup(void)
 {
-    Ls_ = env().getObjectLs(par().action);
+    if(par().feynmanRules) Ls_ = env().getObjectLs(par().action);
+    else Ls_ = env().getObjectLs(par().solver);
     for(int i=0; i<par().deltat.size(); i++)
     {
 	envCreateLat(PropagatorField, std::to_string(par().deltat[i]) + "_" + getName() + "_free");
@@ -163,16 +173,27 @@ void TEMLepton<FImpl>::execute(void)
                  << std::endl;
     
     auto        &mat = envGet(FMat, par().action);
+    if(!par().feynmanRules)
+    {
+	auto &solver  = envGet(Solver, par().solver);
+	auto &mat     = solver.getFMat();
+    }
     RealD mass = par().mass;
     Complex ci(0.0,1.0);
     
     envGetTmp(FermionField, source);
     envGetTmp(FermionField, sol);
     envGetTmp(FermionField, tmp);
-    LOG(Message) << "Calculating a lepton Propagator with sequential Aslash insertion with lepton mass " 
-                 << mass << " using the action '" << par().action
+    if(par().feynmanRules){
+         LOG(Message) << "Calculating a lepton Propagator with sequential Aslash insertion with lepton mass "
+                 << mass << " using Feynman rules for the action '" << par().action
                  << "' for fixed source-sink separation of " << par().deltat << std::endl;
-
+    }
+    else{
+         LOG(Message) << "Calculating a lepton Propagator with sequential Aslash insertion with lepton mass "
+                 << mass << " using the solver '" << par().solver
+                 << "' for fixed source-sink separation of " << par().deltat << std::endl;
+    }
     envGetTmp(Lattice<iScalar<vInteger>>, tlat);
     LatticeCoordinate(tlat, Tp);
 
@@ -217,10 +238,18 @@ void TEMLepton<FImpl>::execute(void)
         {
             PropToFerm<FImpl>(tmp, sourcetmp, s, 0);
             // 5D source if action is 5d
-            mat.ImportPhysicalFermionSource(tmp, source);
+	    mat.ImportPhysicalFermionSource(tmp, source);
         }
         sol = Zero();
-        mat.FreePropagator(source,sol,mass,boundary,twist);
+        if(par().feynmanRules)
+        {
+        	mat.FreePropagator(source,sol,mass,boundary,twist);
+        }
+        else
+        {
+		auto &solver  = envGet(Solver, par().solver);
+		solver(sol, source);
+        }
         if (Ls_ == 1)
         {
                 FermToProp<FImpl>(freetmp, sol, s, 0);
@@ -283,7 +312,15 @@ void TEMLepton<FImpl>::execute(void)
 		mat.ImportPhysicalFermionSource(tmp, source);
 	    }
             sol = Zero();
-	    mat.FreePropagator(source,sol,mass,boundary,twist);
+	    if(par().feynmanRules)
+	    {
+        	mat.FreePropagator(source,sol,mass,boundary,twist);
+            }
+            else
+            {
+		auto &solver  = envGet(Solver, par().solver);
+		solver(sol, source);
+            }
 	    if (Ls_ == 1)
 	    {
         	FermToProp<FImpl>(proptmp, sol, s, 0);
