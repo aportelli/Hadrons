@@ -59,61 +59,60 @@ private:
 public:
     using LinearFunction<Field>::operator();
 
-    ExactDeflatedGuesser(const std::vector<Field> & _evec,const std::vector<RealD> & _eval)
-    : ExactDeflatedGuesser(_evec, _eval, _evec.size())
+    ExactDeflatedGuesser(const std::vector<Field>& evec_,const std::vector<RealD>& eval_)
+    : ExactDeflatedGuesser(evec_, eval_, evec_.size())
     {}
 
-    ExactDeflatedGuesser(const std::vector<Field> & _evec, const std::vector<RealD> & _eval, const unsigned int _N)
-    : evec(_evec), eval(_eval), epackSize(_N)
+    ExactDeflatedGuesser(const std::vector<Field>& evec_, const std::vector<RealD>& eval_, unsigned int epackSize_)
+    : evec(evec_), eval(eval_), epackSize(epackSize_)
     {
         assert(evec.size()==eval.size());
         assert(epackSize <= evec.size());
     } 
 
-    virtual void operator()(const Field &src,Field &out) {
-        out = Zero();
-        double proj_t = 0.;
+    virtual void operator()(const Field &src,Field &guess) {
+        std::vector<Field> srcVec   = {src};
+        std::vector<Field> guessVec = {guess};
 
-        for (int i=0;i<epackSize;i++) {
-            const Field& tmp = evec[i];
-            proj_t -= usecond();
-            axpy(out,TensorRemove(innerProduct(tmp,src)) / eval[i],tmp,out);
-            proj_t += usecond();
-        }
-        out.Checkerboard() = src.Checkerboard();
+        (*this)(srcVec,guessVec);
 
-        LOG(Message) << "ExactDeflatedGuesser: Total projection time " << proj_t/1.e6 << " s" <<  std::endl;
+        guess = guessVec[0];
     }
 
-    virtual void operator() (const std::vector<Field> &in, std::vector<Field> &out)
+    virtual void operator() (const std::vector<Field> &src, std::vector<Field> &guess)
     {
-        assert(in.size() == out.size());
+        assert(src.size() == guess.size());
 
-        unsigned int sourceSize = out.size();
+        unsigned int sourceSize = src.size();
 
-        unsigned int evBatchSize     = 1;
+        unsigned int evBatchSize     = epackSize;
         unsigned int sourceBatchSize = sourceSize;
-        // evBatchSize and sourceBatchSize left in case we want a different value in future
+        // These choices of evBatchSize and sourceBatchSize make the loops
+        // below trivial. Left machinery in place in case we want to change
+        // this in the future.
 
-        for (auto &v: out)
+        for (auto &v: guess)
             v = Zero();
 
-        double proj_t = 0.;
+        double time_axpy = 0.;
 
-        for (unsigned int bv = 0; bv < epackSize; bv += evBatchSize) {
+        for (unsigned int bv = 0; bv < epackSize;  bv += evBatchSize) {
         for (unsigned int bs = 0; bs < sourceSize; bs += sourceBatchSize)
         {
-            unsigned int evBlockSize = std::min(epackSize - bv, evBatchSize);
+            unsigned int evBlockSize     = std::min(epackSize - bv, evBatchSize);
             unsigned int sourceBlockSize = std::min(sourceSize - bs, sourceBatchSize);
 
-            proj_t -= usecond();
-            BatchDeflationUtils::projAccumulate(in, out, evec, eval, 
+            time_axpy -= usecond();
+            BatchDeflationUtils::projAccumulate(src, guess, evec, eval, 
                                                 bv, bv + evBlockSize, 
                                                 bs, bs + sourceBlockSize);
-            proj_t += usecond();
+            time_axpy += usecond();
         }}
 
-        LOG(Message) << "ExactDeflatedGuesser: Total projection time " << proj_t/1.e6 << " s" <<  std::endl;
+        for (int k=0; k<sourceSize; k++)
+            guess[k].Checkerboard() = src[k].Checkerboard();
+
+        LOG(Message) << "ExactDeflatedGuesser: Total axpy time " << time_axpy/1.e6 << " s" <<  std::endl;
     }
 };
 
