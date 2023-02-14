@@ -93,7 +93,7 @@ public:
     // destructor
     virtual ~TMeson(void) {};
     // parse arguments
-    virtual void parseGammaString(std::vector<GammaPair> &gammaList, std::vector<int> &gammaSnk);
+    virtual int parseGammaString(std::map<Gamma::Algebra, std::vector<Gamma::Algebra>> &gammaMap);
     // dependencies/products
     virtual std::vector<std::string> getInput(void);
     virtual std::vector<std::string> getOutput(void);
@@ -118,21 +118,19 @@ TMeson<FImpl1, FImpl2>::TMeson(const std::string name)
 
 // parse arguments /////////////////////////////////////////////////////////////
 template <typename FImpl1, typename FImpl2>
-void TMeson<FImpl1, FImpl2>::parseGammaString(std::vector<GammaPair> &gammaList, std::vector<int> &gammaSnk)
+int TMeson<FImpl1, FImpl2>::parseGammaString(std::map<Gamma::Algebra, std::vector<Gamma::Algebra>> &gammaMap)
 {
-    gammaList.clear();
     // Determine gamma matrices to insert at source/sink.
+    int nGammaPairs=0;
     if (par().gammas.compare("all") == 0)
     {
-        // Do all contractions.
-        for (unsigned int i = 1; i < Gamma::nGamma; i += 2)
-        {
-            for (unsigned int j = 1; j < Gamma::nGamma; j += 2)
-            {
-                gammaList.push_back(std::make_pair((Gamma::Algebra)i, 
-                                                   (Gamma::Algebra)j));
+        for (Gamma gammaA: Gamma::gall) {
+            std::vector<Gamma::Algebra> gMapTmp;
+            for (Gamma gammaB: Gamma::gall) {      
+                gMapTmp.push_back(gammaB.g);
+                nGammaPairs++;
             }
-            gammaSnk[i/2]=1;
+            gammaMap[gammaA.g]=gMapTmp;
         }
     }
     else
@@ -143,27 +141,26 @@ void TMeson<FImpl1, FImpl2>::parseGammaString(std::vector<GammaPair> &gammaList,
         // assert that only legal Gamma matrices are used
         for (unsigned int j = 0; j < tmp.size(); j++)
         {
-            // wrong strings are parsed to undef, equaling (Gamma::Algebra)(-1) as defined in
-            // as defined in Grid/Grid/serialisation/MacroMagic.h, line 161 
             if( (tmp[j].first==Gamma::Algebra::undef) ||  (tmp[j].second==Gamma::Algebra::undef) )
             {
                 HADRONS_ERROR(Argument, "Wrong Argument for Gamma matrices. " + par().gammas); 
             }
         }
-        // order gamma pairs so that gammaSink is in the order defined by Grid
-        for (unsigned int i = 1; i < Gamma::nGamma; i += 2)
-        {
+        for (Gamma gammaA: Gamma::gall) {
+            std::vector<Gamma::Algebra> gMapTmp;
             for (unsigned int j = 0; j < tmp.size(); j++)
             {
-                if(tmp[j].first==(Gamma::Algebra)i)
+                if(tmp[j].first==gammaA.g)
                 {
-                    gammaSnk[i/2]=1;
-                    gammaList.push_back(tmp[j]);
+                    gMapTmp.push_back(tmp[j].second);
+                    nGammaPairs++;
                 }
             }
+            gammaMap[gammaA.g]=gMapTmp;
         }
-        std::cout << gammaList << std::endl;
-    } 
+    }
+
+    return nGammaPairs; 
 }
 
 // dependencies/products ///////////////////////////////////////////////////////
@@ -197,7 +194,6 @@ void TMeson<FImpl1, FImpl2>::setup(void)
 {
     envTmpLat(LatticeComplex, "c");
     envTmpLat(LatticePropagator, "q1Gq2");
-    envTmp(std::vector<int>, "gammaSnk", 1, 16);
 }
 
 // execution ///////////////////////////////////////////////////////////////////
@@ -222,14 +218,12 @@ void TMeson<FImpl1, FImpl2>::execute(void)
     Gamma                  g5(Gamma::Algebra::Gamma5);
     std::vector<GammaPair> gammaList;
     int                    nt = env().getDim(Tp);
-    envGetTmp(std::vector<int>, gammaSnk);
 
-    parseGammaString(gammaList, gammaSnk);
-    result.resize(gammaList.size());
+    std::map<Gamma::Algebra, std::vector<Gamma::Algebra>> gammaMap;
+    int nGammas = parseGammaString(gammaMap);
+    result.resize(nGammas);
     for (unsigned int i = 0; i < result.size(); ++i)
     {
-        result[i].gamma_snk = gammaList[i].first;
-        result[i].gamma_src = gammaList[i].second;
         result[i].corr.resize(nt);
     }
     if (envHasType(SlicedPropagator1, par().q1) and
@@ -259,22 +253,16 @@ void TMeson<FImpl1, FImpl2>::execute(void)
         envGetTmp(LatticePropagator, q1Gq2);
         LOG(Message) << "(using sink '" << par().sink << "')" << std::endl;
         unsigned int i = 0;
-        // loop over gamma at the sink
-        for (unsigned int j = 0; j < gammaSnk.size(); ++j)
+        for(auto &ss: gammaMap)
         {
-            // only continue if gamma Sink is used at least once
-            if(gammaSnk[j]==0)
-            {
-                continue;
-            }
-            Gamma       gSnk(gammaList[i].first);
+            Gamma::Algebra gammaSink = ss.first;
+            Gamma gSnk(gammaSink);
             startTimer("mesonConnectedSnk");
             q1Gq2 = mesonConnected1(q1,q2,gSnk);
             stopTimer("mesonConnectedSnk");
-            // loop over all gamma matrices at the source - list ordering earlier guarantees this works
-            while(gammaList[i].first == (Gamma::Algebra)(2*j+1))
+            for (Gamma::Algebra &gammaSource: ss.second)
             {
-                Gamma       gSrc(gammaList[i].second);
+                Gamma gSrc(gammaSource);
                 std::string ns;
                     
                 ns = vm().getModuleNamespace(env().getObjectModule(par().sink));
@@ -304,7 +292,8 @@ void TMeson<FImpl1, FImpl2>::execute(void)
                 {
                     result[i].corr[t] = TensorRemove(buf[t]);
                 }
-
+                result[i].gamma_snk = gSnk.g;
+                result[i].gamma_src = gSrc.g;
                 i++;
             }
         }
