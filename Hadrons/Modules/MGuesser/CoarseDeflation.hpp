@@ -5,6 +5,7 @@
 #include <Hadrons/Module.hpp>
 #include <Hadrons/ModuleFactory.hpp>
 #include <Hadrons/EigenPack.hpp>
+#include <Hadrons/Modules/MGuesser/BatchDeflationUtils.hpp>
 
 BEGIN_HADRONS_NAMESPACE
 
@@ -51,6 +52,97 @@ MODULE_REGISTER_TMP(CoarseDeflationF   , ARG(TCoarseDeflation<CoarseFermionEigen
 MODULE_REGISTER_TMP(CoarseDeflation250F, ARG(TCoarseDeflation<CoarseFermionEigenPack<FIMPLF,250>>), MGuesser);
 MODULE_REGISTER_TMP(CoarseDeflation400F, ARG(TCoarseDeflation<CoarseFermionEigenPack<FIMPLF,400>>), MGuesser);
 
+
+/******************************************************************************
+ *                            The guesser itself                              *
+ ******************************************************************************/
+template<class FineField, class CoarseField>
+class LocalCoherenceDeflatedGuesser: public LinearFunction<FineField> {
+private:
+    const std::vector<FineField>   &subspace;
+    const std::vector<CoarseField> &evec_coarse;
+    const std::vector<RealD>       &eval;
+    const unsigned int             epackSize;
+
+public:
+    using LinearFunction<FineField>::operator();
+
+    LocalCoherenceDeflatedGuesser(const std::vector<FineField> &subspace_, const std::vector<CoarseField> &evec_coarse_, const std::vector<RealD> &eval_)
+    : LocalCoherenceDeflatedGuesser(subspace_,evec_coarse_,eval_,evec_coarse_.size())
+    {}
+
+    LocalCoherenceDeflatedGuesser(const std::vector<FineField> &subspace_, const std::vector<CoarseField> &evec_coarse_, const std::vector<RealD> &eval_, unsigned int epackSize_)
+    : subspace(subspace_), evec_coarse(evec_coarse_), eval(eval_), epackSize(epackSize_)
+    {
+        assert(evec_coarse.size()==eval.size());
+        assert(epackSize <= evec_coarse.size());
+    } 
+
+    virtual void operator()(const FineField &src,FineField &guess) {
+        std::vector<FineField> srcVec   = {src};
+        std::vector<FineField> guessVec = {guess};
+
+        (*this)(srcVec,guessVec);
+
+        guess = guessVec[0];
+    }
+
+    virtual void operator() (const std::vector<FineField> &src, std::vector<FineField> &guess)
+    {
+        assert(src.size() == guess.size());
+
+        unsigned int sourceSize = src.size();
+
+        unsigned int evBatchSize     = epackSize;
+        unsigned int sourceBatchSize = sourceSize;
+        // These choices of evBatchSize and sourceBatchSize make the loops
+        // below trivial. Left machinery in place in case we want to change
+        // this in the future.
+
+        double time_axpy = 0.;
+        double time_project = 0.;
+        double time_promote = 0.;
+
+        GridBase* coarseGrid = evec_coarse[0].Grid();
+
+        std::vector<CoarseField> src_coarse;   src_coarse.reserve(sourceBatchSize);
+        std::vector<CoarseField> guess_coarse; guess_coarse.reserve(sourceBatchSize);
+        for (int k=0; k<sourceBatchSize; k++) {
+            src_coarse.emplace_back(coarseGrid);
+            guess_coarse.emplace_back(coarseGrid);
+            guess_coarse[k] = Zero();
+        }
+
+        time_project -= usecond();
+        batchBlockProject(src_coarse,src,subspace);
+        time_project += usecond();
+
+        for (unsigned int bv = 0; bv < epackSize;  bv += evBatchSize) {
+        for (unsigned int bs = 0; bs < sourceSize; bs += sourceBatchSize)
+        {
+            unsigned int evBlockSize     = std::min(epackSize - bv, evBatchSize);
+            unsigned int sourceBlockSize = std::min(sourceSize - bs, sourceBatchSize);
+
+            time_axpy -= usecond();
+            BatchDeflationUtils::projAccumulate(src_coarse, guess_coarse, evec_coarse, eval, 
+                                                bv, bv + evBlockSize, 
+                                                bs, bs + sourceBlockSize);
+            time_axpy += usecond();
+        }}
+
+
+        time_promote -= usecond();
+        batchBlockPromote(guess_coarse,guess,subspace);
+        time_promote += usecond();
+
+        for (int k=0; k<sourceSize; k++)
+            guess[k].Checkerboard() = src[k].Checkerboard();
+
+        LOG(Message) << "LocalCoherenceDeflatedGuesser: Total projection time " << time_project/1.e6 << " s" <<  std::endl;
+        LOG(Message) << "LocalCoherenceDeflatedGuesser: Total axpy       time " << time_axpy/1.e6 << " s" <<  std::endl;
+        LOG(Message) << "LocalCoherenceDeflatedGuesser: Total promotion  time " << time_promote/1.e6 << " s" <<  std::endl;
+    }
+};
 
 /******************************************************************************
  *                 TExactDeflation implementation                             *
