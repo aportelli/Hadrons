@@ -64,7 +64,7 @@ public:
     void operator()(GaugeField &out, GridParallelRNG &rng, const ScalarField &weight, 
                     TransformFn momSpaceTransform = nullptr);
     // QED_L weights
-    void makeWeightsQedL(ScalarField &weight);
+    void makeWeightsQedL(ScalarField &weight, std::vector<double> improvement = {});
     // QED_TL weights
     void makeWeightsQedTL(ScalarField &weight);
     // QED_Zeta weights
@@ -231,7 +231,8 @@ void TEmFieldGenerator<VType>::operator()(GaugeField &out, GridParallelRNG &rng,
 
 // QED_L weights //////////////////////////////////////////////////////////////
 template <typename VType>
-void TEmFieldGenerator<VType>::makeWeightsQedL(ScalarField &weight)
+void TEmFieldGenerator<VType>::makeWeightsQedL(ScalarField &weight, 
+                                               std::vector<double> improvement)
 {
     makeKHatSquared(weight);
     pokeSite(one_, weight, zm_);
@@ -239,6 +240,11 @@ void TEmFieldGenerator<VType>::makeWeightsQedL(ScalarField &weight)
     pokeSite(z_, weight, zm_);
     makeSpatialNorm(spNrm_);
     weight = where(spNrm_ == Integer(0), 0.*weight, weight);
+    for(int i = 0; i < improvement.size(); i++)
+    {
+      Real f = improvement[i] + 1;
+      weight = where(spNrm_ == Integer(i + 1), f*weight, weight);
+    }
 }
 
 // QED_TL weights /////////////////////////////////////////////////////////////

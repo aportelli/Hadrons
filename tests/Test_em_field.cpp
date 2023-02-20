@@ -60,6 +60,8 @@ void check(const T &a, const T &b, const double result = 0.)
     }
 }
 
+std::vector<double> improvement = {1.2, 2.3, 3.4};
+
 int main(int argc, char *argv[])
 {
     Grid_init(&argc, &argv);
@@ -71,6 +73,7 @@ int main(int argc, char *argv[])
     PhotonR                       photonQedl(grid, PhotonR::Gauge::feynman, PhotonR::ZmScheme::qedL);
     PhotonR                       photonQedtl(grid, PhotonR::Gauge::feynman, PhotonR::ZmScheme::qedTL);
     PhotonR                       photonCQedl(grid, PhotonR::Gauge::coulomb, PhotonR::ZmScheme::qedL);
+    PhotonR                       photonCIQedl(grid, PhotonR::Gauge::coulomb, PhotonR::ZmScheme::qedL, improvement);
     PhotonR                       photonCQedtl(grid, PhotonR::Gauge::coulomb, PhotonR::ZmScheme::qedTL);
     EmFieldGenerator::GaugeField  a(grid);
     EmFieldGenerator::ScalarField w(grid), v(grid);
@@ -94,6 +97,15 @@ int main(int argc, char *argv[])
     photonCQedl.StochasticField(photonA, rng, photonW);
     rng.SeedUniqueString("qed-test-gauge-1000");
     emGen.makeWeightsQedL(w);
+    emGen(a, rng, w, &EmFieldGenerator::transverseProjectSpatial);
+    check(photonA, a);
+
+     LOG(Message) << "============ Regressing Improved Coulomb QEDL against Grid" << std::endl;
+    rng.SeedUniqueString("qed-test-gauge-1000");
+    photonCIQedl.StochasticWeight(photonW);
+    photonCIQedl.StochasticField(photonA, rng, photonW);
+    rng.SeedUniqueString("qed-test-gauge-1000");
+    emGen.makeWeightsQedL(w, improvement);
     emGen(a, rng, w, &EmFieldGenerator::transverseProjectSpatial);
     check(photonA, a);
 

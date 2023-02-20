@@ -945,6 +945,16 @@ VirtualMachine::Program VirtualMachine::naiveSchedule(void)
     for (unsigned int i = 0; i < graph.size(); ++i)
     {
         p.push_back(i);
+
+        for (auto &in : module_[i].input)
+        {
+            if (env().getObjectModule(in) > i)
+            {
+                HADRONS_ERROR_REF(ObjectDefinition, "Dependency '" + env().getObjectName(in)
+                                  + "' (address " + std::to_string(in) + ") is scheduled after "
+                                  + env().getObjectName(env().getObjectModule(i)), in);
+            }
+        }
     }
 
     if (hasDatabase() and makeScheduleDb_)
@@ -1031,6 +1041,16 @@ void VirtualMachine::executeProgram(const Program &p)
         // garbage collection for step i
         LOG(Message) << "Garbage collection..." << std::endl;
         env().freeSet(freeProg[i]);
+
+        // Clean up remaining temporary objects
+        for (unsigned int a = 0; a < env().getMaxAddress(); ++a)
+        {
+            if (env().getObjectStorage(a) == Environment::Storage::temporary)
+            {
+                env().freeObject(a);
+            }
+        }
+
         // print used memory after garbage collection if necessary
         sizeAfter = env().getTotalSize();
         if (sizeBefore != sizeAfter)

@@ -359,9 +359,19 @@ void Application::printSchedule(void)
     {
         HADRONS_ERROR(Definition, "Computation not scheduled");
     }
-    auto peak = vm().memoryNeeded(program_);
-    LOG(Message) << "Schedule (memory needed: " << sizeString(peak) << "):"
-                 << std::endl;
+
+    if (getPar().scheduler.schedulerType == "naive")
+    {
+        LOG(Message) << "Schedule:"
+                    << std::endl;
+    }
+    else
+    {
+        auto peak = vm().memoryNeeded(program_);
+        LOG(Message) << "Schedule (memory needed: " << sizeString(peak) << "):"
+                    << std::endl;
+    }
+
     for (unsigned int i = 0; i < program_.size(); ++i)
     {
         LOG(Message) << std::setw(4) << i + 1 << ": "
