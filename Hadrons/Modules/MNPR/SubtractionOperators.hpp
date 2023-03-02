@@ -32,6 +32,7 @@
 #include <Hadrons/Global.hpp>
 #include <Hadrons/Module.hpp>
 #include <Hadrons/ModuleFactory.hpp>
+#include <Hadrons/Serialization.hpp>
 #include <Hadrons/Modules/MNPR/NPRUtils.hpp>
 
 BEGIN_HADRONS_NAMESPACE
@@ -144,6 +145,8 @@ void TSubtractionOperators<FImpl>::setup(void)
     envTmpLat(ComplexField, "coordinate");
 
     envTmpLat(PropagatorField, "tmp");
+
+    envCreate(HadronsSerializable, getName(), 1, 0);
 }
 
 // execution ///////////////////////////////////////////////////////////////////
@@ -234,10 +237,9 @@ void TSubtractionOperators<FImpl>::execute(void)
     bilinear = g5 * adj(qOut) * qIn;
     compute_result(result.psuedoscalar);
 
-    if (par().output != "") {
-        saveResult(par().output, "SubtractionOperators", result);
-        LOG(Message) << "Complete. Writing results to " << par().output << std::endl;
-    }
+    LOG(Message) << "Complete. Writing results to " << par().output << std::endl;
+    saveResult(par().output, "SubtractionOperators", result);
+    envGet(HadronsSerializable, getName()) = result;
 }
 
 END_MODULE_NAMESPACE
