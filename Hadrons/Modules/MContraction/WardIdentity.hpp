@@ -94,6 +94,7 @@ public:
     // dependency relation
     virtual std::vector<std::string> getInput(void);
     virtual std::vector<std::string> getOutput(void);
+    virtual std::vector<std::string> getOutputFiles(void);
 protected:
     // setup
     virtual void setup(void);
@@ -138,6 +139,17 @@ std::vector<std::string> TWardIdentity<FImpl>::getOutput(void)
     std::vector<std::string> out = {getName()};
     
     return out;
+}
+
+template <typename FImpl>
+std::vector<std::string> TWardIdentity<FImpl>::getOutputFiles(void)
+{
+    std::vector<std::string> output;
+    
+    if (!par().output.empty())
+        output.push_back(resultFilename(par().output));
+    
+    return output;
 }
 
 // setup ///////////////////////////////////////////////////////////////////////
