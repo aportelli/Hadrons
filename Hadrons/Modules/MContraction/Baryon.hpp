@@ -146,10 +146,13 @@ std::vector<std::string> TBaryon<FImpl>::getOutputFiles(void)
 {
     std::vector<std::string> output;
 
-    if (par().trace)
-        output.push_back( resultFilename(par().output) );
-    else 
-        output.push_back( resultFilename(par().output+"_Matrix") );
+    if (!par().output.empty())
+    {
+        if (par().trace)
+            output.push_back( resultFilename(par().output) );
+        else 
+            output.push_back( resultFilename(par().output+"_Matrix") );
+    }
     
     return output;
 }

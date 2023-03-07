@@ -142,7 +142,10 @@ std::vector<std::string> TGamma3pt<FImpl1, FImpl2, FImpl3>::getOutput(void)
 template <typename FImpl1, typename FImpl2, typename FImpl3>
 std::vector<std::string> TGamma3pt<FImpl1, FImpl2, FImpl3>::getOutputFiles(void)
 {
-    std::vector<std::string> output = {resultFilename(par().output)};
+    std::vector<std::string> output;
+    
+    if (!par().output.empty())
+        output.push_back(resultFilename(par().output));
     
     return output;
 }

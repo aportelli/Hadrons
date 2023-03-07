@@ -156,7 +156,10 @@ std::vector<std::string> TSigmaToNucleonNonEye<FImpl>::getOutput(void)
 template <typename FImpl>
 std::vector<std::string> TSigmaToNucleonNonEye<FImpl>::getOutputFiles(void)
 {
-    std::vector<std::string> output = {resultFilename(par().output)};
+    std::vector<std::string> output;
+    
+    if (!par().output.empty())
+        output.push_back(resultFilename(par().output));
     
     return output;
 }
