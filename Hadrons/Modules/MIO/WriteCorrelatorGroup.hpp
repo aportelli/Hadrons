@@ -40,6 +40,7 @@ BEGIN_HADRONS_NAMESPACE
  ******************************************************************************/
 BEGIN_MODULE_NAMESPACE(MIO)
 
+// Placeholder template argument required by MODULE_REGISTER_TMP
 class WriteCorrelatorGroupPar: Serializable
 {
 public:
@@ -48,7 +49,7 @@ public:
                                     std::string, output);
 };
 
-template <typename FImpl1, typename FImpl2>
+template <typename Placeholder>
 class TWriteCorrelatorGroup: public Module<WriteCorrelatorGroupPar>
 {
 public:
@@ -66,34 +67,34 @@ public:
     virtual void execute(void);
 };
 
-MODULE_REGISTER_TMP(WriteCorrelatorGroup, ARG(TWriteCorrelatorGroup<FIMPL, FIMPL>), MIO);
+MODULE_REGISTER_TMP(WriteCorrelatorGroup, TWriteCorrelatorGroup<FIMPL>, MIO);
 
 /******************************************************************************
  *                TWriteCorrelators implementation                            *
  ******************************************************************************/
 // constructor /////////////////////////////////////////////////////////////////
-template <typename FImpl1, typename FImpl2>
-TWriteCorrelatorGroup<FImpl1, FImpl2>::TWriteCorrelatorGroup(const std::string name)
+template <typename Placeholder>
+TWriteCorrelatorGroup<Placeholder>::TWriteCorrelatorGroup(const std::string name)
 : Module<WriteCorrelatorGroupPar>(name)
 {}
 
 // dependencies/products ///////////////////////////////////////////////////////
-template <typename FImpl1, typename FImpl2>
-std::vector<std::string> TWriteCorrelatorGroup<FImpl1, FImpl2>::getInput(void)
+template <typename Placeholder>
+std::vector<std::string> TWriteCorrelatorGroup<Placeholder>::getInput(void)
 {
     return par().contractions;
 }
 
-template <typename FImpl1, typename FImpl2>
-std::vector<std::string> TWriteCorrelatorGroup<FImpl1, FImpl2>::getOutput(void)
+template <typename Placeholder>
+std::vector<std::string> TWriteCorrelatorGroup<Placeholder>::getOutput(void)
 {
     std::vector<std::string> out = {};
     
     return out;
 }
 
-template <typename FImpl1, typename FImpl2>
-std::vector<std::string> TWriteCorrelatorGroup<FImpl1, FImpl2>::getOutputFiles(void)
+template <typename Placeholder>
+std::vector<std::string> TWriteCorrelatorGroup<Placeholder>::getOutputFiles(void)
 {
     std::vector<std::string> out = {resultFilename(par().output)};
     
@@ -101,16 +102,17 @@ std::vector<std::string> TWriteCorrelatorGroup<FImpl1, FImpl2>::getOutputFiles(v
 }
 
 // setup ///////////////////////////////////////////////////////////////////////
-template <typename FImpl1, typename FImpl2>
-void TWriteCorrelatorGroup<FImpl1, FImpl2>::setup(void)
+template <typename Placeholder>
+void TWriteCorrelatorGroup<Placeholder>::setup(void)
 {
     
 }
 
 // execution ///////////////////////////////////////////////////////////////////
-template <typename FImpl1, typename FImpl2>
-void TWriteCorrelatorGroup<FImpl1, FImpl2>::execute(void)
+template <typename Placeholder>
+void TWriteCorrelatorGroup<Placeholder>::execute(void)
 {
+    LOG(Message) << "Preparing to write collated results into file '" << par().output << "'..." << std::endl;
     auto &contractionList = par().contractions; // Switch to std::vector with <elem></elem> tags
 
     HadronsSerializableGroup result(contractionList.size());
@@ -118,11 +120,13 @@ void TWriteCorrelatorGroup<FImpl1, FImpl2>::execute(void)
     {
         auto &moduleResults = envGet(HadronsSerializable, contractionModuleName);
         result.append(contractionModuleName, moduleResults);
+        LOG(Message) << "Bundled group '" << contractionModuleName << "' into output." << std::endl;
     }
 
     // Pass a blank string to dump the unpacked group the file, rather than
     // adding a forced and useless outer group around the result
     saveResult(par().output, "", result);
+    LOG(Message) << "Finshed writing collated results into file '" << par().output << "'." << std::endl;
 }
 
 END_MODULE_NAMESPACE

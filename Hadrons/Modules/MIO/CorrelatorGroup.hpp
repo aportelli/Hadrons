@@ -47,7 +47,8 @@ public:
                                     std::vector<std::string>, contractions);
 };
 
-template<typename Impl>
+// Placeholder template argument required by MODULE_REGISTER_TMP
+template<typename Placeholder>
 class TCorrelatorGroup: public Module<CorrelatorGroupPar>
 {
 public:
@@ -71,28 +72,28 @@ MODULE_REGISTER_TMP(CorrelatorGroup, TCorrelatorGroup<FIMPL>, MIO);
  *                 TCorrelatorGroup implementation                            *
  ******************************************************************************/
 // constructor /////////////////////////////////////////////////////////////////
-template <typename Impl>
-TCorrelatorGroup<Impl>::TCorrelatorGroup(const std::string name)
+template <typename Placeholder>
+TCorrelatorGroup<Placeholder>::TCorrelatorGroup(const std::string name)
 : Module<CorrelatorGroupPar>(name)
 {}
 
 // dependencies/products ///////////////////////////////////////////////////////
-template<typename Impl>
-std::vector<std::string> TCorrelatorGroup<Impl>::getInput(void)
+template<typename Placeholder>
+std::vector<std::string> TCorrelatorGroup<Placeholder>::getInput(void)
 {
     return par().contractions;
 }
 
-template<typename Impl>
-std::vector<std::string> TCorrelatorGroup<Impl>::getOutput(void)
+template<typename Placeholder>
+std::vector<std::string> TCorrelatorGroup<Placeholder>::getOutput(void)
 {
     std::vector<std::string> output = {getName()};
     
     return output;
 }
 
-template<typename Impl>
-std::vector<std::string> TCorrelatorGroup<Impl>::getOutputFiles(void)
+template<typename Placeholder>
+std::vector<std::string> TCorrelatorGroup<Placeholder>::getOutputFiles(void)
 {
     std::vector<std::string> out = {};
     
@@ -100,16 +101,17 @@ std::vector<std::string> TCorrelatorGroup<Impl>::getOutputFiles(void)
 }
 
 // setup ///////////////////////////////////////////////////////////////////////
-template<typename Impl>
-void TCorrelatorGroup<Impl>::setup(void)
+template<typename Placeholder>
+void TCorrelatorGroup<Placeholder>::setup(void)
 {
     envCreate(HadronsSerializable, getName(), 1, 0);
 }
 
 // execution ///////////////////////////////////////////////////////////////////
-template<typename Impl>
-void TCorrelatorGroup<Impl>::execute(void)
+template<typename Placeholder>
+void TCorrelatorGroup<Placeholder>::execute(void)
 {
+    LOG(Message) << "Starting result collation into Result Group '" << getName() << "'..." << std::endl;
     auto &contractionList = par().contractions;
     auto &out             = envGet(HadronsSerializable, getName());
     auto &result          = out.template hold<HadronsSerializableGroup>(contractionList.size());
@@ -118,7 +120,9 @@ void TCorrelatorGroup<Impl>::execute(void)
     {
         auto &moduleResults = envGet(HadronsSerializable, contractionModuleName);
         result.append(contractionModuleName, moduleResults);
+        LOG(Message) << "Bundled '" << contractionModuleName << "' into Result Group '" << getName() << "'." << std::endl;
     }
+    LOG(Message) << "Finished collating results into Result Group '" << getName() << "'." << std::endl;
 }
 
 END_MODULE_NAMESPACE

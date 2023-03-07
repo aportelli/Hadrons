@@ -30,4 +30,4 @@ using namespace Grid;
 using namespace Hadrons;
 using namespace MIO;
 
-template class Grid::Hadrons::MIO::TWriteCorrelatorGroup<FIMPL,FIMPL>;
+template class Grid::Hadrons::MIO::TWriteCorrelatorGroup<FIMPL>;
