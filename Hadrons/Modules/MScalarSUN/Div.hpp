@@ -31,6 +31,7 @@
 #include <Hadrons/Module.hpp>
 #include <Hadrons/ModuleFactory.hpp>
 #include <Hadrons/Modules/MScalarSUN/Utils.hpp>
+#include <Hadrons/Serialization.hpp>
 
 BEGIN_HADRONS_NAMESPACE
 
@@ -93,28 +94,27 @@ TDiv<SImpl>::TDiv(const std::string name)
 
 // dependencies/products ///////////////////////////////////////////////////////
 template <typename SImpl>
-std::vector<std::string> TDiv<SImpl>::getInput(void)
+std::vector<std::string> TDiv<SImpl>::getInput()
 {
     return par().op;
 }
 
 template <typename SImpl>
-std::vector<std::string> TDiv<SImpl>::getOutput(void)
+std::vector<std::string> TDiv<SImpl>::getOutput()
 {
-    std::vector<std::string> out = {getName()};
-
-    return out;
+    return {getName(), getName()+"_sum"};
 }
 
 // setup ///////////////////////////////////////////////////////////////////////
 template <typename SImpl>
-void TDiv<SImpl>::setup(void)
+void TDiv<SImpl>::setup()
 {
     if (par().op.size() != env().getNd())
     {
         HADRONS_ERROR(Size, "the number of components differs from number of dimensions");
     }
     envCreateLat(ComplexField, getName());
+    envCreate(HadronsSerializable, getName()+"_sum", 1, 0);
 }
 
 // execution ///////////////////////////////////////////////////////////////////
@@ -137,14 +137,12 @@ void TDiv<SImpl>::execute(void)
         auto &op = envGet(ComplexField, par().op[mu]);
         dmuAcc(div, op, mu, par().type);
     }
-    if (!par().output.empty())
-    {
-        DivResult r;
 
-        r.type  = par().type;
-        r.value = TensorRemove(sum(div));
-        saveResult(par().output, "div", r);
-    }
+    DivResult r;
+    r.type  = par().type;
+    r.value = TensorRemove(sum(div));
+    saveResult(par().output, "div", r);
+    envGet(HadronsSerializable, getName()+"_sum") = r;
 }
 
 END_MODULE_NAMESPACE
