@@ -110,10 +110,8 @@ void TTopologicalCharge<GImpl>::execute(void)
 
     envGetTmp(GaugeField, Usmear);
 
-    Usmear = U;
-
-	WilsonFlow<PeriodicGimplR> WF(0, par().epsilon, 1);
-	WF.smear_adaptive(Usmear, U, par().maxTau);
+    WilsonFlow<PeriodicGimplR> WF(0, par().epsilon, 1);
+    WF.smear_adaptive(Usmear, U, par().maxTau);
 
     Real qtop = WilsonLoops<GImpl>::TopologicalCharge(Usmear);
 
