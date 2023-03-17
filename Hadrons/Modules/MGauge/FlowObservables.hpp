@@ -1,5 +1,5 @@
 /*
- * TopologicalCharge.hpp, part of Hadrons (https://github.com/aportelli/Hadrons)
+ * FlowObservables.hpp, part of Hadrons (https://github.com/aportelli/Hadrons)
  *
  * Copyright (C) 2015 - 2023
  *
@@ -24,8 +24,8 @@
 
 /*  END LEGAL */
 
-#ifndef Hadrons_MGauge_TopologicalCharge_hpp_
-#define Hadrons_MGauge_TopologicalCharge_hpp_
+#ifndef Hadrons_MGauge_FlowObservables_hpp_
+#define Hadrons_MGauge_FlowObservables_hpp_
 
 #include <Hadrons/Global.hpp>
 #include <Hadrons/Module.hpp>
@@ -35,29 +35,29 @@
 BEGIN_HADRONS_NAMESPACE
 
 /******************************************************************************
- *                         TopologicalCharge                                 *
+ *                         FlowObservables                                 *
  ******************************************************************************/
 BEGIN_MODULE_NAMESPACE(MGauge)
 
-class TopologicalChargePar: Serializable
+class FlowObservablesPar: Serializable
 {
 public:
-    GRID_SERIALIZABLE_CLASS_MEMBERS(TopologicalChargePar,
+    GRID_SERIALIZABLE_CLASS_MEMBERS(FlowObservablesPar,
                                     std::string, gauge,
                                     Real, epsilon,
                                     Real, maxTau);
 };
 
 template <typename GImpl>
-class TTopologicalCharge: public Module<TopologicalChargePar>
+class TFlowObservables: public Module<FlowObservablesPar>
 {
 public:
     GAUGE_TYPE_ALIASES(GImpl,);
 public:
     // constructor
-    TTopologicalCharge(const std::string name);
+    TFlowObservables(const std::string name);
     // destructor
-    virtual ~TTopologicalCharge(void) {};
+    virtual ~TFlowObservables(void) {};
     // dependency relation
     virtual std::vector<std::string> getInput(void);
     virtual std::vector<std::string> getOutput(void);
@@ -67,27 +67,27 @@ public:
     virtual void execute(void);
 };
 
-MODULE_REGISTER_TMP(TopologicalCharge, TTopologicalCharge<GIMPL>, MGauge);
+MODULE_REGISTER_TMP(FlowObservables, TFlowObservables<GIMPL>, MGauge);
 
 /******************************************************************************
- *                 TTopologicalCharge implementation                             *
+ *                 TFlowObservables implementation                             *
  ******************************************************************************/
 // constructor /////////////////////////////////////////////////////////////////
 template <typename GImpl>
-TTopologicalCharge<GImpl>::TTopologicalCharge(const std::string name)
-: Module<TopologicalChargePar>(name)
+TFlowObservables<GImpl>::TFlowObservables(const std::string name)
+: Module<FlowObservablesPar>(name)
 {}
 
 // dependencies/products ///////////////////////////////////////////////////////
 template <typename GImpl>
-std::vector<std::string> TTopologicalCharge<GImpl>::getInput(void)
+std::vector<std::string> TFlowObservables<GImpl>::getInput(void)
 {
     std::vector<std::string> in = {par().gauge};
     return in;
 }
 
 template <typename GImpl>
-std::vector<std::string> TTopologicalCharge<GImpl>::getOutput(void)
+std::vector<std::string> TFlowObservables<GImpl>::getOutput(void)
 {
     std::vector<std::string> out = {getName()};
 
@@ -96,14 +96,14 @@ std::vector<std::string> TTopologicalCharge<GImpl>::getOutput(void)
 
 // setup ///////////////////////////////////////////////////////////////////////
 template <typename GImpl>
-void TTopologicalCharge<GImpl>::setup(void)
+void TFlowObservables<GImpl>::setup(void)
 {
     envTmpLat(GaugeField, "Usmear");
 }
 
 // execution ///////////////////////////////////////////////////////////////////
 template <typename GImpl>
-void TTopologicalCharge<GImpl>::execute(void)
+void TFlowObservables<GImpl>::execute(void)
 {
 
     auto &U = envGet(GaugeField, par().gauge);
@@ -123,4 +123,4 @@ END_MODULE_NAMESPACE
 
 END_HADRONS_NAMESPACE
 
-#endif // Hadrons_MGauge_TopologicalCharge_hpp_
+#endif // Hadrons_MGauge_FlowObservables_hpp_
