@@ -35,6 +35,7 @@
 #include <Hadrons/Global.hpp>
 #include <Hadrons/Module.hpp>
 #include <Hadrons/ModuleFactory.hpp>
+#include <Hadrons/Serialization.hpp>
 #include <Hadrons/Modules/MNPR/NPRUtils.hpp>
 
 BEGIN_HADRONS_NAMESPACE
@@ -102,6 +103,8 @@ void TExternalLeg<FImpl>::setup(void)
     envTmpLat(PropagatorField, "qIn_phased");
     envTmpLat(ComplexField, "pDotXIn");
     envTmpLat(ComplexField, "xMu");
+
+    envCreate(HadronsSerializable, getName(), 1, 0);
 }
 
 // dependencies/products ///////////////////////////////////////////////////////
@@ -116,7 +119,7 @@ std::vector<std::string> TExternalLeg<FImpl>::getInput(void)
 template <typename FImpl>
 std::vector<std::string> TExternalLeg<FImpl>::getOutput(void)
 {
-    std::vector<std::string> out = {};
+    std::vector<std::string> out = {getName()};
 
     return out;
 }
@@ -158,8 +161,10 @@ void TExternalLeg<FImpl>::execute(void)
     r.info.pIn  = par().pIn;
     r.corr.push_back( (1.0 / volume) * sum(qIn_phased) );
 
-    saveResult(par().output, "ExternalLeg", r);
     LOG(Message) << "Complete. Writing results to " << par().output << std:: endl;
+    saveResult(par().output, "ExternalLeg", r);
+    auto& out = envGet(HadronsSerializable, getName());
+    out = r;
 }
 
 END_MODULE_NAMESPACE

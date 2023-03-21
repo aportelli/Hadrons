@@ -30,6 +30,7 @@
 #include <Hadrons/Module.hpp>
 #include <Hadrons/ModuleFactory.hpp>
 #include <Hadrons/Modules/MScalarSUN/Utils.hpp>
+#include <Hadrons/Serialization.hpp>
 
 BEGIN_HADRONS_NAMESPACE
 
@@ -109,6 +110,7 @@ std::vector<std::string> TGrad<SImpl>::getOutput(void)
     {
         out.push_back(varName(getName(), mu));
     }
+    out.push_back(getName());
 
     return out;
 }
@@ -123,6 +125,7 @@ void TGrad<SImpl>::setup(void)
     {
         envCreateLat(ComplexField, varName(getName(), mu));
     }
+    envCreate(HadronsSerializable, getName(), 1, 0);
 }
 
 // execution ///////////////////////////////////////////////////////////////////
@@ -151,10 +154,9 @@ void TGrad<SImpl>::execute(void)
             result.value[mu] = TensorRemove(sum(der));
         }
     }
-    if (!par().output.empty())
-    {
-        saveResult(par().output, "grad", result);
-    }
+
+    saveResult(par().output, "grad", result);
+    envGet(HadronsSerializable, getName()) = result;
 }
 
 END_MODULE_NAMESPACE

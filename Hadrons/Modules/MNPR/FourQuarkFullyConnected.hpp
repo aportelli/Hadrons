@@ -35,6 +35,7 @@
 #include <Hadrons/Global.hpp>
 #include <Hadrons/Module.hpp>
 #include <Hadrons/ModuleFactory.hpp>
+#include <Hadrons/Serialization.hpp>
 #include <Hadrons/Modules/MNPR/NPRUtils.hpp>
 
 BEGIN_HADRONS_NAMESPACE
@@ -100,7 +101,7 @@ std::vector<std::string> TFourQuarkFullyConnected<FImpl>::getInput()
 template <typename FImpl>
 std::vector<std::string> TFourQuarkFullyConnected<FImpl>::getOutput()
 {
-    std::vector<std::string> out = {};
+    std::vector<std::string> out = {getName()};
 
     return out;
 }
@@ -122,8 +123,9 @@ void TFourQuarkFullyConnected<FImpl>::setup()
     envTmpLat(PropagatorField, "bilinear");
     envTmpLat(PropagatorField, "bilinear_tmp");
     envTmpLat(SpinColourSpinColourMatrixField, "lret");
-
     envTmpLat(ComplexField, "bilinear_phase");
+
+    envCreate(HadronsSerializable, getName(), 1, 0);
 }
 
 template <typename FImpl>
@@ -247,8 +249,10 @@ void TFourQuarkFullyConnected<FImpl>::execute()
             << std::endl;
     }
 
-    saveResult(par().output, "FourQuarkFullyConnected", result);
     LOG(Message) << "Complete. Writing results to " << par().output << std::endl;
+    saveResult(par().output, "FourQuarkFullyConnected", result);
+    auto& out = envGet(HadronsSerializable, getName());
+    out = result;
 }
 
 END_MODULE_NAMESPACE

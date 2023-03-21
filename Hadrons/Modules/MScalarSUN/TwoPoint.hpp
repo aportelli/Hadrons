@@ -29,6 +29,7 @@
 #include <Hadrons/Global.hpp>
 #include <Hadrons/Module.hpp>
 #include <Hadrons/ModuleFactory.hpp>
+#include <Hadrons/Serialization.hpp>
 #include <Hadrons/Modules/MScalarSUN/Utils.hpp>
 
 BEGIN_HADRONS_NAMESPACE
@@ -119,9 +120,7 @@ std::vector<std::string> TTwoPoint<SImpl>::getInput(void)
 template <typename SImpl>
 std::vector<std::string> TTwoPoint<SImpl>::getOutput(void)
 {
-    std::vector<std::string> out = {};
-
-    return out;
+    return {getName()};
 }
 
 // setup ///////////////////////////////////////////////////////////////////////
@@ -145,6 +144,7 @@ void TTwoPoint<SImpl>::setup(void)
         }
     }
     envTmpLat(ComplexField, "ftBuf");
+    envCreate(HadronsSerializable, getName(), 1, 0);
 }
 
 // execution ///////////////////////////////////////////////////////////////////
@@ -215,6 +215,7 @@ void TTwoPoint<SImpl>::execute(void)
         result.push_back(r);
     }
     saveResult(par().output, "twopt", result);
+    envGet(HadronsSerializable, getName()) = result;
 }
 
 END_MODULE_NAMESPACE
