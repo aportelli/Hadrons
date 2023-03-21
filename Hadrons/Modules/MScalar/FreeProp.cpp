@@ -40,18 +40,18 @@ TFreeProp::TFreeProp(const std::string name)
 {}
 
 // dependencies/products ///////////////////////////////////////////////////////
-std::vector<std::string> TFreeProp::getInput()
+std::vector<std::string> TFreeProp::getInput(void)
 {
     return {par().source};
 }
 
-std::vector<std::string> TFreeProp::getOutput()
+std::vector<std::string> TFreeProp::getOutput(void)
 {
     return {getName(), getName()+"_sliceSum"};
 }
 
 // setup ///////////////////////////////////////////////////////////////////////
-void TFreeProp::setup()
+void TFreeProp::setup(void)
 {
     freeMomPropName_ = FREEMOMPROP(par().mass);
     
@@ -62,7 +62,7 @@ void TFreeProp::setup()
 }
 
 // execution ///////////////////////////////////////////////////////////////////
-void TFreeProp::execute()
+void TFreeProp::execute(void)
 {
     auto &freeMomProp = envGet(ScalarField, freeMomPropName_);
     auto &prop        = envGet(ScalarField, getName());

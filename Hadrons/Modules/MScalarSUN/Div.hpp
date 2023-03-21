@@ -94,13 +94,13 @@ TDiv<SImpl>::TDiv(const std::string name)
 
 // dependencies/products ///////////////////////////////////////////////////////
 template <typename SImpl>
-std::vector<std::string> TDiv<SImpl>::getInput()
+std::vector<std::string> TDiv<SImpl>::getInput(void)
 {
     return par().op;
 }
 
 template <typename SImpl>
-std::vector<std::string> TDiv<SImpl>::getOutput()
+std::vector<std::string> TDiv<SImpl>::getOutput(void)
 {
     return {getName(), getName()+"_sum"};
 }

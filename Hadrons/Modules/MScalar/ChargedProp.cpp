@@ -40,18 +40,18 @@ TChargedProp::TChargedProp(const std::string name)
 {}
 
 // dependencies/products ///////////////////////////////////////////////////////
-std::vector<std::string> TChargedProp::getInput()
+std::vector<std::string> TChargedProp::getInput(void)
 {
     return {par().source, par().emField};
 }
 
-std::vector<std::string> TChargedProp::getOutput()
+std::vector<std::string> TChargedProp::getOutput(void)
 {
     return {getName(), getName()+"_0", getName()+"_Q", getName()+"_Sun", getName()+"_Tad", getName()+"_projections"};
 }
 
 // setup ///////////////////////////////////////////////////////////////////////
-void TChargedProp::setup()
+void TChargedProp::setup(void)
 {
     freeMomPropName_ = FREEMOMPROP(par().mass);
     phaseName_.clear();
@@ -89,7 +89,7 @@ void TChargedProp::setup()
 }
 
 // execution ///////////////////////////////////////////////////////////////////
-void TChargedProp::execute()
+void TChargedProp::execute(void)
 {
     // CACHING ANALYTIC EXPRESSIONS
     makeCaches();
