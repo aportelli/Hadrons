@@ -1,5 +1,5 @@
 /*
- * CorrelatorGroup.hpp, part of Hadrons (https://github.com/aportelli/Hadrons)
+ * ResultGroup.hpp, part of Hadrons (https://github.com/aportelli/Hadrons)
  *
  * Copyright (C) 2015 - 2022
  *
@@ -25,8 +25,8 @@
 
 /*  END LEGAL */
 
-#ifndef Hadrons_MIO_CorrelatorGroup_hpp_
-#define Hadrons_MIO_CorrelatorGroup_hpp_
+#ifndef Hadrons_MIO_ResultGroup_hpp_
+#define Hadrons_MIO_ResultGroup_hpp_
 
 #include <Hadrons/Global.hpp>
 #include <Hadrons/Module.hpp>
@@ -40,22 +40,22 @@ BEGIN_HADRONS_NAMESPACE
  ******************************************************************************/
 BEGIN_MODULE_NAMESPACE(MIO)
 
-class CorrelatorGroupPar: Serializable
+class ResultGroupPar: Serializable
 {
 public:
-    GRID_SERIALIZABLE_CLASS_MEMBERS(CorrelatorGroupPar,
-                                    std::vector<std::string>, contractions);
+    GRID_SERIALIZABLE_CLASS_MEMBERS(ResultGroupPar,
+                                    std::vector<std::string>, results);
 };
 
 // Placeholder template argument required by MODULE_REGISTER_TMP
 template<typename Placeholder>
-class TCorrelatorGroup: public Module<CorrelatorGroupPar>
+class TResultGroup: public Module<ResultGroupPar>
 {
 public:
     // constructor
-    TCorrelatorGroup(const std::string name);
+    TResultGroup(const std::string name);
     // destructor
-    virtual ~TCorrelatorGroup(void) {};
+    virtual ~TResultGroup(void) {};
     // dependency relation
     virtual std::vector<std::string> getInput(void);
     virtual std::vector<std::string> getOutput(void);
@@ -66,26 +66,26 @@ public:
     virtual void execute(void);
 };
 
-MODULE_REGISTER_TMP(CorrelatorGroup, TCorrelatorGroup<FIMPL>, MIO);
+MODULE_REGISTER_TMP(ResultGroup, TResultGroup<void>, MIO);
 
 /******************************************************************************
- *                 TCorrelatorGroup implementation                            *
+ *                     TResultGroup implementation                            *
  ******************************************************************************/
 // constructor /////////////////////////////////////////////////////////////////
 template <typename Placeholder>
-TCorrelatorGroup<Placeholder>::TCorrelatorGroup(const std::string name)
-: Module<CorrelatorGroupPar>(name)
+TResultGroup<Placeholder>::TResultGroup(const std::string name)
+: Module<ResultGroupPar>(name)
 {}
 
 // dependencies/products ///////////////////////////////////////////////////////
 template<typename Placeholder>
-std::vector<std::string> TCorrelatorGroup<Placeholder>::getInput(void)
+std::vector<std::string> TResultGroup<Placeholder>::getInput(void)
 {
-    return par().contractions;
+    return par().results;
 }
 
 template<typename Placeholder>
-std::vector<std::string> TCorrelatorGroup<Placeholder>::getOutput(void)
+std::vector<std::string> TResultGroup<Placeholder>::getOutput(void)
 {
     std::vector<std::string> output = {getName()};
     
@@ -93,7 +93,7 @@ std::vector<std::string> TCorrelatorGroup<Placeholder>::getOutput(void)
 }
 
 template<typename Placeholder>
-std::vector<std::string> TCorrelatorGroup<Placeholder>::getOutputFiles(void)
+std::vector<std::string> TResultGroup<Placeholder>::getOutputFiles(void)
 {
     std::vector<std::string> out = {};
     
@@ -102,25 +102,25 @@ std::vector<std::string> TCorrelatorGroup<Placeholder>::getOutputFiles(void)
 
 // setup ///////////////////////////////////////////////////////////////////////
 template<typename Placeholder>
-void TCorrelatorGroup<Placeholder>::setup(void)
+void TResultGroup<Placeholder>::setup(void)
 {
     envCreate(HadronsSerializable, getName(), 1, 0);
 }
 
 // execution ///////////////////////////////////////////////////////////////////
 template<typename Placeholder>
-void TCorrelatorGroup<Placeholder>::execute(void)
+void TResultGroup<Placeholder>::execute(void)
 {
     LOG(Message) << "Starting result collation into Result Group '" << getName() << "'..." << std::endl;
-    auto &contractionList = par().contractions;
-    auto &out             = envGet(HadronsSerializable, getName());
-    auto &result          = out.template hold<HadronsSerializableGroup>(contractionList.size());
+    auto &resultList  = par().results;
+    auto &out         = envGet(HadronsSerializable, getName());
+    auto &resultGroup = out.template hold<HadronsSerializableGroup>(resultList.size());
 
-    for (const auto &contractionModuleName : contractionList)
+    for (const auto &resultName : resultList)
     {
-        auto &moduleResults = envGet(HadronsSerializable, contractionModuleName);
-        result.append(contractionModuleName, moduleResults);
-        LOG(Message) << "Bundled '" << contractionModuleName << "' into Result Group '" << getName() << "'." << std::endl;
+        auto &result = envGet(HadronsSerializable, resultName);
+        resultGroup.append(resultName, result);
+        LOG(Message) << "Bundled '" << resultName << "' into Result Group '" << getName() << "'." << std::endl;
     }
     LOG(Message) << "Finished collating results into Result Group '" << getName() << "'." << std::endl;
 }
@@ -129,4 +129,4 @@ END_MODULE_NAMESPACE
 
 END_HADRONS_NAMESPACE
 
-#endif // Hadrons_MIO_CorrelatorGroup_hpp_
+#endif // Hadrons_MIO_ResultGroup_hpp_

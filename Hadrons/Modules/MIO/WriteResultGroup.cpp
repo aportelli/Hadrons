@@ -1,5 +1,5 @@
 /*
- * WriteCorrelators.cpp, part of Hadrons (https://github.com/aportelli/Hadrons)
+ * WriteResultGroup.cpp, part of Hadrons (https://github.com/aportelli/Hadrons)
  *
  * Copyright (C) 2015 - 2022
  *
@@ -24,10 +24,10 @@
  */
 
 /*  END LEGAL */
-#include <Hadrons/Modules/MIO/WriteCorrelatorGroup.hpp>
+#include <Hadrons/Modules/MIO/WriteResultGroup.hpp>
 
 using namespace Grid;
 using namespace Hadrons;
 using namespace MIO;
 
-template class Grid::Hadrons::MIO::TWriteCorrelatorGroup<FIMPL>;
+template class Grid::Hadrons::MIO::TWriteResultGroup<void>;

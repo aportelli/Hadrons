@@ -1,5 +1,5 @@
 /*
- * CorrelatorGroup.cpp, part of Hadrons (https://github.com/aportelli/Hadrons)
+ * ResultGroup.cpp, part of Hadrons (https://github.com/aportelli/Hadrons)
  *
  * Copyright (C) 2015 - 2022
  *
@@ -24,10 +24,10 @@
  */
 
 /*  END LEGAL */
-#include <Hadrons/Modules/MIO/CorrelatorGroup.hpp>
+#include <Hadrons/Modules/MIO/ResultGroup.hpp>
 
 using namespace Grid;
 using namespace Hadrons;
 using namespace MIO;
 
-template class Grid::Hadrons::MIO::TCorrelatorGroup<FIMPL>;
+template class Grid::Hadrons::MIO::TResultGroup<void>;

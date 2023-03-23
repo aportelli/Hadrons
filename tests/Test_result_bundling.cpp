@@ -126,17 +126,17 @@ int main(int argc, char *argv[])
                                                            weakNonEyePar);
 
     // Demonstrate the bundling of two Serializables within a group
-    MIO::CorrelatorGroup::Par correlatorGroupPar;
-    correlatorGroupPar.contractions = std::vector<std::string>{"meson_pt_ss_5X", "meson_pt_ss_5YZ"};
-    application.createModule<MIO::CorrelatorGroup>("Group2pts",
-                                                    correlatorGroupPar);
+    MIO::ResultGroup::Par resultGroupPar;
+    resultGroupPar.results = std::vector<std::string>{"meson_pt_ss_5X", "meson_pt_ss_5YZ"};
+    application.createModule<MIO::ResultGroup>("Group2pts",
+                                               resultGroupPar);
 
     // Now demonstrate bundling the group with another Serializable
-    MIO::WriteCorrelatorGroup::Par writeCorrelatorGroupPar;
-    writeCorrelatorGroupPar.contractions = std::vector<std::string>{"meson_noneye_ss", "Group2pts"};
-    writeCorrelatorGroupPar.output       = "resultbundle_test/output";
-    application.createModule<MIO::WriteCorrelatorGroup>("WriteToFile",
-                                                        writeCorrelatorGroupPar);
+    MIO::WriteResultGroup::Par writeResultGroupPar;
+    writeResultGroupPar.results = std::vector<std::string>{"meson_noneye_ss", "Group2pts"};
+    writeResultGroupPar.output  = "resultbundle_test/output";
+    application.createModule<MIO::WriteResultGroup>("WriteToFile",
+                                                    writeResultGroupPar);
 
 
     // execution

@@ -1,5 +1,5 @@
 /*
- * WriteCorrelators.hpp, part of Hadrons (https://github.com/aportelli/Hadrons)
+ * WriteResultGroup.hpp, part of Hadrons (https://github.com/aportelli/Hadrons)
  *
  * Copyright (C) 2015 - 2022
  *
@@ -25,8 +25,8 @@
 
 /*  END LEGAL */
 
-#ifndef Hadrons_MIO_WriteCorrelators_hpp_
-#define Hadrons_MIO_WriteCorrelators_hpp_
+#ifndef Hadrons_MIO_WriteResultGroup_hpp_
+#define Hadrons_MIO_WriteResultGroup_hpp_
 
 #include <Hadrons/Global.hpp>
 #include <Hadrons/Module.hpp>
@@ -41,22 +41,22 @@ BEGIN_HADRONS_NAMESPACE
 BEGIN_MODULE_NAMESPACE(MIO)
 
 // Placeholder template argument required by MODULE_REGISTER_TMP
-class WriteCorrelatorGroupPar: Serializable
+class WriteResultGroupPar: Serializable
 {
 public:
-    GRID_SERIALIZABLE_CLASS_MEMBERS(WriteCorrelatorGroupPar,
-                                    std::vector<std::string>, contractions,
+    GRID_SERIALIZABLE_CLASS_MEMBERS(WriteResultGroupPar,
+                                    std::vector<std::string>, results,
                                     std::string, output);
 };
 
 template <typename Placeholder>
-class TWriteCorrelatorGroup: public Module<WriteCorrelatorGroupPar>
+class TWriteResultGroup: public Module<WriteResultGroupPar>
 {
 public:
     // constructor
-    TWriteCorrelatorGroup(const std::string name);
+    TWriteResultGroup(const std::string name);
     // destructor
-    virtual ~TWriteCorrelatorGroup(void) {};
+    virtual ~TWriteResultGroup(void) {};
     // dependency relation
     virtual std::vector<std::string> getInput(void);
     virtual std::vector<std::string> getOutput(void);
@@ -67,26 +67,26 @@ public:
     virtual void execute(void);
 };
 
-MODULE_REGISTER_TMP(WriteCorrelatorGroup, TWriteCorrelatorGroup<FIMPL>, MIO);
+MODULE_REGISTER_TMP(WriteResultGroup, TWriteResultGroup<void>, MIO);
 
 /******************************************************************************
- *                TWriteCorrelators implementation                            *
+ *                TWriteResultGroup implementation                            *
  ******************************************************************************/
 // constructor /////////////////////////////////////////////////////////////////
 template <typename Placeholder>
-TWriteCorrelatorGroup<Placeholder>::TWriteCorrelatorGroup(const std::string name)
-: Module<WriteCorrelatorGroupPar>(name)
+TWriteResultGroup<Placeholder>::TWriteResultGroup(const std::string name)
+: Module<WriteResultGroupPar>(name)
 {}
 
 // dependencies/products ///////////////////////////////////////////////////////
 template <typename Placeholder>
-std::vector<std::string> TWriteCorrelatorGroup<Placeholder>::getInput(void)
+std::vector<std::string> TWriteResultGroup<Placeholder>::getInput(void)
 {
-    return par().contractions;
+    return par().results;
 }
 
 template <typename Placeholder>
-std::vector<std::string> TWriteCorrelatorGroup<Placeholder>::getOutput(void)
+std::vector<std::string> TWriteResultGroup<Placeholder>::getOutput(void)
 {
     std::vector<std::string> out = {};
     
@@ -94,7 +94,7 @@ std::vector<std::string> TWriteCorrelatorGroup<Placeholder>::getOutput(void)
 }
 
 template <typename Placeholder>
-std::vector<std::string> TWriteCorrelatorGroup<Placeholder>::getOutputFiles(void)
+std::vector<std::string> TWriteResultGroup<Placeholder>::getOutputFiles(void)
 {
     std::vector<std::string> out = {resultFilename(par().output)};
     
@@ -103,29 +103,29 @@ std::vector<std::string> TWriteCorrelatorGroup<Placeholder>::getOutputFiles(void
 
 // setup ///////////////////////////////////////////////////////////////////////
 template <typename Placeholder>
-void TWriteCorrelatorGroup<Placeholder>::setup(void)
+void TWriteResultGroup<Placeholder>::setup(void)
 {
     
 }
 
 // execution ///////////////////////////////////////////////////////////////////
 template <typename Placeholder>
-void TWriteCorrelatorGroup<Placeholder>::execute(void)
+void TWriteResultGroup<Placeholder>::execute(void)
 {
     LOG(Message) << "Preparing to write collated results into file '" << par().output << "'..." << std::endl;
-    auto &contractionList = par().contractions; // Switch to std::vector with <elem></elem> tags
+    auto &resultList = par().results; // Switch to std::vector with <elem></elem> tags
 
-    HadronsSerializableGroup result(contractionList.size());
-    for (const auto &contractionModuleName : contractionList)
+    HadronsSerializableGroup resultGroup(resultList.size());
+    for (const auto &resultName : resultList)
     {
-        auto &moduleResults = envGet(HadronsSerializable, contractionModuleName);
-        result.append(contractionModuleName, moduleResults);
-        LOG(Message) << "Bundled group '" << contractionModuleName << "' into output." << std::endl;
+        auto &result = envGet(HadronsSerializable, resultName);
+        resultGroup.append(resultName, result);
+        LOG(Message) << "Bundled group '" << resultName << "' into output." << std::endl;
     }
 
     // Pass a blank string to dump the unpacked group the file, rather than
     // adding a forced and useless outer group around the result
-    saveResult(par().output, "", result);
+    saveResult(par().output, "", resultGroup);
     LOG(Message) << "Finshed writing collated results into file '" << par().output << "'." << std::endl;
 }
 
@@ -133,4 +133,4 @@ END_MODULE_NAMESPACE
 
 END_HADRONS_NAMESPACE
 
-#endif // Hadrons_MIO_WriteCorrelators_hpp_
+#endif // Hadrons_MIO_WriteResultGroup_hpp_
