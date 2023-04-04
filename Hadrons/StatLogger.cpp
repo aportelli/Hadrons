@@ -76,6 +76,8 @@ void StatLogger::setDatabase(Database &db)
             "       deviceMemory.totalCurrent*0.000000953674316 AS totalCurrentMB,                     "
             "       deviceMemory.envCurrent*0.000000953674316 AS envCurrentMB,                         "
             "       deviceMemory.gridCurrent*0.000000953674316 AS gridCurrentMB,                       "
+            "       deviceMemory.gridCacheCurrent*0.000000953674316 AS gridCacheCurrentMB,             "
+            "       deviceMemory.gridTotalCurrent*0.000000953674316 AS gridTotalCurrentMB,             "
             "       deviceMemory.evictableCurrent*0.000000953674316 AS evictableCurrentMB,             "
             "       deviceMemory.hostToDevice*0.000000953674316 AS hostToDeviceMB,                     "
             "       deviceMemory.hostToDevice*0.000000953674316/" + periodSec + " AS hostToDeviceMBps, "
@@ -196,6 +198,8 @@ void StatLogger::logDeviceMemory(const GridTime::rep time)
     e.totalCurrent          = 0;
     e.envCurrent            = 0;
     e.gridCurrent           = MemoryManager::DeviceBytes;
+    e.gridCacheCurrent      = MemoryManager::DeviceCacheBytes();
+    e.gridTotalCurrent      = e.gridCurrent + e.gridCacheCurrent;
     e.evictableCurrent      = MemoryManager::DeviceLRUBytes;
     buf.h2d                 = MemoryManager::HostToDeviceBytes;
     buf.h2dTr               = MemoryManager::HostToDeviceXfer;
