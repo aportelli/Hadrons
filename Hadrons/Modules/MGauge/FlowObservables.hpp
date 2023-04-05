@@ -35,7 +35,7 @@
 BEGIN_HADRONS_NAMESPACE
 
 /******************************************************************************
- *                         FlowObservables                                 *
+ *                Computation of Wilson flow observables                      *
  ******************************************************************************/
 BEGIN_MODULE_NAMESPACE(MGauge)
 
