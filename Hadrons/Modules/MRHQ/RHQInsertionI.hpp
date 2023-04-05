@@ -57,8 +57,7 @@ template <typename FImpl, typename GImpl>
 class TRHQInsertionI: public Module<RHQInsertionIPar>
 {
 public:
-    BASIC_TYPE_ALIASES(FImpl,);
-    GAUGE_TYPE_ALIASES(GImpl,);
+    FERM_TYPE_ALIASES(FImpl,);
 public:
     // constructor
     TRHQInsertionI(const std::string name);
@@ -108,6 +107,7 @@ template <typename FImpl, typename GImpl>
 void TRHQInsertionI<FImpl, GImpl>::setup(void)
 {
     envCreateLat(PropagatorField, getName());//, 1, env().getDim(Tp));
+    envTmpLat(ColourMatrixField, "internal_gauge");
 }
 
 // execution ///////////////////////////////////////////////////////////////////
@@ -129,7 +129,8 @@ void TRHQInsertionI<FImpl, GImpl>::execute(void)
 
     auto &field = envGet(PropagatorField, par().q);
     const auto &gaugefield = envGet(GaugeField, par().gauge);
-    const auto internal_gauge = peekLorentz(gaugefield, index);
+    envGetTmp(ColourMatrixField, internal_gauge);
+    internal_gauge = peekLorentz(gaugefield, index);
     PropagatorField insertion = g*(GImpl::CovShiftForward(internal_gauge,index,field) - GImpl::CovShiftBackward(internal_gauge,index,field));
     
     auto &out = envGet(PropagatorField, getName());
