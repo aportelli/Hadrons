@@ -59,23 +59,23 @@ MODULE_REGISTER_TMP(CoarseDeflation400F, ARG(TCoarseDeflation<CoarseFermionEigen
 template<class FineField, class CoarseField>
 class LocalCoherenceDeflatedGuesser: public LinearFunction<FineField> {
 private:
-    const std::vector<FineField>   &subspace;
-    const std::vector<CoarseField> &evec_coarse;
-    const std::vector<RealD>       &eval;
-    const unsigned int             epackSize;
+    const std::vector<FineField>   &subspace_;
+    const std::vector<CoarseField> &evec_coarse_;
+    const std::vector<RealD>       &eval_;
+    const unsigned int             epackSize_;
 
 public:
     using LinearFunction<FineField>::operator();
 
-    LocalCoherenceDeflatedGuesser(const std::vector<FineField> &subspace_, const std::vector<CoarseField> &evec_coarse_, const std::vector<RealD> &eval_)
-    : LocalCoherenceDeflatedGuesser(subspace_,evec_coarse_,eval_,evec_coarse_.size())
+    LocalCoherenceDeflatedGuesser(const std::vector<FineField> &subspace, const std::vector<CoarseField> &evec_coarse, const std::vector<RealD> &eval)
+    : LocalCoherenceDeflatedGuesser(subspace,evec_coarse,eval,evec_coarse.size())
     {}
 
-    LocalCoherenceDeflatedGuesser(const std::vector<FineField> &subspace_, const std::vector<CoarseField> &evec_coarse_, const std::vector<RealD> &eval_, unsigned int epackSize_)
-    : subspace(subspace_), evec_coarse(evec_coarse_), eval(eval_), epackSize(epackSize_)
+    LocalCoherenceDeflatedGuesser(const std::vector<FineField> &subspace, const std::vector<CoarseField> &evec_coarse, const std::vector<RealD> &eval, unsigned int epackSize)
+    : subspace_(subspace), evec_coarse_(evec_coarse), eval_(eval), epackSize_(epackSize)
     {
-        assert(evec_coarse.size()==eval.size());
-        assert(epackSize <= evec_coarse.size());
+        assert(evec_coarse_.size()==eval_.size());
+        assert(epackSize_ <= evec_coarse_.size());
     } 
 
     virtual void operator()(const FineField &src,FineField &guess) {
@@ -93,7 +93,7 @@ public:
 
         unsigned int sourceSize = src.size();
 
-        unsigned int evBatchSize     = epackSize;
+        unsigned int evBatchSize     = 1;
         unsigned int sourceBatchSize = sourceSize;
         // These choices of evBatchSize and sourceBatchSize make the loops
         // below trivial. Left machinery in place in case we want to change
@@ -103,7 +103,7 @@ public:
         double time_project = 0.;
         double time_promote = 0.;
 
-        GridBase* coarseGrid = evec_coarse[0].Grid();
+        GridBase* coarseGrid = evec_coarse_[0].Grid();
 
         std::vector<CoarseField> src_coarse;   src_coarse.reserve(sourceBatchSize);
         std::vector<CoarseField> guess_coarse; guess_coarse.reserve(sourceBatchSize);
@@ -114,17 +114,17 @@ public:
         }
 
         time_project -= usecond();
-        batchBlockProject(src_coarse,src,subspace);
+        batchBlockProject(src_coarse,src,subspace_);
         time_project += usecond();
 
-        for (unsigned int bv = 0; bv < epackSize;  bv += evBatchSize) {
+        for (unsigned int bv = 0; bv < epackSize_; bv += evBatchSize) {
         for (unsigned int bs = 0; bs < sourceSize; bs += sourceBatchSize)
         {
-            unsigned int evBlockSize     = std::min(epackSize - bv, evBatchSize);
+            unsigned int evBlockSize     = std::min(epackSize_ - bv, evBatchSize);
             unsigned int sourceBlockSize = std::min(sourceSize - bs, sourceBatchSize);
 
             time_axpy -= usecond();
-            BatchDeflationUtils::projAccumulate(src_coarse, guess_coarse, evec_coarse, eval, 
+            BatchDeflationUtils::projAccumulate(src_coarse, guess_coarse, evec_coarse_, eval_, 
                                                 bv, bv + evBlockSize, 
                                                 bs, bs + sourceBlockSize);
             time_axpy += usecond();
@@ -132,7 +132,7 @@ public:
 
 
         time_promote -= usecond();
-        batchBlockPromote(guess_coarse,guess,subspace);
+        batchBlockPromote(guess_coarse,guess,subspace_);
         time_promote += usecond();
 
         for (int k=0; k<sourceSize; k++)
@@ -184,7 +184,7 @@ DependencyMap TCoarseDeflation<EPack>::getObjectDependencies(void)
 template <typename EPack>
 void TCoarseDeflation<EPack>::setup(void)
 {
-    LOG(Message) << "Setting exact deflation guesser with eigenpack '"
+    LOG(Message) << "Setting up local coherence deflation guesser with eigenpack '"
                  << par().eigenPack << std::endl;
     
     auto &epack = envGet(EPack, par().eigenPack);
