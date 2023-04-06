@@ -35,7 +35,7 @@
 BEGIN_HADRONS_NAMESPACE
 
 /******************************************************************************
- *                    Local coherence Lanczos eigensolver                     *
+ *                  Local coherence eigenvector compressor                    *
  *****************************************************************************/
 BEGIN_MODULE_NAMESPACE(MUtilities)
 
