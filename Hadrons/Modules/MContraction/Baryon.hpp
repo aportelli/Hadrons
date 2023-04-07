@@ -149,9 +149,9 @@ std::vector<std::string> TBaryon<FImpl>::getOutputFiles(void)
     if (!par().output.empty())
     {
         if (par().trace)
-            output.push_back( resultFilename(par().output) );
+            output.push_back(resultFilename(par().output));
         else 
-            output.push_back( resultFilename(par().output+"_Matrix") );
+            output.push_back(resultFilename(par().output+"_Matrix"));
     }
     
     return output;
