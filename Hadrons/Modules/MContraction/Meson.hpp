@@ -34,6 +34,7 @@
 #include <Hadrons/Module.hpp>
 #include <Hadrons/ModuleFactory.hpp>
 #include <Hadrons/TimerArray.hpp>
+#include <Hadrons/Serialization.hpp>
 
 BEGIN_HADRONS_NAMESPACE
 
@@ -175,7 +176,7 @@ std::vector<std::string> TMeson<FImpl1, FImpl2>::getInput(void)
 template <typename FImpl1, typename FImpl2>
 std::vector<std::string> TMeson<FImpl1, FImpl2>::getOutput(void)
 {
-    std::vector<std::string> output = {};
+    std::vector<std::string> output = {getName()};
     
     return output;
 }
@@ -194,6 +195,7 @@ void TMeson<FImpl1, FImpl2>::setup(void)
 {
     envTmpLat(LatticeComplex, "c");
     envTmpLat(LatticePropagator, "q1Gq2");
+    envCreate(HadronsSerializable, getName(), 1, 0);
 }
 
 // execution ///////////////////////////////////////////////////////////////////
@@ -301,6 +303,8 @@ void TMeson<FImpl1, FImpl2>::execute(void)
     startTimer("I/O");
     saveResult(par().output, "meson", result);
     stopTimer("I/O");
+    auto &out = envGet(HadronsSerializable, getName());
+    out = result;
 }
 
 END_MODULE_NAMESPACE
