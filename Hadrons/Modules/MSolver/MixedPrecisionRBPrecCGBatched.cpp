@@ -1,9 +1,8 @@
 /*
- * LoadCoarseEigenPack.cpp, part of Hadrons (https://github.com/aportelli/Hadrons)
+ * MixedPrecisionRBPrecCGBatched.cpp, part of Hadrons (https://github.com/aportelli/Hadrons)
  *
  * Copyright (C) 2015 - 2020
  *
- * Author: Antonin Portelli <antonin.portelli@me.com>
  * Author: Raoul Hodgson <raoul.hodgson@ed.ac.uk>
  *
  * Hadrons is free software: you can redistribute it and/or modify
@@ -24,17 +23,11 @@
  */
 
 /*  END LEGAL */
-#include <Hadrons/Modules/MIO/LoadCoarseEigenPack.hpp>
+#include <Hadrons/Modules/MSolver/MixedPrecisionRBPrecCGBatched.hpp>
 
 using namespace Grid;
 using namespace Hadrons;
-using namespace MIO;
+using namespace MSolver;
 
-template class Grid::Hadrons::MIO::TLoadCoarseEigenPack<CoarseFermionEigenPack<FIMPL,HADRONS_DEFAULT_LANCZOS_NBASIS>, GIMPL>;
-template class Grid::Hadrons::MIO::TLoadCoarseEigenPack<CoarseFermionEigenPack<FIMPL,250>, GIMPL>;
-template class Grid::Hadrons::MIO::TLoadCoarseEigenPack<CoarseFermionEigenPack<FIMPL,400>, GIMPL>;
-
-template class Grid::Hadrons::MIO::TLoadCoarseEigenPack<CoarseFermionEigenPack<FIMPLF,HADRONS_DEFAULT_LANCZOS_NBASIS>, GIMPLF>;
-template class Grid::Hadrons::MIO::TLoadCoarseEigenPack<CoarseFermionEigenPack<FIMPLF,250>, GIMPLF>;
-template class Grid::Hadrons::MIO::TLoadCoarseEigenPack<CoarseFermionEigenPack<FIMPLF,400>, GIMPLF>;
-
+template class Grid::Hadrons::MSolver::TMixedPrecisionRBPrecCGBatched<FIMPLF, FIMPLD>;
+template class Grid::Hadrons::MSolver::TMixedPrecisionRBPrecCGBatched<ZFIMPLF, ZFIMPLD>;

@@ -39,9 +39,10 @@ void BatchDeflationUtils::projAccumulate(const std::vector<Field> &in, std::vect
     }
     t += usecond();
     // performance (STREAM convention): innerProduct 2 reads + axpy 2 reads 1 write = 5 transfers
-    LOG(Message) << "projAccumulate: " << t << " us | " << 5.*nIt*lSizeGB 
+    LOG(Debug) << "projAccumulate: " << t << " us | " << 5.*nIt*lSizeGB 
                  << " GB | " << 5.*nIt*lSizeGB/t*1.0e6 << " GB/s" << std::endl;
 }
+
 
 END_HADRONS_NAMESPACE
 

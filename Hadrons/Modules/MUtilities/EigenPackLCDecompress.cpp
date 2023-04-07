@@ -1,5 +1,5 @@
 /*
- * LoadCoarseEigenPack.cpp, part of Hadrons (https://github.com/aportelli/Hadrons)
+ * EigenPackLCDecompress.cpp, part of Hadrons (https://github.com/aportelli/Hadrons)
  *
  * Copyright (C) 2015 - 2020
  *
@@ -24,17 +24,17 @@
  */
 
 /*  END LEGAL */
-#include <Hadrons/Modules/MIO/LoadCoarseEigenPack.hpp>
+#include <Hadrons/Modules/MUtilities/EigenPackLCDecompress.hpp>
 
 using namespace Grid;
 using namespace Hadrons;
-using namespace MIO;
+using namespace MUtilities;
 
-template class Grid::Hadrons::MIO::TLoadCoarseEigenPack<CoarseFermionEigenPack<FIMPL,HADRONS_DEFAULT_LANCZOS_NBASIS>, GIMPL>;
-template class Grid::Hadrons::MIO::TLoadCoarseEigenPack<CoarseFermionEigenPack<FIMPL,250>, GIMPL>;
-template class Grid::Hadrons::MIO::TLoadCoarseEigenPack<CoarseFermionEigenPack<FIMPL,400>, GIMPL>;
+template class Grid::Hadrons::MUtilities::TEigenPackLCDecompress<FIMPL,HADRONS_DEFAULT_LANCZOS_NBASIS>;
+template class Grid::Hadrons::MUtilities::TEigenPackLCDecompress<FIMPL,250>;
+template class Grid::Hadrons::MUtilities::TEigenPackLCDecompress<FIMPL,400>;
 
-template class Grid::Hadrons::MIO::TLoadCoarseEigenPack<CoarseFermionEigenPack<FIMPLF,HADRONS_DEFAULT_LANCZOS_NBASIS>, GIMPLF>;
-template class Grid::Hadrons::MIO::TLoadCoarseEigenPack<CoarseFermionEigenPack<FIMPLF,250>, GIMPLF>;
-template class Grid::Hadrons::MIO::TLoadCoarseEigenPack<CoarseFermionEigenPack<FIMPLF,400>, GIMPLF>;
+template class Grid::Hadrons::MUtilities::TEigenPackLCDecompress<FIMPLF,HADRONS_DEFAULT_LANCZOS_NBASIS>;
+template class Grid::Hadrons::MUtilities::TEigenPackLCDecompress<FIMPLF,250>;
+template class Grid::Hadrons::MUtilities::TEigenPackLCDecompress<FIMPLF,400>;
 
