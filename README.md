@@ -1,6 +1,6 @@
 <img src="graphics/hadrons-icon-title.png" height=100px>
 
-[![License: GPL v3](https://img.shields.io/badge/License-GPLv2-blue.svg)](https://www.gnu.org/licenses/gpl-2.0) [![DOI](https://zenodo.org/badge/DOI/10.5281/zenodo.4063666.svg)](https://doi.org/10.5281/zenodo.4063666)  
+[![License: GPL v3](https://img.shields.io/badge/License-GPLv2-blue.svg)](https://www.gnu.org/licenses/gpl-2.0) [![DOI](https://zenodo.org/badge/DOI/10.5281/zenodo.4063666.svg)](https://doi.org/10.5281/zenodo.4063666)  [![Teamcity status](https://ci.dev.dirac.ed.ac.uk/guestAuth/app/rest/builds/aggregated/strob:(buildType:(affectedProject(id:GridBasedSoftware_Hadrons)),branch:default:true)/statusIcon.svg)](https://ci.dev.dirac.ed.ac.uk/project/GridBasedSoftware_Hadrons?mode=builds)  
 _[Grid](https://github.com/paboyle/Grid)-based workflow management system for
 lattice field theory simulations_  
 
