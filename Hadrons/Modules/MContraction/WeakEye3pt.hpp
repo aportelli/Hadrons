@@ -33,6 +33,7 @@
 #include <Hadrons/Global.hpp>
 #include <Hadrons/Module.hpp>
 #include <Hadrons/ModuleFactory.hpp>
+#include <Hadrons/Serialization.hpp>
 
 BEGIN_HADRONS_NAMESPACE
 
@@ -128,7 +129,7 @@ std::vector<std::string> TWeakEye3pt<FImpl>::getInput(void)
 template <typename FImpl>
 std::vector<std::string> TWeakEye3pt<FImpl>::getOutput(void)
 {
-    std::vector<std::string> out = {};
+    std::vector<std::string> out = {getName()};
     
     return out;
 }
@@ -136,7 +137,10 @@ std::vector<std::string> TWeakEye3pt<FImpl>::getOutput(void)
 template <typename FImpl>
 std::vector<std::string> TWeakEye3pt<FImpl>::getOutputFiles(void)
 {
-    std::vector<std::string> output = {resultFilename(par().output)};
+    std::vector<std::string> output;
+    
+    if (!par().output.empty())
+        output.push_back(resultFilename(par().output));
     
     return output;
 }
@@ -146,6 +150,7 @@ template <typename FImpl>
 void TWeakEye3pt<FImpl>::setup(void)
 {
     envTmpLat(ComplexField, "corr");
+    envCreate(HadronsSerializable, getName(), 1, 0);
 }
 
 // execution ///////////////////////////////////////////////////////////////////
@@ -201,6 +206,8 @@ void TWeakEye3pt<FImpl>::execute(void)
         result.push_back(r);
     }
     saveResult(par().output, "weakEye3pt", result);
+    auto &out = envGet(HadronsSerializable, getName());
+    out = result;
 }
 
 END_MODULE_NAMESPACE

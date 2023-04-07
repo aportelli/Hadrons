@@ -81,6 +81,7 @@ public:
     // dependency relation
     virtual std::vector<std::string> getInput(void);
     virtual std::vector<std::string> getOutput(void);
+    virtual std::vector<std::string> getOutputFiles(void);
 protected:
     // setup
     virtual void setup(void);
@@ -116,6 +117,17 @@ std::vector<std::string> TFreeProp<FImpl>::getOutput(void)
     std::vector<std::string> out = {getName(), getName() + "_5d"};
     
     return out;
+}
+
+template <typename FImpl>
+std::vector<std::string> TFreeProp<FImpl>::getOutputFiles(void)
+{
+    std::vector<std::string> output;
+    
+    if (!par().outputTrace.empty())
+        output.push_back(resultFilename(par().outputTrace));
+    
+    return output;
 }
 
 // setup ///////////////////////////////////////////////////////////////////////

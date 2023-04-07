@@ -32,6 +32,7 @@
 #include <Hadrons/Global.hpp>
 #include <Hadrons/Module.hpp>
 #include <Hadrons/ModuleFactory.hpp>
+#include <Hadrons/Serialization.hpp>
 
 BEGIN_HADRONS_NAMESPACE
 
@@ -133,7 +134,7 @@ std::vector<std::string> TGamma3pt<FImpl1, FImpl2, FImpl3>::getInput(void)
 template <typename FImpl1, typename FImpl2, typename FImpl3>
 std::vector<std::string> TGamma3pt<FImpl1, FImpl2, FImpl3>::getOutput(void)
 {
-    std::vector<std::string> out = {};
+    std::vector<std::string> out = {getName()};
     
     return out;
 }
@@ -141,7 +142,10 @@ std::vector<std::string> TGamma3pt<FImpl1, FImpl2, FImpl3>::getOutput(void)
 template <typename FImpl1, typename FImpl2, typename FImpl3>
 std::vector<std::string> TGamma3pt<FImpl1, FImpl2, FImpl3>::getOutputFiles(void)
 {
-    std::vector<std::string> output = {resultFilename(par().output)};
+    std::vector<std::string> output;
+    
+    if (!par().output.empty())
+        output.push_back(resultFilename(par().output));
     
     return output;
 }
@@ -151,6 +155,7 @@ template <typename FImpl1, typename FImpl2, typename FImpl3>
 void TGamma3pt<FImpl1, FImpl2, FImpl3>::setup(void)
 {
     envTmpLat(LatticeComplex, "c");
+    envCreate(HadronsSerializable, getName(), 1, 0);
 }
 
 template <typename FImpl1, typename FImpl2, typename FImpl3>
@@ -216,6 +221,8 @@ void TGamma3pt<FImpl1, FImpl2, FImpl3>::execute(void)
         }
     }
     saveResult(par().output, "gamma3pt", result);
+    auto &out = envGet(HadronsSerializable, getName());
+    out = result;
 }
 
 END_MODULE_NAMESPACE

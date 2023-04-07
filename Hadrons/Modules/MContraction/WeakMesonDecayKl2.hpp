@@ -34,6 +34,7 @@
 #include <Hadrons/Global.hpp>
 #include <Hadrons/Module.hpp>
 #include <Hadrons/ModuleFactory.hpp>
+#include <Hadrons/Serialization.hpp>
 
 BEGIN_HADRONS_NAMESPACE
 
@@ -129,7 +130,7 @@ std::vector<std::string> TWeakMesonDecayKl2<FImpl>::getInput(void)
 template <typename FImpl>
 std::vector<std::string> TWeakMesonDecayKl2<FImpl>::getOutput(void)
 {
-    std::vector<std::string> output = {};
+    std::vector<std::string> output = {getName()};
     
     return output;
 }
@@ -137,7 +138,10 @@ std::vector<std::string> TWeakMesonDecayKl2<FImpl>::getOutput(void)
 template <typename FImpl>
 std::vector<std::string> TWeakMesonDecayKl2<FImpl>::getOutputFiles(void)
 {
-    std::vector<std::string> output = {resultFilename(par().output)};
+    std::vector<std::string> output;
+    
+    if (!par().output.empty())
+        output.push_back(resultFilename(par().output));
     
     return output;
 }
@@ -150,6 +154,7 @@ void TWeakMesonDecayKl2<FImpl>::setup(void)
     envTmpLat(PropagatorField, "prop_buf");
     envCreateLat(PropagatorField, getName());
     envTmpLat(SpinMatrixField, "buf");
+    envCreate(HadronsSerializable, getName(), 1, 0);
 }
 
 // execution ///////////////////////////////////////////////////////////////////
@@ -185,6 +190,8 @@ void TWeakMesonDecayKl2<FImpl>::execute(void)
     buf = peekColour(res, 0, 0);
     sliceSum(buf, r.corr, Tp);
     saveResult(par().output, "weakdecay", r);
+    auto &out = envGet(HadronsSerializable, getName());
+    out = r;
 }
 
 END_MODULE_NAMESPACE

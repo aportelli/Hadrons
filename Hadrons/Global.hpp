@@ -144,7 +144,7 @@ typedef typename GImpl::GaugeLinkField GaugeLinkField##suffix;\
 typedef typename Grid::SU<ct_sqrt<sizeof(typename GaugeLinkField::scalar_object)/sizeof(typename GImpl::Scalar)>::value> Group;
 
 #define SOLVER_TYPE_ALIASES(FImpl, suffix)\
-typedef Solver<FImpl> Solver##suffix;
+typedef Hadrons::Solver<FImpl> Solver##suffix;
 
 #define SINK_TYPE_ALIASES(suffix)\
 typedef std::function<SlicedPropagator##suffix\

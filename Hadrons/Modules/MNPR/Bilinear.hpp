@@ -34,6 +34,7 @@
 #include <Hadrons/Global.hpp>
 #include <Hadrons/Module.hpp>
 #include <Hadrons/ModuleFactory.hpp>
+#include <Hadrons/Serialization.hpp>
 #include <Hadrons/Modules/MNPR/NPRUtils.hpp>
 
 BEGIN_HADRONS_NAMESPACE
@@ -124,6 +125,8 @@ void TBilinear<FImpl>::setup(void)
     envTmpLat(ComplexField, "pDotXIn");
     envTmpLat(ComplexField, "pDotXOut");
     envTmpLat(ComplexField, "xMu");
+
+    envCreate(HadronsSerializable, getName(), 1, 0);
 }
 
 // dependencies/products ///////////////////////////////////////////////////////
@@ -138,7 +141,7 @@ std::vector<std::string> TBilinear<FImpl>::getInput(void)
 template <typename FImpl>
 std::vector<std::string> TBilinear<FImpl>::getOutput(void)
 {
-    std::vector<std::string> out = {};
+    std::vector<std::string> out = {getName()};
 
     return out;
 }
@@ -200,8 +203,10 @@ void TBilinear<FImpl>::execute(void)
     }
 
     //////////////////////////////////////////////////
-    saveResult(par().output, "Bilinear", result);
     LOG(Message) << "Complete. Writing results to " << par().output << std::endl;
+    saveResult(par().output, "Bilinear", result);
+    auto& out = envGet(HadronsSerializable, getName());
+    out = result;
 }
 
 END_MODULE_NAMESPACE

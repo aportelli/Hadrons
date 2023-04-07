@@ -29,6 +29,7 @@
 #include <Hadrons/Global.hpp>
 #include <Hadrons/Module.hpp>
 #include <Hadrons/ModuleFactory.hpp>
+#include <Hadrons/Serialization.hpp>
 #include <Hadrons/Modules/MScalarSUN/Utils.hpp>
 
 BEGIN_HADRONS_NAMESPACE
@@ -102,15 +103,15 @@ std::vector<std::string> TTrMag<SImpl>::getInput(void)
 template <typename SImpl>
 std::vector<std::string> TTrMag<SImpl>::getOutput(void)
 {
-    std::vector<std::string> out = {};
-    
-    return out;
+    return {getName()};
 }
 
 // setup ///////////////////////////////////////////////////////////////////////
 template <typename SImpl>
 void TTrMag<SImpl>::setup(void)
-{}
+{
+    envCreate(HadronsSerializable, getName(), 1, 0);
+}
 
 // execution ///////////////////////////////////////////////////////////////////
 template <typename SImpl>
@@ -137,6 +138,7 @@ void TTrMag<SImpl>::execute(void)
         result.push_back(r);
     }
     saveResult(par().output, "trmag", result);
+    envGet(HadronsSerializable, getName()) = result;
 }
 
 END_MODULE_NAMESPACE

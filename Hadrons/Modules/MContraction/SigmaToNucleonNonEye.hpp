@@ -33,6 +33,7 @@
 #include <Hadrons/Global.hpp>
 #include <Hadrons/Module.hpp>
 #include <Hadrons/ModuleFactory.hpp>
+#include <Hadrons/Serialization.hpp>
 #include <Grid/qcd/utils/BaryonUtils.h>
 
 BEGIN_HADRONS_NAMESPACE
@@ -148,14 +149,17 @@ std::vector<std::string> TSigmaToNucleonNonEye<FImpl>::getInput(void)
 template <typename FImpl>
 std::vector<std::string> TSigmaToNucleonNonEye<FImpl>::getOutput(void)
 {
-    std::vector<std::string> out = {};
+    std::vector<std::string> out = {getName()};
     
     return out;
 }
 template <typename FImpl>
 std::vector<std::string> TSigmaToNucleonNonEye<FImpl>::getOutputFiles(void)
 {
-    std::vector<std::string> output = {resultFilename(par().output)};
+    std::vector<std::string> output;
+    
+    if (!par().output.empty())
+        output.push_back(resultFilename(par().output));
     
     return output;
 }
@@ -165,6 +169,7 @@ template <typename FImpl>
 void TSigmaToNucleonNonEye<FImpl>::setup(void)
 {
     envTmpLat(SpinMatrixField, "c");
+    envCreate(HadronsSerializable, getName(), 1, 0);
 }
 
 // execution ///////////////////////////////////////////////////////////////////
@@ -222,6 +227,8 @@ void TSigmaToNucleonNonEye<FImpl>::execute(void)
     }
 
     saveResult(par().output, "stnNonEye", result);
+    auto &out = envGet(HadronsSerializable, getName());
+    out = result;
 
 }
 
