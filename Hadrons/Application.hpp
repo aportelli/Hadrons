@@ -110,6 +110,8 @@ public:
     template <typename M>
     void createModule(const std::string name, const typename M::Par &par);
     void createModule(const std::string name, const std::string type, XmlReader &reader);
+    // test if module exists
+    bool hasModule(const std::string name) const;
     // module DB entry for result files
     template <typename EntryType>
     void setResultMetadata(const std::string moduleName, const std::string tableName, const EntryType &entry);

@@ -140,6 +140,12 @@ void Application::createModule(const std::string name, const std::string type,
     vm().createModule(name, type, reader);
 }
 
+// test if module exists ///////////////////////////////////////////////////////
+bool Application::hasModule(const std::string name) const
+{
+    return vm().hasModule(name);
+}
+
 // generate result DB //////////////////////////////////////////////////////////
 void Application::generateResultDb(void)
 {
