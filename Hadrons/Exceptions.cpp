@@ -73,15 +73,30 @@ CTOR_EXC_REF(ObjectType, RuntimeRef("object type error: " + msg, loc, address));
 // abort functions
 void Grid::Hadrons::Exceptions::abort(const std::exception& e)
 {
-    auto &vm = VirtualMachine::getInstance();
-    int  mod = vm.getCurrentModule();
+    int mod;
+    std::string modName;
 
+    // suppress potential extra expections
+    try
+    {
+        auto &vm = VirtualMachine::getInstance();
+        mod = vm.getCurrentModule();
+        if (mod >= 0)
+        {
+            modName = vm.getModuleName(mod);
+        }
+    }
+    catch(...)
+    {
+        mod = -1;
+        modName = "";
+    }
     LOG(Error) << "FATAL ERROR -- Exception " << typeName(&typeid(e)) 
                << std::endl;
     if (mod >= 0)
     {
         LOG(Error) << "During execution of module '"
-                    << vm.getModuleName(mod) << "' (address " << mod << ")"
+                    << modName << "' (address " << mod << ")"
                     << std::endl;
     }
     LOG(Error) << e.what() << std::endl;
