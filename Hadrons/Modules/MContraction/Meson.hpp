@@ -168,7 +168,12 @@ int TMeson<FImpl1, FImpl2>::parseGammaString(std::map<Gamma::Algebra, std::vecto
 template <typename FImpl1, typename FImpl2>
 std::vector<std::string> TMeson<FImpl1, FImpl2>::getInput(void)
 {
-    std::vector<std::string> input = {par().q1, par().q2, par().sink};
+    std::vector<std::string> input = {par().q1, par().q2};
+
+    if (!par().sink.empty())
+    {
+        input.push_back(par().sink);
+    }
     
     return input;
 }
@@ -256,6 +261,10 @@ void TMeson<FImpl1, FImpl2>::execute(void)
         
         envGetTmp(LatticeComplex, c);
         envGetTmp(LatticePropagator, q1Gq2);
+        if (par().sink.empty())
+        {
+            HADRONS_ERROR(Definition, "no sink provided");
+        }
         LOG(Message) << "(using sink '" << par().sink << "')" << std::endl;
         unsigned int i = 0;
         for(auto &ss: gammaMap)
