@@ -180,7 +180,7 @@ void Application::run(void)
         auto nowLocal = *std::localtime(&now);
 
         oss << std::put_time(&nowLocal, "%Y%m%d-%H%M%S");
-        statDbFilename = getPar().database.statDbBase + getPar().runId + "-stat-" + oss.str() + ".db";
+        statDbFilename = getPar().database.statDbBase + "-stat-" + oss.str() + ".db";
         LOG(Message) << "Logging run statistics in '" << statDbFilename << "'" << std::endl;
         if (env().getGrid()->IsBoss())
         {
