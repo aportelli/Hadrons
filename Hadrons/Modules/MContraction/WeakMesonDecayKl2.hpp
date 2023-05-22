@@ -62,6 +62,7 @@ BEGIN_HADRONS_NAMESPACE
 * - q1: input propagator 1 (string)
 * - q2: input propagator 2 (string)
 * - lepton: input lepton (string)
+* - mom: momentum phase at H_W position
 */
 
 /******************************************************************************
@@ -76,7 +77,9 @@ public:
                                     std::string, q1,
                                     std::string, q2,
                                     std::string, lepton,
+                                    std::string, mom,
 				                    std::string, output);
+    WeakMesonDecayKl2Par(void): mom("0 0 0 0") {}
 };
 
 template <typename FImpl>
@@ -105,6 +108,9 @@ protected:
     virtual void setup(void);
     // execution
     virtual void execute(void);
+private:
+    bool        hasPhase_{false}; 
+    std::string momphName_;
 };
 
 MODULE_REGISTER_TMP(WeakMesonDecayKl2, TWeakMesonDecayKl2<FIMPL>, MContraction);
@@ -116,6 +122,7 @@ MODULE_REGISTER_TMP(WeakMesonDecayKl2, TWeakMesonDecayKl2<FIMPL>, MContraction);
 template <typename FImpl>
 TWeakMesonDecayKl2<FImpl>::TWeakMesonDecayKl2(const std::string name)
 : Module<WeakMesonDecayKl2Par>(name)
+, momphName_ (name + "_momph")
 {}
 
 // dependencies/products ///////////////////////////////////////////////////////
@@ -151,10 +158,11 @@ template <typename FImpl>
 void TWeakMesonDecayKl2<FImpl>::setup(void)
 {
     envTmpLat(ComplexField, "c");
-    envTmpLat(PropagatorField, "prop_buf");
-    envCreateLat(PropagatorField, getName());
+    envTmpLat(PropagatorField, "res_buf");
     envTmpLat(SpinMatrixField, "buf");
     envCreate(HadronsSerializable, getName(), 1, 0);
+    envCacheLat(ComplexField, momphName_);
+    envTmpLat(LatticeComplex, "coor");
 }
 
 // execution ///////////////////////////////////////////////////////////////////
@@ -163,31 +171,47 @@ void TWeakMesonDecayKl2<FImpl>::execute(void)
 {
     LOG(Message) << "Computing QED Kl2 contractions '" << getName() << "' using"
                  << " quarks '" << par().q1 << "' and '" << par().q2 << "' and"
-		         << "lepton '"  << par().lepton << "'" << std::endl;
+		         << "lepton '"  << par().lepton << "' and momentum [" << par().mom << "]" 
+                 << std::endl;
 
     Gamma                   g5(Gamma::Algebra::Gamma5);
     int                     nt = env().getDim(Tp);
     std::vector<SpinMatrix> res_summed;
     Result                  r;
 
-    auto &res    = envGet(PropagatorField, getName()); res = Zero();
     auto &q1     = envGet(PropagatorField, par().q1);
     auto &q2     = envGet(PropagatorField, par().q2);
     auto &lepton = envGet(PropagatorField, par().lepton);
     envGetTmp(SpinMatrixField, buf);
     envGetTmp(ComplexField, c);
-    envGetTmp(PropagatorField, prop_buf);  
+    envGetTmp(PropagatorField, res_buf); res_buf = Zero();
+    auto &ph = envGet(LatticeComplex, momphName_);
+    
+    if (!hasPhase_)
+    {
+        Complex           i(0.0,1.0);
+        std::vector<Real> p;
 
+        envGetTmp(LatticeComplex, coor);
+        p  = strToVec<Real>(par().mom);
+        ph = Zero();
+        for(unsigned int mu = 0; mu < p.size(); mu++)
+        {
+            LatticeCoordinate(coor, mu);
+            ph = ph + (p[mu]/env().getDim(mu))*coor;
+        }
+        ph = exp((Real)(2*M_PI)*i*ph);
+        hasPhase_ = true;
+    }
     for (unsigned int mu = 0; mu < 4; ++mu)
     {
         c = Zero();
         //hadronic part: trace(q1*adj(q2)*g5*gL[mu]) 
         c = trace(q1*adj(q2)*g5*GammaL(Gamma::gmu[mu]));
-        prop_buf = 1.;
         //multiply lepton part
-        res += c * prop_buf * GammaL(Gamma::gmu[mu]) * lepton;
+        res_buf += c * (GammaL(Gamma::gmu[mu]) * lepton);
     }
-    buf = peekColour(res, 0, 0);
+    buf = ph*peekColour(res_buf, 0, 0);
     sliceSum(buf, r.corr, Tp);
     saveResult(par().output, "weakdecay", r);
     auto &out = envGet(HadronsSerializable, getName());
