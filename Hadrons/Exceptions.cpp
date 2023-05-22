@@ -47,7 +47,7 @@ using namespace Hadrons;
 using namespace Exceptions;
 
 // backtrace cache
-std::vector<std::string> Grid::Hadrons::Exceptions::backtraceStr;
+std::vector<std::string> HADRONS_NAMESPACE::Exceptions::backtraceStr;
 
 // logic errors
 CTOR_EXC(Logic, logic_error(msg + ERR_SUFF))
@@ -71,7 +71,7 @@ CTOR_EXC_REF(ObjectDefinition, RuntimeRef("object definition error: " + msg, loc
 CTOR_EXC_REF(ObjectType, RuntimeRef("object type error: " + msg, loc, address));
 
 // abort functions
-void Grid::Hadrons::Exceptions::abort(const std::exception& e)
+void HADRONS_NAMESPACE::Exceptions::abort(const std::exception& e)
 {
     int mod;
     std::string modName;

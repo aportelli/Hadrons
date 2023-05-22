@@ -29,6 +29,6 @@ using namespace Grid;
 using namespace Hadrons;
 using namespace MSolver;
 
-template class Grid::Hadrons::MSolver::TRBPrecCG<FIMPL>;
-template class Grid::Hadrons::MSolver::TRBPrecCG<ZFIMPL>;
+template class HADRONS_NAMESPACE::MSolver::TRBPrecCG<FIMPL>;
+template class HADRONS_NAMESPACE::MSolver::TRBPrecCG<ZFIMPL>;
 

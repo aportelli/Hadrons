@@ -4,4 +4,4 @@ using namespace Grid;
 using namespace Hadrons;
 using namespace MIO;
 
-template class Grid::Hadrons::MIO::TLoadDistillationVectors<FIMPL>;
+template class HADRONS_NAMESPACE::MIO::TLoadDistillationVectors<FIMPL>;

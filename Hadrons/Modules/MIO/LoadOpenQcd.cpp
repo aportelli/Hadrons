@@ -29,4 +29,4 @@ using namespace Grid;
 using namespace Hadrons;
 using namespace MIO;
 
-template class Grid::Hadrons::MIO::TLoadOpenQcd<GIMPL>;
+template class HADRONS_NAMESPACE::MIO::TLoadOpenQcd<GIMPL>;

@@ -116,7 +116,7 @@ void VirtualMachine::dbRestoreModules(void)
     {
         if (db_->tableExists("modules"))
         {
-            std::string prefix    = "Grid::Hadrons::";
+            std::string prefix    = "HADRONS_NAMESPACE::";
             auto        modTable  = db_->getTable<ModuleEntry>("modules", "ORDER BY moduleId");
            
             if (getNModule() > 0)

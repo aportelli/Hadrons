@@ -29,5 +29,5 @@ using namespace Grid;
 using namespace Hadrons;
 using namespace MUtilities;
 
-template class Grid::Hadrons::MUtilities::TTestSeqGamma<FIMPL>;
+template class HADRONS_NAMESPACE::MUtilities::TTestSeqGamma<FIMPL>;
 

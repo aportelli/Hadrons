@@ -29,5 +29,5 @@ using namespace Grid;
 using namespace Hadrons;
 using namespace MSolver;
 
-template class Grid::Hadrons::MSolver::TA2AVectors<FIMPL, BaseFermionEigenPack<FIMPL>>;
-template class Grid::Hadrons::MSolver::TA2AVectors<ZFIMPL, BaseFermionEigenPack<ZFIMPL>>;
+template class HADRONS_NAMESPACE::MSolver::TA2AVectors<FIMPL, BaseFermionEigenPack<FIMPL>>;
+template class HADRONS_NAMESPACE::MSolver::TA2AVectors<ZFIMPL, BaseFermionEigenPack<ZFIMPL>>;

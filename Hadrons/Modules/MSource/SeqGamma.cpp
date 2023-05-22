@@ -29,5 +29,5 @@ using namespace Grid;
 using namespace Hadrons;
 using namespace MSource;
 
-template class Grid::Hadrons::MSource::TSeqGamma<FIMPL>;
-template class Grid::Hadrons::MSource::TSeqGamma<ZFIMPL>;
+template class HADRONS_NAMESPACE::MSource::TSeqGamma<FIMPL>;
+template class HADRONS_NAMESPACE::MSource::TSeqGamma<ZFIMPL>;

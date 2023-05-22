@@ -32,5 +32,5 @@ using namespace Grid;
 using namespace Hadrons;
 using namespace MContraction;
 
-template class Grid::Hadrons::MContraction::TWardIdentity<FIMPL>;
-template class Grid::Hadrons::MContraction::TWardIdentity<ZFIMPL>;
+template class HADRONS_NAMESPACE::MContraction::TWardIdentity<FIMPL>;
+template class HADRONS_NAMESPACE::MContraction::TWardIdentity<ZFIMPL>;

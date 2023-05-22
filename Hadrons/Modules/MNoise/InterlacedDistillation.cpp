@@ -4,5 +4,5 @@ using namespace Grid;
 using namespace Hadrons;
 using namespace MNoise;
 
-template class Grid::Hadrons::MNoise::TInterlacedDistillation<FIMPL>;
-template class Grid::Hadrons::MNoise::TInterlacedDistillation<ZFIMPL>;
+template class HADRONS_NAMESPACE::MNoise::TInterlacedDistillation<FIMPL>;
+template class HADRONS_NAMESPACE::MNoise::TInterlacedDistillation<ZFIMPL>;

@@ -30,11 +30,11 @@ using namespace Grid;
 using namespace Hadrons;
 using namespace MUtilities;
 
-template class Grid::Hadrons::MUtilities::TEigenPackLCCompress<FIMPL,HADRONS_DEFAULT_LANCZOS_NBASIS>;
-template class Grid::Hadrons::MUtilities::TEigenPackLCCompress<FIMPL,250>;
-template class Grid::Hadrons::MUtilities::TEigenPackLCCompress<FIMPL,400>;
+template class HADRONS_NAMESPACE::MUtilities::TEigenPackLCCompress<FIMPL,HADRONS_DEFAULT_LANCZOS_NBASIS>;
+template class HADRONS_NAMESPACE::MUtilities::TEigenPackLCCompress<FIMPL,250>;
+template class HADRONS_NAMESPACE::MUtilities::TEigenPackLCCompress<FIMPL,400>;
 
-template class Grid::Hadrons::MUtilities::TEigenPackLCCompress<FIMPLF,HADRONS_DEFAULT_LANCZOS_NBASIS>;
-template class Grid::Hadrons::MUtilities::TEigenPackLCCompress<FIMPLF,250>;
-template class Grid::Hadrons::MUtilities::TEigenPackLCCompress<FIMPLF,400>;
+template class HADRONS_NAMESPACE::MUtilities::TEigenPackLCCompress<FIMPLF,HADRONS_DEFAULT_LANCZOS_NBASIS>;
+template class HADRONS_NAMESPACE::MUtilities::TEigenPackLCCompress<FIMPLF,250>;
+template class HADRONS_NAMESPACE::MUtilities::TEigenPackLCCompress<FIMPLF,400>;
 

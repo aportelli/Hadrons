@@ -30,5 +30,5 @@ using namespace Grid;
 using namespace Hadrons;
 using namespace MSink;
 
-template class Grid::Hadrons::MSink::TSourceSink<FIMPL>;
+template class HADRONS_NAMESPACE::MSink::TSourceSink<FIMPL>;
 

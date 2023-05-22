@@ -55,12 +55,13 @@
  * error with GCC 5 (clang & GCC 6 compile fine without it).
  */
 
+#define HADRONS_NAMESPACE Grid::Hadrons
+
 #define BEGIN_HADRONS_NAMESPACE \
-namespace Grid {\
-namespace Hadrons {\
+namespace HADRONS_NAMESPACE {\
 using Grid::operator<<;\
 using Grid::operator>>;
-#define END_HADRONS_NAMESPACE }}
+#define END_HADRONS_NAMESPACE }
 
 #define BEGIN_MODULE_NAMESPACE(name)\
 namespace name {\

@@ -30,4 +30,4 @@ using namespace Grid;
 using namespace Hadrons;
 using namespace MIO;
 
-template class Grid::Hadrons::MIO::TWriteResultGroup<void>;
+template class HADRONS_NAMESPACE::MIO::TWriteResultGroup<void>;

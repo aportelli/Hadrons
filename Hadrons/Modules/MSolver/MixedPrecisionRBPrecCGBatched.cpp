@@ -29,5 +29,5 @@ using namespace Grid;
 using namespace Hadrons;
 using namespace MSolver;
 
-template class Grid::Hadrons::MSolver::TMixedPrecisionRBPrecCGBatched<FIMPLF, FIMPLD>;
-template class Grid::Hadrons::MSolver::TMixedPrecisionRBPrecCGBatched<ZFIMPLF, ZFIMPLD>;
+template class HADRONS_NAMESPACE::MSolver::TMixedPrecisionRBPrecCGBatched<FIMPLF, FIMPLD>;
+template class HADRONS_NAMESPACE::MSolver::TMixedPrecisionRBPrecCGBatched<ZFIMPLF, ZFIMPLD>;

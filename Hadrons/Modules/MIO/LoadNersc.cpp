@@ -29,4 +29,4 @@ using namespace Grid;
 using namespace Hadrons;
 using namespace MIO;
 
-template class Grid::Hadrons::MIO::TLoadNersc<GIMPL>;
+template class HADRONS_NAMESPACE::MIO::TLoadNersc<GIMPL>;

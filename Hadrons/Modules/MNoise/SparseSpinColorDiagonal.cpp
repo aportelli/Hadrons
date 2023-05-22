@@ -29,5 +29,5 @@ using namespace Grid;
 using namespace Hadrons;
 using namespace MNoise;
 
-template class Grid::Hadrons::MNoise::TSparseSpinColorDiagonal<FIMPL>;
-template class Grid::Hadrons::MNoise::TSparseSpinColorDiagonal<ZFIMPL>;
+template class HADRONS_NAMESPACE::MNoise::TSparseSpinColorDiagonal<FIMPL>;
+template class HADRONS_NAMESPACE::MNoise::TSparseSpinColorDiagonal<ZFIMPL>;
