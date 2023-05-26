@@ -110,10 +110,9 @@ void HADRONS_NAMESPACE::Exceptions::abort(const std::exception& e)
         LOG(Error) << "---------------------------" << std::endl;
     }
     LOG(Error) << "Aborting program" << std::endl;
-    if (isGridInit())
-    {
-        Grid_finalize();
-    }
-
+#if defined (GRID_COMMS_MPI) || defined (GRID_COMMS_MPI3) || defined (GRID_COMMS_MPIT)
+    MPI_Abort(MPI_COMM_WORLD, 1);
+#else
     exit(EXIT_FAILURE);
+#endif
 }
