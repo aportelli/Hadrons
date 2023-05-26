@@ -60,7 +60,6 @@ BEGIN_HADRONS_NAMESPACE
 *  - mass: input mass for the lepton propagator
 *  - boundary: boundary conditions for the lepton propagator, e.g. "1 1 1 -1"
 *  - twist: twisted boundary for lepton propagator, e.g. "0.0 0.0 0.0 0.5"
-*  - mom: Fourier phase at source, e.g. "1 0 0 0"
 *  - deltat: list of source-sink separations
 *
 *******************************************************************************/
@@ -82,9 +81,7 @@ public:
 				    double, mass,
                     std::string , boundary,
 				    std::string,  twist,
-                    std::string, mom,
 				    std::vector<unsigned int>, deltat);
-    EMLeptonPar(void): mom("0 0 0 0") {}
 };
 
 template <typename FImpl>
@@ -111,8 +108,6 @@ protected:
 private:
     unsigned int Ls_;
     Solver       *solver_{nullptr};
-    bool        hasPhase_{false};
-    std::string momphName_;
 };
 
 MODULE_REGISTER_TMP(EMLepton, TEMLepton<FIMPL>, MFermion);
@@ -124,7 +119,6 @@ MODULE_REGISTER_TMP(EMLepton, TEMLepton<FIMPL>, MFermion);
 template <typename FImpl>
 TEMLepton<FImpl>::TEMLepton(const std::string name)
 : Module<EMLeptonPar>(name)
-, momphName_ (name + "_momph")
 {}
 
 // dependencies/products ///////////////////////////////////////////////////////
@@ -168,7 +162,6 @@ void TEMLepton<FImpl>::setup(void)
     envTmpLat(PropagatorField, "proptmp");
     envTmpLat(PropagatorField, "freetmp");
     envTmp(Lattice<iScalar<vInteger>>, "tlat",1, envGetGrid(LatticeComplex));
-    envCacheLat(LatticeComplex, momphName_);
     envTmpLat(LatticeComplex, "coor");
 
 }
@@ -202,7 +195,7 @@ void TEMLepton<FImpl>::execute(void)
                  << mass << " using the solver '" << par().solver
                  << "' for fixed source-sink separation of " << par().deltat << std::endl;
     }
-    LOG(Message) << "Momenta: twist [" << par().twist << "] / Fourier [" << par().mom << "]" << std::endl;
+    LOG(Message) << "Momenta: twist [" << par().twist << "]" << std::endl;
     envGetTmp(Lattice<iScalar<vInteger>>, tlat);
     LatticeCoordinate(tlat, Tp);
 
@@ -232,25 +225,8 @@ void TEMLepton<FImpl>::execute(void)
     unsigned int tl=0; 
 
     //wallsource at tl
-    auto  &ph  = envGet(LatticeComplex, momphName_);
-    if (!hasPhase_)
-    {
-        Complex           i(0.0,1.0);
-        std::vector<Real> p;
-
-        envGetTmp(LatticeComplex, coor);
-        p  = strToVec<Real>(par().mom);
-        ph = Zero();
-        for(unsigned int mu = 0; mu < p.size(); mu++)
-        {
-            LatticeCoordinate(coor, mu);
-            ph = ph + (p[mu]/env().getDim(mu))*coor;
-        }
-        ph = exp((Real)(2*M_PI)*i*ph);
-        hasPhase_ = true;
-    }
     sourcetmp = 1.;
-    sourcetmp = where((tlat == tl), ph*sourcetmp, 0.*sourcetmp);
+    sourcetmp = where((tlat == tl), sourcetmp, 0.*sourcetmp);
 
     //free propagator from pt source 
     for (unsigned int s = 0; s < Ns; ++s)
