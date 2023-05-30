@@ -34,3 +34,4 @@ template class HADRONS_NAMESPACE::MIO::TSaveField<FIMPL::PropagatorField>;
 template class HADRONS_NAMESPACE::MIO::TSaveField<FIMPL::PropagatorField, FIMPLF::PropagatorField>;
 #endif
 template class HADRONS_NAMESPACE::MIO::TSaveField<GIMPL::GaugeLinkField>;
+template class HADRONS_NAMESPACE::MIO::TSaveField<TEmFieldGenerator<vComplex>::GaugeField>;
