@@ -216,7 +216,6 @@ void TMeson<FImpl1, FImpl2>::execute(void)
     std::vector<TComplex>  buf;
     std::vector<Result>    result;
     Gamma                  g5(Gamma::Algebra::Gamma5);
-    std::vector<GammaPair> gammaList;
     int                    nt = env().getDim(Tp);
 
     std::map<Gamma::Algebra, std::vector<Gamma::Algebra>> gammaMap;
@@ -233,14 +232,22 @@ void TMeson<FImpl1, FImpl2>::execute(void)
         auto &q2 = envGet(SlicedPropagator2, par().q2);
         
         LOG(Message) << "(propagator already sinked)" << std::endl;
-        for (unsigned int i = 0; i < result.size(); ++i)
+        unsigned int i = 0;
+        for(auto &ss: gammaMap)
         {
-            Gamma gSnk(gammaList[i].first);
-            Gamma gSrc(gammaList[i].second);
-            
-            for (unsigned int t = 0; t < nt; ++t)
+            Gamma::Algebra gammaSink = ss.first;
+            Gamma gSnk(gammaSink);
+            for (Gamma::Algebra &gammaSource: ss.second)
             {
-                result[i].corr[t] = TensorRemove(trace(mesonConnected(q1[t], q2[t], gSnk, gSrc)));
+                Gamma gSrc(gammaSource);
+            
+                startTimer("mesonConnected");
+                for (unsigned int t = 0; t < nt; ++t)
+                {
+                    result[i].corr[t] = TensorRemove(trace(mesonConnected(q1[t], q2[t], gSnk, gSrc)));
+                }
+                stopTimer("mesonConnected");
+                i++;
             }
         }
     }
