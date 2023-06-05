@@ -29,5 +29,5 @@ using namespace Grid;
 using namespace Hadrons;
 using namespace MSolver;
 
-template class Grid::Hadrons::MSolver::TMixedPrecisionRBPrecBiCGSTAB<FIMPLF, FIMPLD>;
-template class Grid::Hadrons::MSolver::TMixedPrecisionRBPrecBiCGSTAB<ZFIMPLF, ZFIMPLD>;
+template class HADRONS_NAMESPACE::MSolver::TMixedPrecisionRBPrecBiCGSTAB<FIMPLF, FIMPLD>;
+template class HADRONS_NAMESPACE::MSolver::TMixedPrecisionRBPrecBiCGSTAB<ZFIMPLF, ZFIMPLD>;

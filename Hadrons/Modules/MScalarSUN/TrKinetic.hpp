@@ -30,6 +30,7 @@
 #include <Hadrons/Global.hpp>
 #include <Hadrons/Module.hpp>
 #include <Hadrons/ModuleFactory.hpp>
+#include <Hadrons/Serialization.hpp>
 #include <Hadrons/Modules/MScalarSUN/Utils.hpp>
 
 BEGIN_HADRONS_NAMESPACE
@@ -111,6 +112,7 @@ std::vector<std::string> TTrKinetic<SImpl>::getOutput(void)
         out.push_back(varName(getName(), mu, nu));
     }
     out.push_back(varName(getName(), "sum"));
+    out.push_back(getName());
     
     return out;
 }
@@ -125,6 +127,7 @@ void TTrKinetic<SImpl>::setup(void)
         envCreateLat(ComplexField, varName(getName(), mu, nu));
     }
     envCreateLat(ComplexField, varName(getName(), "sum"));
+    envCreate(HadronsSerializable, getName(), 1, 0);
     envTmp(std::vector<Field>, "der", 1, env().getNd(), envGetGrid(Field));
 }
 
@@ -168,6 +171,7 @@ void TTrKinetic<SImpl>::execute(void)
         }
     }
     saveResult(par().output, "trkinetic", result);
+    envGet(HadronsSerializable, getName()) = result;
 }
 
 END_MODULE_NAMESPACE

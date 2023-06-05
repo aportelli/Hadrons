@@ -205,6 +205,7 @@ public:
     }
     
     // Apply this operator to "in", return result in "out"
+    using LinearFunction<Field>::operator();
     void operator()(const Field& in, Field& out) {
         if (nd > in.Grid()->Nd())
         {
@@ -237,6 +238,7 @@ public:
     LinearOperatorBase<Field> &Linop_;
     Laplacian3DHerm(OperatorFunction<Field> & poly,LinearOperatorBase<Field>& linop)
     : poly_{poly}, Linop_{linop} {}
+    using LinearFunction<Field>::operator();
     void operator()(const Field& in, Field& out)
     {
         poly_(Linop_,in,out);

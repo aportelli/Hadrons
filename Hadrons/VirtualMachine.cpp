@@ -116,7 +116,7 @@ void VirtualMachine::dbRestoreModules(void)
     {
         if (db_->tableExists("modules"))
         {
-            std::string prefix    = "Grid::Hadrons::";
+            std::string prefix    = "HADRONS_NAMESPACE::";
             auto        modTable  = db_->getTable<ModuleEntry>("modules", "ORDER BY moduleId");
            
             if (getNModule() > 0)
@@ -787,28 +787,18 @@ VirtualMachine::makeGarbageSchedule(const Program &p) const
     std::function<unsigned int(const unsigned int)> earliestTimeNoDep = 
     [&](const unsigned int a)
     {
-        if (env().getObjectStorage(a) == Environment::Storage::standard)
+        
+        auto pred = [a, this](const unsigned int b)
         {
-            auto pred = [a, this](const unsigned int b)
-            {
-                auto &in = module_[b].input;
-                auto it  = std::find(in.begin(), in.end(), a);
-                
-                return (it != in.end()) or (b == env().getObjectModule(a));
-            };
-            auto it = std::find_if(p.rbegin(), p.rend(), pred);
-            assert(it != p.rend());
+            auto &in = module_[b].input;
+            auto it  = std::find(in.begin(), in.end(), a);
+            
+            return (it != in.end()) or (b == env().getObjectModule(a));
+        };
+        auto it = std::find_if(p.rbegin(), p.rend(), pred);
+        assert(it != p.rend());
 
-            return std::distance(it, p.rend()) - 1;
-        }
-        else // only temporaries
-        {
-            auto it = std::find(p.begin(), p.end(), env().getObjectModule(a));
-
-            assert(it != p.end());
-
-            return std::distance(p.begin(), it);
-        }
+        return std::distance(it, p.rend()) - 1;
     };
 
     // earliest time to destroy object (taking dependencies into account)
@@ -828,8 +818,7 @@ VirtualMachine::makeGarbageSchedule(const Program &p) const
 
     for (unsigned int a = 0; a < env().getMaxAddress(); ++a)
     {
-        if (env().getObjectStorage(a) == Environment::Storage::temporary
-            or env().getObjectStorage(a) == Environment::Storage::standard)
+        if (env().getObjectStorage(a) == Environment::Storage::standard)
         {
             freeProg[earliestTime(a)].insert(a);
         }

@@ -4,4 +4,4 @@ using namespace Grid;
 using namespace Hadrons;
 using namespace MUtilities;
 
-template class Grid::Hadrons::MUtilities::TVectorPackRef<FIMPL::PropagatorField>;
+template class HADRONS_NAMESPACE::MUtilities::TVectorPackRef<FIMPL::PropagatorField>;

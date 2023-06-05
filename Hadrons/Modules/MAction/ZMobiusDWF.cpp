@@ -29,7 +29,7 @@ using namespace Grid;
 using namespace Hadrons;
 using namespace MAction;
 
-template class Grid::Hadrons::MAction::TZMobiusDWF<ZFIMPL>;
+template class HADRONS_NAMESPACE::MAction::TZMobiusDWF<ZFIMPL>;
 #ifdef GRID_DEFAULT_PRECISION_DOUBLE
-template class Grid::Hadrons::MAction::TZMobiusDWF<ZFIMPLF>;
+template class HADRONS_NAMESPACE::MAction::TZMobiusDWF<ZFIMPLF>;
 #endif

@@ -34,6 +34,7 @@
 #include <Hadrons/Module.hpp>
 #include <Hadrons/ModuleFactory.hpp>
 #include <Hadrons/TimerArray.hpp>
+#include <Hadrons/Serialization.hpp>
 
 BEGIN_HADRONS_NAMESPACE
 
@@ -167,7 +168,12 @@ int TMeson<FImpl1, FImpl2>::parseGammaString(std::map<Gamma::Algebra, std::vecto
 template <typename FImpl1, typename FImpl2>
 std::vector<std::string> TMeson<FImpl1, FImpl2>::getInput(void)
 {
-    std::vector<std::string> input = {par().q1, par().q2, par().sink};
+    std::vector<std::string> input = {par().q1, par().q2};
+
+    if (!par().sink.empty())
+    {
+        input.push_back(par().sink);
+    }
     
     return input;
 }
@@ -175,7 +181,7 @@ std::vector<std::string> TMeson<FImpl1, FImpl2>::getInput(void)
 template <typename FImpl1, typename FImpl2>
 std::vector<std::string> TMeson<FImpl1, FImpl2>::getOutput(void)
 {
-    std::vector<std::string> output = {};
+    std::vector<std::string> output = {getName()};
     
     return output;
 }
@@ -183,7 +189,10 @@ std::vector<std::string> TMeson<FImpl1, FImpl2>::getOutput(void)
 template <typename FImpl1, typename FImpl2>
 std::vector<std::string> TMeson<FImpl1, FImpl2>::getOutputFiles(void)
 {
-    std::vector<std::string> output = {resultFilename(par().output)};
+    std::vector<std::string> output;
+    
+    if (!par().output.empty())
+        output.push_back(resultFilename(par().output));
     
     return output;
 }
@@ -194,6 +203,7 @@ void TMeson<FImpl1, FImpl2>::setup(void)
 {
     envTmpLat(LatticeComplex, "c");
     envTmpLat(LatticePropagator, "q1Gq2");
+    envCreate(HadronsSerializable, getName(), 1, 0);
 }
 
 // execution ///////////////////////////////////////////////////////////////////
@@ -258,6 +268,10 @@ void TMeson<FImpl1, FImpl2>::execute(void)
         
         envGetTmp(LatticeComplex, c);
         envGetTmp(LatticePropagator, q1Gq2);
+        if (par().sink.empty())
+        {
+            HADRONS_ERROR(Definition, "no sink provided");
+        }
         LOG(Message) << "(using sink '" << par().sink << "')" << std::endl;
         unsigned int i = 0;
         for(auto &ss: gammaMap)
@@ -308,6 +322,8 @@ void TMeson<FImpl1, FImpl2>::execute(void)
     startTimer("I/O");
     saveResult(par().output, "meson", result);
     stopTimer("I/O");
+    auto &out = envGet(HadronsSerializable, getName());
+    out = result;
 }
 
 END_MODULE_NAMESPACE

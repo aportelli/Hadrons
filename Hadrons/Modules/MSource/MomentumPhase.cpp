@@ -29,5 +29,5 @@ using namespace Grid;
 using namespace Hadrons;
 using namespace MSource;
 
-template class Grid::Hadrons::MSource::TMomentumPhase<FIMPL>;
-template class Grid::Hadrons::MSource::TMomentumPhase<ZFIMPL>;
+template class HADRONS_NAMESPACE::MSource::TMomentumPhase<FIMPL>;
+template class HADRONS_NAMESPACE::MSource::TMomentumPhase<ZFIMPL>;

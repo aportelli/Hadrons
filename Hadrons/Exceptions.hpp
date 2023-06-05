@@ -42,26 +42,26 @@
     void* _callstack[HADRONS_BACKTRACE_MAX];\
     int _i, _frames = backtrace(_callstack, HADRONS_BACKTRACE_MAX);\
     char** _strs = backtrace_symbols(_callstack, _frames);\
-    Grid::Hadrons::Exceptions::backtraceStr.clear();\
+    HADRONS_NAMESPACE::Exceptions::backtraceStr.clear();\
     for (_i = 0; _i < _frames; ++_i)\
     {\
-        Hadrons::Exceptions::backtraceStr.push_back(std::string(_strs[_i]));\
+        HADRONS_NAMESPACE::Exceptions::backtraceStr.push_back(std::string(_strs[_i]));\
     }\
     free(_strs);\
 }
 #else
 #define HADRONS_CACHE_BACKTRACE \
-Grid::Hadrons::Exceptions::backtraceStr.clear();\
-Grid::Hadrons::Exceptions::backtraceStr.push_back("<backtrace not supported>");
+HADRONS_NAMESPACE::Exceptions::backtraceStr.clear();\
+HADRONS_NAMESPACE::Exceptions::backtraceStr.push_back("<backtrace not supported>");
 #endif
 
 #define HADRONS_ERROR(exc, msg)\
 HADRONS_CACHE_BACKTRACE \
-throw(Exceptions::exc(msg, HADRONS_SRC_LOC));
+throw(HADRONS_NAMESPACE::Exceptions::exc(msg, HADRONS_SRC_LOC));
 
 #define HADRONS_ERROR_REF(exc, msg, address)\
 HADRONS_CACHE_BACKTRACE \
-throw(Exceptions::exc(msg, HADRONS_SRC_LOC, address));
+throw(HADRONS_NAMESPACE::Exceptions::exc(msg, HADRONS_SRC_LOC, address));
 
 #define DECL_EXC(name, base) \
 class name: public base\

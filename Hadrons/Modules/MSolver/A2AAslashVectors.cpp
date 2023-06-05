@@ -29,5 +29,5 @@ using namespace Grid;
 using namespace Hadrons;
 using namespace MSolver;
 
-template class Grid::Hadrons::MSolver::TA2AAslashVectors<FIMPL>;
-template class Grid::Hadrons::MSolver::TA2AAslashVectors<ZFIMPL>;
+template class HADRONS_NAMESPACE::MSolver::TA2AAslashVectors<FIMPL>;
+template class HADRONS_NAMESPACE::MSolver::TA2AAslashVectors<ZFIMPL>;

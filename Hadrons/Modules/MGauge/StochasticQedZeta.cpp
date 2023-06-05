@@ -4,4 +4,4 @@ using namespace Grid;
 using namespace Hadrons;
 using namespace MGauge;
 
-template class Grid::Hadrons::MGauge::TStochasticQedZeta<vComplex>;
+template class HADRONS_NAMESPACE::MGauge::TStochasticQedZeta<vComplex>;

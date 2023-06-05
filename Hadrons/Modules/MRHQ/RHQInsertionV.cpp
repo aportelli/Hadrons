@@ -31,5 +31,5 @@ using namespace Grid;
 using namespace Hadrons;
 using namespace MRHQ;
 
-template class Grid::Hadrons::MRHQ::TRHQInsertionV<FIMPL, GIMPL>;
+template class HADRONS_NAMESPACE::MRHQ::TRHQInsertionV<FIMPL, GIMPL>;
 

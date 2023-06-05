@@ -29,8 +29,8 @@ using namespace Grid;
 using namespace Hadrons;
 using namespace MIO;
 
-template class Grid::Hadrons::MIO::TLoadField<FIMPL::PropagatorField>;
+template class HADRONS_NAMESPACE::MIO::TLoadField<FIMPL::PropagatorField>;
 #ifdef GRID_DEFAULT_PRECISION_DOUBLE
-template class Grid::Hadrons::MIO::TLoadField<FIMPL::PropagatorField, FIMPLF::PropagatorField>;
+template class HADRONS_NAMESPACE::MIO::TLoadField<FIMPL::PropagatorField, FIMPLF::PropagatorField>;
 #endif
-template class Grid::Hadrons::MIO::TLoadField<GIMPL::GaugeLinkField>;
+template class HADRONS_NAMESPACE::MIO::TLoadField<GIMPL::GaugeLinkField>;

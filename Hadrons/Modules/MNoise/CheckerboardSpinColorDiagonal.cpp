@@ -30,5 +30,5 @@ using namespace Grid;
 using namespace Hadrons;
 using namespace MNoise;
 
-template class Grid::Hadrons::MNoise::TCheckerboardSpinColorDiagonal<FIMPL>;
-template class Grid::Hadrons::MNoise::TCheckerboardSpinColorDiagonal<ZFIMPL>;
+template class HADRONS_NAMESPACE::MNoise::TCheckerboardSpinColorDiagonal<FIMPL>;
+template class HADRONS_NAMESPACE::MNoise::TCheckerboardSpinColorDiagonal<ZFIMPL>;

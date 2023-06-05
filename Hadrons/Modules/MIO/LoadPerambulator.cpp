@@ -30,4 +30,4 @@ using namespace Grid;
 using namespace Hadrons;
 using namespace MIO;
 
-template class Grid::Hadrons::MIO::TLoadPerambulator<FIMPL>;
+template class HADRONS_NAMESPACE::MIO::TLoadPerambulator<FIMPL>;

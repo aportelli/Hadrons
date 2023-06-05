@@ -31,5 +31,5 @@ using namespace Grid;
 using namespace Hadrons;
 using namespace MSource;
 
-template class Grid::Hadrons::MSource::TSeqGammaWall<FIMPL>;
-template class Grid::Hadrons::MSource::TSeqGammaWall<ZFIMPL>;
+template class HADRONS_NAMESPACE::MSource::TSeqGammaWall<FIMPL>;
+template class HADRONS_NAMESPACE::MSource::TSeqGammaWall<ZFIMPL>;

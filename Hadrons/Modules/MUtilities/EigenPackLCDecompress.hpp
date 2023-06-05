@@ -117,7 +117,8 @@ std::vector<std::string> TEigenPackLCDecompress<FImpl, nBasis, FImplIo>::getOutp
 template <typename FImpl, int nBasis, typename FImplIo>
 void TEigenPackLCDecompress<FImpl, nBasis, FImplIo>::setup(void)
 {    
-    GridBase *gridIo = nullptr, *gridCoarseIo = nullptr;
+    GridBase *gridIo = nullptr;
+    [[maybe_unused]] GridBase *gridCoarseIo = nullptr;
 
     auto blockSize = strToVec<int>(par().blockSize);
 
