@@ -43,6 +43,20 @@ std::string ModuleBase::getName(void) const
     return name_;
 }
 
+// random seed override for testing ////////////////////////////////////////////
+void ModuleBase::seedOverride(const std::string seed)
+{
+    if (!seed.empty())
+    {
+        doSeedOverride_ = true;
+        seedOverride_ = seed;
+    }
+    else
+    {
+        HADRONS_ERROR(Definition, "provided seed is empty");
+    }
+}
+
 // get factory registration name if available //////////////////////////////////
 std::string ModuleBase::getRegisteredName(void)
 {
@@ -91,6 +105,25 @@ void ModuleBase::operator()(void)
     generateResultDb();
 }
 
+// get seed ////////////////////////////////////////////////////////////////////
+std::string ModuleBase::getSeed(void)
+{
+    if (doSeedOverride_)
+    {
+        if (seedOverride_.empty())
+        {
+            HADRONS_ERROR(Definition, "seed is empty");
+        }
+        LOG(Warning) << "seed override: DO NOT USE THIS IN PRODUCTION" << std::endl;
+
+        return seedOverride_;
+    }
+    else
+    {
+        return makeSeedString();
+    }
+}
+
 // make module unique string ///////////////////////////////////////////////////
 std::string ModuleBase::makeSeedString(void)
 {
@@ -108,11 +141,12 @@ std::string ModuleBase::makeSeedString(void)
 // get RNGs seeded from module string //////////////////////////////////////////
 GridParallelRNG & ModuleBase::rng4d(void)
 {
-    auto &r = *env().get4dRng();
+    auto &r = *env().get4dRng();    
+    const std::string seed = getSeed();
 
-    if (makeSeedString() != seed_)
+    if (seed != seed_)
     {
-        seed_ = makeSeedString();
+        seed_ = seed;
         LOG(Message) << "Seeding 4D RNG " << &r << " with string '" 
                      << seed_ << "'" << std::endl;
         r.SeedUniqueString(seed_);
@@ -124,10 +158,11 @@ GridParallelRNG & ModuleBase::rng4d(void)
 GridSerialRNG & ModuleBase::rngSerial(void)
 {
     auto &r = *env().getSerialRng();
+    const std::string seed = getSeed();
 
-    if (makeSeedString() != seed_)
+    if (seed != seed_)
     {
-        seed_ = makeSeedString();
+        seed_ = seed;
         LOG(Message) << "Seeding Serial RNG " << &r << " with string '" 
                      << seed_ << "'" << std::endl;
         r.SeedUniqueString(seed_);
