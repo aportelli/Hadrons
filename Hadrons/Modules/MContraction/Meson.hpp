@@ -257,6 +257,8 @@ void TMeson<FImpl1, FImpl2>::execute(void)
                     result[i].corr[t] = TensorRemove(trace(mesonConnected(q1[t], q2[t], gSnk, gSrc)));
                 }
                 stopTimer("mesonConnected");
+                result[i].gamma_snk = gSnk.g;
+                result[i].gamma_src = gSrc.g;
                 i++;
             }
         }
