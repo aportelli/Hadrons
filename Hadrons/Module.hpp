@@ -174,6 +174,8 @@ public:
     virtual ~ModuleBase(void) = default;
     // access
     std::string getName(void) const;
+    // random seed override for testing
+    void seedOverride(const std::string seed);
     // get factory registration name if available
     virtual std::string getRegisteredName(void);
     // dependencies/products
@@ -227,10 +229,13 @@ protected:
     template <typename T>
     void saveResult(const std::string stem, const std::string name, const T &result) const;
 private:
+    // get seed
+    std::string getSeed(void);
     // make module unique string
     std::string makeSeedString(void);
 private:
-    std::string                             name_, currentTimer_, seed_, dbTable_;
+    bool                                    doSeedOverride_{false};
+    std::string                             name_, currentTimer_, seed_, seedOverride_, dbTable_;
     std::map<std::string, GridStopWatch>    timer_;
     Database                                *db_{nullptr};
     std::unique_ptr<SqlEntry>               entry_{nullptr};
