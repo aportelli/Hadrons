@@ -95,6 +95,9 @@ env().template getRbGrid<typename latticeType::vector_type>(Ls)
 #define envGetRbGrid(...)\
 HADRONS_MACRO_REDIRECT_12(__VA_ARGS__, envGetRbGrid5, envGetRbGrid4)(__VA_ARGS__)
 
+#define envGetSliceGrid(latticeType, orthDim)\
+env().template getSliceGrid<typename latticeType::vector_type>(orthDim)
+
 #define envGet(type, name)\
 *env().template getObject<type>(name)
 
@@ -106,6 +109,9 @@ type &var = *env().template getObject<type>(getName() + "_tmp_" + #var)
 
 #define envHasType(type, name)\
 env().template isObjectOfType<type>(name)
+
+#define envHasDerivedType(base, type, name)\
+env().template isObjectOfDerivedType<base, type>(name)
 
 #define envCreate(type, name, Ls, ...)\
 env().template createObject<type>(name, Environment::Storage::standard, Ls, __VA_ARGS__)
@@ -150,6 +156,8 @@ HADRONS_MACRO_REDIRECT_23(__VA_ARGS__, envTmpLat5, envTmpLat4)(__VA_ARGS__)
 /******************************************************************************
  *                            Module class                                    *
  ******************************************************************************/
+typedef std::multimap<std::string, std::string> DependencyMap;
+
 // base class
 class ModuleBase: public TimerArray
 {
@@ -166,18 +174,20 @@ public:
     virtual ~ModuleBase(void) = default;
     // access
     std::string getName(void) const;
+    // random seed override for testing
+    void seedOverride(const std::string seed);
     // get factory registration name if available
     virtual std::string getRegisteredName(void);
     // dependencies/products
     virtual std::vector<std::string> getInput(void) = 0;
-    virtual std::vector<std::string> getReference(void)
-    {
-        return std::vector<std::string>(0);
-    };
     virtual std::vector<std::string> getOutput(void) = 0;
     virtual std::vector<std::string> getOutputFiles(void)
     {
         return std::vector<std::string>(0);
+    };
+    virtual DependencyMap getObjectDependencies(void)
+    {
+        return DependencyMap();
     };
     // parse parameters
     virtual void parseParameters(XmlReader &reader, const std::string name) = 0;
@@ -219,10 +229,13 @@ protected:
     template <typename T>
     void saveResult(const std::string stem, const std::string name, const T &result) const;
 private:
+    // get seed
+    std::string getSeed(void);
     // make module unique string
     std::string makeSeedString(void);
 private:
-    std::string                             name_, currentTimer_, seed_, dbTable_;
+    bool                                    doSeedOverride_{false};
+    std::string                             name_, currentTimer_, seed_, seedOverride_, dbTable_;
     std::map<std::string, GridStopWatch>    timer_;
     Database                                *db_{nullptr};
     std::unique_ptr<SqlEntry>               entry_{nullptr};

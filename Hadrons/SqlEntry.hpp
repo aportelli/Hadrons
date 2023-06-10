@@ -328,7 +328,7 @@ SqlEntry::sqlType(void)
 /******************************************************************************
  *                 "Macro Magic" for SQL entry class declarations             *
  ******************************************************************************/
-#define HADRONS_SQL_MEMBER(A, B)      CppType<A>::type B;
+#define HADRONS_SQL_MEMBER(A, B)      HADRONS_NAMESPACE::CppType<A>::type B;
 #define HADRONS_SQL_BOOL_MEMBER(A, B) bool B{false};
 #define HADRONS_SQL_SCHEMA(A, B)      schema += std::string(#B) + " " + sqlType<A>() + ",";
 #define HADRONS_SQL_INSERT(A, B)\
@@ -338,7 +338,7 @@ if (nullify.B)\
 }\
 else\
 {\
-    if (sqlType<CppType<A>::type>() == "TEXT")\
+    if (sqlType<HADRONS_NAMESPACE::CppType<A>::type>() == "TEXT")\
     {\
         std::string s;\
         s = sqlStrFrom(B);\
@@ -357,7 +357,7 @@ else\
     }\
 }\
 list += ",";
-#define HADRONS_SQL_DESERIALIZE(A, B) B = sqlStrTo<CppType<A>::type>(*it); it++;
+#define HADRONS_SQL_DESERIALIZE(A, B) B = sqlStrTo<HADRONS_NAMESPACE::CppType<A>::type>(*it); it++;
 #define HADRONS_SQL_COUNT(A, B) c++;
 
 #define HADRONS_SQL_FIELDS(...)\

@@ -4,4 +4,4 @@ using namespace Grid;
 using namespace Hadrons;
 using namespace ___NAMESPACE___;
 
-template class Grid::Hadrons::___NAMESPACE___::T___FILEBASENAME___<FIMPL>;
+template class HADRONS_NAMESPACE::___NAMESPACE___::T___FILEBASENAME___<FIMPL>;

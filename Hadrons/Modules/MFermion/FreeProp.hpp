@@ -39,7 +39,7 @@
 BEGIN_HADRONS_NAMESPACE
 
 /******************************************************************************
- *                         FreeProp                                 *
+ *                        Free fermion propagator                             *
  ******************************************************************************/
 BEGIN_MODULE_NAMESPACE(MFermion)
 
@@ -48,10 +48,11 @@ class FreePropPar: Serializable
 public:
     GRID_SERIALIZABLE_CLASS_MEMBERS(FreePropPar,
                                     std::string, source,
-				    std::string,  action,
-				    double, mass,
+				                    std::string,  action,
+				                    double, mass,
                                     std::string , boundary,
-				    std::string,  twist);
+				                    std::string,  twist,
+                                    std::string, outputTrace);
 };
 
 template <typename FImpl>
@@ -59,6 +60,19 @@ class TFreeProp: public Module<FreePropPar>
 {
 public:
     FERM_TYPE_ALIASES(FImpl,);
+    typedef typename SpinMatrixField::scalar_object SpinMatrix;
+    typedef Correlator<std::string, Complex>        ScalarResult;
+    typedef Correlator<std::string, SpinMatrix>     SpinResult;
+    class Result: Serializable
+    {
+        public:
+            GRID_SERIALIZABLE_CLASS_MEMBERS(Result,
+                                            double,                    mass,
+                                            std::vector<ComplexD>,     boundary,
+                                            std::vector<double>,       twist,
+                                            SpinResult,                full,
+                                            std::vector<ScalarResult>, tr);
+    };
 public:
     // constructor
     TFreeProp(const std::string name);
@@ -67,6 +81,7 @@ public:
     // dependency relation
     virtual std::vector<std::string> getInput(void);
     virtual std::vector<std::string> getOutput(void);
+    virtual std::vector<std::string> getOutputFiles(void);
 protected:
     // setup
     virtual void setup(void);
@@ -79,7 +94,7 @@ private:
 MODULE_REGISTER_TMP(FreeProp, TFreeProp<FIMPL>, MFermion);
 
 /******************************************************************************
- *                 TFreeProp implementation                             *
+ *                         TFreeProp implementation                           *
  ******************************************************************************/
 // constructor /////////////////////////////////////////////////////////////////
 template <typename FImpl>
@@ -104,6 +119,17 @@ std::vector<std::string> TFreeProp<FImpl>::getOutput(void)
     return out;
 }
 
+template <typename FImpl>
+std::vector<std::string> TFreeProp<FImpl>::getOutputFiles(void)
+{
+    std::vector<std::string> output;
+    
+    if (!par().outputTrace.empty())
+        output.push_back(resultFilename(par().outputTrace));
+    
+    return output;
+}
+
 // setup ///////////////////////////////////////////////////////////////////////
 template <typename FImpl>
 void TFreeProp<FImpl>::setup(void)
@@ -124,7 +150,12 @@ void TFreeProp<FImpl>::setup(void)
     if (Ls_ > 1)
     {
         envCreateLat(PropagatorField, getName() + "_5d", Ls_);
-    }    
+    } 
+    if (!par().outputTrace.empty())
+    {
+        envTmpLat(ComplexField, "c");
+        envTmpLat(SpinMatrixField, "cSpin");
+    }
 }
 
 // execution ///////////////////////////////////////////////////////////////////
@@ -144,10 +175,10 @@ void TFreeProp<FImpl>::execute(void)
     envGetTmp(FermionField, sol);
     envGetTmp(FermionField, tmp);
     LOG(Message) << "Calculating a free Propagator with mass " << mass 
-		 << " using the action '" << par().action
+		         << " using the action '" << par().action
                  << "' on source '" << par().source << "'" << std::endl;
     for (unsigned int s = 0; s < Ns; ++s)
-      for (unsigned int c = 0; c < FImpl::Dimension; ++c)
+    for (unsigned int c = 0; c < FImpl::Dimension; ++c)
     {
         LOG(Message) << "Calculation for spin= " << s << ", color= " << c
                      << std::endl;
@@ -177,17 +208,17 @@ void TFreeProp<FImpl>::execute(void)
             }
         }
         sol = Zero();
-	std::vector<double> twist = strToVec<double>(par().twist);
-	if(twist.size() != Nd)
-	{
-	    HADRONS_ERROR(Size, "number of twist angles does not match number of dimensions");
-	}
-	std::vector<Complex> boundary = strToVec<Complex>(par().boundary);
-	if(boundary.size() != Nd)
-	{
-	    HADRONS_ERROR(Size, "number of boundary conditions does not match number of dimensions");
-	}
-	mat.FreePropagator(source,sol,mass,boundary,twist);
+        std::vector<double> twist = strToVec<double>(par().twist);
+        if(twist.size() != Nd)
+        {
+            HADRONS_ERROR(Size, "number of twist angles does not match number of dimensions");
+        }
+        std::vector<Complex> boundary = strToVec<Complex>(par().boundary);
+        if(boundary.size() != Nd)
+        {
+            HADRONS_ERROR(Size, "number of boundary conditions does not match number of dimensions");
+        }
+	    mat.FreePropagator(source,sol,mass,boundary,twist);
         FermToProp<FImpl>(prop, sol, s, c);
         // create 4D propagators from 5D one if necessary
         if (Ls_ > 1)
@@ -196,6 +227,40 @@ void TFreeProp<FImpl>::execute(void)
             mat.ExportPhysicalFermionSolution(sol, tmp);
             FermToProp<FImpl>(p4d, tmp, s, c);
         }
+    }
+    if (!par().outputTrace.empty())
+    {
+        PropagatorField       &p4d = envGet(PropagatorField, getName());
+        Gamma                 gt(Gamma::Algebra::GammaT);
+        Result                result;
+        std::vector<TComplex> buf;
+
+        envGetTmp(ComplexField, c);
+        envGetTmp(SpinMatrixField, cSpin);
+        cSpin = peekColour(p4d, 0, 0);
+        result.mass     = par().mass;
+        result.boundary = strToVec<ComplexD>(par().boundary);
+        result.twist    = strToVec<double>(par().twist);
+        sliceSum(cSpin, result.full.corr, Tp);
+        result.full.info = "full spin";
+        c = trace(p4d);
+        sliceSum(c, buf, Tp);
+        result.tr.resize(2);
+        result.tr[0].info = "tr(S)";
+        result.tr[0].corr.resize(buf.size());
+        for (unsigned int t = 0; t < buf.size(); ++t)
+        {
+            result.tr[0].corr[t] = TensorRemove(buf[t]);
+        }
+        c = trace(gt*p4d);
+        sliceSum(c, buf, Tp);
+        result.tr[1].info = "tr(GammaT*S)";
+        result.tr[1].corr.resize(buf.size());
+        for (unsigned int t = 0; t < buf.size(); ++t)
+        {
+            result.tr[1].corr[t] = TensorRemove(buf[t]);
+        }
+        saveResult(par().outputTrace, "freeProp", result);
     }
 }
 

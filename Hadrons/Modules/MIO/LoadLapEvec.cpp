@@ -29,4 +29,5 @@ using namespace Grid;
 using namespace Hadrons;
 using namespace MIO;
 
-template class Grid::Hadrons::MIO::TLoadLapEvec<FIMPL>;
+template class HADRONS_NAMESPACE::MIO::TLoadLapEvec<FIMPL>;
+

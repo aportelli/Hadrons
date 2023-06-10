@@ -25,6 +25,7 @@
 /*  END LEGAL */
 #include <Hadrons/Modules/MScalar/ChargedProp.hpp>
 #include <Hadrons/Modules/MScalar/Scalar.hpp>
+#include <Hadrons/Serialization.hpp>
 
 using namespace Grid;
 using namespace Hadrons;
@@ -41,17 +42,12 @@ TChargedProp::TChargedProp(const std::string name)
 // dependencies/products ///////////////////////////////////////////////////////
 std::vector<std::string> TChargedProp::getInput(void)
 {
-    std::vector<std::string> in = {par().source, par().emField};
-    
-    return in;
+    return {par().source, par().emField};
 }
 
 std::vector<std::string> TChargedProp::getOutput(void)
 {
-    std::vector<std::string> out = {getName(), getName()+"_0", getName()+"_Q",
-                                    getName()+"_Sun", getName()+"_Tad"};
-    
-    return out;
+    return {getName(), getName()+"_0", getName()+"_Q", getName()+"_Sun", getName()+"_Tad", getName()+"_projections"};
 }
 
 // setup ///////////////////////////////////////////////////////////////////////
@@ -85,6 +81,7 @@ void TChargedProp::setup(void)
     envCreateLat(ScalarField, propQName_);
     envCreateLat(ScalarField, propSunName_);
     envCreateLat(ScalarField, propTadName_);
+    envCreate(HadronsSerializable, getName()+"_projections", 1, 0);
     envTmpLat(ScalarField, "buf");
     envTmpLat(ScalarField, "result");
     envTmpLat(ScalarField, "Amu");
@@ -135,59 +132,59 @@ void TChargedProp::execute(void)
     fft.FFT_dim(buf, GFSrc, env().getNd()-1, FFT::backward);
     prop = buf + q*propQ + q*q*propSun + q*q*propTad;
 
-    // OUTPUT IF NECESSARY
-    if (!par().output.empty())
+    // output selected momenta
+    Result result;
+    TComplex            site;
+    std::vector<int>    siteCoor;
+
+    LOG(Message) << "Saving momentum-projected propagator to file '"
+                 << resultFilename(par().output) << "' and object '"
+                 << getName()+"_projections" << "'..." << std::endl;
+    result.projection.resize(par().outputMom.size());
+    result.lattice_size = env().getGrid()->FullDimensions().toVector();
+    result.mass = par().mass;
+    result.charge = q;
+    auto nd = env().getNd();
+    auto nt = env().getGrid()->FullDimensions()[nd-1];
+    siteCoor.resize(nd);
+    for (unsigned int i_p = 0; i_p < par().outputMom.size(); ++i_p)
     {
-        Result result;
-        TComplex            site;
-        std::vector<int>    siteCoor;
+        result.projection[i_p].momentum = strToVec<int>(par().outputMom[i_p]);
 
-        LOG(Message) << "Saving momentum-projected propagator to '"
-                     << resultFilename(par().output) << "'..."
-                     << std::endl;
-        result.projection.resize(par().outputMom.size());
-        result.lattice_size = env().getGrid()->FullDimensions().toVector();
-        result.mass = par().mass;
-        result.charge = q;
-        siteCoor.resize(env().getNd());
-        for (unsigned int i_p = 0; i_p < par().outputMom.size(); ++i_p)
+        LOG(Message) << "Calculating (" << par().outputMom[i_p]
+                     << ") momentum projection" << std::endl;
+
+        result.projection[i_p].corr_0.resize(nt);
+        result.projection[i_p].corr.resize(nt);
+        result.projection[i_p].corr_Q.resize(nt);
+        result.projection[i_p].corr_Sun.resize(nt);
+        result.projection[i_p].corr_Tad.resize(nt);
+
+        for (unsigned int j = 0; j < nd-1; ++j)
         {
-            result.projection[i_p].momentum = strToVec<int>(par().outputMom[i_p]);
-
-            LOG(Message) << "Calculating (" << par().outputMom[i_p]
-                         << ") momentum projection" << std::endl;
-
-            result.projection[i_p].corr_0.resize(env().getGrid()->FullDimensions()[env().getNd()-1]);
-            result.projection[i_p].corr.resize(env().getGrid()->FullDimensions()[env().getNd()-1]);
-            result.projection[i_p].corr_Q.resize(env().getGrid()->FullDimensions()[env().getNd()-1]);
-            result.projection[i_p].corr_Sun.resize(env().getGrid()->FullDimensions()[env().getNd()-1]);
-            result.projection[i_p].corr_Tad.resize(env().getGrid()->FullDimensions()[env().getNd()-1]);
-
-            for (unsigned int j = 0; j < env().getNd()-1; ++j)
-            {
-                siteCoor[j] = result.projection[i_p].momentum[j];
-            }
-
-            for (unsigned int t = 0; t < result.projection[i_p].corr.size(); ++t)
-            {
-                siteCoor[env().getNd()-1] = t;
-                peekSite(site, prop, siteCoor);
-                result.projection[i_p].corr[t]=TensorRemove(site);
-                peekSite(site, buf, siteCoor);
-                result.projection[i_p].corr_0[t]=TensorRemove(site);
-                peekSite(site, propQ, siteCoor);
-                result.projection[i_p].corr_Q[t]=TensorRemove(site);
-                peekSite(site, propSun, siteCoor);
-                result.projection[i_p].corr_Sun[t]=TensorRemove(site);
-                peekSite(site, propTad, siteCoor);
-                result.projection[i_p].corr_Tad[t]=TensorRemove(site);
-            }
+            siteCoor[j] = result.projection[i_p].momentum[j];
         }
-        saveResult(par().output, "prop", result);
-    }
 
-    std::vector<int> mask(env().getNd(),1);
-    mask[env().getNd()-1] = 0;
+        for (unsigned int t = 0; t < result.projection[i_p].corr.size(); ++t)
+        {
+            siteCoor[nd-1] = t;
+            peekSite(site, prop, siteCoor);
+            result.projection[i_p].corr[t]=TensorRemove(site);
+            peekSite(site, buf, siteCoor);
+            result.projection[i_p].corr_0[t]=TensorRemove(site);
+            peekSite(site, propQ, siteCoor);
+            result.projection[i_p].corr_Q[t]=TensorRemove(site);
+            peekSite(site, propSun, siteCoor);
+            result.projection[i_p].corr_Sun[t]=TensorRemove(site);
+            peekSite(site, propTad, siteCoor);
+            result.projection[i_p].corr_Tad[t]=TensorRemove(site);
+        }
+    }
+    saveResult(par().output, "prop", result);
+    envGet(HadronsSerializable, getName()+"_projections") = result;
+
+    std::vector<int> mask(nd,1);
+    mask[nd-1] = 0;
     fft.FFT_dim_mask(prop, prop, mask, FFT::backward);
     fft.FFT_dim_mask(propQ, propQ, mask, FFT::backward);
     fft.FFT_dim_mask(propSun, propSun, mask, FFT::backward);

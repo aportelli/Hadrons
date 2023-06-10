@@ -20,8 +20,10 @@
       <restoreMemoryProfile>false</restoreMemoryProfile>
       <!-- restore schedule from application DB? -->
       <restoreSchedule>false</restoreSchedule>
-      <!-- produce statistics DB? -->
-      <makeStatDb>true</makeStatDb>
+      <!-- statistics DB stem (deactivated if empty)? -->
+      <statDbBase>./foo</statDbBase>
+      <!-- statistics DB sampling interval in ms -->
+      <statDbPeriodMs>500</statDbPeriodMs>
     </database>
     <!-- genetic scheduler parameters -->
     <genetic>
@@ -34,6 +36,10 @@
       <!-- mutation rate -->
       <mutationRate>0.1</mutationRate>
     </genetic>
+    <!-- scheduler type (naive or genetic) -->
+    <scheduler>
+      <schedulerType>genetic</schedulerType>
+    </scheduler>
     <!-- run id (is part of seed for random numbers!) -->
     <runId>id</runId>
     <!-- output GraphViz file if not empty -->

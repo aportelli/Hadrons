@@ -30,26 +30,20 @@ using namespace Grid;
 using namespace Hadrons;
 using namespace MDistil;
 
-template class Grid::Hadrons::MDistil::TPerambulator<FIMPL>;
-template class Grid::Hadrons::MDistil::TPerambulator<ZFIMPL>;
+template class HADRONS_NAMESPACE::MDistil::TPerambulator<FIMPL>;
+template class HADRONS_NAMESPACE::MDistil::TPerambulator<ZFIMPL>;
 
 BEGIN_HADRONS_NAMESPACE
 
 // Global constants for distillation
 
-#ifdef HAVE_HDF5
-extern const std::string NamedTensorFileExtension{".h5"};
-#else
-extern const std::string NamedTensorFileExtension{".dat"};
-#endif
-
 BEGIN_MODULE_NAMESPACE(MDistil)
-
-const std::string                NoiseTensor::Name__{"Noises"};
-const std::array<std::string, 4> NoiseTensor::DefaultIndexNames__{"nNoise", "nT", "nVec", "nS"};
 
 const std::string                PerambTensor::Name__{"Perambulator"};
 const std::array<std::string, 6> PerambTensor::DefaultIndexNames__{"nT", "nVec", "LI", "nNoise", "nT_inv", "SI"};
+
+const std::string                PerambIndexTensor::Name__{"Perambulator"};
+const std::array<std::string, 5> PerambIndexTensor::DefaultIndexNames__{"nT", "nVec", "nDL", "nNoise", "nDS"};
 
 const std::string                TimesliceEvals::Name__{"TimesliceEigenValues"};
 const std::array<std::string, 2> TimesliceEvals::DefaultIndexNames__{"nT", "nVec"};

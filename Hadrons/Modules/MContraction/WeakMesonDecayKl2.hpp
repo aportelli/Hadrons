@@ -34,6 +34,7 @@
 #include <Hadrons/Global.hpp>
 #include <Hadrons/Module.hpp>
 #include <Hadrons/ModuleFactory.hpp>
+#include <Hadrons/Serialization.hpp>
 
 BEGIN_HADRONS_NAMESPACE
 
@@ -129,7 +130,7 @@ std::vector<std::string> TWeakMesonDecayKl2<FImpl>::getInput(void)
 template <typename FImpl>
 std::vector<std::string> TWeakMesonDecayKl2<FImpl>::getOutput(void)
 {
-    std::vector<std::string> output = {};
+    std::vector<std::string> output = {getName()};
     
     return output;
 }
@@ -137,7 +138,10 @@ std::vector<std::string> TWeakMesonDecayKl2<FImpl>::getOutput(void)
 template <typename FImpl>
 std::vector<std::string> TWeakMesonDecayKl2<FImpl>::getOutputFiles(void)
 {
-    std::vector<std::string> output = {resultFilename(par().output)};
+    std::vector<std::string> output;
+    
+    if (!par().output.empty())
+        output.push_back(resultFilename(par().output));
     
     return output;
 }
@@ -147,9 +151,10 @@ template <typename FImpl>
 void TWeakMesonDecayKl2<FImpl>::setup(void)
 {
     envTmpLat(ComplexField, "c");
-    envTmpLat(PropagatorField, "prop_buf");
-    envCreateLat(PropagatorField, getName());
+    envTmpLat(PropagatorField, "res_buf");
     envTmpLat(SpinMatrixField, "buf");
+    envCreate(HadronsSerializable, getName(), 1, 0);
+    envTmpLat(LatticeComplex, "coor");
 }
 
 // execution ///////////////////////////////////////////////////////////////////
@@ -165,26 +170,26 @@ void TWeakMesonDecayKl2<FImpl>::execute(void)
     std::vector<SpinMatrix> res_summed;
     Result                  r;
 
-    auto &res    = envGet(PropagatorField, getName()); res = Zero();
     auto &q1     = envGet(PropagatorField, par().q1);
     auto &q2     = envGet(PropagatorField, par().q2);
     auto &lepton = envGet(PropagatorField, par().lepton);
     envGetTmp(SpinMatrixField, buf);
     envGetTmp(ComplexField, c);
-    envGetTmp(PropagatorField, prop_buf);  
-
+    envGetTmp(PropagatorField, res_buf); res_buf = Zero();
+    
     for (unsigned int mu = 0; mu < 4; ++mu)
     {
         c = Zero();
         //hadronic part: trace(q1*adj(q2)*g5*gL[mu]) 
         c = trace(q1*adj(q2)*g5*GammaL(Gamma::gmu[mu]));
-        prop_buf = 1.;
         //multiply lepton part
-        res += c * prop_buf * GammaL(Gamma::gmu[mu]) * lepton;
+        res_buf += c * (GammaL(Gamma::gmu[mu]) * lepton);
     }
-    buf = peekColour(res, 0, 0);
+    buf = peekColour(res_buf, 0, 0);
     sliceSum(buf, r.corr, Tp);
     saveResult(par().output, "weakdecay", r);
+    auto &out = envGet(HadronsSerializable, getName());
+    out = r;
 }
 
 END_MODULE_NAMESPACE

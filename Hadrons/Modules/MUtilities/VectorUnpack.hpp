@@ -5,6 +5,7 @@
  *
  * Author: Antonin Portelli <antonin.portelli@me.com>
  * Author: Fionn O hOgain <fionn.o.hogain@ed.ac.uk>
+ * Author: Michael Marshall <michael.marshall@ed.ac.uk>
  *
  * Hadrons is free software: you can redistribute it and/or modify
  * it under the terms of the GNU General Public License as published by
@@ -43,7 +44,8 @@ class VectorUnpackPar: Serializable
 public:
     GRID_SERIALIZABLE_CLASS_MEMBERS(VectorUnpackPar,
                                     std::string,  input,
-                                    unsigned int, size);
+                                    unsigned int, size,
+                                    std::vector<std::string>, fields);
 };
 
 template <typename Field>
@@ -61,6 +63,15 @@ public:
     virtual void setup(void);
     // execution
     virtual void execute(void);
+protected:
+    inline std::string getPackedName(unsigned int n) const
+    {
+        if (n < par().fields.size())
+        {
+            return par().fields[n];
+        }
+        return getName() + "_" + std::to_string(n);
+    }
 };
 
 MODULE_REGISTER_TMP(ComplexVectorUnpack, TVectorUnpack<FIMPL::ComplexField>, MUtilities);
@@ -89,12 +100,10 @@ template <typename Field>
 std::vector<std::string> TVectorUnpack<Field>::getOutput(void)
 {
     std::vector<std::string> out;
-
     for (unsigned int i = 0; i < par().size; ++i)
     {
-        out.push_back(getName() + "_" + std::to_string(i));
+        out.push_back(getPackedName(i));
     }
-    
     return out;
 }
 
@@ -107,16 +116,24 @@ void TVectorUnpack<Field>::setup(void)
     auto         *grid = vec[0].Grid();
 
     if (vec.size() != par().size)
-        {
-            HADRONS_ERROR(Size,"Mismatch between vector size ("
-                                + std::to_string(vec.size())
-                                + ") and module parameter size ("
-                                + std::to_string(par().size) + ").");
-        }
+    {
+        HADRONS_ERROR(Size,"Mismatch between vector size ("
+                            + std::to_string(vec.size())
+                            + ") and module parameter size ("
+                            + std::to_string(par().size) + ").");
+    }
+
+    if (par().fields.size() && par().fields.size() != vec.size())
+    {
+        HADRONS_ERROR(Size,"Mismatch between vector size ("
+                            + std::to_string(vec.size())
+                            + ") and number of field names ("
+                            + std::to_string(par().fields.size()) + ").");
+    }
 
     for (unsigned int i = 0; i < vec.size(); ++i)
     {
-        envCreate(Field, getName() + "_" + std::to_string(i), Ls, grid);
+        envCreate(Field, getPackedName(i), Ls, grid);
     }
 }
 
@@ -129,7 +146,7 @@ void TVectorUnpack<Field>::execute(void)
     LOG(Message) << "Unpacking vector '" << par().input << "'" << std::endl;
     for (unsigned int i = 0; i < vec.size(); ++i)
     {
-        auto &veci = envGet(Field, getName() + "_" + std::to_string(i));
+        auto &veci = envGet(Field, getPackedName(i));
 
         veci = vec[i];
     }

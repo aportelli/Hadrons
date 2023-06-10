@@ -1,16 +1,23 @@
 #!/usr/bin/env bash
-set -e
+
+set -euo pipefail
+
+sqlite_link="https://www.sqlite.org/2023/sqlite-amalgamation-3410200.zip"
+sha256='01df06a84803c1ab4d62c64e995b151b2dbcf5dbc93bbc5eee213cb18225d987'
 
 echo '-- generating module list...'
 cd Hadrons
 ./make_module_list.sh
 cd ..
 echo '-- downloading SQLite...'
-wget https://www.sqlite.org/2020/sqlite-amalgamation-3310100.zip
-unzip sqlite-amalgamation-3310100.zip
+wget ${sqlite_link}
+archive="$(basename ${sqlite_link})"
+folder="${archive%.*}"
+echo "${sha256} ${archive}" | sha256sum --check
+unzip "${archive}"
 mkdir -p Hadrons/sqlite/
-mv sqlite-amalgamation-3310100/sqlite3* Hadrons/sqlite/
-rm -rf sqlite-amalgamation-3310100 sqlite-amalgamation-3310100.zip
+mv "${folder}"/sqlite3* Hadrons/sqlite/
+rm -rf "${folder}" "${archive}"
 echo '-- generating configure script...'
 mkdir -p .buildutils/m4
 autoreconf -fvi

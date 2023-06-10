@@ -33,6 +33,7 @@
 #include <Hadrons/Global.hpp>
 #include <Hadrons/Module.hpp>
 #include <Hadrons/ModuleFactory.hpp>
+#include <Hadrons/Solver.hpp>
 
 BEGIN_HADRONS_NAMESPACE
 
@@ -51,7 +52,10 @@ BEGIN_HADRONS_NAMESPACE
 *
 *
 * options:
+*  - feynmanRules (bool): True if free propagator calculated with Feynman Rules
+*				false for using a solver
 *  - action: fermion action used for propagator (string)
+*  - solver: solver for the propagator. Only needed if FeynmanRules=false
 *  - emField: photon field A_mu (string)
 *  - mass: input mass for the lepton propagator
 *  - boundary: boundary conditions for the lepton propagator, e.g. "1 1 1 -1"
@@ -70,10 +74,12 @@ class EMLeptonPar: Serializable
 {
 public:
     GRID_SERIALIZABLE_CLASS_MEMBERS(EMLeptonPar,
+				    bool, feynmanRules,
 				    std::string,  action,
+				    std::string, solver,
 				    std::string, emField,
 				    double, mass,
-                                    std::string , boundary,
+                    std::string , boundary,
 				    std::string,  twist,
 				    std::vector<unsigned int>, deltat);
 };
@@ -83,6 +89,7 @@ class TEMLepton: public Module<EMLeptonPar>
 {
 public:
     FERM_TYPE_ALIASES(FImpl,);
+    SOLVER_TYPE_ALIASES(FImpl,);
 public:
     typedef PhotonR::GaugeField     EmField;
 public:
@@ -100,6 +107,7 @@ protected:
     virtual void execute(void);
 private:
     unsigned int Ls_;
+    Solver       *solver_{nullptr};
 };
 
 MODULE_REGISTER_TMP(EMLepton, TEMLepton<FIMPL>, MFermion);
@@ -118,6 +126,7 @@ template <typename FImpl>
 std::vector<std::string> TEMLepton<FImpl>::getInput(void)
 {
     std::vector<std::string> in = {par().action, par().emField};
+    if(!par().feynmanRules) in.push_back(par().solver);
     
     return in;
 }
@@ -128,8 +137,8 @@ std::vector<std::string> TEMLepton<FImpl>::getOutput(void)
     std::vector<std::string> out = {};
     for(int i=0; i<par().deltat.size(); i++)
     {
-	out.push_back(std::to_string(par().deltat[i]) + "_" + getName() + "_free");
-	out.push_back(std::to_string(par().deltat[i]) + "_" + getName());
+	    out.push_back(getName() + "_free_" + std::to_string(par().deltat[i]));
+	    out.push_back(getName() + "_" + std::to_string(par().deltat[i]));
     }
     
     return out;
@@ -139,11 +148,12 @@ std::vector<std::string> TEMLepton<FImpl>::getOutput(void)
 template <typename FImpl>
 void TEMLepton<FImpl>::setup(void)
 {
-    Ls_ = env().getObjectLs(par().action);
+    if(par().feynmanRules) Ls_ = env().getObjectLs(par().action);
+    else Ls_ = env().getObjectLs(par().solver);
     for(int i=0; i<par().deltat.size(); i++)
     {
-	envCreateLat(PropagatorField, std::to_string(par().deltat[i]) + "_" + getName() + "_free");
-	envCreateLat(PropagatorField, std::to_string(par().deltat[i]) + "_" + getName());
+	    envCreateLat(PropagatorField, getName() + "_free_" + std::to_string(par().deltat[i]));
+	    envCreateLat(PropagatorField, getName() + "_" + std::to_string(par().deltat[i]));
     }
     envTmpLat(FermionField, "source", Ls_);
     envTmpLat(FermionField, "sol", Ls_);
@@ -152,6 +162,7 @@ void TEMLepton<FImpl>::setup(void)
     envTmpLat(PropagatorField, "proptmp");
     envTmpLat(PropagatorField, "freetmp");
     envTmp(Lattice<iScalar<vInteger>>, "tlat",1, envGetGrid(LatticeComplex));
+    envTmpLat(LatticeComplex, "coor");
 
 }
 
@@ -163,16 +174,28 @@ void TEMLepton<FImpl>::execute(void)
                  << std::endl;
     
     auto        &mat = envGet(FMat, par().action);
+    if(!par().feynmanRules)
+    {
+	auto &solver  = envGet(Solver, par().solver);
+	auto &mat     = solver.getFMat();
+    }
     RealD mass = par().mass;
     Complex ci(0.0,1.0);
     
     envGetTmp(FermionField, source);
     envGetTmp(FermionField, sol);
     envGetTmp(FermionField, tmp);
-    LOG(Message) << "Calculating a lepton Propagator with sequential Aslash insertion with lepton mass " 
-                 << mass << " using the action '" << par().action
+    if(par().feynmanRules){
+         LOG(Message) << "Calculating a lepton Propagator with sequential Aslash insertion with lepton mass "
+                 << mass << " using Feynman rules for the action '" << par().action
                  << "' for fixed source-sink separation of " << par().deltat << std::endl;
-
+    }
+    else{
+         LOG(Message) << "Calculating a lepton Propagator with sequential Aslash insertion with lepton mass "
+                 << mass << " using the solver '" << par().solver
+                 << "' for fixed source-sink separation of " << par().deltat << std::endl;
+    }
+    LOG(Message) << "Momenta: twist [" << par().twist << "]" << std::endl;
     envGetTmp(Lattice<iScalar<vInteger>>, tlat);
     LatticeCoordinate(tlat, Tp);
 
@@ -209,22 +232,30 @@ void TEMLepton<FImpl>::execute(void)
     for (unsigned int s = 0; s < Ns; ++s)
     {
         LOG(Message) << "Calculation for spin= " << s << std::endl;
-	if (Ls_ == 1)
-	{
-	    PropToFerm<FImpl>(source, sourcetmp, s, 0);
-	}
-	else
-	{
-	    PropToFerm<FImpl>(tmp, sourcetmp, s, 0);
-	    // 5D source if action is 5d
+        if (Ls_ == 1)
+        {
+            PropToFerm<FImpl>(source, sourcetmp, s, 0);
+        }
+        else
+        {
+            PropToFerm<FImpl>(tmp, sourcetmp, s, 0);
+            // 5D source if action is 5d
 	    mat.ImportPhysicalFermionSource(tmp, source);
-	}
+        }
         sol = Zero();
-	mat.FreePropagator(source,sol,mass,boundary,twist);
-	if (Ls_ == 1)
-	{
-            FermToProp<FImpl>(freetmp, sol, s, 0);
-	}
+        if(par().feynmanRules)
+        {
+        	mat.FreePropagator(source,sol,mass,boundary,twist);
+        }
+        else
+        {
+		auto &solver  = envGet(Solver, par().solver);
+		solver(sol, source);
+        }
+        if (Ls_ == 1)
+        {
+                FermToProp<FImpl>(freetmp, sol, s, 0);
+        }
         // create 4D propagators from 5D one if necessary
         if (Ls_ > 1)
         {
@@ -233,28 +264,29 @@ void TEMLepton<FImpl>::execute(void)
         }
     }
 
-    for(unsigned int dt=0;dt<par().deltat.size();dt++){
-	PropagatorField &lep = envGet(PropagatorField, std::to_string(par().deltat[dt]) + "_" + getName() + "_free");
-	for(tl=0;tl<nt;tl++){
+    for(unsigned int dt=0;dt<par().deltat.size();dt++)
+    {
+        PropagatorField &lep = envGet(PropagatorField, getName() + "_free_" + std::to_string(par().deltat[dt]) );
+	    for(tl=0;tl<nt;tl++)
+        {
+            //shift free propagator to different source positions
+            //account for possible anti-periodic boundary in time
+            proptmp = Cshift(freetmp,Tp, -tl);
+            proptmp = where( tlat < tl, boundary[Tp]*proptmp, proptmp);
 
-	    //shift free propagator to different source positions
-	    //account for possible anti-periodic boundary in time
-	    proptmp = Cshift(freetmp,Tp, -tl);
-	    proptmp = where( tlat < tl, boundary[Tp]*proptmp, proptmp);
-
-            // free propagator for fixed source-sink separation
-	    lep = where(tlat == (tl-par().deltat[dt]+nt)%nt, proptmp, lep);
-	}
-	//account for possible anti-periodic boundary in time
-	lep = where( tlat >= nt-par().deltat[dt], boundary[Tp]*lep, lep);
+                // free propagator for fixed source-sink separation
+            lep = where(tlat == (tl-par().deltat[dt]+nt)%nt, proptmp, lep);
+        }
+        //account for possible anti-periodic boundary in time
+        lep = where( tlat >= nt-par().deltat[dt], boundary[Tp]*lep, lep);
     }
 
-    for(tl=0;tl<nt;tl++){
-
-	//shift free propagator to different source positions
-	//account for possible anti-periodic boundary in time
-	proptmp = Cshift(freetmp,Tp, -tl);
-	proptmp = where( tlat < tl, boundary[Tp]*proptmp, proptmp);
+    for(tl=0;tl<nt;tl++)
+    {
+        //shift free propagator to different source positions
+        //account for possible anti-periodic boundary in time
+        proptmp = Cshift(freetmp,Tp, -tl);
+        proptmp = where( tlat < tl, boundary[Tp]*proptmp, proptmp);
 
         // i*A_mu*gamma_mu
         sourcetmp = Zero();
@@ -282,7 +314,15 @@ void TEMLepton<FImpl>::execute(void)
 		mat.ImportPhysicalFermionSource(tmp, source);
 	    }
             sol = Zero();
-	    mat.FreePropagator(source,sol,mass,boundary,twist);
+	    if(par().feynmanRules)
+	    {
+        	mat.FreePropagator(source,sol,mass,boundary,twist);
+            }
+            else
+            {
+		auto &solver  = envGet(Solver, par().solver);
+		solver(sol, source);
+            }
 	    if (Ls_ == 1)
 	    {
         	FermToProp<FImpl>(proptmp, sol, s, 0);
@@ -296,14 +336,14 @@ void TEMLepton<FImpl>::execute(void)
 	}
 	// keep the result for the desired delta t
 	for(unsigned int dt=0;dt<par().deltat.size();dt++){
-	    PropagatorField &Aslashlep = envGet(PropagatorField, std::to_string(par().deltat[dt]) + "_" + getName());
+	    PropagatorField &Aslashlep = envGet(PropagatorField, getName() + "_" + std::to_string(par().deltat[dt]) );
 	    Aslashlep = where(tlat == (tl-par().deltat[dt]+nt)%nt, proptmp, Aslashlep);
 	}
     }
 
     //account for possible anti-periodic boundary in time
     for(unsigned int dt=0;dt<par().deltat.size();dt++){
-	PropagatorField &Aslashlep = envGet(PropagatorField, std::to_string(par().deltat[dt]) + "_" + getName());
+	PropagatorField &Aslashlep = envGet(PropagatorField, getName() + "_" + std::to_string(par().deltat[dt]));
 	Aslashlep = where( tlat >= nt-par().deltat[dt], boundary[Tp]*Aslashlep, Aslashlep);
     }
 }

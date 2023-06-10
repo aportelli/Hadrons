@@ -33,6 +33,7 @@
 #include <Hadrons/Global.hpp>
 #include <Hadrons/Module.hpp>
 #include <Hadrons/ModuleFactory.hpp>
+#include <Hadrons/Serialization.hpp>
 
 BEGIN_HADRONS_NAMESPACE
 
@@ -93,6 +94,7 @@ public:
     // dependency relation
     virtual std::vector<std::string> getInput(void);
     virtual std::vector<std::string> getOutput(void);
+    virtual std::vector<std::string> getOutputFiles(void);
 protected:
     // setup
     virtual void setup(void);
@@ -134,7 +136,20 @@ std::vector<std::string> TWardIdentity<FImpl>::getInput(void)
 template <typename FImpl>
 std::vector<std::string> TWardIdentity<FImpl>::getOutput(void)
 {
-  return {};
+    std::vector<std::string> out = {getName()};
+    
+    return out;
+}
+
+template <typename FImpl>
+std::vector<std::string> TWardIdentity<FImpl>::getOutputFiles(void)
+{
+    std::vector<std::string> output;
+    
+    if (!par().output.empty())
+        output.push_back(resultFilename(par().output));
+    
+    return output;
 }
 
 // setup ///////////////////////////////////////////////////////////////////////
@@ -155,6 +170,7 @@ void TWardIdentity<FImpl>::setup(void)
     // These temporaries are always 4d
     envTmpLat(PropagatorField, "tmp");
     envTmpLat(ComplexField, "tmp_current");
+    envCreate(HadronsSerializable, getName(), 1, 0);
 }
 
 // execution ///////////////////////////////////////////////////////////////////
@@ -223,6 +239,8 @@ void TWardIdentity<FImpl>::execute(void)
 
     LOG(Message) << "Writing results to " << par().output << "." << std::endl;
     saveResult(par().output, "wardIdentity", result);
+    auto &out = envGet(HadronsSerializable, getName());
+    out = result;
 }
 
 END_MODULE_NAMESPACE

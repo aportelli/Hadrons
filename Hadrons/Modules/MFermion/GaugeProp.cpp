@@ -29,5 +29,5 @@ using namespace Grid;
 using namespace Hadrons;
 using namespace MFermion;
 
-template class Grid::Hadrons::MFermion::TGaugeProp<FIMPL>;
-template class Grid::Hadrons::MFermion::TGaugeProp<ZFIMPL>;
+template class HADRONS_NAMESPACE::MFermion::TGaugeProp<FIMPL>;
+template class HADRONS_NAMESPACE::MFermion::TGaugeProp<ZFIMPL>;

@@ -29,6 +29,7 @@ using namespace Grid;
 using namespace Hadrons;
 using namespace MUtilities;
 
-template class Grid::Hadrons::MUtilities::TRandomField<FIMPL::PropagatorField>;
-template class Grid::Hadrons::MUtilities::TRandomField<FIMPL::FermionField>;
-template class Grid::Hadrons::MUtilities::TRandomField<FIMPL::ComplexField>;
+template class HADRONS_NAMESPACE::MUtilities::TRandomField<FIMPL::PropagatorField>;
+template class HADRONS_NAMESPACE::MUtilities::TRandomField<FIMPL::FermionField>;
+template class HADRONS_NAMESPACE::MUtilities::TRandomField<FIMPL::ComplexField>;
+template class HADRONS_NAMESPACE::MUtilities::TRandomField<GIMPL::GaugeLinkField>;

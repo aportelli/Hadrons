@@ -4,5 +4,5 @@ using namespace Grid;
 using namespace Hadrons;
 using namespace MFermion;
 
-template class Grid::Hadrons::MFermion::TOperators<FIMPL>;
-template class Grid::Hadrons::MFermion::TOperators<ZFIMPL>;
+template class HADRONS_NAMESPACE::MFermion::TOperators<FIMPL>;
+template class HADRONS_NAMESPACE::MFermion::TOperators<ZFIMPL>;

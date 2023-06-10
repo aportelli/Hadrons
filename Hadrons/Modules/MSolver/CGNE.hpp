@@ -5,13 +5,11 @@
 #include <Hadrons/Module.hpp>
 #include <Hadrons/ModuleFactory.hpp>
 #include <Hadrons/Solver.hpp>
-#include <Hadrons/EigenPack.hpp>
-#include <Hadrons/Modules/MSolver/Guesser.hpp>
 
 BEGIN_HADRONS_NAMESPACE
 
 /******************************************************************************
- *                         CGNE                                 *
+ *                        CG on normal equations (CGNE)                       *
  ******************************************************************************/
 BEGIN_MODULE_NAMESPACE(MSolver)
 
@@ -22,10 +20,10 @@ public:
                                     std::string , action,
                                     unsigned int, maxIteration,
                                     double      , residual,
-                                    std::string , eigenPack);
+                                    std::string , guesser);
 };
 
-template <typename FImpl, int nBasis = HADRONS_DEFAULT_LANCZOS_NBASIS>
+template <typename FImpl>
 class TCGNE: public Module<CGNEPar>
 {
 public:
@@ -38,8 +36,8 @@ public:
     virtual ~TCGNE(void) {};
     // dependency relation
     virtual std::vector<std::string> getInput(void);
-    virtual std::vector<std::string> getReference(void);
     virtual std::vector<std::string> getOutput(void);
+    virtual DependencyMap getObjectDependencies(void);
     // setup
     virtual void setup(void);
     // execution
@@ -49,47 +47,55 @@ public:
 MODULE_REGISTER_TMP(CGNE, TCGNE<FIMPL>, MSolver);
 
 /******************************************************************************
- *                 TCGNE implementation                             *
+ *                           TCGNE implementation                             *
  ******************************************************************************/
 // constructor /////////////////////////////////////////////////////////////////
-template <typename FImpl, int nBasis>
-TCGNE<FImpl, nBasis>::TCGNE(const std::string name)
+template <typename FImpl>
+TCGNE<FImpl>::TCGNE(const std::string name)
 : Module<CGNEPar>(name)
 {}
 
 // dependencies/products ///////////////////////////////////////////////////////
-template <typename FImpl, int nBasis>
-std::vector<std::string> TCGNE<FImpl, nBasis>::getInput(void)
+template <typename FImpl>
+std::vector<std::string> TCGNE<FImpl>::getInput(void)
 {
-    std::vector<std::string> in;
+    std::vector<std::string> in = {par().action};
     
+    if (!par().guesser.empty())
+    {
+        in.push_back(par().guesser);
+    }
+
     return in;
 }
 
-template <typename FImpl, int nBasis>
-std::vector<std::string> TCGNE<FImpl, nBasis>::getReference(void)
-{
-    std::vector<std::string> ref = {par().action};
-    
-    if (!par().eigenPack.empty())
-    {
-        ref.push_back(par().eigenPack);
-    }
-
-    return ref;
-}
-
-template <typename FImpl, int nBasis>
-std::vector<std::string> TCGNE<FImpl, nBasis>::getOutput(void)
+template <typename FImpl>
+std::vector<std::string> TCGNE<FImpl>::getOutput(void)
 {
     std::vector<std::string> out = {getName()};
     
     return out;
 }
 
+template <typename FImpl>
+DependencyMap TCGNE<FImpl>::getObjectDependencies(void)
+{
+    DependencyMap dep;
+
+    dep.insert({par().action, getName()});
+    dep.insert({par().action, getName() + "_subtract"});
+    if (!par().guesser.empty())
+    {
+        dep.insert({par().guesser, getName(),             });
+        dep.insert({par().guesser, getName() + "_subtract"});
+    }
+
+    return dep;
+}
+
 // setup ///////////////////////////////////////////////////////////////////////
-template <typename FImpl, int nBasis>
-void TCGNE<FImpl, nBasis>::setup(void)
+template <typename FImpl>
+void TCGNE<FImpl>::setup(void)
 {
     if (par().maxIteration == 0)
     {
@@ -101,10 +107,14 @@ void TCGNE<FImpl, nBasis>::setup(void)
                  << par().residual << ", maximum iteration " 
                  << par().maxIteration << std::endl;
     
-    auto Ls        = env().getObjectLs(par().action);
-    auto &mat      = envGet(FMat, par().action);
-    auto guesserPt = makeGuesser<FImpl, nBasis>(par().eigenPack);
-
+    auto Ls                                 = env().getObjectLs(par().action);
+    auto &mat                               = envGet(FMat, par().action);
+    LinearFunction<FermionField> *guesserPt = nullptr;
+    
+    if (!par().guesser.empty())
+    {
+        guesserPt = &envGet(LinearFunction<FermionField>, par().guesser);
+    }
     auto makeSolver = [&mat, guesserPt, this](bool subGuess) 
     {
         return [&mat, guesserPt, subGuess, this](FermionField &sol,
@@ -115,10 +125,18 @@ void TCGNE<FImpl, nBasis>::setup(void)
             MdagMLinearOperator<FMat, FermionField> hermOp(mat);
             ConjugateGradient<FermionField>         cg(par().residual,
                                                        par().maxIteration);
+            ZeroGuesser<FermionField>               defaultGuesser;
 
             guess = sol;
             mat.Mdag(source, tmp);
-            (*guesserPt)(tmp, sol);
+            if (guesserPt != nullptr)
+            {
+                (*guesserPt)(tmp, sol);
+            }
+            else
+            {
+                defaultGuesser(tmp, sol);
+            }
             cg(hermOp, tmp, sol);
             if (subGuess)
             {
@@ -133,8 +151,8 @@ void TCGNE<FImpl, nBasis>::setup(void)
 }
 
 // execution ///////////////////////////////////////////////////////////////////
-template <typename FImpl, int nBasis>
-void TCGNE<FImpl, nBasis>::execute(void)
+template <typename FImpl>
+void TCGNE<FImpl>::execute(void)
 {}
 
 END_MODULE_NAMESPACE

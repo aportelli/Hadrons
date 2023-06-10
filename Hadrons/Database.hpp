@@ -99,6 +99,7 @@ public:
     template <typename EntryType>
     std::vector<EntryType> getTable(const std::string tableName, const std::string extra = "");
     void insert(const std::string tableName, const SqlEntry &entry, const bool replace = false);
+    void insert(const std::string tableName, const std::vector<const SqlEntry *> &entryPtVec, const bool replace = false);
     // key-value tables interface
     void createKeyValueTable(const std::string tableName);
     std::map<std::string, std::string> getKeyValueTable(const std::string tableName);

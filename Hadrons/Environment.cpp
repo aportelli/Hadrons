@@ -25,11 +25,11 @@
 /*  END LEGAL */
 
 #include <Hadrons/Environment.hpp>
+#include <Hadrons/Graph.hpp>
 #include <Hadrons/Module.hpp>
 #include <Hadrons/ModuleFactory.hpp>
 
 using namespace Grid;
- 
 using namespace Hadrons;
 
 #define ERROR_NO_ADDRESS(address)\
@@ -131,6 +131,76 @@ void Environment::setObjectModule(const unsigned int objAddress,
     if (hasObject(objAddress))
     {
         object_[objAddress].module = modAddress;
+    }
+    else
+    {
+        ERROR_NO_ADDRESS(objAddress);
+    }
+}
+
+void Environment::addObjectDependency(const unsigned int objAddress,
+                                      const unsigned int depAddress)
+{
+    if (objAddress == depAddress)
+    {
+        HADRONS_ERROR(Logic, "cannot make an object depending on itself");
+    }
+    if (hasObject(objAddress) and hasObject(depAddress))
+    {
+        object_[objAddress].dependency.insert(depAddress);
+    }
+    else if (!hasObject(objAddress))
+    {
+        ERROR_NO_ADDRESS(objAddress);
+    }
+    else
+    {
+        ERROR_NO_ADDRESS(depAddress);
+    }
+}
+
+void Environment::removeObjectDependency(const unsigned int objAddress,
+                                         const unsigned int depAddress)
+{
+    if (hasObject(objAddress))
+    {
+        auto &dep = object_[objAddress].dependency;
+        auto it   = dep.find(depAddress);
+
+        if (it != dep.end())
+        {
+            dep.erase(it);
+        }
+        else
+        {
+            HADRONS_ERROR(Definition, "object with address "
+                          + std::to_string(objAddress) + " does not depend "
+                          + "on object with address " + std::to_string(depAddress));
+        }
+    }
+}
+
+const std::set<unsigned int> &Environment::getObjectDependencies(const unsigned int objAddress) const
+{
+    if (hasObject(objAddress))
+    {
+        return object_[objAddress].dependency;
+    }
+    else
+    {
+        ERROR_NO_ADDRESS(objAddress);
+    }
+}
+
+bool Environment::hasDependency(const unsigned int objAddress,
+                                const unsigned int depAddress) const
+{
+    if (hasObject(objAddress))
+    {
+        auto &dep = object_[objAddress].dependency;
+        auto it   = dep.find(depAddress);
+
+        return (it != dep.end());
     }
     else
     {
@@ -341,27 +411,73 @@ Environment::Size Environment::getTotalSize(void) const
     return size;
 }
 
-void Environment::freeObject(const unsigned int address)
+void Environment::freeObject(const unsigned int address, const bool recursive)
 {
-    if (hasCreatedObject(address))
+    if (hasObject(address))
     {
-        LOG(Message) << "Destroying object '" << object_[address].name
-                     << "'" << std::endl;
+        if (hasCreatedObject(address))
+        {
+            LOG(Message) << "Destroying object '" << object_[address].name
+                         << "'" << std::endl;
+            for (auto &a: object_[address].dependency)
+            {
+                if (hasCreatedObject(a))
+                {
+                    if (recursive)
+                    {
+                        freeObject(a, recursive);
+                    }
+                    else
+                    {
+                        HADRONS_ERROR(Logic, "Object '" + object_[address].name + "' cannot be destroyed " +
+                                      "because '" + object_[a].name + "' depends on it");
+                    }
+                }
+            }
+        }
+        object_[address].size = 0;
+        object_[address].data.reset(nullptr);
     }
-    object_[address].size = 0;
-    object_[address].data.reset(nullptr);
+    else
+    {
+        ERROR_NO_ADDRESS(address);
+    }
 }
 
-void Environment::freeObject(const std::string name)
+void Environment::freeObject(const std::string name, const bool recursive)
 {
-    freeObject(getObjectAddress(name));
+    freeObject(getObjectAddress(name), recursive);
+}
+
+void Environment::freeSet(const std::set<unsigned int> &objects)
+{
+    // build object dependency graph from the set
+    Graph<unsigned int> graph;
+
+    for (auto &a: objects)
+    {
+        graph.addVertex(a);
+    }
+    for (auto &a: objects)
+    for (auto &d: getObjectDependencies(a))
+    {
+        graph.addEdge(d, a);
+    }
+
+    // free object in topological order to avoid triggering dependency errors
+    std::vector<unsigned int> sorted = graph.topoSort();
+
+    for (auto &a: sorted)
+    {
+        freeObject(a);
+    }
 }
 
 void Environment::freeAll(void)
 {
     for (unsigned int i = 0; i < object_.size(); ++i)
     {
-        freeObject(i);
+        freeObject(i, true);
     }
 }
 

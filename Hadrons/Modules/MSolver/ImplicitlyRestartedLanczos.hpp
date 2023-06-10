@@ -112,7 +112,8 @@ void TImplicitlyRestartedLanczos<Field, FieldIo>::execute(void)
 {
     int          nconv;
     auto         &epack = envGetDerived(BasePack, Pack, getName());
-    GridBase     *grid = nullptr, *gridIo = nullptr;
+    GridBase     *grid = nullptr;
+    [[maybe_unused]] GridBase *gridIo = nullptr;
     unsigned int Ls = env().getObjectLs(par().op);
     
     envGetTmp(ImplicitlyRestartedLanczos<Field>, irl);

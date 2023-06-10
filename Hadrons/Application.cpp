@@ -140,6 +140,12 @@ void Application::createModule(const std::string name, const std::string type,
     vm().createModule(name, type, reader);
 }
 
+// test if module exists ///////////////////////////////////////////////////////
+bool Application::hasModule(const std::string name) const
+{
+    return vm().hasModule(name);
+}
+
 // generate result DB //////////////////////////////////////////////////////////
 void Application::generateResultDb(void)
 {
@@ -172,7 +178,7 @@ void Application::run(void)
     LOG(Message) << "Attempt(s) for resilient parallel I/O: " 
                  << BinaryIO::latticeWriteMaxRetry << std::endl;
     vm().setRunId(getPar().runId);
-    if (getPar().database.makeStatDb)
+    if (!getPar().database.statDbBase.empty())
     {
         std::string        statDbFilename;
         std::ostringstream oss;
@@ -180,18 +186,31 @@ void Application::run(void)
         auto nowLocal = *std::localtime(&now);
 
         oss << std::put_time(&nowLocal, "%Y%m%d-%H%M%S");
-        statDbFilename = getPar().runId + "-stat-" + oss.str() + ".db";
+        statDbFilename = getPar().database.statDbBase + "-stat-" + oss.str() + ".db";
         LOG(Message) << "Logging run statistics in '" << statDbFilename << "'" << std::endl;
         if (env().getGrid()->IsBoss())
         {
             statDb.setFilename(statDbFilename);
+            statLogger.setPeriod(getPar().database.statDbPeriodMs);
             statLogger.setDatabase(statDb);
-            statLogger.start(500);
+            statLogger.start();
         }
     }
     if (getPar().saveSchedule or getPar().scheduleFile.empty())
     {
-        schedule();
+        if (getPar().scheduler.schedulerType == "genetic")
+        {
+            schedule();
+        }
+        else if (getPar().scheduler.schedulerType == "naive")
+        {
+            naiveSchedule();
+        }
+        else
+        {
+            HADRONS_ERROR(Parsing, "Unkown scheduler '"
+                                + getPar().scheduler.schedulerType + "'");
+        }
         if (getPar().saveSchedule)
         {
             std::string filename;
@@ -213,7 +232,7 @@ void Application::run(void)
         vm().dumpModuleGraph(getPar().graphFile);
     }
     configLoop();
-    if (getPar().database.makeStatDb and env().getGrid()->IsBoss())
+    if (!getPar().database.statDbBase.empty() and env().getGrid()->IsBoss())
     {
         statLogger.stop();
     }
@@ -292,6 +311,15 @@ void Application::schedule(void)
     }
 }
 
+void Application::naiveSchedule(void)
+{
+    if (!scheduled_ and !loadedSchedule_)
+    {
+        program_   = vm().naiveSchedule();
+        scheduled_ = true;
+    }
+}
+
 void Application::saveSchedule(const std::string filename)
 {
     LOG(Message) << "Saving current schedule to '" << filename << "'..."
@@ -337,9 +365,19 @@ void Application::printSchedule(void)
     {
         HADRONS_ERROR(Definition, "Computation not scheduled");
     }
-    auto peak = vm().memoryNeeded(program_);
-    LOG(Message) << "Schedule (memory needed: " << sizeString(peak) << "):"
-                 << std::endl;
+
+    if (getPar().scheduler.schedulerType == "naive")
+    {
+        LOG(Message) << "Schedule:"
+                    << std::endl;
+    }
+    else
+    {
+        auto peak = vm().memoryNeeded(program_);
+        LOG(Message) << "Schedule (memory needed: " << sizeString(peak) << "):"
+                    << std::endl;
+    }
+
     for (unsigned int i = 0; i < program_.size(); ++i)
     {
         LOG(Message) << std::setw(4) << i + 1 << ": "

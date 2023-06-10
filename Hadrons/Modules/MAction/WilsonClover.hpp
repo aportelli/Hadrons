@@ -48,6 +48,7 @@ public:
                                     double     , mass,
 				                    double     , csw_r,
 				                    double     , csw_t,
+                                    double     , cF,
 				                    WilsonAnisotropyCoefficients ,clover_anisotropy,
                                     std::string, boundary,
                                     std::string, twist
@@ -108,16 +109,17 @@ std::vector<std::string> TWilsonClover<FImpl>::getOutput(void)
 template <typename FImpl>
 void TWilsonClover<FImpl>::setup(void)
 {
-    LOG(Message) << "Setting up Wilson clover fermion matrix with m= " << par().mass
+    LOG(Message) << "Setting up Wilson clover fermion matrix with m = " << par().mass
                  << " using gauge field '" << par().gauge << "'" << std::endl;
     LOG(Message) << "Clover term csw_r: " << par().csw_r
-                 << " csw_t: " << par().csw_t
+                 << " csw_t: " << par().csw_t << std::endl;
+    LOG(Message) << "Boundary improvement coefficient cF = " << par().cF
                  << std::endl;
                  
     auto &U      = envGet(GaugeField, par().gauge);
     auto &grid   = *envGetGrid(FermionField);
     auto &gridRb = *envGetRbGrid(FermionField);
-    typename WilsonCloverFermion<FImpl>::ImplParams implParams;
+    typename CompactWilsonCloverFermion<FImpl, CompactCloverHelpers<FImpl>>::ImplParams implParams;
     if (!par().boundary.empty())
     {
         implParams.boundary_phases = strToVec<Complex>(par().boundary);
@@ -138,8 +140,8 @@ void TWilsonClover<FImpl>::setup(void)
     {
         HADRONS_ERROR(Size, "Wrong number of twist");
     }
-    envCreateDerived(FMat, WilsonCloverFermion<FImpl>, getName(), 1, U, grid,
-                     gridRb, par().mass, par().csw_r, par().csw_t, 
+    envCreateDerived(FMat, CompactWilsonClover<FImpl>, getName(), 1, U, grid,
+                     gridRb, par().mass, par().csw_r, par().csw_t, par().cF,
                      par().clover_anisotropy, implParams); 
 }
 

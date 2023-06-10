@@ -29,6 +29,7 @@
 #include <Hadrons/Global.hpp>
 #include <Hadrons/Module.hpp>
 #include <Hadrons/ModuleFactory.hpp>
+#include <Hadrons/Serialization.hpp>
 #include <Hadrons/Modules/MScalarSUN/Utils.hpp>
 
 BEGIN_HADRONS_NAMESPACE
@@ -105,9 +106,7 @@ std::vector<std::string> TTwoPointNPR<SImpl>::getInput(void)
 template <typename SImpl>
 std::vector<std::string> TTwoPointNPR<SImpl>::getOutput(void)
 {
-    std::vector<std::string> out;
-    
-    return out;
+    return {getName()};
 }
 
 // setup ///////////////////////////////////////////////////////////////////////
@@ -125,6 +124,7 @@ void TTwoPointNPR<SImpl>::setup(void)
     }
     envTmpLat(ComplexField, "ftBuf");
     envTmpLat(Field, "ftMatBuf");
+    envCreate(HadronsSerializable, getName(), 1, 0);
 }
 
 // execution ///////////////////////////////////////////////////////////////////
@@ -207,6 +207,7 @@ void TTwoPointNPR<SImpl>::execute(void)
         doAux = false;
     }
     saveResult(par().output, "twoptnpr", result);
+    envGet(HadronsSerializable, getName()) = result;
 }
 
 END_MODULE_NAMESPACE

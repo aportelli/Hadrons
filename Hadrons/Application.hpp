@@ -53,15 +53,23 @@ public:
     struct DatabasePar: Serializable
     {
         GRID_SERIALIZABLE_CLASS_MEMBERS(DatabasePar,
-                                        std::string, applicationDb,
-                                        std::string, resultDb,
-                                        bool,        restoreModules,
-                                        bool,        restoreMemoryProfile,
-                                        bool,        restoreSchedule,
-                                        bool,        makeStatDb);
+                                        std::string,  applicationDb,
+                                        std::string,  resultDb,
+                                        bool,         restoreModules,
+                                        bool,         restoreMemoryProfile,
+                                        bool,         restoreSchedule,
+                                        std::string,  statDbBase,
+                                        unsigned int, statDbPeriodMs);
         DatabasePar(void): 
         restoreModules{false}, restoreMemoryProfile{false},
-        restoreSchedule{false}, makeStatDb{false} {}
+        restoreSchedule{false}, statDbBase{""} {}
+    };
+
+    struct SchedulerPar: Serializable
+    {
+        GRID_SERIALIZABLE_CLASS_MEMBERS(SchedulerPar,
+                                        std::string, schedulerType,);
+        SchedulerPar(void): schedulerType{"genetic"} {}
     };
 
     struct GlobalPar: Serializable
@@ -70,6 +78,7 @@ public:
                                         TrajRange,                  trajCounter,
                                         DatabasePar,                database,
                                         VirtualMachine::GeneticPar, genetic,
+                                        SchedulerPar,               scheduler,
                                         std::string,                runId,
                                         std::string,                graphFile,
                                         std::string,                scheduleFile,
@@ -101,6 +110,8 @@ public:
     template <typename M>
     void createModule(const std::string name, const typename M::Par &par);
     void createModule(const std::string name, const std::string type, XmlReader &reader);
+    // test if module exists
+    bool hasModule(const std::string name) const;
     // module DB entry for result files
     template <typename EntryType>
     void setResultMetadata(const std::string moduleName, const std::string tableName, const EntryType &entry);
@@ -113,6 +124,7 @@ public:
     void saveParameterFile(const std::string parameterFileName, unsigned int prec = 15);
     // schedule computation
     void schedule(void);
+    void naiveSchedule(void);
     void saveSchedule(const std::string filename);
     void loadSchedule(const std::string filename);
     void printSchedule(void);

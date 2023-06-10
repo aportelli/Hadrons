@@ -72,12 +72,9 @@ int main(int argc, char *argv[])
     std::string twist    = "0. 0. 0. 0.";
 
     //stochastic photon field
-    MGauge::StochEm::Par photonPar;
-    photonPar.gauge = PhotonR::Gauge::feynman;
-    photonPar.zmScheme = PhotonR::ZmScheme::qedL;
-    application.createModule<MGauge::StochEm>("ph_field", photonPar);
-
-
+    MGauge::StochasticQedL::Par photonPar;
+    photonPar.gauge = QedGauge::feynman;
+    application.createModule<MGauge::StochasticQedL>("ph_field", photonPar);
 
     for (unsigned int i = 0; i < flavour.size(); ++i)
     {
