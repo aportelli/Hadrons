@@ -35,3 +35,8 @@ the `CXXFLAGS` and `CXX` environment variables.
 ## Run
 The main Hadrons executables are in the `utilities` directory, examples can be
 found in the `tests` directory, and can be built using `make tests`.
+
+## Contributors
+<a href="https://github.com/aportelli/Hadrons/graphs/contributors">
+  <img src="https://contrib.rocks/image?repo=aportelli/Hadrons" />
+</a>
