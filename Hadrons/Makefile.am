@@ -6,13 +6,13 @@ include modules.inc
 
 libHadrons_a_SOURCES = \
 	sqlite/sqlite3.c    \
-  Application.cpp     \
+ 	Application.cpp     \
 	Database.cpp        \
-  Environment.cpp     \
+ 	Environment.cpp     \
 	Exceptions.cpp      \
-  Global.cpp          \
+ 	Global.cpp          \
 	StatLogger.cpp      \
-  Module.cpp		      \
+ 	Module.cpp		      \
 	TimerArray.cpp      \
 	VirtualMachine.cpp  \
 	$(modules_cpp)
@@ -40,7 +40,8 @@ nobase_libHadrons_a_HEADERS = \
 	Module.hpp                \
 	Modules.hpp               \
 	ModuleFactory.hpp         \
-  NamedTensor.hpp           \
+	NamedTensor.hpp           \
+	Serialization.hpp         \
 	Solver.hpp                \
 	SqlEntry.hpp              \
 	StatLogger.hpp            \

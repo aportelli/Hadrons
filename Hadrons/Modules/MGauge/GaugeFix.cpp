@@ -30,4 +30,4 @@ using namespace Grid;
 using namespace Hadrons;
 using namespace MGauge;
 
-template class Grid::Hadrons::MGauge::TGaugeFix<GIMPL>;
+template class HADRONS_NAMESPACE::MGauge::TGaugeFix<GIMPL>;

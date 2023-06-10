@@ -29,5 +29,5 @@ using namespace Grid;
 using namespace Hadrons;
 using namespace MNPR;
 
-template class Grid::Hadrons::MNPR::TExternalLeg<FIMPL>;
+template class HADRONS_NAMESPACE::MNPR::TExternalLeg<FIMPL>;
 

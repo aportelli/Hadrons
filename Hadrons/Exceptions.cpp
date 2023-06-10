@@ -47,7 +47,7 @@ using namespace Hadrons;
 using namespace Exceptions;
 
 // backtrace cache
-std::vector<std::string> Grid::Hadrons::Exceptions::backtraceStr;
+std::vector<std::string> HADRONS_NAMESPACE::Exceptions::backtraceStr;
 
 // logic errors
 CTOR_EXC(Logic, logic_error(msg + ERR_SUFF))
@@ -71,17 +71,32 @@ CTOR_EXC_REF(ObjectDefinition, RuntimeRef("object definition error: " + msg, loc
 CTOR_EXC_REF(ObjectType, RuntimeRef("object type error: " + msg, loc, address));
 
 // abort functions
-void Grid::Hadrons::Exceptions::abort(const std::exception& e)
+void HADRONS_NAMESPACE::Exceptions::abort(const std::exception& e)
 {
-    auto &vm = VirtualMachine::getInstance();
-    int  mod = vm.getCurrentModule();
+    int mod;
+    std::string modName;
 
+    // suppress potential extra expections
+    try
+    {
+        auto &vm = VirtualMachine::getInstance();
+        mod = vm.getCurrentModule();
+        if (mod >= 0)
+        {
+            modName = vm.getModuleName(mod);
+        }
+    }
+    catch(...)
+    {
+        mod = -1;
+        modName = "";
+    }
     LOG(Error) << "FATAL ERROR -- Exception " << typeName(&typeid(e)) 
                << std::endl;
     if (mod >= 0)
     {
         LOG(Error) << "During execution of module '"
-                    << vm.getModuleName(mod) << "' (address " << mod << ")"
+                    << modName << "' (address " << mod << ")"
                     << std::endl;
     }
     LOG(Error) << e.what() << std::endl;
@@ -95,10 +110,9 @@ void Grid::Hadrons::Exceptions::abort(const std::exception& e)
         LOG(Error) << "---------------------------" << std::endl;
     }
     LOG(Error) << "Aborting program" << std::endl;
-    if (isGridInit())
-    {
-        Grid_finalize();
-    }
-
+#if defined (GRID_COMMS_MPI) || defined (GRID_COMMS_MPI3) || defined (GRID_COMMS_MPIT)
+    MPI_Abort(MPI_COMM_WORLD, 1);
+#else
     exit(EXIT_FAILURE);
+#endif
 }

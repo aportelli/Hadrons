@@ -32,6 +32,7 @@
 #include <Hadrons/Global.hpp>
 #include <Hadrons/Module.hpp>
 #include <Hadrons/ModuleFactory.hpp>
+#include <Hadrons/Serialization.hpp>
 #include <Hadrons/Modules/MNPR/NPRUtils.hpp>
 
 
@@ -189,7 +190,7 @@ std::vector<std::string> TFourQuarkLoop<FImpl>::getInput()
 template <typename FImpl>
 std::vector<std::string> TFourQuarkLoop<FImpl>::getOutput()
 {
-    std::vector<std::string> out = {getName()};
+    std::vector<std::string> out = {getName(), getName() + "_fourQuark", getName() + "_twoQuark"};
 
     return out;
 }
@@ -220,6 +221,9 @@ void TFourQuarkLoop<FImpl>::setup()
     {
         envTmpLat(ComplexField, "loop_trace");
     }
+
+    envCreate(HadronsSerializable, getName() + "_fourQuark", 1, 0);
+    envCreate(HadronsSerializable, getName() + "_twoQuark", 1, 0);
 }
 
 template <typename FImpl>
@@ -414,6 +418,8 @@ void TFourQuarkLoop<FImpl>::execute()
     LOG(Message) << "Done computing loop diagrams" << std::endl;
     saveResult(par().output + "_fourQuark", "FourQuarkLoop", fourq_result);
     saveResult(par().output + "_twoQuark", "TwoQuarkLoop", twoq_result);
+    envGet(HadronsSerializable, getName() + "_fourQuark") = fourq_result;
+    envGet(HadronsSerializable, getName() + "_twoQuark") = twoq_result;
 }
 
 END_MODULE_NAMESPACE

@@ -29,4 +29,4 @@ using namespace Grid;
 using namespace Hadrons;
 using namespace MGauge;
 
-template class Grid::Hadrons::MGauge::TRandom<GIMPL>;
+template class HADRONS_NAMESPACE::MGauge::TRandom<GIMPL>;

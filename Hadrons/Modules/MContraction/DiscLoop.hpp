@@ -32,6 +32,7 @@
 #include <Hadrons/Global.hpp>
 #include <Hadrons/Module.hpp>
 #include <Hadrons/ModuleFactory.hpp>
+#include <Hadrons/Serialization.hpp>
 
 BEGIN_HADRONS_NAMESPACE
 
@@ -121,7 +122,7 @@ std::vector<std::string> TDiscLoop<FImpl>::getInput(void)
 template <typename FImpl>
 std::vector<std::string> TDiscLoop<FImpl>::getOutput(void)
 {
-    std::vector<std::string> out = {};
+    std::vector<std::string> out = {getName()};
     
     return out;
 }
@@ -129,7 +130,10 @@ std::vector<std::string> TDiscLoop<FImpl>::getOutput(void)
 template <typename FImpl>
 std::vector<std::string> TDiscLoop<FImpl>::getOutputFiles(void)
 {
-    std::vector<std::string> output = {resultFilename(par().output)};
+    std::vector<std::string> output;
+    
+    if (!par().output.empty())
+        output.push_back(resultFilename(par().output));
     
     return output;
 }
@@ -155,6 +159,7 @@ void TDiscLoop<FImpl>::setup(void)
     }
     envTmpLat(PropagatorField, "ftBuf");
     envTmpLat(PropagatorField, "op");
+    envCreate(HadronsSerializable, getName(), 1, 0);
 }
 
 template <typename FImpl>
@@ -243,6 +248,8 @@ void TDiscLoop<FImpl>::execute(void)
         }
     }
     saveResult(par().output, "disc", result);
+    auto &out = envGet(HadronsSerializable, getName());
+    out = result;
 }
 
 END_MODULE_NAMESPACE

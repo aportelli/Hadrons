@@ -32,6 +32,7 @@
 #include <Hadrons/Global.hpp>
 #include <Hadrons/Module.hpp>
 #include <Hadrons/ModuleFactory.hpp>
+#include <Hadrons/Serialization.hpp>
 #include <Grid/qcd/utils/BaryonUtils.h>
 
 BEGIN_HADRONS_NAMESPACE
@@ -203,14 +204,17 @@ std::vector<std::string> TBaryonGamma3pt<FImpl>::getInput(void)
 template <typename FImpl>
 std::vector<std::string> TBaryonGamma3pt<FImpl>::getOutput(void)
 {
-    std::vector<std::string> out = {};
+    std::vector<std::string> out = {getName()};
     
     return out;
 }
 template <typename FImpl>
 std::vector<std::string> TBaryonGamma3pt<FImpl>::getOutputFiles(void)
 {
-    std::vector<std::string> output = {resultFilename(par().output)};
+    std::vector<std::string> output;
+    
+    if (!par().output.empty())
+        output.push_back( resultFilename(par().output) );
     
     return output;
 }
@@ -235,6 +239,7 @@ void TBaryonGamma3pt<FImpl>::setup(void)
     envTmpLat(SpinMatrixField, "c");
     envTmpLat(LatticeComplex, "coor");
     envCacheLat(LatticeComplex, momphName_);
+    envCreate(HadronsSerializable, getName(), 1, 0);
 }
 
 template <typename FImpl>
@@ -506,6 +511,8 @@ void TBaryonGamma3pt<FImpl>::execute(void)
     }
 
     saveResult(par().output, "baryongamma3pt", result);
+    auto &out = envGet(HadronsSerializable, getName());
+    out = result;
 }
 
 END_MODULE_NAMESPACE

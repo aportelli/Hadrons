@@ -406,7 +406,7 @@ class DmfComputation
 {
 public:
     FERM_TYPE_ALIASES(FImpl,);
-    typedef DistillationNoise<FImpl> DistillationNoise;
+    typedef Hadrons::DistillationNoise<FImpl> DistillationNoise;
     typedef std::vector<FermionField> DistilVector;
     typedef typename DistillationNoise::Index Index;
     typedef typename DistillationNoise::LapPack LapPack;

@@ -30,6 +30,7 @@
 #include <Hadrons/Module.hpp>
 #include <Hadrons/ModuleFactory.hpp>
 #include <Hadrons/FieldIo.hpp>
+#include <Hadrons/EmField.hpp>
 
 BEGIN_HADRONS_NAMESPACE
 
@@ -81,6 +82,7 @@ MODULE_REGISTER_TMP(SavePropagator, TSaveField<FIMPL::PropagatorField>, MIO);
 MODULE_REGISTER_TMP(SavePropagatorIo32, ARG(TSaveField<FIMPL::PropagatorField, FIMPLF::PropagatorField>), MIO);
 #endif
 MODULE_REGISTER_TMP(SaveColourMatrixField, TSaveField<GIMPL::GaugeLinkField>, MIO);
+MODULE_REGISTER_TMP(SaveEmField, TSaveField<TEmFieldGenerator<vComplex>::GaugeField>, MIO);
 
 /******************************************************************************
  *                 TSaveField implementation                             *

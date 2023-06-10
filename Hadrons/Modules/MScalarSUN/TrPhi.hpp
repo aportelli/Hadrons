@@ -29,6 +29,7 @@
 #include <Hadrons/Global.hpp>
 #include <Hadrons/Module.hpp>
 #include <Hadrons/ModuleFactory.hpp>
+#include <Hadrons/Serialization.hpp>
 #include <Hadrons/Modules/MScalarSUN/Utils.hpp>
 
 BEGIN_HADRONS_NAMESPACE
@@ -109,6 +110,7 @@ std::vector<std::string> TTrPhi<SImpl>::getOutput(void)
     {
         out.push_back(varName(getName(), n));
     }
+    out.push_back(getName());
     
     return out;
 }
@@ -127,6 +129,7 @@ void TTrPhi<SImpl>::setup(void)
     {
         envCreateLat(ComplexField, varName(getName(), n));
     }
+    envCreate(HadronsSerializable, getName(), 1, 0);
 }
 
 // execution ///////////////////////////////////////////////////////////////////
@@ -158,10 +161,8 @@ void TTrPhi<SImpl>::execute(void)
             result.push_back(r);
         }
     }
-    if (result.size() > 0)
-    {
-        saveResult(par().output, "trphi", result);
-    }
+    saveResult(par().output, "trphi", result);
+    envGet(HadronsSerializable, getName()) = result;
 }
 
 END_MODULE_NAMESPACE

@@ -4,5 +4,5 @@ using namespace Grid;
 using namespace Hadrons;
 using namespace MGuesser;
 
-template class Grid::Hadrons::MGuesser::TExactDeflation<BaseFermionEigenPack<FIMPL>>;
-template class Grid::Hadrons::MGuesser::TExactDeflation<BaseFermionEigenPack<FIMPLF>>;
+template class HADRONS_NAMESPACE::MGuesser::TExactDeflation<BaseFermionEigenPack<FIMPL>>;
+template class HADRONS_NAMESPACE::MGuesser::TExactDeflation<BaseFermionEigenPack<FIMPLF>>;

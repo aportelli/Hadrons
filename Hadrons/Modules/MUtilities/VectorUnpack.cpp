@@ -29,6 +29,6 @@ using namespace Grid;
 using namespace Hadrons;
 using namespace MUtilities;
 
-template class Grid::Hadrons::MUtilities::TVectorUnpack<FIMPL::ComplexField>;
-template class Grid::Hadrons::MUtilities::TVectorUnpack<FIMPL::FermionField>;
-template class Grid::Hadrons::MUtilities::TVectorUnpack<FIMPL::PropagatorField>;
+template class HADRONS_NAMESPACE::MUtilities::TVectorUnpack<FIMPL::ComplexField>;
+template class HADRONS_NAMESPACE::MUtilities::TVectorUnpack<FIMPL::FermionField>;
+template class HADRONS_NAMESPACE::MUtilities::TVectorUnpack<FIMPL::PropagatorField>;

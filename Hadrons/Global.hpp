@@ -55,12 +55,13 @@
  * error with GCC 5 (clang & GCC 6 compile fine without it).
  */
 
+#define HADRONS_NAMESPACE Grid::Hadrons
+
 #define BEGIN_HADRONS_NAMESPACE \
-namespace Grid {\
-namespace Hadrons {\
+namespace HADRONS_NAMESPACE {\
 using Grid::operator<<;\
 using Grid::operator>>;
-#define END_HADRONS_NAMESPACE }}
+#define END_HADRONS_NAMESPACE }
 
 #define BEGIN_MODULE_NAMESPACE(name)\
 namespace name {\
@@ -144,7 +145,7 @@ typedef typename GImpl::GaugeLinkField GaugeLinkField##suffix;\
 typedef typename Grid::SU<ct_sqrt<sizeof(typename GaugeLinkField::scalar_object)/sizeof(typename GImpl::Scalar)>::value> Group;
 
 #define SOLVER_TYPE_ALIASES(FImpl, suffix)\
-typedef Solver<FImpl> Solver##suffix;
+typedef Hadrons::Solver<FImpl> Solver##suffix;
 
 #define SINK_TYPE_ALIASES(suffix)\
 typedef std::function<SlicedPropagator##suffix\

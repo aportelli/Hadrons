@@ -79,7 +79,7 @@ public:
 				    std::string, solver,
 				    std::string, emField,
 				    double, mass,
-                                    std::string , boundary,
+                    std::string , boundary,
 				    std::string,  twist,
 				    std::vector<unsigned int>, deltat);
 };
@@ -137,8 +137,8 @@ std::vector<std::string> TEMLepton<FImpl>::getOutput(void)
     std::vector<std::string> out = {};
     for(int i=0; i<par().deltat.size(); i++)
     {
-	out.push_back(std::to_string(par().deltat[i]) + "_" + getName() + "_free");
-	out.push_back(std::to_string(par().deltat[i]) + "_" + getName());
+	    out.push_back(getName() + "_free_" + std::to_string(par().deltat[i]));
+	    out.push_back(getName() + "_" + std::to_string(par().deltat[i]));
     }
     
     return out;
@@ -152,8 +152,8 @@ void TEMLepton<FImpl>::setup(void)
     else Ls_ = env().getObjectLs(par().solver);
     for(int i=0; i<par().deltat.size(); i++)
     {
-	envCreateLat(PropagatorField, std::to_string(par().deltat[i]) + "_" + getName() + "_free");
-	envCreateLat(PropagatorField, std::to_string(par().deltat[i]) + "_" + getName());
+	    envCreateLat(PropagatorField, getName() + "_free_" + std::to_string(par().deltat[i]));
+	    envCreateLat(PropagatorField, getName() + "_" + std::to_string(par().deltat[i]));
     }
     envTmpLat(FermionField, "source", Ls_);
     envTmpLat(FermionField, "sol", Ls_);
@@ -162,6 +162,7 @@ void TEMLepton<FImpl>::setup(void)
     envTmpLat(PropagatorField, "proptmp");
     envTmpLat(PropagatorField, "freetmp");
     envTmp(Lattice<iScalar<vInteger>>, "tlat",1, envGetGrid(LatticeComplex));
+    envTmpLat(LatticeComplex, "coor");
 
 }
 
@@ -194,6 +195,7 @@ void TEMLepton<FImpl>::execute(void)
                  << mass << " using the solver '" << par().solver
                  << "' for fixed source-sink separation of " << par().deltat << std::endl;
     }
+    LOG(Message) << "Momenta: twist [" << par().twist << "]" << std::endl;
     envGetTmp(Lattice<iScalar<vInteger>>, tlat);
     LatticeCoordinate(tlat, Tp);
 
@@ -264,7 +266,7 @@ void TEMLepton<FImpl>::execute(void)
 
     for(unsigned int dt=0;dt<par().deltat.size();dt++)
     {
-        PropagatorField &lep = envGet(PropagatorField, std::to_string(par().deltat[dt]) + "_" + getName() + "_free");
+        PropagatorField &lep = envGet(PropagatorField, getName() + "_free_" + std::to_string(par().deltat[dt]) );
 	    for(tl=0;tl<nt;tl++)
         {
             //shift free propagator to different source positions
@@ -334,14 +336,14 @@ void TEMLepton<FImpl>::execute(void)
 	}
 	// keep the result for the desired delta t
 	for(unsigned int dt=0;dt<par().deltat.size();dt++){
-	    PropagatorField &Aslashlep = envGet(PropagatorField, std::to_string(par().deltat[dt]) + "_" + getName());
+	    PropagatorField &Aslashlep = envGet(PropagatorField, getName() + "_" + std::to_string(par().deltat[dt]) );
 	    Aslashlep = where(tlat == (tl-par().deltat[dt]+nt)%nt, proptmp, Aslashlep);
 	}
     }
 
     //account for possible anti-periodic boundary in time
     for(unsigned int dt=0;dt<par().deltat.size();dt++){
-	PropagatorField &Aslashlep = envGet(PropagatorField, std::to_string(par().deltat[dt]) + "_" + getName());
+	PropagatorField &Aslashlep = envGet(PropagatorField, getName() + "_" + std::to_string(par().deltat[dt]));
 	Aslashlep = where( tlat >= nt-par().deltat[dt], boundary[Tp]*Aslashlep, Aslashlep);
     }
 }

@@ -34,6 +34,7 @@
 #include <Hadrons/Global.hpp>
 #include <Hadrons/Module.hpp>
 #include <Hadrons/ModuleFactory.hpp>
+#include <Hadrons/Serialization.hpp>
 #include <Grid/qcd/utils/BaryonUtils.h>
 
 BEGIN_HADRONS_NAMESPACE
@@ -136,7 +137,7 @@ std::vector<std::string> TBaryon<FImpl>::getInput(void)
 template <typename FImpl>
 std::vector<std::string> TBaryon<FImpl>::getOutput(void)
 {
-    std::vector<std::string> out = {};
+    std::vector<std::string> out = {getName()};
     
     return out;
 }
@@ -145,10 +146,13 @@ std::vector<std::string> TBaryon<FImpl>::getOutputFiles(void)
 {
     std::vector<std::string> output;
 
-    if (par().trace)
-        output.push_back( resultFilename(par().output) );
-    else 
-        output.push_back( resultFilename(par().output+"_Matrix") );
+    if (!par().output.empty())
+    {
+        if (par().trace)
+            output.push_back(resultFilename(par().output));
+        else 
+            output.push_back(resultFilename(par().output+"_Matrix"));
+    }
     
     return output;
 }
@@ -216,6 +220,7 @@ void TBaryon<FImpl>::setup(void)
         envTmpLat(LatticeComplex, "c");
     else 
         envTmpLat(SpinMatrixField, "cMat");
+    envCreate(HadronsSerializable, getName(), 1, 0);
 }
 
 // execution ///////////////////////////////////////////////////////////////////
@@ -491,9 +496,17 @@ void TBaryon<FImpl>::execute(void)
     }
 
     if (par().trace)
+    {
         saveResult(par().output, "baryon", result);
+        auto &out = envGet(HadronsSerializable, getName());
+        out = result;
+    }
     else 
+    {
         saveResult(par().output + "_Matrix", "baryonMat", resultMat);
+        auto &out = envGet(HadronsSerializable, getName());
+        out = resultMat;
+    }
 
 }
 

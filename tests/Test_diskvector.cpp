@@ -27,7 +27,7 @@
 #include <Hadrons/DiskVector.hpp>
 
 using namespace Grid;
-using namespace Grid::Hadrons;
+using namespace HADRONS_NAMESPACE;
 
 GRID_SERIALIZABLE_ENUM(Enum, undef, red, 1, blue, 2, green, 3);
 

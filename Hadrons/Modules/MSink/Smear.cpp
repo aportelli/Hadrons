@@ -30,5 +30,5 @@ using namespace Grid;
 using namespace Hadrons;
 using namespace MSink;
 
-template class Grid::Hadrons::MSink::TSmear<FIMPL::PropagatorField>;
+template class HADRONS_NAMESPACE::MSink::TSmear<FIMPL::PropagatorField>;
 

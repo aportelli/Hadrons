@@ -20,7 +20,7 @@ for m in `find Modules -name '*.hpp' -type f -print`; do
             SUB=`echo ${SUB} | sed -E "s/@arg@/${TMPARG}/g"`
             NAME=`echo ${SUB} | awk -F '|' '{print $1}'`
             TYPE=`echo ${SUB} | awk -F '|' '{print $2}'`
-            echo "template class Grid::Hadrons::${NS}::${TYPE};" >> ${CCFILE}
+            echo "template class HADRONS_NAMESPACE::${NS}::${TYPE};" >> ${CCFILE}
         done
         echo "" >> ${CCFILE}
     fi

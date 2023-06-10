@@ -32,6 +32,7 @@
 #include <Hadrons/Global.hpp>
 #include <Hadrons/Module.hpp>
 #include <Hadrons/ModuleFactory.hpp>
+#include <Hadrons/Serialization.hpp>
 #include <Hadrons/Modules/MNPR/NPRUtils.hpp>
 
 BEGIN_HADRONS_NAMESPACE
@@ -125,11 +126,11 @@ void TG1<FImpl>::setup(void)
     LOG(Message) << "Running setup for G1" << std::endl;
 
     envTmpLat(PropagatorField, "bilinear");
-
     envTmpLat(ComplexField, "bilinear_phase");
-
     envTmpLat(GaugeField, "dSdU");
     envTmpLat(ColourMatrixField, "div_field_strength");
+
+    envCreate(HadronsSerializable, getName(), 1, 0);
 }
 
 // execution ///////////////////////////////////////////////////////////////////
@@ -212,8 +213,10 @@ void TG1<FImpl>::execute(void)
         bilinear = bilinear_phase * bilinear;
         result.fourq_gamma5 += (1.0 / volume) * sum(bilinear);
     }
-    saveResult(par().output, "G1", result);
+
     LOG(Message) << "Complete. Writing results to " << par().output << std::endl;
+    saveResult(par().output, "G1", result);
+    envGet(HadronsSerializable, getName()) = result;
 }
 
 END_MODULE_NAMESPACE

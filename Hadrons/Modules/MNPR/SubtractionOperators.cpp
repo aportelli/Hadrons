@@ -4,4 +4,4 @@ using namespace Grid;
 using namespace Hadrons;
 using namespace MNPR;
 
-template class Grid::Hadrons::MNPR::TSubtractionOperators<FIMPL>;
+template class HADRONS_NAMESPACE::MNPR::TSubtractionOperators<FIMPL>;

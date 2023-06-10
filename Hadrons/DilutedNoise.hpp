@@ -437,6 +437,7 @@ public:
                                 const unsigned int li, const unsigned int si, 
                                 const unsigned nNoise);
     unsigned int getInterlacing(const Index ind) const;
+    using DistillationNoise<FImpl>::dilutionSize;
     virtual int dilutionSize(const Index ind) const;
     void load(const std::string filename, const std::string distilname, const unsigned int traj);
 protected:
@@ -526,6 +527,7 @@ public:
 public:
     ExactDistillationPolicy(GridCartesian *g, GridCartesian *g3d,
                                 const LapPack &pack);
+    using DistillationNoise<FImpl>::dilutionSize;
     virtual int dilutionSize(const Index ind) const;
     virtual std::vector<std::string> generateHash(void);
 protected:
