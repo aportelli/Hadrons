@@ -50,7 +50,7 @@ public:
                                     std::string , guesser);
 };
 
-template <typename FImpl>
+template <typename FImpl, bool failIfNoConverge = true>
 class TRBPrecCG: public Module<RBPrecCGPar>
 {
 public:
@@ -73,20 +73,22 @@ protected:
 };
 
 MODULE_REGISTER_TMP(RBPrecCG, ARG(TRBPrecCG<FIMPL>), MSolver);
+MODULE_REGISTER_TMP(RBPrecCGNoFail, ARG(TRBPrecCG<FIMPL, false>), MSolver);
 MODULE_REGISTER_TMP(ZRBPrecCG, ARG(TRBPrecCG<ZFIMPL>), MSolver);
+MODULE_REGISTER_TMP(ZRBPrecCGNoFail, ARG(TRBPrecCG<ZFIMPL, false>), MSolver);
 
 /******************************************************************************
  *                      TRBPrecCG template implementation                     *
  ******************************************************************************/
 // constructor /////////////////////////////////////////////////////////////////
-template <typename FImpl>
-TRBPrecCG<FImpl>::TRBPrecCG(const std::string name)
+template <typename FImpl, bool failIfNoConverge>
+TRBPrecCG<FImpl, failIfNoConverge>::TRBPrecCG(const std::string name)
 : Module(name)
 {}
 
 // dependencies/products ///////////////////////////////////////////////////////
-template <typename FImpl>
-std::vector<std::string> TRBPrecCG<FImpl>::getInput(void)
+template <typename FImpl, bool failIfNoConverge>
+std::vector<std::string> TRBPrecCG<FImpl, failIfNoConverge>::getInput(void)
 {
     std::vector<std::string> in = {par().action};
     
@@ -98,16 +100,16 @@ std::vector<std::string> TRBPrecCG<FImpl>::getInput(void)
     return in;
 }
 
-template <typename FImpl>
-std::vector<std::string> TRBPrecCG<FImpl>::getOutput(void)
+template <typename FImpl, bool failIfNoConverge>
+std::vector<std::string> TRBPrecCG<FImpl, failIfNoConverge>::getOutput(void)
 {
     std::vector<std::string> out = {getName(), getName() + "_subtract"};
     
     return out;
 }
 
-template <typename FImpl>
-DependencyMap TRBPrecCG<FImpl>::getObjectDependencies(void)
+template <typename FImpl, bool failIfNoConverge>
+DependencyMap TRBPrecCG<FImpl, failIfNoConverge>::getObjectDependencies(void)
 {
     DependencyMap dep;
 
@@ -128,14 +130,13 @@ DependencyMap TRBPrecCG<FImpl>::getObjectDependencies(void)
 #define SOLVER_BODY                                                                          \
 ZeroGuesser<FermionField>    defaultGuesser;                                                 \
 LinearFunction<FermionField> &guesser = (guesserPt == nullptr) ? defaultGuesser : *guesserPt;\
-ConjugateGradient<FermionField> cg(par().residual,                                           \
-                                   par().maxIteration);                                      \
+ConjugateGradient<FermionField> cg(par().residual, par().maxIteration, failIfNoConverge);    \
 HADRONS_DEFAULT_SCHUR_SOLVE<FermionField> schurSolver(cg);                                   \
 schurSolver.subtractGuess(subGuess);                                                         \
 schurSolver(mat, source, sol, guesser);
 
-template <typename FImpl>
-void TRBPrecCG<FImpl>::setup(void)
+template <typename FImpl, bool failIfNoConverge>
+void TRBPrecCG<FImpl, failIfNoConverge>::setup(void)
 {
     if (par().maxIteration == 0)
     {
@@ -180,8 +181,8 @@ void TRBPrecCG<FImpl>::setup(void)
 #undef SOLVER_BODY
 
 // execution ///////////////////////////////////////////////////////////////////
-template <typename FImpl>
-void TRBPrecCG<FImpl>::execute(void)
+template <typename FImpl, bool failIfNoConverge>
+void TRBPrecCG<FImpl, failIfNoConverge>::execute(void)
 {}
 
 END_MODULE_NAMESPACE

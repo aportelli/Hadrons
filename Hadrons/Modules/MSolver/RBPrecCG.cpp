@@ -30,5 +30,6 @@ using namespace Hadrons;
 using namespace MSolver;
 
 template class HADRONS_NAMESPACE::MSolver::TRBPrecCG<FIMPL>;
+template class HADRONS_NAMESPACE::MSolver::TRBPrecCG<FIMPL, false>;
 template class HADRONS_NAMESPACE::MSolver::TRBPrecCG<ZFIMPL>;
-
+template class HADRONS_NAMESPACE::MSolver::TRBPrecCG<ZFIMPL, false>;
