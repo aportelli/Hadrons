@@ -1,11 +1,13 @@
 /*
  * Meson.hpp, part of Hadrons (https://github.com/aportelli/Hadrons)
  *
- * Copyright (C) 2015 - 2020
+ * Copyright (C) 2015 - 2023
  *
  * Author: Antonin Portelli <antonin.portelli@me.com>
+ * Author: Felix Erben <felix.erben@ed.ac.uk>
  * Author: Fionn O hOgain <fionn.o.hogain@ed.ac.uk>
  * Author: Lanny91 <andrew.lawson@gmail.com>
+ * Author: Ryan Hill <rchrys.hill@gmail.com>
  * Author: Vera Guelpers <vmg1n14@soton.ac.uk>
  *
  * Hadrons is free software: you can redistribute it and/or modify

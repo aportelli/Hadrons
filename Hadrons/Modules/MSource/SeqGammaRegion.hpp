@@ -1,13 +1,14 @@
 /*
- * SeqGamma.hpp, part of Hadrons (https://github.com/aportelli/Hadrons)
+ * SeqGammaRegion.hpp, part of Hadrons (https://github.com/aportelli/Hadrons)
  *
- * Copyright (C) 2015 - 2020
+ * Copyright (C) 2015 - 2023
  *
  * Author: Antonin Portelli <antonin.portelli@me.com>
  * Author: Lanny91 <andrew.lawson@gmail.com>
+ * Author: Michael Marshall <43034299+mmphys@users.noreply.github.com>
+ * Author: Michael Marshall <michael.marshall@ed.ac.uk>
  * Author: Peter Boyle <paboyle@ph.ed.ac.uk>
  * Author: fionnoh <fionnoh@gmail.com>
- * Author: Michael Marshall <michael.marshall@ed.ac.uk>
  *
  * Hadrons is free software: you can redistribute it and/or modify
  * it under the terms of the GNU General Public License as published by

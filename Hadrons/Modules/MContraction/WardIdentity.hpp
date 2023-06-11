@@ -1,13 +1,15 @@
 /*
  * WardIdentity.hpp, part of Hadrons (https://github.com/aportelli/Hadrons)
  *
- * Copyright (C) 2015 - 2020
+ * Copyright (C) 2015 - 2023
  *
  * Author: Antonin Portelli <antonin.portelli@me.com>
  * Author: Lanny91 <andrew.lawson@gmail.com>
- * Author: Peter Boyle <paboyle@ph.ed.ac.uk>
- * Author: fionnoh <fionnoh@gmail.com>
+ * Author: Michael Marshall <43034299+mmphys@users.noreply.github.com>
  * Author: Michael Marshall <Michael.Marshall@ed.ac.uk>
+ * Author: Peter Boyle <paboyle@ph.ed.ac.uk>
+ * Author: Ryan Hill <rchrys.hill@gmail.com>
+ * Author: fionnoh <fionnoh@gmail.com>
  *
  * Hadrons is free software: you can redistribute it and/or modify
  * it under the terms of the GNU General Public License as published by
@@ -22,7 +24,7 @@
  * You should have received a copy of the GNU General Public License
  * along with Hadrons.  If not, see <http://www.gnu.org/licenses/>.
  *
- * See the full license in the file "LICENSE" in the top level distribution
+ * See the full license in the file "LICENSE" in the top level distribution 
  * directory.
  */
 

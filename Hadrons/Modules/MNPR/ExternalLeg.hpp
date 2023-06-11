@@ -1,14 +1,17 @@
 /*
  * ExternalLeg.hpp, part of Hadrons (https://github.com/aportelli/Hadrons)
  *
- * Copyright (C) 2015 - 2022
+ * Copyright (C) 2015 - 2023
  *
  * Author: Antonin Portelli <antonin.portelli@me.com>
+ * Author: Fabian Joswig <fabian.joswig@ed.ac.uk>
+ * Author: Fabian Joswig <fabian.joswig@wwu.de>
+ * Author: Felix Erben <felix.erben@ed.ac.uk>
  * Author: Julia Kettle J.R.Kettle-2@sms.ed.ac.uk
  * Author: Michael Marshall <43034299+mmphys@users.noreply.github.com>
  * Author: Peter Boyle <paboyle@ph.ed.ac.uk>
- * Author: Fabian Joswig <fabian.joswig@wwu.de>
- * Author: Felix Erben <felix.erben@ed.ac.uk>
+ * Author: Simon Bürger <simon.buerger@rwth-aachen.de>
+ * Author: rabbott <rabbott4927@gmail.com>
  *
  * Hadrons is free software: you can redistribute it and/or modify
  * it under the terms of the GNU General Public License as published by
@@ -23,7 +26,7 @@
  * You should have received a copy of the GNU General Public License
  * along with Hadrons.  If not, see <http://www.gnu.org/licenses/>.
  *
- * See the full license in the file "LICENSE" in the top level distribution
+ * See the full license in the file "LICENSE" in the top level distribution 
  * directory.
  */
 

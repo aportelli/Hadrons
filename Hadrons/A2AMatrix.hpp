@@ -1,12 +1,13 @@
 /*
- * A2AMatrix.hpp, part of Hadrons ()
+ * A2AMatrix.hpp, part of Hadrons (https://github.com/aportelli/Hadrons)
  *
- * Copyright (C) 2015 - 2020
+ * Copyright (C) 2015 - 2023
  *
  * Author: Antonin Portelli <antonin.portelli@me.com>
  * Author: Fionn O hOgain <fionn.o.hogain@ed.ac.uk>
  * Author: Peter Boyle <paboyle@ph.ed.ac.uk>
  * Author: fionnoh <fionnoh@gmail.com>
+ * Author: nelsonlachini <nelsonlachini@gmail.com>
  *
  * Hadrons is free software: you can redistribute it and/or modify
  * it under the terms of the GNU General Public License as published by

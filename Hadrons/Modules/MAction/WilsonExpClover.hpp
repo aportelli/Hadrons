@@ -1,9 +1,10 @@
 /*
  * WilsonExpClover.hpp, part of Hadrons (https://github.com/aportelli/Hadrons)
  *
- * Copyright (C) 2015 - 2020
+ * Copyright (C) 2015 - 2023
  *
  * Author: Antonin Portelli <antonin.portelli@me.com>
+ * Author: Fabian Joswig <fabian.joswig@ed.ac.uk>
  * Author: Guido Cossu <guido.cossu@ed.ac.uk>
  * Author: pretidav <david.preti@csic.es>
  *

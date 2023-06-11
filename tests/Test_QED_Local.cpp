@@ -1,8 +1,10 @@
 /*
- * Test_QED.cpp, part of Hadrons (https://github.com/aportelli/Hadrons)
+ * Test_QED_Local.cpp, part of Hadrons (https://github.com/aportelli/Hadrons)
  *
- * Copyright (C) 2015 - 2020
+ * Copyright (C) 2015 - 2023
  *
+ * Author: Antonin Portelli <antonin.portelli@me.com>
+ * Author: JPRichings <james.richings@ed.ac.uk>
  * Author: James Richings <james.richings@ed.ac.uk>
  *
  * Hadrons is free software: you can redistribute it and/or modify

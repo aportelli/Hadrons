@@ -1,7 +1,7 @@
 /*
  * NamedTensor.hpp, part of Hadrons (https://github.com/aportelli/Hadrons)
  *
- * Copyright (C) 2015 - 2020
+ * Copyright (C) 2015 - 2023
  *
  *  Author: Felix Erben <ferben@ed.ac.uk>
  *  Author: Michael Marshall <Michael.Marshall@ed.ac.uk>

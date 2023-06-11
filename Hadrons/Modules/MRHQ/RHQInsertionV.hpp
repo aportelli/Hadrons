@@ -1,11 +1,14 @@
 /*
  * RHQInsertionV.hpp, part of Hadrons (https://github.com/aportelli/Hadrons)
  *
- * Copyright (C) 2015 - 2022
+ * Copyright (C) 2015 - 2023
  *
- * Author: Antonin Portelli <antonin.portelli@me.com>
- * Author: Ryan Hill <rchrys.hill@gmail.com>
+ * Author: Alessandro Barone <ab1n19@soton.ac.uk>
  * Author: Alessandro Barone <barone1618@gmail.com>
+ * Author: Antonin Portelli <antonin.portelli@me.com>
+ * Author: Felix Erben <felix.erben@ed.ac.uk>
+ * Author: RChrHill <75032435+RChrHill@users.noreply.github.com>
+ * Author: Ryan Hill <rchrys.hill@gmail.com>
  *
  * Hadrons is free software: you can redistribute it and/or modify
  * it under the terms of the GNU General Public License as published by
@@ -23,7 +26,7 @@
  * See the full license in the file "LICENSE" in the top level distribution 
  * directory.
  */
- 
+
 /*  END LEGAL */
 
 #ifndef Hadrons_MRHQ_RHQInsertionV_hpp_

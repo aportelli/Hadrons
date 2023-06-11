@@ -1,9 +1,11 @@
 /*
  * Momentum.hpp, part of Hadrons (https://github.com/aportelli/Hadrons)
  *
- * Copyright (C) 2015 - 2020
+ * Copyright (C) 2015 - 2023
  *
  * Author: Antonin Portelli <antonin.portelli@me.com>
+ * Author: Fabian Joswig <fabian.joswig@wwu.de>
+ * Author: Felix Erben <felix.erben@ed.ac.uk>
  * Author: Peter Boyle <paboyle@ph.ed.ac.uk>
  *
  * Hadrons is free software: you can redistribute it and/or modify

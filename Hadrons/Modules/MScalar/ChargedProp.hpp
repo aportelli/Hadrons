@@ -1,7 +1,7 @@
 /*
  * ChargedProp.hpp, part of Hadrons (https://github.com/aportelli/Hadrons)
  *
- * Copyright (C) 2015 - 2020
+ * Copyright (C) 2015 - 2023
  *
  * Author: Antonin Portelli <antonin.portelli@me.com>
  * Author: James Harrison <jch1g10@soton.ac.uk>

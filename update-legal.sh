@@ -10,7 +10,7 @@ update_files()
 /*
  * $(basename $1), part of Hadrons (https://github.com/aportelli/Hadrons)
  *
- * Copyright (C) 2015 - 2020
+ * Copyright (C) 2015 - 2023
  *
 EOF
 

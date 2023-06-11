@@ -1,14 +1,17 @@
 /*
  * DilutedNoise.hpp, part of Hadrons (https://github.com/aportelli/Hadrons)
  *
- * Copyright (C) 2015 - 2020
+ * Copyright (C) 2015 - 2023
  *
  * Author: Antonin Portelli <antonin.portelli@me.com>
+ * Author: Fabian Joswig <fabian.joswig@ed.ac.uk>
+ * Author: Felix Erben <felix.erben@ed.ac.uk>
  * Author: Fionn O hOgain <fionn.o.hogain@ed.ac.uk>
  * Author: Fionn Ó hÓgáin <fionnoh@gmail.com>
  * Author: Peter Boyle <paboyle@ph.ed.ac.uk>
  * Author: Vera Guelpers <Vera.Guelpers@ed.ac.uk>
  * Author: Vera Guelpers <vmg1n14@soton.ac.uk>
+ * Author: nelsonlachini <nelsonlachini@gmail.com>
  *
  * Hadrons is free software: you can redistribute it and/or modify
  * it under the terms of the GNU General Public License as published by
