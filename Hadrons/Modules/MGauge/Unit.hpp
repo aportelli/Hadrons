@@ -59,6 +59,8 @@ protected:
 };
 
 MODULE_REGISTER_TMP(Unit, TUnit<GIMPL>, MGauge);
+MODULE_REGISTER_TMP(UnitU1, 
+    ARG(TUnit<PeriodicGaugeImpl<GaugeImplTypes<vComplex, 1>>>), MGauge);
 
 /******************************************************************************
 *                            TUnit implementation                             *

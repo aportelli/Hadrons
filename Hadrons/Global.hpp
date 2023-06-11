@@ -73,12 +73,29 @@ using Grid::operator>>;
 #define _HADRONS_IMPL(impl, sub) impl##sub
 #define HADRONS_IMPL(impl, sub)   _HADRONS_IMPL(impl, sub)
 
+typedef Grid::WilsonImpl<Grid::vComplex, 
+                         Grid::FundamentalRep<1>, 
+                         Grid::CoeffReal> LeptonWilsonImplR;
+typedef Grid::WilsonImpl<Grid::vComplexF, 
+                         Grid::FundamentalRep<1>, 
+                         Grid::CoeffReal> LeptonWilsonImplF;
+typedef Grid::WilsonImpl<Grid::vComplexD, 
+                         Grid::FundamentalRep<1>, 
+                         Grid::CoeffReal> LeptonWilsonImplD;
+
 #ifndef FIMPLBASE
 #define FIMPLBASE WilsonImpl
 #endif
 #define FIMPL  HADRONS_IMPL(FIMPLBASE, R)
 #define FIMPLF HADRONS_IMPL(FIMPLBASE, F)
 #define FIMPLD HADRONS_IMPL(FIMPLBASE, D)
+
+#ifndef LIMPLBASE
+#define LIMPLBASE LeptonWilsonImpl
+#endif
+#define LIMPL  HADRONS_IMPL(LIMPLBASE, R)
+#define LIMPLF HADRONS_IMPL(LIMPLBASE, F)
+#define LIMPLD HADRONS_IMPL(LIMPLBASE, D)
 
 #ifndef ZFIMPLBASE
 #define ZFIMPLBASE ZWilsonImpl

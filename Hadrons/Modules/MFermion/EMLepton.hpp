@@ -110,7 +110,7 @@ private:
     Solver       *solver_{nullptr};
 };
 
-MODULE_REGISTER_TMP(EMLepton, TEMLepton<FIMPL>, MFermion);
+MODULE_REGISTER_TMP(EMLepton, TEMLepton<LIMPL>, MFermion);
 
 /******************************************************************************
  *                 TEMLepton implementation                             *
@@ -245,12 +245,16 @@ void TEMLepton<FImpl>::execute(void)
         sol = Zero();
         if(par().feynmanRules)
         {
+            startTimer("propagators");
         	mat.FreePropagator(source,sol,mass,boundary,twist);
+            stopTimer("propagators");
         }
         else
         {
 		auto &solver  = envGet(Solver, par().solver);
+        startTimer("propagators");
 		solver(sol, source);
+        stopTimer("propagators");
         }
         if (Ls_ == 1)
         {
@@ -316,12 +320,16 @@ void TEMLepton<FImpl>::execute(void)
             sol = Zero();
 	    if(par().feynmanRules)
 	    {
+            startTimer("propagators");
         	mat.FreePropagator(source,sol,mass,boundary,twist);
+            stopTimer("propagators");
             }
             else
             {
 		auto &solver  = envGet(Solver, par().solver);
+        startTimer("propagators");
 		solver(sol, source);
+        stopTimer("propagators");
             }
 	    if (Ls_ == 1)
 	    {

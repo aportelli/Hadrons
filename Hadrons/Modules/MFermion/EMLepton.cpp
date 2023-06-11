@@ -29,5 +29,5 @@ using namespace Grid;
 using namespace Hadrons;
 using namespace MFermion;
 
-template class HADRONS_NAMESPACE::MFermion::TEMLepton<FIMPL>;
+template class HADRONS_NAMESPACE::MFermion::TEMLepton<LIMPL>;
 

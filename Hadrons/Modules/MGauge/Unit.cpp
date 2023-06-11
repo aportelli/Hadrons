@@ -30,3 +30,4 @@ using namespace Hadrons;
 using namespace MGauge;
 
 template class HADRONS_NAMESPACE::MGauge::TUnit<GIMPL>;
+template class HADRONS_NAMESPACE::MGauge::TUnit<PeriodicGaugeImpl<GaugeImplTypes<vComplex, 1>>>;

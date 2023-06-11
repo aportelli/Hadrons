@@ -30,6 +30,8 @@ using namespace Hadrons;
 using namespace MAction;
 
 template class HADRONS_NAMESPACE::MAction::TDWF<FIMPL>;
+template class HADRONS_NAMESPACE::MAction::TDWF<LIMPL>;
 #ifdef GRID_DEFAULT_PRECISION_DOUBLE
 template class HADRONS_NAMESPACE::MAction::TDWF<FIMPLF>;
+template class HADRONS_NAMESPACE::MAction::TDWF<LIMPLF>;
 #endif

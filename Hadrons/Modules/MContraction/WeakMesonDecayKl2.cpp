@@ -29,5 +29,4 @@ using namespace Grid;
 using namespace Hadrons;
 using namespace MContraction;
 
-template class HADRONS_NAMESPACE::MContraction::TWeakMesonDecayKl2<FIMPL>;
-
+template class HADRONS_NAMESPACE::MContraction::TWeakMesonDecayKl2<FIMPL, LIMPL>;

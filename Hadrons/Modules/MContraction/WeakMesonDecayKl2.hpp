@@ -79,11 +79,12 @@ public:
 				                    std::string, output);
 };
 
-template <typename FImpl>
+template <typename FImpl, typename LImpl>
 class TWeakMesonDecayKl2: public Module<WeakMesonDecayKl2Par>
 {
 public:
     FERM_TYPE_ALIASES(FImpl,);
+    FERM_TYPE_ALIASES(LImpl, Lepton);
     typedef typename SpinMatrixField::vector_object::scalar_object SpinMatrix;
     class Result: Serializable
     {
@@ -107,36 +108,36 @@ protected:
     virtual void execute(void);
 };
 
-MODULE_REGISTER_TMP(WeakMesonDecayKl2, TWeakMesonDecayKl2<FIMPL>, MContraction);
+MODULE_REGISTER_TMP(WeakMesonDecayKl2, ARG(TWeakMesonDecayKl2<FIMPL, LIMPL>), MContraction);
 
 /******************************************************************************
  *                           TWeakMesonDecayKl2 implementation                   *
  ******************************************************************************/
 // constructor /////////////////////////////////////////////////////////////////
-template <typename FImpl>
-TWeakMesonDecayKl2<FImpl>::TWeakMesonDecayKl2(const std::string name)
+template <typename FImpl, typename LImpl>
+TWeakMesonDecayKl2<FImpl, LImpl>::TWeakMesonDecayKl2(const std::string name)
 : Module<WeakMesonDecayKl2Par>(name)
 {}
 
 // dependencies/products ///////////////////////////////////////////////////////
-template <typename FImpl>
-std::vector<std::string> TWeakMesonDecayKl2<FImpl>::getInput(void)
+template <typename FImpl, typename LImpl>
+std::vector<std::string> TWeakMesonDecayKl2<FImpl, LImpl>::getInput(void)
 {
     std::vector<std::string> input = {par().q1, par().q2, par().lepton};
     
     return input;
 }
 
-template <typename FImpl>
-std::vector<std::string> TWeakMesonDecayKl2<FImpl>::getOutput(void)
+template <typename FImpl, typename LImpl>
+std::vector<std::string> TWeakMesonDecayKl2<FImpl, LImpl>::getOutput(void)
 {
     std::vector<std::string> output = {getName()};
     
     return output;
 }
 
-template <typename FImpl>
-std::vector<std::string> TWeakMesonDecayKl2<FImpl>::getOutputFiles(void)
+template <typename FImpl, typename LImpl>
+std::vector<std::string> TWeakMesonDecayKl2<FImpl, LImpl>::getOutputFiles(void)
 {
     std::vector<std::string> output;
     
@@ -147,19 +148,19 @@ std::vector<std::string> TWeakMesonDecayKl2<FImpl>::getOutputFiles(void)
 }
 
 // setup ////////////////////////////////////////////////////////////////////////
-template <typename FImpl>
-void TWeakMesonDecayKl2<FImpl>::setup(void)
+template <typename FImpl, typename LImpl>
+void TWeakMesonDecayKl2<FImpl, LImpl>::setup(void)
 {
     envTmpLat(ComplexField, "c");
-    envTmpLat(PropagatorField, "res_buf");
+    envTmpLat(PropagatorFieldLepton, "res_buf");
     envTmpLat(SpinMatrixField, "buf");
     envCreate(HadronsSerializable, getName(), 1, 0);
     envTmpLat(LatticeComplex, "coor");
 }
 
 // execution ///////////////////////////////////////////////////////////////////
-template <typename FImpl>
-void TWeakMesonDecayKl2<FImpl>::execute(void)
+template <typename FImpl, typename LImpl>
+void TWeakMesonDecayKl2<FImpl, LImpl>::execute(void)
 {
     LOG(Message) << "Computing QED Kl2 contractions '" << getName() << "' using"
                  << " quarks '" << par().q1 << "' and '" << par().q2 << "' and"
@@ -172,10 +173,10 @@ void TWeakMesonDecayKl2<FImpl>::execute(void)
 
     auto &q1     = envGet(PropagatorField, par().q1);
     auto &q2     = envGet(PropagatorField, par().q2);
-    auto &lepton = envGet(PropagatorField, par().lepton);
+    auto &lepton = envGet(PropagatorFieldLepton, par().lepton);
     envGetTmp(SpinMatrixField, buf);
     envGetTmp(ComplexField, c);
-    envGetTmp(PropagatorField, res_buf); res_buf = Zero();
+    envGetTmp(PropagatorFieldLepton, res_buf); res_buf = Zero();
     
     for (unsigned int mu = 0; mu < 4; ++mu)
     {

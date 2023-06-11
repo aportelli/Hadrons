@@ -72,8 +72,10 @@ protected:
 };
 
 MODULE_REGISTER_TMP(DWF, TDWF<FIMPL>, MAction);
+MODULE_REGISTER_TMP(DWFLepton, TDWF<LIMPL>, MAction);
 #ifdef GRID_DEFAULT_PRECISION_DOUBLE
 MODULE_REGISTER_TMP(DWFF, TDWF<FIMPLF>, MAction);
+MODULE_REGISTER_TMP(DWFLeptonF, TDWF<LIMPLF>, MAction);
 #endif
 
 /******************************************************************************

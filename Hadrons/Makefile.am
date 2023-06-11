@@ -11,6 +11,7 @@ libHadrons_a_SOURCES = \
  	Environment.cpp     \
 	Exceptions.cpp      \
  	Global.cpp          \
+	LeptonImpl.cpp      \
 	StatLogger.cpp      \
  	Module.cpp		      \
 	TimerArray.cpp      \
