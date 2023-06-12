@@ -32,4 +32,5 @@ using namespace MUtilities;
 
 template class HADRONS_NAMESPACE::MUtilities::TPrecisionCast<GIMPLD::GaugeField, GIMPLF::GaugeField>;
 template class HADRONS_NAMESPACE::MUtilities::TPrecisionCast<GIMPLD::GaugeLinkField, GIMPLF::GaugeLinkField>;
+template class HADRONS_NAMESPACE::MUtilities::TPrecisionCast<PeriodicGImplU1D::GaugeField, PeriodicGImplU1F::GaugeField>;
 template class HADRONS_NAMESPACE::MUtilities::TPrecisionCast<FIMPLD::FermionField, FIMPLF::FermionField>;

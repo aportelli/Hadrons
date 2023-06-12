@@ -30,4 +30,5 @@ using namespace Hadrons;
 using namespace MSolver;
 
 template class HADRONS_NAMESPACE::MSolver::TMixedPrecisionRBPrecCG<FIMPLF, FIMPLD>;
+template class HADRONS_NAMESPACE::MSolver::TMixedPrecisionRBPrecCG<LIMPLF, LIMPLD>;
 template class HADRONS_NAMESPACE::MSolver::TMixedPrecisionRBPrecCG<ZFIMPLF, ZFIMPLD>;

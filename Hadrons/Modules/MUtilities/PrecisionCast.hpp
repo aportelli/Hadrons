@@ -65,6 +65,9 @@ public:
 MODULE_REGISTER_TMP(GaugeSinglePrecisionCast, 
                     ARG(TPrecisionCast<GIMPLD::GaugeField, GIMPLF::GaugeField>),
                     MUtilities);
+MODULE_REGISTER_TMP(GaugeU1SinglePrecisionCast, 
+                    ARG(TPrecisionCast<PeriodicGImplU1D::GaugeField, PeriodicGImplU1F::GaugeField>),
+                    MUtilities);
 MODULE_REGISTER_TMP(ColourMatrixSinglePrecisionCast, 
                     ARG(TPrecisionCast<GIMPLD::GaugeLinkField, GIMPLF::GaugeLinkField>),
                     MUtilities);

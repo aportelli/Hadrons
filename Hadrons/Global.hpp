@@ -86,6 +86,9 @@ typedef Grid::WilsonImpl<Grid::vComplexF,
 typedef Grid::WilsonImpl<Grid::vComplexD, 
                          Grid::FundamentalRep<1>, 
                          Grid::CoeffReal> LeptonWilsonImplD;
+typedef Grid::PeriodicGaugeImpl<Grid::GaugeImplTypes<Grid::vComplex, 1>> PeriodicGImplU1;
+typedef Grid::PeriodicGaugeImpl<Grid::GaugeImplTypes<Grid::vComplexF, 1>> PeriodicGImplU1F;
+typedef Grid::PeriodicGaugeImpl<Grid::GaugeImplTypes<Grid::vComplexD, 1>> PeriodicGImplU1D;
 
 #ifndef FIMPLBASE
 #define FIMPLBASE WilsonImpl

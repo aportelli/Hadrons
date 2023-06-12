@@ -94,6 +94,7 @@ public:
 };
 
 MODULE_REGISTER_TMP(MixedPrecisionRBPrecCG, ARG(TMixedPrecisionRBPrecCG<FIMPLF, FIMPLD>), MSolver);
+MODULE_REGISTER_TMP(MixedPrecisionRBPrecCGLepton, ARG(TMixedPrecisionRBPrecCG<LIMPLF, LIMPLD>), MSolver);
 MODULE_REGISTER_TMP(ZMixedPrecisionRBPrecCG, ARG(TMixedPrecisionRBPrecCG<ZFIMPLF, ZFIMPLD>), MSolver);
 
 /******************************************************************************
