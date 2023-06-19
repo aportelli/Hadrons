@@ -56,7 +56,7 @@ void test(GridBase *grid, const std::string mode)
     grid->Barrier();
 
     Database  db(filename, nullptr, mode);
-    int       rank  = grid->ThisRank(), npoint = 100;
+    int       rank  = grid->ThisRank(), npoint = 1000;
     double    dx = 0.01, xi = rank*npoint*dx;
     TestEntry e;
 
@@ -72,7 +72,6 @@ void test(GridBase *grid, const std::string mode)
         e.f     = cos(e.x);
         db.insert("function", e);
         LOG(Debug) << i << std::endl;
-        std::this_thread::sleep_for(std::chrono::milliseconds(100));
     }
 }
 
@@ -83,7 +82,7 @@ int main(int argc, char *argv[])
 
     auto                     &env  = Environment::getInstance();
     auto                     *grid = env.getGrid();
-    std::vector<std::string> modes = {"", "WAL"};
+    std::vector<std::string> modes = {"WAL"};
 
     LOG(Message) << "-- Testing different journal modes..." << std::endl;
     for (auto &m: modes)

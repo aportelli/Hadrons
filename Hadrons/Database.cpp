@@ -31,7 +31,11 @@
 #endif
 
 #ifndef HADRONS_SQLITE_BUSY_TIMEOUT
-#define HADRONS_SQLITE_BUSY_TIMEOUT 10000
+#define HADRONS_SQLITE_BUSY_TIMEOUT 2000
+#endif
+
+#ifndef HADRONS_SQLITE_RANDOM_WAIT
+#define HADRONS_SQLITE_RANDOM_WAIT 2000
 #endif
 
 using namespace Grid;
@@ -242,9 +246,10 @@ QueryResult Database::execute(const std::string query)
             if (RETRY_STATUSES)
             {
                 LOG(Warning) << "Database '" << filename_ << "' cannot be accessed (SQLite status " 
-                             << status << "), randomly retrying in less than 100 ms" << std::endl;
+                             << status << "), randomly retrying in less than " 
+                             << HADRONS_SQLITE_RANDOM_WAIT << " ms" << std::endl;
                 LOG(Debug) << "Query: '" << query << "'" << std::endl;
-                randomWait(100, grid_);
+                randomWait(HADRONS_SQLITE_RANDOM_WAIT, grid_);
             }
         } while (RETRY_STATUSES and (attempt > 0));
         if (errBuf != nullptr)
