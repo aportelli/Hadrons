@@ -31,7 +31,7 @@
 #endif
 
 #ifndef HADRONS_SQLITE_BUSY_TIMEOUT
-#define HADRONS_SQLITE_BUSY_TIMEOUT 1000
+#define HADRONS_SQLITE_BUSY_TIMEOUT 10000
 #endif
 
 using namespace Grid;
