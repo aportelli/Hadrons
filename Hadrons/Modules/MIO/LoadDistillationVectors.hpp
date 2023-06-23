@@ -1,12 +1,10 @@
 /*
  * LoadDistillationVectors.hpp, part of Hadrons (https://github.com/aportelli/Hadrons)
  *
- * Copyright (C) 2015 - 2023
+ * Copyright (C) 2015 - 2020
  *
  * Author: Antonin Portelli <antonin.portelli@me.com>
- * Author: Fabian Joswig <fabian.joswig@ed.ac.uk>
  * Author: Felix Erben <felix.erben@ed.ac.uk>
- * Author: nelsonlachini <nelsonlachini@gmail.com>
  *
  * Hadrons is free software: you can redistribute it and/or modify
  * it under the terms of the GNU General Public License as published by
@@ -152,6 +150,11 @@ void TLoadDistillationVectors<FImpl>::execute(void)
     int nDS = dilNoise.dilutionSize(DistillationNoise<FImpl>::Index::s);        
     int nDT = dilNoise.dilutionSize(DistillationNoise<FImpl>::Index::t);        //full time dilution size
     std::vector<unsigned int> dt_list = strToVec<unsigned int>(par().timeSources);
+    if(par().timeSources.empty())
+    {
+        dt_list.resize(nDT);
+        std::iota(dt_list.begin(), dt_list.end(), 0);
+    }
 
     LOG(Message) << "Loading time sources (dt) : " <<  dt_list << std::endl;
 
