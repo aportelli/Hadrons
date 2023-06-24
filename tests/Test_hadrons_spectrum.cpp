@@ -105,7 +105,7 @@ int main(int argc, char *argv[])
         // actions
         MAction::DWF::Par actionPar;
         actionPar.gauge = "gauge";
-        actionPar.Ls    = 12;
+        actionPar.Ls    = 8;
         actionPar.M5    = 1.8;
         actionPar.mass  = mass[i];
         actionPar.boundary = boundary;
@@ -115,7 +115,7 @@ int main(int argc, char *argv[])
         // solvers
         MSolver::RBPrecCG::Par solverPar;
         solverPar.action       = "DWF_" + flavour[i];
-        solverPar.residual     = 1.0e-8;
+        solverPar.residual     = 1.0e-3;  // High residual for test purposes only. Use 1.0e-8 or smaller for physics workflows.
         solverPar.maxIteration = 10000;
         application.createModule<MSolver::RBPrecCG>("CG_" + flavour[i],
                                                     solverPar);
