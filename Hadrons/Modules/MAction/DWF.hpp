@@ -31,7 +31,6 @@
 #include <Hadrons/Global.hpp>
 #include <Hadrons/Module.hpp>
 #include <Hadrons/ModuleFactory.hpp>
-#include <Hadrons/Serialization.hpp>
 #include <Hadrons/Modules/MAction/FermionActionModule.hpp>
 
 BEGIN_HADRONS_NAMESPACE

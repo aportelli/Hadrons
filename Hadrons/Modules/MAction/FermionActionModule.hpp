@@ -3,6 +3,7 @@
 
 #include <Hadrons/Global.hpp>
 #include <Hadrons/Module.hpp>
+#include <Hadrons/Serialization.hpp>
 
 BEGIN_HADRONS_NAMESPACE
 BEGIN_MODULE_NAMESPACE(MAction)
