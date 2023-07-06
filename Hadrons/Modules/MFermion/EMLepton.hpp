@@ -61,6 +61,8 @@ BEGIN_HADRONS_NAMESPACE
  *  - twist: twisted boundary for lepton propagator, e.g. "0.0 0.0 0.0 0.5"
  *  - deltat: list of source-sink separations
  *
+ *  twist does nothing is feynmanRules == false, and in this case can be empty
+ *
  *******************************************************************************/
 
 /******************************************************************************
@@ -153,9 +155,13 @@ template <typename FImpl>
 void TEMLepton<FImpl>::setup(void)
 {
     if (par().feynmanRules)
+    {
         Ls_ = env().getObjectLs(par().action);
+    }
     else
+    {
         Ls_ = env().getObjectLs(par().solver);
+    }
     for (int i = 0; i < par().deltat.size(); i++)
     {
         envCreateLat(PropagatorField, getName() + "_free_" + std::to_string(par().deltat[i]));
@@ -175,6 +181,35 @@ void TEMLepton<FImpl>::setup(void)
 template <typename FImpl>
 void TEMLepton<FImpl>::execute(void)
 {
+    std::vector<double> twist;
+    std::vector<Complex> boundary;
+    RealD mass = par().mass;
+    Complex ci(0.0, 1.0);
+
+    boundary = strToVec<Complex>(par().boundary);
+    if (boundary.size() != env().getNd())
+    {
+        HADRONS_ERROR(Size, "number of boundary conditions does not match number of dimensions");
+    }
+    if (par().feynmanRules)
+    {
+        LOG(Message) << "Calculating a lepton Propagator with sequential Aslash insertion with lepton mass "
+                     << mass << " using Feynman rules for the action '" << par().action
+                     << "' for fixed source-sink separation of " << par().deltat << std::endl;
+        LOG(Message) << "Momenta: twist [" << par().twist << "]" << std::endl;
+        twist = strToVec<double>(par().twist);
+        if (twist.size() != env().getNd())
+        {
+            HADRONS_ERROR(Size, "number of twist angles does not match number of dimensions");
+        }
+    }
+    else
+    {
+        LOG(Message) << "Calculating a lepton Propagator with sequential Aslash insertion with lepton mass "
+                     << mass << " using the solver '" << par().solver
+                     << "' for fixed source-sink separation of " << par().deltat << std::endl;
+    }
+
     LOG(Message) << "Computing free fermion propagator '" << getName() << "'"
                  << std::endl;
 
@@ -184,38 +219,13 @@ void TEMLepton<FImpl>::execute(void)
         auto &solver = envGet(Solver, par().solver);
         auto &mat = solver.getFMat();
     }
-    RealD mass = par().mass;
-    Complex ci(0.0, 1.0);
 
     envGetTmp(FermionField, source);
     envGetTmp(FermionField, sol);
     envGetTmp(FermionField, tmp);
-    if (par().feynmanRules)
-    {
-        LOG(Message) << "Calculating a lepton Propagator with sequential Aslash insertion with lepton mass "
-                     << mass << " using Feynman rules for the action '" << par().action
-                     << "' for fixed source-sink separation of " << par().deltat << std::endl;
-    }
-    else
-    {
-        LOG(Message) << "Calculating a lepton Propagator with sequential Aslash insertion with lepton mass "
-                     << mass << " using the solver '" << par().solver
-                     << "' for fixed source-sink separation of " << par().deltat << std::endl;
-    }
-    LOG(Message) << "Momenta: twist [" << par().twist << "]" << std::endl;
+
     envGetTmp(Lattice<iScalar<vInteger>>, tlat);
     LatticeCoordinate(tlat, Tp);
-
-    std::vector<double> twist = strToVec<double>(par().twist);
-    if (twist.size() != Nd)
-    {
-        HADRONS_ERROR(Size, "number of twist angles does not match number of dimensions");
-    }
-    std::vector<Complex> boundary = strToVec<Complex>(par().boundary);
-    if (boundary.size() != Nd)
-    {
-        HADRONS_ERROR(Size, "number of boundary conditions does not match number of dimensions");
-    }
 
     auto &stoch_photon = envGet(EmField, par().emField);
     unsigned int nt = env().getDim(Tp);
