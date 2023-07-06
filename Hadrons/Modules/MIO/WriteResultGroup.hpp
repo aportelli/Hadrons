@@ -126,7 +126,7 @@ void TWriteResultGroup<Placeholder>::execute(void)
     // Pass a blank string to dump the unpacked group the file, rather than
     // adding a forced and useless outer group around the result
     saveResult(par().output, "", resultGroup);
-    LOG(Message) << "Finshed writing collated results into file '" << par().output << "'." << std::endl;
+    LOG(Message) << "Finished writing collated results into file '" << par().output << "'." << std::endl;
 }
 
 END_MODULE_NAMESPACE
