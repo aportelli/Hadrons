@@ -94,7 +94,7 @@ std::vector<std::string> TDWF<FImpl>::getInput(void)
 {
     std::vector<std::string> in = {par().gauge};
 
-    if (!isVector<Real>(par().twist))
+    if ((!isVector<Real>(par().twist)) && (!par().twist.empty()))
     {
         in.push_back(par().twist);
     }
