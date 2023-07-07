@@ -88,6 +88,13 @@ public:
         return *this;
     }
 
+    // Get back object
+    template<typename T>
+    const T &get(void)
+    {
+        return dynamic_cast<const Model<T> *>(this->object.get())->serializable;
+    }
+
     // ############ //
     // TYPE ERASURE //
     // ############ //

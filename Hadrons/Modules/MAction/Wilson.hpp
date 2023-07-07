@@ -32,11 +32,12 @@
 #include <Hadrons/Global.hpp>
 #include <Hadrons/Module.hpp>
 #include <Hadrons/ModuleFactory.hpp>
+#include <Hadrons/Modules/MAction/FermionActionModule.hpp>
 
 BEGIN_HADRONS_NAMESPACE
 
 /******************************************************************************
- *                            TWilson quark action                            *
+ *                            Wilson quark action                             *
  ******************************************************************************/
 BEGIN_MODULE_NAMESPACE(MAction)
 
@@ -47,12 +48,11 @@ public:
                                     std::string, gauge,
                                     double     , mass,
                                     std::string, boundary,
-                                    std::string, string,
                                     std::string, twist);
 };
 
 template <typename FImpl>
-class TWilson: public Module<WilsonPar>
+class TWilson: public FermionActionModule<WilsonPar>
 {
 public:
     FERM_TYPE_ALIASES(FImpl,);
@@ -82,7 +82,7 @@ MODULE_REGISTER_TMP(WilsonF, TWilson<FIMPLF>, MAction);
 // constructor /////////////////////////////////////////////////////////////////
 template <typename FImpl>
 TWilson<FImpl>::TWilson(const std::string name)
-: Module<WilsonPar>(name)
+: FermionActionModule<WilsonPar>(name)
 {}
 
 // dependencies/products ///////////////////////////////////////////////////////
@@ -90,6 +90,11 @@ template <typename FImpl>
 std::vector<std::string> TWilson<FImpl>::getInput(void)
 {
     std::vector<std::string> in = {par().gauge};
+
+    if ((!isVector<Real>(par().twist)) && (!par().twist.empty()))
+    {
+        in.push_back(par().twist);
+    }
     
     return in;
 }
@@ -113,24 +118,7 @@ void TWilson<FImpl>::setup(void)
     auto &grid   = *envGetGrid(FermionField);
     auto &gridRb = *envGetRbGrid(FermionField);
     typename WilsonFermion<FImpl>::ImplParams implParams;
-    if (!par().boundary.empty())
-    {
-        implParams.boundary_phases = strToVec<Complex>(par().boundary);
-    }
-    if (!par().twist.empty())
-    {
-        implParams.twist_n_2pi_L   = strToVec<Real>(par().twist);
-    }
-    LOG(Message) << "Fermion boundary conditions: " << implParams.boundary_phases << std::endl;
-    LOG(Message) << "Twists: " << implParams.twist_n_2pi_L << std::endl;
-    if (implParams.boundary_phases.size() != env().getNd())
-    {
-        HADRONS_ERROR(Size, "Wrong number of boundary phase");
-    }
-    if (implParams.twist_n_2pi_L.size() != env().getNd())
-    {
-        HADRONS_ERROR(Size, "Wrong number of twist");
-    }
+    parseBoundary(implParams);
     envCreateDerived(FMat, WilsonFermion<FImpl>, getName(), 1, U, grid, gridRb,
                      par().mass, implParams);
 }

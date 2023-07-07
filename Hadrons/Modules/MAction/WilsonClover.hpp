@@ -33,6 +33,7 @@
 #include <Hadrons/Global.hpp>
 #include <Hadrons/Module.hpp>
 #include <Hadrons/ModuleFactory.hpp>
+#include <Hadrons/Modules/MAction/FermionActionModule.hpp>
 
 BEGIN_HADRONS_NAMESPACE
 
@@ -57,7 +58,7 @@ public:
 };
 
 template <typename FImpl>
-class TWilsonClover: public Module<WilsonCloverPar>
+class TWilsonClover: public FermionActionModule<WilsonCloverPar>
 {
 public:
     FERM_TYPE_ALIASES(FImpl,);
@@ -86,7 +87,7 @@ MODULE_REGISTER_TMP(WilsonCloverF, TWilsonClover<FIMPLF>, MAction);
 // constructor /////////////////////////////////////////////////////////////////
 template <typename FImpl>
 TWilsonClover<FImpl>::TWilsonClover(const std::string name)
-: Module<WilsonCloverPar>(name)
+: FermionActionModule<WilsonCloverPar>(name)
 {}
 
 // dependencies/products ///////////////////////////////////////////////////////
@@ -94,6 +95,11 @@ template <typename FImpl>
 std::vector<std::string> TWilsonClover<FImpl>::getInput(void)
 {
     std::vector<std::string> in = {par().gauge};
+
+    if ((!isVector<Real>(par().twist)) && (!par().twist.empty()))
+    {
+        in.push_back(par().twist);
+    }
 
     return in;
 }
@@ -121,26 +127,7 @@ void TWilsonClover<FImpl>::setup(void)
     auto &grid   = *envGetGrid(FermionField);
     auto &gridRb = *envGetRbGrid(FermionField);
     typename CompactWilsonCloverFermion<FImpl, CompactCloverHelpers<FImpl>>::ImplParams implParams;
-    if (!par().boundary.empty())
-    {
-        implParams.boundary_phases = strToVec<Complex>(par().boundary);
-    }
-    if (!par().twist.empty())
-    {
-        implParams.twist_n_2pi_L   = strToVec<Real>(par().twist);
-    }
-    LOG(Message) << "Fermion boundary conditions: " << implParams.boundary_phases
-                 << std::endl;
-    LOG(Message) << "Twists: " << implParams.twist_n_2pi_L
-                 << std::endl;
-    if (implParams.boundary_phases.size() != env().getNd())
-    {
-        HADRONS_ERROR(Size, "Wrong number of boundary phase");
-    }
-    if (implParams.twist_n_2pi_L.size() != env().getNd())
-    {
-        HADRONS_ERROR(Size, "Wrong number of twist");
-    }
+    parseBoundary(implParams);
     envCreateDerived(FMat, CompactWilsonClover<FImpl>, getName(), 1, U, grid,
                      gridRb, par().mass, par().csw_r, par().csw_t, par().cF,
                      par().clover_anisotropy, implParams); 

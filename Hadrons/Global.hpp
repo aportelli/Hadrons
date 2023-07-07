@@ -273,6 +273,15 @@ std::string typeName(void)
     return typeName(typeIdPt<T>());
 }
 
+// test if string is white-space separated vector
+// return false with just one element
+// fragile... will be better with JSON inputs and proper array support
+template <typename T>
+bool isVector(const std::string s)
+{
+    return (strToVec<T>(s).size() > 1);
+}
+
 // default writers/readers
 extern const std::string resultFileExt;
 

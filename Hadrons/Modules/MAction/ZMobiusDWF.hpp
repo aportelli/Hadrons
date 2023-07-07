@@ -30,6 +30,7 @@
 #include <Hadrons/Global.hpp>
 #include <Hadrons/Module.hpp>
 #include <Hadrons/ModuleFactory.hpp>
+#include <Hadrons/Modules/MAction/FermionActionModule.hpp>
 
 BEGIN_HADRONS_NAMESPACE
 
@@ -54,7 +55,7 @@ public:
 };
 
 template <typename FImpl>
-class TZMobiusDWF: public Module<ZMobiusDWFPar>
+class TZMobiusDWF: public FermionActionModule<ZMobiusDWFPar>
 {
 public:
     FERM_TYPE_ALIASES(FImpl,);
@@ -83,7 +84,7 @@ MODULE_REGISTER_TMP(ZMobiusDWFF, TZMobiusDWF<ZFIMPLF>, MAction);
 // constructor /////////////////////////////////////////////////////////////////
 template <typename FImpl>
 TZMobiusDWF<FImpl>::TZMobiusDWF(const std::string name)
-: Module<ZMobiusDWFPar>(name)
+: FermionActionModule<ZMobiusDWFPar>(name)
 {}
 
 // dependencies/products ///////////////////////////////////////////////////////
@@ -91,6 +92,11 @@ template <typename FImpl>
 std::vector<std::string> TZMobiusDWF<FImpl>::getInput(void)
 {
     std::vector<std::string> in = {par().gauge};
+
+    if ((!isVector<Real>(par().twist)) && (!par().twist.empty()))
+    {
+        in.push_back(par().twist);
+    }
     
     return in;
 }
@@ -125,27 +131,7 @@ void TZMobiusDWF<FImpl>::setup(void)
     auto &grb5 = *envGetRbGrid(FermionField, par().Ls);
     auto omega = par().omega;
     typename ZMobiusFermion<FImpl>::ImplParams implParams;
-    
-
-    if (!par().boundary.empty())
-    {
-        implParams.boundary_phases = strToVec<Complex>(par().boundary);
-    }
-    if (!par().twist.empty())
-    {
-        implParams.twist_n_2pi_L   = strToVec<Real>(par().twist);
-    }
-    LOG(Message) << "Fermion boundary conditions: " << implParams.boundary_phases << std::endl;
-    LOG(Message) << "Twists: " << implParams.twist_n_2pi_L << std::endl;
-    if (implParams.boundary_phases.size() != env().getNd())
-    {
-        HADRONS_ERROR(Size, "Wrong number of boundary phase");
-    }
-    if (implParams.twist_n_2pi_L.size() != env().getNd())
-    {
-        HADRONS_ERROR(Size, "Wrong number of twist");
-    }
-
+    parseBoundary(implParams);
     assert(par().Ls==omega.size());
     int Ls=par().Ls;
     std::vector<ComplexD> _omega(Ls);
