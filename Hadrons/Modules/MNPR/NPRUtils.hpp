@@ -66,7 +66,7 @@ SpinColourSpinColourMatrix NPRUtils<FImpl>::tensorProdSum(PropagatorField &tsum,
                 for (int cj=0; cj < Nc; ++cj)
 	            {
                     tsum = peekColour(peekSpin(a, si, sj), ci, cj) * b;
-                    result()(si,sj)(ci,cj) = sum(tsum)();
+                    result()(si,sj)(ci,cj) = sum_large(tsum)();
                 }
             }
         }
