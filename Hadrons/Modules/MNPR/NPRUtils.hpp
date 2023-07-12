@@ -56,9 +56,6 @@ template <typename FImpl>
 SpinColourSpinColourMatrix NPRUtils<FImpl>::tensorProdSum(PropagatorField &tsum, PropagatorField &a, PropagatorField &b)
 {
     SpinColourSpinColourMatrix result;
-    autoView(tsum_v, tsum, CpuWrite);
-    autoView(a_v, a, CpuRead);
-    autoView(b_v, b, CpuRead);
 
     for(int si=0; si < Ns; ++si)
 	{
