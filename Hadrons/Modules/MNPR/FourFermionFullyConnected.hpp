@@ -55,7 +55,6 @@ public:
                                         std::string, lOut,
                                         std::string, pIn,
                                         std::string, pOut,
-                                        std::string, gamma_basis,
                                         std::string, output);
 };
 
@@ -69,8 +68,8 @@ public:
     {
     public:
         GRID_SERIALIZABLE_CLASS_MEMBERS(Metadata,
-                                        Gamma::Algebra, gammaA,
-                                        Gamma::Algebra, gammaB,
+                                        std::string, gammaA,
+                                        std::string, gammaB,
                                         std::string,  pIn,
                                         std::string,  pOut);
     };
@@ -175,14 +174,14 @@ void TFourFermionFullyConnected<FImpl>::execute()
     r.info.pIn  = par().pIn;
     r.info.pOut = par().pOut;
 
-    auto compute_diagrams = [&](Gamma gamma_A, Gamma gamma_B, bool print = true) {
+    auto compute_diagrams = [&](int mu, GammaL gamma_A, GammaL gamma_B, bool print = true) {
 
-        r.info.gammaA = gamma_A.g;
-        r.info.gammaB = gamma_B.g;
+        std::array<std::string, 4> gammaLNames = {"GammaXL", "GammaYL", "GammaZL", "GammaTL"};
+        r.info.gammaA = r.info.gammaB = gammaLNames[mu];
 
         if (print) {
             LOG(Message) << "Computing diagrams with GammaA = "
-                << gamma_A.g << ", " << "GammaB = " << gamma_B.g
+                << r.info.gammaA << ", " << "GammaB = " << r.info.gammaB
                 << std::endl;
         }
 
@@ -197,68 +196,8 @@ void TFourFermionFullyConnected<FImpl>::execute()
         r.corr.erase(r.corr.begin());
     };
 
-    std::string gamma_basis = par().gamma_basis;
-    if (gamma_basis == "all") {
-        for (Gamma gammaA: Gamma::gall) {
-            for (Gamma gammaB: Gamma::gall) {
-                compute_diagrams(gammaA, gammaB);
-            }
-        }
-    }
-    else if (gamma_basis == "diagonal") {
-        for (Gamma g: Gamma::gall) {
-            compute_diagrams(g, g);
-        }
-    }
-    else if (gamma_basis == "va_av") {
-        for (int mu = 0; mu < 4; mu++) {
-            Gamma gmu = Gamma::gmu[mu];
-            Gamma gmug5 = Gamma::mul[gmu.g][Gamma::Algebra::Gamma5];
-            compute_diagrams(gmu, gmug5);
-            compute_diagrams(gmug5, gmu);
-        }
-    }
-    else if (gamma_basis == "diagonal_va" || gamma_basis == "diagonal_va_sp" || gamma_basis == "diagonal_va_sp_tt") {
-        for (int mu = 0; mu < 4; mu++) {
-            Gamma gmu = Gamma::gmu[mu];
-            Gamma gmug5 = Gamma::mul[gmu.g][Gamma::Algebra::Gamma5];
-            compute_diagrams(gmu, gmu);
-            compute_diagrams(gmu, gmug5);
-            compute_diagrams(gmug5, gmu);
-            compute_diagrams(gmug5, gmug5);
-        }
-        if (gamma_basis == "diagonal_va_sp" || gamma_basis == "diagonal_va_sp_tt") {
-            Gamma identity = Gamma(Gamma::Algebra::Identity);
-
-            compute_diagrams(identity, identity);
-            compute_diagrams(identity, g5);
-            compute_diagrams(g5, identity);
-            compute_diagrams(g5, g5);
-        }
-        if (gamma_basis == "diagonal_va_sp_tt") {
-            const std::array<const Gamma, 6> gsigma = {{
-                  Gamma(Gamma::Algebra::SigmaXT),
-                  Gamma(Gamma::Algebra::SigmaXY),
-                  Gamma(Gamma::Algebra::SigmaXZ),
-                  Gamma(Gamma::Algebra::SigmaYT),
-                  Gamma(Gamma::Algebra::SigmaYZ),
-                  Gamma(Gamma::Algebra::SigmaZT)}};
-
-            for (Gamma gammaA: gsigma) {
-                    compute_diagrams(gammaA, gammaA);
-            }
-
-            compute_diagrams(Gamma(Gamma::Algebra::SigmaXT), Gamma(Gamma::Algebra::SigmaYZ));
-            compute_diagrams(Gamma(Gamma::Algebra::SigmaXY), Gamma(Gamma::Algebra::SigmaZT));
-            compute_diagrams(Gamma(Gamma::Algebra::SigmaXZ), Gamma(Gamma::Algebra::SigmaYT));
-            compute_diagrams(Gamma(Gamma::Algebra::SigmaYT), Gamma(Gamma::Algebra::SigmaXZ));
-            compute_diagrams(Gamma(Gamma::Algebra::SigmaYZ), Gamma(Gamma::Algebra::SigmaXT));
-            compute_diagrams(Gamma(Gamma::Algebra::SigmaZT), Gamma(Gamma::Algebra::SigmaXY));
-        }
-    }
-    else {
-        LOG(Error) << "Error: unkown gamma_basis: '" << gamma_basis << "'"
-            << std::endl;
+    for (int mu = 0; mu < 4; mu++) {
+        compute_diagrams(mu, GammaL(Gamma::gmu[mu]), GammaL(Gamma::gmu[mu]));
     }
 
     LOG(Message) << "Complete. Writing results to " << par().output << std::endl;
