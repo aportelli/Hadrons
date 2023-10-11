@@ -78,17 +78,17 @@ using Grid::operator>>;
 #define HADRONS_IMPL(impl, sub)   _HADRONS_IMPL(impl, sub)
 
 typedef Grid::WilsonImpl<Grid::vComplex, 
-                         Grid::FundamentalRep<1>, 
+                         Grid::FundamentalRep<1,Grid::GroupName::SU>, 
                          Grid::CoeffReal> LeptonWilsonImplR;
 typedef Grid::WilsonImpl<Grid::vComplexF, 
-                         Grid::FundamentalRep<1>, 
+                         Grid::FundamentalRep<1,Grid::GroupName::SU>, 
                          Grid::CoeffReal> LeptonWilsonImplF;
 typedef Grid::WilsonImpl<Grid::vComplexD, 
-                         Grid::FundamentalRep<1>, 
+                         Grid::FundamentalRep<1,Grid::GroupName::SU>, 
                          Grid::CoeffReal> LeptonWilsonImplD;
-typedef Grid::PeriodicGaugeImpl<Grid::GaugeImplTypes<Grid::vComplex, 1>> PeriodicGImplU1;
-typedef Grid::PeriodicGaugeImpl<Grid::GaugeImplTypes<Grid::vComplexF, 1>> PeriodicGImplU1F;
-typedef Grid::PeriodicGaugeImpl<Grid::GaugeImplTypes<Grid::vComplexD, 1>> PeriodicGImplU1D;
+typedef Grid::PeriodicGaugeImpl<Grid::GaugeImplTypes<Grid::vComplex, 1, 12, Grid::SU<1>>> PeriodicGImplU1;
+typedef Grid::PeriodicGaugeImpl<Grid::GaugeImplTypes<Grid::vComplexF, 1, 12, Grid::SU<1>>> PeriodicGImplU1F;
+typedef Grid::PeriodicGaugeImpl<Grid::GaugeImplTypes<Grid::vComplexD, 1, 12, Grid::SU<1>>> PeriodicGImplU1D;
 
 #ifndef FIMPLBASE
 #define FIMPLBASE WilsonImpl
