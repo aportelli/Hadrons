@@ -210,6 +210,14 @@ void TFourQuarkFullyConnected<FImpl>::execute()
             compute_diagrams(g, g);
         }
     }
+    else if (gamma_basis == "va_av") {
+        for (int mu = 0; mu < 4; mu++) {
+            Gamma gmu = Gamma::gmu[mu];
+            Gamma gmug5 = Gamma::mul[gmu.g][Gamma::Algebra::Gamma5];
+            compute_diagrams(gmu, gmug5);
+            compute_diagrams(gmug5, gmu);
+        }
+    }
     else if (gamma_basis == "diagonal_va" || gamma_basis == "diagonal_va_sp" || gamma_basis == "diagonal_va_sp_tt") {
         for (int mu = 0; mu < 4; mu++) {
             Gamma gmu = Gamma::gmu[mu];
