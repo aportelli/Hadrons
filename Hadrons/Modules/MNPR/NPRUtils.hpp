@@ -41,7 +41,7 @@ class NPRUtils
 {
 public:
     FERM_TYPE_ALIASES(FImpl,)
-    static void tensorProd(SpinColourSpinColourMatrixField &lret, PropagatorField &a, PropagatorField &b);
+    static SpinColourSpinColourMatrix tensorProdSum(PropagatorField &tsum, PropagatorField &a, PropagatorField &b);
     static void tensorSiteProd(SpinColourSpinColourMatrix &lret, SpinColourMatrixScalar &a, SpinColourMatrixScalar &b);
     // covariant derivative
     static void dslash(PropagatorField &in, const PropagatorField &out,
@@ -53,27 +53,25 @@ public:
 
 // Tensor product of two PropagatorFields (Lattice Spin Colour Matrices in many FImpls)
 template <typename FImpl>
-void NPRUtils<FImpl>::tensorProd(SpinColourSpinColourMatrixField &lret, PropagatorField &a, PropagatorField &b)
+SpinColourSpinColourMatrix NPRUtils<FImpl>::tensorProdSum(PropagatorField &tsum, PropagatorField &a, PropagatorField &b)
 {
-    autoView(lret_v, lret, CpuWrite);
-    autoView(a_v, a, CpuRead);
-    autoView(b_v, b, CpuRead);
+    SpinColourSpinColourMatrix result;
 
-    thread_for( site, lret_v.size(), {
-        vTComplex left;
-        for(int si=0; si < Ns; ++si)
+    for(int si=0; si < Ns; ++si)
 	{
         for(int sj=0; sj < Ns; ++sj)
-	{
+	    {
             for (int ci=0; ci < Nc; ++ci)
-	    {
-            for (int cj=0; cj < Nc; ++cj)
-	    {
-                left()()() = a_v[site]()(si,sj)(ci,cj);
-                lret_v[site]()(si,sj)(ci,cj)=left()*b_v[site]();
-            }}
-        }}
-    });
+	        {
+                for (int cj=0; cj < Nc; ++cj)
+	            {
+                    tsum = peekColour(peekSpin(a, si, sj), ci, cj) * b;
+                    result()(si,sj)(ci,cj) = sum_large(tsum)();
+                }
+            }
+        }
+    }
+    return result;
 }
 
 // Tensor product on a single site only

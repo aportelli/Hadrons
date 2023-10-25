@@ -125,7 +125,7 @@ void TFourQuarkFullyConnected<FImpl>::setup()
 
     envTmpLat(PropagatorField, "bilinear");
     envTmpLat(PropagatorField, "bilinear_tmp");
-    envTmpLat(SpinColourSpinColourMatrixField, "lret");
+    envTmpLat(PropagatorField, "bilinear_sum");
     envTmpLat(ComplexField, "bilinear_phase");
 
     envCreate(HadronsSerializable, getName(), 1, 0);
@@ -143,7 +143,7 @@ void TFourQuarkFullyConnected<FImpl>::execute()
 
     envGetTmp(PropagatorField, bilinear);
     envGetTmp(PropagatorField, bilinear_tmp);
-    envGetTmp(SpinColourSpinColourMatrixField, lret);
+    envGetTmp(PropagatorField, bilinear_sum);
 
 
     std::vector<Result>         result;
@@ -184,14 +184,15 @@ void TFourQuarkFullyConnected<FImpl>::execute()
         // Fully connected diagram
         bilinear = bilinear_phase * (g5 * adj(qOut) * g5 * gamma_A * qIn);
 
+        SpinColourSpinColourMatrix lret;
         if (gamma_A.g == gamma_B.g) {
-            NPRUtils<FImpl>::tensorProd(lret, bilinear, bilinear);
+            lret = NPRUtils<FImpl>::tensorProdSum(bilinear_sum, bilinear, bilinear);
         }
         else {
             bilinear_tmp = bilinear_phase * (g5 * adj(qOut) * g5 * gamma_B * qIn);
-            NPRUtils<FImpl>::tensorProd(lret, bilinear, bilinear_tmp);
+            lret = NPRUtils<FImpl>::tensorProdSum(bilinear_sum, bilinear, bilinear_tmp);
         }
-        r.corr.push_back( (1.0 / volume) * sum_large(lret) );
+        r.corr.push_back( (1.0 / volume) * lret );
         result.push_back(r);
         r.corr.erase(r.corr.begin());
     };
