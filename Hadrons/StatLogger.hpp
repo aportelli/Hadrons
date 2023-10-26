@@ -59,6 +59,7 @@ public:
                            SqlNotNull<size_t>, envCurrent,
                            SqlNotNull<size_t>, gridCurrent,
                            SqlNotNull<size_t>, gridCacheCurrent,
+			   SqlNotNull<size_t>, gridCommsCurrent,
                            SqlNotNull<size_t>, gridTotalCurrent,
                            SqlNotNull<size_t>, evictableCurrent,
                            SqlNotNull<size_t>, hostToDevice,
