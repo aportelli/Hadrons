@@ -4,6 +4,7 @@
 #include <Hadrons/Global.hpp>
 #include <Hadrons/Module.hpp>
 #include <Hadrons/ModuleFactory.hpp>
+#include <Hadrons/EmField.hpp>
 
 BEGIN_HADRONS_NAMESPACE
 
@@ -27,7 +28,7 @@ public:
     FERM_TYPE_ALIASES(FImpl,);
 
     typedef TEmFieldGenerator<VType> EmGen;
-    typedef EmGen::GaugeField EmField;
+    typedef typename EmGen::GaugeField EmField;
 
     // constructor
     TQEDTadpole(const std::string name);
@@ -110,6 +111,7 @@ void TQEDTadpole<FImpl, VType>::execute(void)
     // Feynman gauge: photon propagator is delta^{mu, nu}/k^2.
     // Therefore we only need to compute cases where mu=nu.
     EmField& out = envGet(EmField, getName());
+    double factor = 1 / env().getVolume();
     for (int mu=0; mu<4; mu++)
     {
       // Contract quark loop
@@ -122,9 +124,9 @@ void TQEDTadpole<FImpl, VType>::execute(void)
       fft.FFT_all_dim(tmpcomplex2,tmpcomplex,FFT::backward);
 
       // Remove volume factor from FFT
-      tmpcomplex2 /= env().getVolume();
+      tmpcomplex = tmpcomplex2 * factor;
 
-      pokeLorentz(out, tmpcomplex2, mu);
+      pokeLorentz(out, tmpcomplex, mu);
     }
 }
 

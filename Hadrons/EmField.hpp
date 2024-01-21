@@ -63,6 +63,9 @@ public:
     // field generation using given weights
     void operator()(GaugeField &out, GridParallelRNG &rng, const ScalarField &weight, 
                     TransformFn momSpaceTransform = nullptr);
+    // exact field generation
+    void operator()(GaugeField &out, const ScalarField &weight, 
+                    TransformFn momSpaceTransform = nullptr);
     // QED_L weights
     void makeWeightsQedL(ScalarField &weight, std::vector<double> improvement = {});
     // QED_TL weights
@@ -226,6 +229,29 @@ void TEmFieldGenerator<VType>::operator()(GaugeField &out, GridParallelRNG &rng,
         momSpaceTransform(aTilde);
     }
     fft.FFT_all_dim(out, aTilde, FFT::backward);
+    out = real(out);
+}
+
+// exact field generation /////////////////////////////////////////////////////
+template <typename VType>
+void TEmFieldGenerator<VType>::operator()(GaugeField &out, const ScalarField &weight, 
+                                          TransformFn momSpaceTransform)
+{
+    ScalarField        sqrtW(g_);
+    GaugeField         a(g_);
+    FFT                fft(dynamic_cast<GridCartesian *>(g_));
+    double             vol = g_->gSites();
+
+    sqrtW = sqrt(weight);//sqrt(vol)*sqrt(weight);
+    for(unsigned int mu = 0; mu < nd_; mu++)
+    {
+      pokeLorentz(a, sqrtW, mu);
+    }
+    if (momSpaceTransform != nullptr)
+    {
+        momSpaceTransform(a);
+    }
+    fft.FFT_all_dim(out, a, FFT::backward);
     out = real(out);
 }
 

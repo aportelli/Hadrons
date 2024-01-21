@@ -46,7 +46,7 @@ public:
     FERM_TYPE_ALIASES(FImpl,);
 
     typedef TEmFieldGenerator<VType> EmGen;
-    typedef EmGen::GaugeField EmField;
+    typedef typename EmGen::GaugeField EmField;
 
     // constructor
     TQEDSpecs(const std::string name);
