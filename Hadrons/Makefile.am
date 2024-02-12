@@ -1,5 +1,5 @@
-AM_CXXFLAGS += -I$(top_srcdir)
-
+AM_CXXFLAGS += -I$(top_srcdir) 
+AM_CFLAGS += -DSQLITE_ENABLE_MATH_FUNCTIONS
 lib_LIBRARIES = libHadrons.a
 
 include modules.inc
