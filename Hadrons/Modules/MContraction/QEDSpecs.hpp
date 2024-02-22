@@ -119,11 +119,11 @@ template <typename FImpl, typename VType>
 void TQEDSpecs<FImpl, VType>::execute(void)
 {
     envGetTmp(FFT, fft);
-    std::vector<Gamma::Algebra> Gmu = {
-      Gamma::Algebra::GammaX,
-      Gamma::Algebra::GammaY,
-      Gamma::Algebra::GammaZ,
-      Gamma::Algebra::GammaT
+    std::vector<Gamma> Gmu = {
+      Gamma(Gamma::Algebra::GammaX),
+      Gamma(Gamma::Algebra::GammaY),
+      Gamma(Gamma::Algebra::GammaZ),
+      Gamma(Gamma::Algebra::GammaT)
     };
 
     LOG(Message) << "Starting Specs contraction in Feynman Gauge" << std::endl;
@@ -145,14 +145,14 @@ void TQEDSpecs<FImpl, VType>::execute(void)
     envGetTmp(LatticeReal, tmpreal2);
 
     // Output variable
-    Real result = 0.;
+    RealD result = 0;
 
     // Feynman gauge: photon propagator is delta^{mu, nu}/k^2.
     // Therefore we only need to compute cases where mu=nu.
     for (int mu=0; mu<4; mu++)
     {
       // Contract quark loop 1
-      tmpcomplex = trace(q1*Gamma(Gmu[mu]));
+      tmpcomplex = trace(q1*Gmu[mu]);
 
       // Convolve with photon propagator by multiplying in momentum-space
       fft.FFT_all_dim(tmpcomplex2, tmpcomplex, FFT::forward);
@@ -163,13 +163,12 @@ void TQEDSpecs<FImpl, VType>::execute(void)
       tmpreal = toReal(imag(tmpcomplex2));
 
       // Contract loop 2
-      tmpcomplex = trace(q2*Gamma(Gmu[mu]));
+      tmpcomplex = trace(q2*Gmu[mu]);
       tmpreal2   = toReal(imag(tmpcomplex));
 
       result += sum(tmpreal * tmpreal2);
     }
 
-    result /= env().getVolume();
     LOG(Message) << "specs: " << result << std::endl;
 
     saveResult(par().output, "specs", result);
