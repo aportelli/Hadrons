@@ -130,6 +130,15 @@ envCreate(type, name, Ls, envGetGrid(type, Ls))
 #define envCreateLat(...)\
 HADRONS_MACRO_REDIRECT_23(__VA_ARGS__, envCreateLat5, envCreateLat4)(__VA_ARGS__)
 
+#define envCreateLat4NS(type, name)\
+envCreate(typename type, name, 1, envGetGrid(type))
+
+#define envCreateLat5NS(type, name, Ls)\
+envCreate(typename type, name, Ls, envGetGrid(type, Ls))
+
+#define envCreateLatNS(...)\
+HADRONS_MACRO_REDIRECT_23(__VA_ARGS__, envCreateLat5NS, envCreateLat4NS)(__VA_ARGS__)
+
 #define envCache(type, name, Ls, ...)\
 this->env().template createObject<type>(name, Environment::Storage::cache, Ls, __VA_ARGS__)
 
