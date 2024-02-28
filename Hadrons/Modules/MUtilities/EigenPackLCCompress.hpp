@@ -79,10 +79,12 @@ public:
 };
 
 MODULE_REGISTER_TMP(EigenPackLCCompress    , ARG(TEigenPackLCCompress<FIMPL , HADRONS_DEFAULT_LANCZOS_NBASIS>), MUtilities);
+MODULE_REGISTER_TMP(EigenPackLCCompress200 , ARG(TEigenPackLCCompress<FIMPL , 200>), MUtilities);
 MODULE_REGISTER_TMP(EigenPackLCCompress250 , ARG(TEigenPackLCCompress<FIMPL , 250>), MUtilities);
 MODULE_REGISTER_TMP(EigenPackLCCompress400 , ARG(TEigenPackLCCompress<FIMPL , 400>), MUtilities);
 
 MODULE_REGISTER_TMP(EigenPackLCCompressF   , ARG(TEigenPackLCCompress<FIMPLF, HADRONS_DEFAULT_LANCZOS_NBASIS>), MUtilities);
+MODULE_REGISTER_TMP(EigenPackLCCompress200F, ARG(TEigenPackLCCompress<FIMPLF, 200>), MUtilities);
 MODULE_REGISTER_TMP(EigenPackLCCompress250F, ARG(TEigenPackLCCompress<FIMPLF, 250>), MUtilities);
 MODULE_REGISTER_TMP(EigenPackLCCompress400F, ARG(TEigenPackLCCompress<FIMPLF, 400>), MUtilities);
 
