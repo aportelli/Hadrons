@@ -77,9 +77,11 @@ void StatLogger::setDatabase(Database &db)
             "       deviceMemory.totalCurrent*0.000000953674316 AS totalCurrentMB,                     "
             "       deviceMemory.envCurrent*0.000000953674316 AS envCurrentMB,                         "
             "       deviceMemory.gridCurrent*0.000000953674316 AS gridCurrentMB,                       "
+	    "       deviceMemory.gridCommsCurrent*0.000000953674316 AS gridCommsCurrentMB,             "
             "       deviceMemory.gridCacheCurrent*0.000000953674316 AS gridCacheCurrentMB,             "
             "       deviceMemory.gridTotalCurrent*0.000000953674316 AS gridTotalCurrentMB,             "
             "       deviceMemory.evictableCurrent*0.000000953674316 AS evictableCurrentMB,             "
+	    "       (deviceMemory.totalCurrent-deviceMemory.gridTotalCurrent)*0.000000953674316 AS gridDeficitCurrentMB, "
             "       deviceMemory.hostToDevice*0.000000953674316 AS hostToDeviceMB,                     "
             "       deviceMemory.hostToDevice*0.000000953674316/" + periodSec + " AS hostToDeviceMBps, "
             "       deviceMemory.hostToDeviceTransfers AS hostToDeviceTransfers,                       "
@@ -195,12 +197,18 @@ void StatLogger::logDeviceMemory(const GridTime::rep time)
     Mem               buf;
     DeviceMemoryEntry e;
 
+    size_t free_byte=0;
+    size_t total_byte=0;
+#ifdef GRID_CUDA_NOUVM
+    cudaMemGetInfo( &free_byte, &total_byte ) ;
+#endif
     e.time                  = time;
-    e.totalCurrent          = 0;
+    e.totalCurrent          = total_byte-free_byte;
     e.envCurrent            = 0;
     e.gridCurrent           = MemoryManager::DeviceBytes;
     e.gridCacheCurrent      = MemoryManager::DeviceCacheBytes();
-    e.gridTotalCurrent      = e.gridCurrent + e.gridCacheCurrent;
+    e.gridCommsCurrent      = GlobalSharedMemory::MAX_MPI_SHM_BYTES;
+    e.gridTotalCurrent      = e.gridCurrent + e.gridCacheCurrent + e.gridCommsCurrent;
     e.evictableCurrent      = MemoryManager::DeviceLRUBytes;
     buf.h2d                 = MemoryManager::HostToDeviceBytes;
     buf.h2dTr               = MemoryManager::HostToDeviceXfer;
