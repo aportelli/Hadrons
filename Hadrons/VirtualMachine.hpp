@@ -233,7 +233,7 @@ private:
     MemoryProfile                       profile_;     
     // time profile
     GridTime                            totalTime_;
-    std::map<std::string, GridTime>     timeProfile_;               
+    std::map<std::string, GridTime>     moduleTimeProfile_, moduleTypeTimeProfile_;               
 };
 
 /******************************************************************************

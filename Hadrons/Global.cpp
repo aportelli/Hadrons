@@ -28,6 +28,7 @@
 
 using namespace Grid;
 using namespace Hadrons;
+using namespace std::chrono_literals;
 
 HadronsLogger Hadrons::HadronsLogError(1,"Error");
 HadronsLogger Hadrons::HadronsLogWarning(1,"Warning");
@@ -182,12 +183,36 @@ void Hadrons::makeFileDir(const std::string filename, GridBase *g)
     }
 }
 
+std::string Hadrons::timeString(const GridTime t)
+{
+    std::stringstream ss;
+
+    if (t > 1s)
+    {
+        auto ts = std::chrono::duration<float>(t);
+
+        ss << std::setprecision(4) << ts.count() << " s";
+    }
+    else if (t > 1ms)
+    {
+        auto tms = std::chrono::duration<float, std::milli>(t);
+
+        ss << std::setprecision(4) << tms.count() << " ms";
+    }
+    else
+    {
+        auto tus = std::chrono::duration<unsigned int, std::micro>(t);
+
+        ss << tus.count() << " us";
+    }
+
+    return ss.str();
+}
+
 void Hadrons::printTimeProfile(const std::map<std::string, GridTime> &timing, 
                                GridTime total)
 {
-    typedef decltype(total.count()) Count;
-
-    std::map<Count, std::string, std::greater<Count>> rtiming;
+    std::map<GridTime, std::string, std::greater<GridTime>> rtiming;
     const double dtotal = static_cast<double>(total.count());
     auto cf = std::cout.flags();
     auto p  = std::cout.precision();
@@ -196,14 +221,14 @@ void Hadrons::printTimeProfile(const std::map<std::string, GridTime> &timing,
     for (auto &t: timing)
     {
         width = std::max(width, static_cast<unsigned int>(t.first.length()));
-        rtiming[t.second.count()] = t.first;
+        rtiming[t.second] = t.first;
     }
     for (auto &rt: rtiming)
     {
         LOG(Message) << std::setw(width) << rt.second << ": " 
-                     << rt.first << " us (" << std::fixed 
+                     << timeString(rt.first) << " (" << std::fixed 
                      << std::setprecision(1) 
-                     << static_cast<double>(rt.first)/dtotal*100 << "%)"
+                     << static_cast<double>(rt.first.count())/dtotal*100 << "%)"
                      << std::endl;
     }
     std::cout.flags(cf);

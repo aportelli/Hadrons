@@ -325,6 +325,7 @@ void        makeFileDir(const std::string filename, GridBase *g = nullptr);
 #define HADRONS_STR(x) _HADRONS_STR(x)
 
 // pretty print time profile
+std::string timeString(const GridTime t);
 void printTimeProfile(const std::map<std::string, GridTime> &timing, GridTime total);
 
 // token replacement utility
