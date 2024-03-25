@@ -1,5 +1,5 @@
 /*
- * Laplacian.hpp, part of Hadrons (https://github.com/aportelli/Hadrons)
+ * CovariantLaplacian.hpp, part of Hadrons (https://github.com/aportelli/Hadrons)
  *
  * Copyright (C) 2015 - 2023
  *
@@ -23,8 +23,8 @@
  */
 
 /*  END LEGAL */
-#ifndef Hadrons_MAction_Laplacian_hpp_
-#define Hadrons_MAction_Laplacian_hpp_
+#ifndef Hadrons_MAction_CovariantLaplacian_hpp_
+#define Hadrons_MAction_CovariantLaplacian_hpp_
 
 #include <Hadrons/Global.hpp>
 #include <Hadrons/Module.hpp>
@@ -33,50 +33,58 @@
 BEGIN_HADRONS_NAMESPACE
 
 /******************************************************************************
- *                           Laplacian operator                               *
+ *                      Covariant Laplacian operator                          *
  ******************************************************************************/
 BEGIN_MODULE_NAMESPACE(MAction)
 
-class LaplacianPar: Serializable
+class CovariantLaplacianPar: Serializable
 {
 public:
-    GRID_SERIALIZABLE_CLASS_MEMBERS(LaplacianPar,
+    GRID_SERIALIZABLE_CLASS_MEMBERS(CovariantLaplacianPar,
                                     std::string, gauge,
                                     double,      m2);
 };
 
-template <typename Field>
-class Laplacian: public LinearOperatorBase<Field>
+template <typename Field, typename GImpl>
+class CovariantLaplacian: public LinearOperatorBase<Field>
 {
 public:
-    Laplacian(const double m2)
-    : m2_(m2)
-    {}
+    GAUGE_TYPE_ALIASES(GImpl,);
+public:
+    CovariantLaplacian(const GaugeField &U, const double m2)
+    : grid_(U.Grid()), tmp_(U.Grid()), m2_(m2)
+    {
+        for (unsigned int mu = 0; mu < grid_->Nd(); ++mu)
+        {
+            U_.push_back(PeekIndex<LorentzIndex>(U, mu)); 
+        }
+    }
 
     virtual void OpDiag(const Field &in, Field &out)
     {
-        HADRONS_ERROR(Implementation, "Laplacian method not implemented");
+        HADRONS_ERROR(Implementation, "CovariantLaplacian method not implemented");
     }
 
     virtual void OpDir(const Field &in, Field &out, int dir, int disp)
     {
-        HADRONS_ERROR(Implementation, "Laplacian method not implemented");
+        HADRONS_ERROR(Implementation, "CovariantLaplacian method not implemented");
     }
 
     virtual void OpDirAll(const Field &in, std::vector<Field> &out)
     {
-        HADRONS_ERROR(Implementation, "Laplacian method not implemented");
+        HADRONS_ERROR(Implementation, "CovariantLaplacian method not implemented");
     }
 
     virtual void Op(const Field &in, Field &out)
     {
-        unsigned int nd = in.Grid()->Nd();
+        unsigned int nd = grid_->Nd();
 
         out = (m2_ + 2.*nd)*in;
         for (unsigned int mu = 0; mu < nd; ++mu)
         {
-            out  -= Cshift(in, mu, 1);
-            out  -= Cshift(in, mu, -1);
+            out  -= U_[mu]*Cshift(in, mu, 1);
+            tmp_  = adj(U_[mu])*in;
+            out  -= Cshift(tmp_, mu, -1);
         }
     }
 
@@ -98,17 +106,22 @@ public:
         Op(in, out);
     }
 private:
-    double m2_;
+    std::vector<GaugeLinkField> U_;
+    Field                       tmp_;
+    GridBase                    *grid_;
+    double                      m2_;
 };
 
-template <typename Field>
-class TLaplacian: public Module<LaplacianPar>
+template <typename Field, typename GImpl>
+class TCovariantLaplacian: public Module<CovariantLaplacianPar>
 {
 public:
+    GAUGE_TYPE_ALIASES(GImpl,);
+public:
     // constructor
-    TLaplacian(const std::string name);
+    TCovariantLaplacian(const std::string name);
     // destructor
-    virtual ~TLaplacian(void) {};
+    virtual ~TCovariantLaplacian(void) {};
     // dependency relation
     virtual std::vector<std::string> getInput(void);
     virtual std::vector<std::string> getOutput(void);
@@ -118,28 +131,29 @@ public:
     virtual void execute(void);
 };
 
-MODULE_REGISTER_TMP(FermionLaplacian, TLaplacian<FIMPL::FermionField>, MAction);
+MODULE_REGISTER_TMP(FermionCovariantLaplacian, 
+                    ARG(TCovariantLaplacian<FIMPL::FermionField, GIMPL>), MAction);
 
 /******************************************************************************
- *                      TLaplacian implementation                             *
+ *                      TCovariantLaplacian implementation                    *
  ******************************************************************************/
 // constructor /////////////////////////////////////////////////////////////////
-template <typename Field>
-TLaplacian<Field>::TLaplacian(const std::string name)
-: Module<LaplacianPar>(name)
+template <typename Field, typename GImpl>
+TCovariantLaplacian<Field, GImpl>::TCovariantLaplacian(const std::string name)
+: Module<CovariantLaplacianPar>(name)
 {}
 
 // dependencies/products ///////////////////////////////////////////////////////
-template <typename Field>
-std::vector<std::string> TLaplacian<Field>::getInput(void)
+template <typename Field, typename GImpl>
+std::vector<std::string> TCovariantLaplacian<Field, GImpl>::getInput(void)
 {
     std::vector<std::string> in = {par().gauge};
     
     return in;
 }
 
-template <typename Field>
-std::vector<std::string> TLaplacian<Field>::getOutput(void)
+template <typename Field, typename GImpl>
+std::vector<std::string> TCovariantLaplacian<Field, GImpl>::getOutput(void)
 {
     std::vector<std::string> out = {getName()};
     
@@ -147,21 +161,23 @@ std::vector<std::string> TLaplacian<Field>::getOutput(void)
 }
 
 // setup ///////////////////////////////////////////////////////////////////////
-template <typename Field>
-void TLaplacian<Field>::setup(void)
+template <typename Field, typename GImpl>
+void TCovariantLaplacian<Field, GImpl>::setup(void)
 {
-    LOG(Message) << "Setting up Laplacian operator with m^2= " << par().m2 << std::endl;
-    envCreateDerived(LinearOperatorBase<Field>, ARG(Laplacian<Field>), 
-                     getName(), 1, par().m2);
+    LOG(Message) << "Setting up covariant Laplacian operator with gauge field '"
+                 << par().gauge << "' and m^2= " << par().m2 << std::endl;
+    auto &U = envGet(GaugeField, par().gauge);
+    envCreateDerived(LinearOperatorBase<Field>, ARG(CovariantLaplacian<Field, GImpl>), 
+                     getName(), 1, U, par().m2);
 }
 
 // execution ///////////////////////////////////////////////////////////////////
-template <typename Field>
-void TLaplacian<Field>::execute(void)
+template <typename Field, typename GImpl>
+void TCovariantLaplacian<Field, GImpl>::execute(void)
 {}
 
 END_MODULE_NAMESPACE
 
 END_HADRONS_NAMESPACE
 
-#endif // Hadrons_MAction_Laplacian_hpp_
+#endif // Hadrons_MAction_CovariantLaplacian_hpp_

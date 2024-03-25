@@ -26,6 +26,7 @@
 /*  END LEGAL */
 #include <Hadrons/Modules/MScalar/FreeProp.hpp>
 #include <Hadrons/Modules/MScalar/Scalar.hpp>
+#include <Hadrons/Modules/MAction/Laplacian.hpp>
 #include <Hadrons/Serialization.hpp>
 
 using namespace Grid;
@@ -54,29 +55,43 @@ std::vector<std::string> TFreeProp::getOutput(void)
 // setup ///////////////////////////////////////////////////////////////////////
 void TFreeProp::setup(void)
 {
-    freeMomPropName_ = FREEMOMPROP(par().mass);
-    
-    freePropDone_ = env().hasCreatedObject(freeMomPropName_);
-    envCacheLat(ScalarField, freeMomPropName_);
+    if (par().useFft)
+    {
+        freeMomPropName_ = FREEMOMPROP(par().mass);
+        freePropDone_ = env().hasCreatedObject(freeMomPropName_);
+        envCacheLat(ScalarField, freeMomPropName_);
+    }
     envCreateLat(ScalarField, getName());
-    envCreate(HadronsSerializable, getName()+"_sliceSum", 1, 0);
+    envCreate(HadronsSerializable, getName() + "_sliceSum", 1, 0);
 }
 
 // execution ///////////////////////////////////////////////////////////////////
 void TFreeProp::execute(void)
 {
-    auto &freeMomProp = envGet(ScalarField, freeMomPropName_);
     auto &prop        = envGet(ScalarField, getName());
     auto &source      = envGet(ScalarField, par().source);
 
-    if (!freePropDone_)
-    {
-        LOG(Message) << "Caching momentum space free scalar propagator"
-                     << " (mass= " << par().mass << ")..." << std::endl;
-        SIMPL::MomentumSpacePropagator(freeMomProp, par().mass);
-    }
     LOG(Message) << "Computing free scalar propagator..." << std::endl;
-    SIMPL::FreePropagator(source, prop, freeMomProp);
+    if (par().useFft)
+    {
+        auto &freeMomProp = envGet(ScalarField, freeMomPropName_);
+        if (!freePropDone_)
+        {
+            LOG(Message) << "Caching momentum space free scalar propagator"
+                        << " (mass= " << par().mass << ")..." << std::endl;
+            SIMPL::MomentumSpacePropagator(freeMomProp, par().mass);
+        }
+        SIMPL::FreePropagator(source, prop, freeMomProp);
+    }
+    else
+    {
+        MAction::Laplacian<ScalarField> lap(par().mass*par().mass);
+        ConjugateGradient<ScalarField>  cg(1.0e-8, 10000);
+
+        cg(lap, source, prop);
+
+        ScalarField test(prop.Grid());
+    }
     
     std::vector<TComplex> buf;
     std::vector<Complex>  result;

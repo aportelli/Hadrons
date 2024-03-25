@@ -43,7 +43,8 @@ public:
     GRID_SERIALIZABLE_CLASS_MEMBERS(FreePropPar,
                                     std::string, source,
                                     double,      mass,
-                                    std::string, output);
+                                    std::string, output,
+                                    bool, useFft);
 };
 
 class TFreeProp: public Module<FreePropPar>

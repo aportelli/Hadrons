@@ -1,5 +1,5 @@
 /*
- * Laplacian.cpp, part of Hadrons (https://github.com/aportelli/Hadrons)
+ * CovariantLaplacian.cpp, part of Hadrons (https://github.com/aportelli/Hadrons)
  *
  * Copyright (C) 2015 - 2023
  *
@@ -23,10 +23,10 @@
  */
 
 /*  END LEGAL */
-#include <Hadrons/Modules/MAction/Laplacian.hpp>
+#include <Hadrons/Modules/MAction/CovariantLaplacian.hpp>
 
 using namespace Grid;
 using namespace Hadrons;
 using namespace MAction;
 
-template class HADRONS_NAMESPACE::MAction::TLaplacian<FIMPL::FermionField>;
+template class HADRONS_NAMESPACE::MAction::TCovariantLaplacian<FIMPL::FermionField, GIMPL>;
