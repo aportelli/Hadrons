@@ -568,7 +568,8 @@ void VirtualMachine::makeModuleGraph(void)
                 HADRONS_ERROR_REF(ObjectDefinition, "dependency '" 
                              + env().getObjectName(in) + "' (address " 
                              + std::to_string(in)
-                             + ") is not produced by any module", in);
+                             + ", of module '" + getModuleName(m) 
+                             + "') is not produced by any module", in);
             }
             else
             {
