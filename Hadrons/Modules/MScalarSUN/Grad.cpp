@@ -29,6 +29,7 @@ using namespace Grid;
 using namespace Hadrons;
 using namespace MScalarSUN;
 
+template class HADRONS_NAMESPACE::MScalarSUN::TGrad<SIMPL>;
 template class HADRONS_NAMESPACE::MScalarSUN::TGrad<ScalarNxNAdjImplR<2>>;
 template class HADRONS_NAMESPACE::MScalarSUN::TGrad<ScalarNxNAdjImplR<3>>;
 template class HADRONS_NAMESPACE::MScalarSUN::TGrad<ScalarNxNAdjImplR<4>>;
