@@ -119,30 +119,29 @@ void THessian<SImpl>::execute(void)
     
     std::vector<unsigned int> dirs = strToVec<unsigned int>(par().dirs);
     const unsigned int ndirs = dirs.size();
+    unsigned int       i, j;
     HessianResult      result;
     auto               &op = envGet(ComplexField, par().op);
 
-    if (!par().output.empty())
-    {
-        result.type1 = par().type1;
-        result.type2 = par().type2;
-        result.value.resize(ndirs, std::vector<Complex>(ndirs));
-    }
+    result.type1 = par().type1;
+    result.type2 = par().type2;
+    result.value.resize(ndirs, std::vector<Complex>(ndirs));
+    i = 0;
     for (auto &nu: dirs)
     {
         envGetTmp(ComplexField, buf);
 
         dmu(buf, op, nu, par().type2);
+        j = 0;
         for (auto &mu: dirs)
         {
             auto &der = envGet(ComplexField, varName(getName(), mu, nu));
             
             dmu(der, buf, mu, par().type1);
-            if (!par().output.empty())
-            {
-                result.value[mu][nu] = TensorRemove(sum(der));
-            }
+            result.value[i][j] = TensorRemove(sum(der));
+            j++;
         }
+        i++;
     }
 
     saveResult(par().output, "hessian", result);
