@@ -41,65 +41,88 @@ class LaplacianPar: Serializable
 {
 public:
     GRID_SERIALIZABLE_CLASS_MEMBERS(LaplacianPar,
-                                    std::string, gauge,
-                                    double,      m2);
+                                    double, m2);
 };
 
-template <typename Field>
-class Laplacian: public LinearOperatorBase<Field>
+template<class Field> 
+class Laplacian : public SparseMatrixBase<Field>
 {
 public:
-    Laplacian(const double m2)
-    : m2_(m2)
-    {}
-
-    virtual void OpDiag(const Field &in, Field &out)
+    typedef typename Field::vector_object vobj;
+    typedef CartesianStencil<vobj, vobj, SimpleStencilParams> Stencil;
+public:
+    Laplacian(const double m2, GridBase *g)
+    : m2_(m2), grid_(g)
     {
-        HADRONS_ERROR(Implementation, "Laplacian method not implemented");
-    }
-
-    virtual void OpDir(const Field &in, Field &out, int dir, int disp)
-    {
-        HADRONS_ERROR(Implementation, "Laplacian method not implemented");
-    }
-
-    virtual void OpDirAll(const Field &in, std::vector<Field> &out)
-    {
-        HADRONS_ERROR(Implementation, "Laplacian method not implemented");
-    }
-
-    virtual void Op(const Field &in, Field &out)
-    {
-        unsigned int nd = in.Grid()->Nd();
-
-        out = (m2_ + 2.*nd)*in;
+        auto nd = grid_->Nd();
         for (unsigned int mu = 0; mu < nd; ++mu)
         {
-            out  -= Cshift(in, mu, 1);
-            out  -= Cshift(in, mu, -1);
+            dir_.push_back(mu);
+            disp_.push_back(1);
         }
-    }
+        for (unsigned int mu = 0; mu < nd; ++mu)
+        {
+            dir_.push_back(mu);
+            disp_.push_back(-1);
+        }
+        st_.reset(new Stencil(grid_, 2*nd, Even, dir_, disp_, SimpleStencilParams()));
+    };
 
-    virtual void AdjOp(const Field &in, Field &out)
+    virtual GridBase *Grid(void) { return grid_; };
+    virtual void M(const Field &_in, Field &_out)
     {
-        Op(in, out);
-    }
+        auto nd = grid_->Nd();
 
-    virtual void HermOpAndNorm(const Field &in, Field &out, RealD &n1, RealD &n2)
-    {
-        HermOp(in,out);
-        Complex dot = innerProduct(in,out); 
-        n1 = real(dot);
-        n2 = norm2(out);
-    }
+        st_->HaloExchange(_in, comp_);
 
-    virtual void HermOp(const Field &in, Field &out)
-    {
-        Op(in, out);
-    }
+        auto st = st_->View(AcceleratorRead);
+        auto buf = st_->CommBuf();
+        autoView(in, _in, AcceleratorRead);
+        autoView(out, _out, AcceleratorWrite);
+        const int Nsimd = vobj::Nsimd();
+        const uint64_t NN = grid_->oSites();
+
+        typedef decltype(coalescedRead(in[0])) calcObj;
+
+        accelerator_for(ss, NN, Nsimd,
+        {
+            StencilEntry *SE;
+            const int lane = acceleratorSIMTlane(Nsimd);
+            calcObj chi;
+            calcObj res;
+            int ptype;
+
+            res = coalescedRead(in[ss]) * (m2_ + 2.0 * nd);
+            for (unsigned int mu = 0; mu < 2 * nd; ++mu)
+            {
+                SE = st.GetEntry(ptype, mu, ss);
+                if (SE->_is_local)
+                {
+                    int perm = SE->_permute;
+                    chi = coalescedReadPermute(in[SE->_offset], ptype, perm, lane);
+                }
+                else
+                {
+                    chi = coalescedRead(buf[SE->_offset], lane);
+                }
+                acceleratorSynchronise();
+                res -= chi;
+            }
+            coalescedWrite(out[ss], res, lane);
+        });
+    };
+    virtual void Mdag(const Field &in, Field &out) { M(in, out); };
+    virtual void Mdiag(const Field &in, Field &out) { assert(0); };
+    virtual void Mdir(const Field &in, Field &out, int dir, int disp) { assert(0); }; 
+    virtual void MdirAll(const Field &in, std::vector<Field> &out) { assert(0); };
 private:
     double m2_;
+    GridBase *grid_;
+    std::unique_ptr<Stencil> st_;
+    SimpleCompressor<vobj> comp_;
+    std::vector<int> dir_, disp_;
 };
+
 
 template <typename Field>
 class TLaplacian: public Module<LaplacianPar>
@@ -133,7 +156,7 @@ TLaplacian<Field>::TLaplacian(const std::string name)
 template <typename Field>
 std::vector<std::string> TLaplacian<Field>::getInput(void)
 {
-    std::vector<std::string> in = {par().gauge};
+    std::vector<std::string> in;
     
     return in;
 }
@@ -151,8 +174,8 @@ template <typename Field>
 void TLaplacian<Field>::setup(void)
 {
     LOG(Message) << "Setting up Laplacian operator with m^2= " << par().m2 << std::endl;
-    envCreateDerived(LinearOperatorBase<Field>, ARG(Laplacian<Field>), 
-                     getName(), 1, par().m2);
+    envCreateDerived(SparseMatrixBase<Field>, ARG(Laplacian<Field>), 
+                     getName(), 1, par().m2, getGrid<Field>());
 }
 
 // execution ///////////////////////////////////////////////////////////////////

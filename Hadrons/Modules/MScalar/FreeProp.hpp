@@ -29,6 +29,7 @@
 #include <Hadrons/Global.hpp>
 #include <Hadrons/Module.hpp>
 #include <Hadrons/ModuleFactory.hpp>
+#include <Hadrons/Modules/MAction/Laplacian.hpp>
 
 BEGIN_HADRONS_NAMESPACE
 
@@ -51,6 +52,8 @@ class TFreeProp: public Module<FreePropPar>
 {
 public:
     BASIC_TYPE_ALIASES(SIMPL,);
+    typedef MAction::Laplacian<ScalarField>              LapMat;
+    typedef HermitianLinearOperator<LapMat, ScalarField> LapOp;
 public:
     // constructor
     TFreeProp(const std::string name);

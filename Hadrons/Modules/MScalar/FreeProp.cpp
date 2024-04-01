@@ -26,7 +26,6 @@
 /*  END LEGAL */
 #include <Hadrons/Modules/MScalar/FreeProp.hpp>
 #include <Hadrons/Modules/MScalar/Scalar.hpp>
-#include <Hadrons/Modules/MAction/Laplacian.hpp>
 #include <Hadrons/Serialization.hpp>
 
 using namespace Grid;
@@ -85,12 +84,11 @@ void TFreeProp::execute(void)
     }
     else
     {
-        MAction::Laplacian<ScalarField> lap(par().mass*par().mass);
+        LapMat lap(par().mass*par().mass, getGrid<ScalarField>());
+        LapOp op(lap);
         ConjugateGradient<ScalarField>  cg(1.0e-8, 10000);
 
-        cg(lap, source, prop);
-
-        ScalarField test(prop.Grid());
+        cg(op, source, prop);
     }
     
     std::vector<TComplex> buf;
