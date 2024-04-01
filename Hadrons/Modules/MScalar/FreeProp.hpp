@@ -30,6 +30,8 @@
 #include <Hadrons/Module.hpp>
 #include <Hadrons/ModuleFactory.hpp>
 #include <Hadrons/Modules/MAction/Laplacian.hpp>
+#include <Hadrons/Modules/MScalar/Scalar.hpp>
+#include <Hadrons/Serialization.hpp>
 
 BEGIN_HADRONS_NAMESPACE
 
@@ -48,12 +50,13 @@ public:
                                     bool, useFft);
 };
 
+template <typename SImpl>
 class TFreeProp: public Module<FreePropPar>
 {
 public:
-    BASIC_TYPE_ALIASES(SIMPL,);
-    typedef MAction::Laplacian<ScalarField>              LapMat;
-    typedef HermitianLinearOperator<LapMat, ScalarField> LapOp;
+    typedef typename SImpl::Field                  Field;
+    typedef MAction::Laplacian<Field>              LapMat;
+    typedef HermitianLinearOperator<LapMat, Field> LapOp;
 public:
     // constructor
     TFreeProp(const std::string name);
@@ -72,7 +75,84 @@ private:
     bool        freePropDone_;
 };
 
-MODULE_REGISTER(FreeProp, TFreeProp, MScalar);
+MODULE_REGISTER_TMP(FreeProp, TFreeProp<SIMPL>, MScalar);
+
+/******************************************************************************
+*                        TFreeProp implementation                             *
+******************************************************************************/
+// constructor /////////////////////////////////////////////////////////////////
+template <typename SImpl>
+TFreeProp<SImpl>::TFreeProp(const std::string name)
+: Module<FreePropPar>(name)
+{}
+
+// dependencies/products ///////////////////////////////////////////////////////
+template <typename SImpl>
+std::vector<std::string> TFreeProp<SImpl>::getInput(void)
+{
+    return {par().source};
+}
+
+template <typename SImpl>
+std::vector<std::string> TFreeProp<SImpl>::getOutput(void)
+{
+    return {getName(), getName()+"_sliceSum"};
+}
+
+// setup ///////////////////////////////////////////////////////////////////////
+template <typename SImpl>
+void TFreeProp<SImpl>::setup(void)
+{
+    if (par().useFft)
+    {
+        freeMomPropName_ = FREEMOMPROP(par().mass);
+        freePropDone_ = env().hasCreatedObject(freeMomPropName_);
+        envCacheLat(Field, freeMomPropName_);
+    }
+    envCreateLat(Field, getName());
+    envCreate(HadronsSerializable, getName() + "_sliceSum", 1, 0);
+}
+
+// execution ///////////////////////////////////////////////////////////////////
+template <typename SImpl>
+void TFreeProp<SImpl>::execute(void)
+{
+    auto &prop   = envGet(Field, getName());
+    auto &source = envGet(Field, par().source);
+
+    LOG(Message) << "Computing free scalar propagator..." << std::endl;
+    if (par().useFft)
+    {
+        auto &freeMomProp = envGet(Field, freeMomPropName_);
+        if (!freePropDone_)
+        {
+            LOG(Message) << "Caching momentum space free scalar propagator"
+                        << " (mass= " << par().mass << ")..." << std::endl;
+            SImpl::MomentumSpacePropagator(freeMomProp, par().mass);
+        }
+        SImpl::FreePropagator(source, prop, freeMomProp);
+    }
+    else
+    {
+        LapMat lap(par().mass*par().mass, getGrid<Field>());
+        LapOp op(lap);
+        ConjugateGradient<Field> cg(1.0e-8, 10000);
+
+        cg(op, source, prop);
+    }
+    
+    std::vector<TComplex> buf;
+    std::vector<Complex>  result;
+    
+    sliceSum(prop, buf, Tp);
+    result.resize(buf.size());
+    for (unsigned int t = 0; t < buf.size(); ++t)
+    {
+        result[t] = TensorRemove(buf[t]);
+    }
+    envGet(HadronsSerializable, getName()+"_sliceSum") = result;
+    saveResult(par().output, "freeprop", result);
+}
 
 END_MODULE_NAMESPACE
 
