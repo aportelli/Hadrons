@@ -69,41 +69,43 @@ public:
     };
 
     virtual GridBase *Grid(void) { return grid_; };
+
     virtual void M(const Field &_in, Field &_out)
     {
-        auto nd = grid_->Nd();
-
         st_->HaloExchange(_in, comp_);
-
-        auto st = st_->View(AcceleratorRead);
-        auto buf = st_->CommBuf();
+        
+        autoView(st, (*st_), AcceleratorRead);
         autoView(in, _in, AcceleratorRead);
         autoView(out, _out, AcceleratorWrite);
-        const int Nsimd = vobj::Nsimd();
-        const uint64_t NN = grid_->oSites();
 
         typedef decltype(coalescedRead(in[0])) calcObj;
 
-        accelerator_for(ss, NN, Nsimd,
+        const int nSimd = vobj::Nsimd();
+        const uint64_t n = grid_->oSites();
+        auto nd = grid_->Nd();
+        double m2 = m2_; // needs to be local to be accessible from accelerator
+        auto buf = st.CommBuf();
+
+        acceleratorFenceComputeStream();
+        accelerator_for(ss, n, nSimd,
         {
-            StencilEntry *SE;
-            const int lane = acceleratorSIMTlane(Nsimd);
+            StencilEntry *e;
+            const int lane = acceleratorSIMTlane(nSimd);
             calcObj chi;
             calcObj res;
             int ptype;
-
-            res = coalescedRead(in[ss]) * (m2_ + 2.0 * nd);
+            res = coalescedRead(in[ss])*(2.*nd + m2);
             for (unsigned int mu = 0; mu < 2 * nd; ++mu)
             {
-                SE = st.GetEntry(ptype, mu, ss);
-                if (SE->_is_local)
+                e = st.GetEntry(ptype, mu, ss);
+                if (e->_is_local)
                 {
-                    int perm = SE->_permute;
-                    chi = coalescedReadPermute(in[SE->_offset], ptype, perm, lane);
+                    int perm = e->_permute;
+                    chi = coalescedReadPermute(in[e->_offset], ptype, perm, lane);
                 }
                 else
                 {
-                    chi = coalescedRead(buf[SE->_offset], lane);
+                    chi = coalescedRead(buf[e->_offset], lane);
                 }
                 acceleratorSynchronise();
                 res -= chi;
@@ -111,6 +113,7 @@ public:
             coalescedWrite(out[ss], res, lane);
         });
     };
+
     virtual void Mdag(const Field &in, Field &out) { M(in, out); };
     virtual void Mdiag(const Field &in, Field &out) { assert(0); };
     virtual void Mdir(const Field &in, Field &out, int dir, int disp) { assert(0); }; 
@@ -122,7 +125,6 @@ private:
     SimpleCompressor<vobj> comp_;
     std::vector<int> dir_, disp_;
 };
-
 
 template <typename Field>
 class TLaplacian: public Module<LaplacianPar>
