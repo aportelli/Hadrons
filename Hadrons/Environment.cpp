@@ -41,6 +41,8 @@ HADRONS_ERROR_REF(ObjectDefinition, "no object with address " + std::to_string(a
 // constructor /////////////////////////////////////////////////////////////////
 Environment::Environment(void)
 {
+    Coordinate mask;
+
     dim_ = GridDefaultLatt().toVector();
     nd_  = dim_.size();
     vol_ = 1.;
@@ -48,9 +50,93 @@ Environment::Environment(void)
     {
         vol_ *= d;
     }
+    const char *maskEnv = std::getenv("HADRONS_SIMD_MASK");
+    const char *orderEnv = std::getenv("HADRONS_SIMD_REVERSE");
+    if (maskEnv)
+    {
+        std::string buf = maskEnv;
+
+        GridCmdOptionIntVector(buf, mask);
+        LOG(Message) << "Custom SIMD mask from HADRONS_SIMD_MASK (" << buf << ")" 
+                     << std::endl;
+    }
+    else
+    {
+        mask.resize(0);
+        for (auto d: dim_)
+        {
+            mask.push_back(1);
+        }
+    }
+    if (mask.size() != nd_)
+    {
+        HADRONS_ERROR(Size, "SIMD mask has wrong size (expected" + std::to_string(nd_) 
+            +  ", got " + std::to_string(mask.size()) + ")");
+    }
+    simdMask_.resize(nd_);
+    for (unsigned int mu = 0; mu < nd_; ++mu)
+    {
+        simdMask_[mu] = (mask[mu] != 0);
+    }
+    if (orderEnv)
+    {
+        LOG(Message) << "Reverse SIMD mask triggered by HADRONS_SIMD_REVERSE" << std::endl;
+        simdReverse_ = true;   
+    }
 }
 
 // grids ///////////////////////////////////////////////////////////////////////
+Coordinate Environment::simdDecomposition(const unsigned int nd, const unsigned int nSimd)
+{
+    Coordinate layout(nd);
+    int nn = nSimd;
+    auto addDirection = [&layout, &nn, this](const unsigned int mu)
+    {
+        if ((nn >= 2) && (mu < simdMask_.size()))
+        {
+            if (simdMask_[mu])
+            {
+                layout[mu] *= 2;
+                nn /= 2;
+            }
+        }
+    };
+
+    if (nSimd > 1)
+    {
+        bool maskValid = false;
+
+        for (auto d: simdMask_) { maskValid = maskValid || simdMask_[d];}
+        if (!maskValid)
+        {
+            HADRONS_ERROR(Size, "SIMD mask invalid");
+        }
+    }
+    for (unsigned int mu = 0; mu < nd; ++mu)
+    {
+        layout[mu] = 1;
+    }
+    while (nn > 1)
+    {
+        if (!simdReverse_)
+        {
+            for (int mu = nd - 1; mu >= 0; --mu)
+            {
+                addDirection(mu);
+            }
+        }
+        else
+        {
+            for (unsigned int mu = 0; mu < nd; ++mu)
+            {
+                addDirection(mu);
+            }
+        }
+    }
+
+    return layout;
+}
+
 unsigned int Environment::getNd(void) const
 {
     return nd_;
