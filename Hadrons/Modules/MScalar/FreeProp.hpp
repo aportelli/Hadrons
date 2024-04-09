@@ -47,7 +47,8 @@ public:
                                     std::string, source,
                                     double,      mass,
                                     std::string, output,
-                                    bool, useFft);
+                                    bool, useFft,
+                                    bool, cache);
 };
 
 template <typename SImpl>
@@ -72,7 +73,7 @@ protected:
     virtual void execute(void);
 private:
     std::string freeMomPropName_;
-    bool        freePropDone_;
+    bool        freePropDone_, freeMomPropDone_;
 };
 
 MODULE_REGISTER_TMP(FreeProp, TFreeProp<SIMPL>, MScalar);
@@ -106,10 +107,19 @@ void TFreeProp<SImpl>::setup(void)
     if (par().useFft)
     {
         freeMomPropName_ = FREEMOMPROP(par().mass);
-        freePropDone_ = env().hasCreatedObject(freeMomPropName_);
+        freeMomPropDone_ = env().hasCreatedObject(freeMomPropName_);
         envCacheLat(Field, freeMomPropName_);
     }
-    envCreateLat(Field, getName());
+    if (par().cache)
+    {
+        freePropDone_ = env().hasCreatedObject(getName());
+        envCacheLat(Field, getName());
+    }
+    else
+    {
+        freePropDone_ = false;
+        envCreateLat(Field, getName());
+    }
     envCreate(HadronsSerializable, getName() + "_sliceSum", 1, 0);
 }
 
@@ -120,30 +130,37 @@ void TFreeProp<SImpl>::execute(void)
     auto &prop   = envGet(Field, getName());
     auto &source = envGet(Field, par().source);
 
-    LOG(Message) << "Computing free scalar propagator..." << std::endl;
-    if (par().useFft)
+    if (!((par().cache) && freePropDone_))
     {
-        auto &freeMomProp = envGet(Field, freeMomPropName_);
-        if (!freePropDone_)
+        LOG(Message) << "Computing free scalar propagator..." << std::endl;
+        if (par().useFft)
         {
-            LOG(Message) << "Caching momentum space free scalar propagator"
-                        << " (mass= " << par().mass << ")..." << std::endl;
-            SImpl::MomentumSpacePropagator(freeMomProp, par().mass);
+            auto &freeMomProp = envGet(Field, freeMomPropName_);
+            if (!freeMomPropDone_)
+            {
+                LOG(Message) << "Caching momentum space free scalar propagator"
+                            << " (mass= " << par().mass << ")..." << std::endl;
+                SImpl::MomentumSpacePropagator(freeMomProp, par().mass);
+            }
+            SImpl::FreePropagator(source, prop, freeMomProp);
         }
-        SImpl::FreePropagator(source, prop, freeMomProp);
+        else
+        {
+            LapMat lap(par().mass*par().mass, getGrid<Field>());
+            LapOp op(lap);
+            ConjugateGradient<Field> cg(1.0e-8, 10000);
+
+            cg(op, source, prop);
+        }
     }
     else
     {
-        LapMat lap(par().mass*par().mass, getGrid<Field>());
-        LapOp op(lap);
-        ConjugateGradient<Field> cg(1.0e-8, 10000);
-
-        cg(op, source, prop);
+        LOG(Message) << "Using cached free scalar propagator" << std::endl;
     }
     
     std::vector<TComplex> buf;
     std::vector<Complex>  result;
-    
+
     sliceSum(prop, buf, Tp);
     result.resize(buf.size());
     for (unsigned int t = 0; t < buf.size(); ++t)
