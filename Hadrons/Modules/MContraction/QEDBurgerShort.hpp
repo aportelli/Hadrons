@@ -59,11 +59,11 @@ public:
     virtual void setup(void);
     // execution
     virtual void execute(void);
+
+    inline void fastBurger(const PropagatorField& left, const PropagatorField& right, const typename EmField::scalar_object& pSite, LatticeComplexD& out);
+    inline void coordCshift(const FermionField& field, const Coordinate& coord, FermionField& out);
 private:
     int Ls_;
-
-    void fastBurger(const PropagatorField& left, const PropagatorField& right, const typename EmField::scalar_object& pSite, LatticeComplexD& out);
-    void coordCshift(const FermionField& field, const Coordinate& coord, FermionField& out);
 };
 
 MODULE_REGISTER_TMP(QEDBurgerShort, ARG(TQEDBurgerShort<FIMPL, vComplex>), MContraction);
@@ -122,12 +122,12 @@ void TQEDBurgerShort<FImpl, VType>::setup(void)
 template <typename FImpl, typename VType>
 void TQEDBurgerShort<FImpl, VType>::fastBurger(const PropagatorField& left, const PropagatorField& right, const typename EmField::scalar_object& pSite, LatticeComplexD& out)
 {
-    Gamma Gmu[] = 
+    Gamma::Algebra Gmu[] = 
     {
-        Gamma(Gamma::Algebra::GammaX),
-        Gamma(Gamma::Algebra::GammaY),
-        Gamma(Gamma::Algebra::GammaZ),
-        Gamma(Gamma::Algebra::GammaT),
+        (Gamma::Algebra::GammaX),
+        (Gamma::Algebra::GammaY),
+        (Gamma::Algebra::GammaZ),
+        (Gamma::Algebra::GammaT),
     };
 
     autoView(vleft,left,AcceleratorRead);
@@ -140,14 +140,14 @@ void TQEDBurgerShort<FImpl, VType>::fastBurger(const PropagatorField& left, cons
     // Tr[G_mu * q(x, x+r) * G_mu * G(x+r, x)]
     accelerator_for(s, grid->oSites(), VType::Nsimd(), 
     {
-        const auto& s1 = coalescedRead(vleft(s));
-        const auto& s2 = coalescedRead(vright(s));
+        const auto& s1 = vleft[s];  //coalescedRead(vleft(s));
+        const auto& s2 = vright[s]; //coalescedRead(vright(s));
         LatticeComplexD::vector_object out_s = Zero();
         for (int mu=0; mu<4; ++mu)
         {
             LatticeComplexD::vector_object tmp = Zero();
-            const auto& gs1 = Gmu[mu]*s1;
-            const auto& gs2 = Gmu[mu]*s2;
+            const auto& gs1 = Gamma(Gmu[mu])*s1;
+            const auto& gs2 = Gamma(Gmu[mu])*s2;
             for(int si=0;si<Ns;si++)
             for(int sj=0;sj<Ns;sj++)
             for(int ci=0;ci<Nc;ci++)
@@ -155,7 +155,8 @@ void TQEDBurgerShort<FImpl, VType>::fastBurger(const PropagatorField& left, cons
                 tmp()()()+=gs1()(si,sj)(ci,cj)*gs2()(sj,si)(cj,ci);
             out_s += tmp*pSite(mu)()();
         }
-        coalescedWrite(wvout[s], out_s);
+        //coalescedWrite(wvout[s], out_s);
+        wvout[s] = out_s;
     })
 }
 
@@ -337,6 +338,11 @@ void TQEDBurgerShort<FImpl, VType>::execute(void)
             // Calculate full correlator.
             startTimer("Total Contraction Time[Full-Noise Contraction]");
             fastBurger(tmp_prop1, tmp_prop2, pSite, tmp_cbuffer);
+            // *** Equivalent to *** //
+            // Gamma Gamma5(Gamma::Algebra::Gamma5);
+            // tmp_cbuffer = Zero();
+            // for (int mu=0; mu<4; ++mu)
+            //     tmp_cbuffer += trace(Gmu[mu]*tmp_prop1*Gmu[mu]*tmp_prop2) * pSite(mu)()();
             auto full_contribution = toReal(sum(tmp_cbuffer));
 
             // Add the result for this site to the total.
@@ -349,7 +355,7 @@ void TQEDBurgerShort<FImpl, VType>::execute(void)
         // we compute them all *except* the Nsrc traces using the same noise for both propagators.
         // This leaves us with (Nsrc^2 - Nsrc) traces we have computed and need to normalise for.
         int norm = (Nsrc*(Nsrc-1));
-        burger /= norm;
+        burger /= norm*env().getVolume();
         std::cout << "burger = " << std::setprecision(15) << burger << std::endl;
         
         auto& out = envGet(HadronsSerializable, getName());

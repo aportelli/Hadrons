@@ -167,20 +167,13 @@ void TQEDBurgerLong<FImpl, VType>::execute(void)
         // the diagram at.
         Coordinate origin = strToVec<int>(par().origin);
 
-        // Make a copy since we'll be C-shifting it.
-        // This *only* gets close to the short-distance module number
-        // when the propagator field is C-shifted, and in that situation
-        // the result is the same up to double precision.
-        PropagatorField q = envGet(PropagatorField, par().q);
+        const PropagatorField& q = envGet(PropagatorField, par().q);
+        // Shift the photon field and distance-measurements to the same origin as q
         for (int mu=0;mu<Nd;mu++)
-            q = Cshift(q, mu, origin[mu]);
-
-        // // Alternative to shifting the propagator field...
-        // for (int mu=0;mu<Nd;mu++)
-        // {
-        //     radial_dist_sq  = Cshift(radial_dist_sq, mu, -origin[mu]);
-        //     Gx              = Cshift(Gx,             mu, -origin[mu]);
-        // }
+        {
+            radial_dist_sq  = Cshift(radial_dist_sq, mu, -origin[mu]);
+            Gx              = Cshift(Gx,             mu, -origin[mu]);
+        }
 
         // Calculate the Burger in Feynman gauge
         // The Feynman gauge photon propagator is delta^{mu,nu}/k^2, so we only need
@@ -207,11 +200,7 @@ void TQEDBurgerLong<FImpl, VType>::execute(void)
     {
         PropagatorField q = envGet(PropagatorField, par().q);
         Coordinate origin = strToVec<int>(par().origin);
-        // This Cshift shouldn't be necessary? Sum should be invariant...
-        // The result is *only* consistent if the PropagatorField or Photon field
-        // are C-shifted. In this situation the result is the same up to double precision.
-        // for (int mu=0;mu<Nd;mu++)
-        //     q = Cshift(q, mu, origin[mu]);
+        // Shift the photon field to the same origin as q
         for (int mu=0;mu<Nd;mu++)
             Gx = Cshift(Gx, mu, -origin[mu]);
 

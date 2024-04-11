@@ -5,3 +5,4 @@ using namespace Hadrons;
 using namespace MFermion;
 
 template class Grid::Hadrons::MFermion::TSplitEvenProp<FIMPL>;
+template class Grid::Hadrons::MFermion::TSplitEvenProp<ZFIMPL>;

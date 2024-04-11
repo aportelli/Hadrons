@@ -168,6 +168,7 @@ void TQEDSpecs<FImpl, VType>::execute(void)
 
       result += sum(tmpreal * tmpreal2);
     }
+    result *= 1/env().getVolume();
 
     LOG(Message) << "specs: " << result << std::endl;
 

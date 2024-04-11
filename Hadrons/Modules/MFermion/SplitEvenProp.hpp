@@ -53,7 +53,8 @@ private:
     Mode mode;
 };
 
-MODULE_REGISTER_TMP(SplitEvenProp, TSplitEvenProp<FIMPL>, MFermion);
+MODULE_REGISTER_TMP(SplitEvenProp,  TSplitEvenProp<FIMPL>,  MFermion);
+MODULE_REGISTER_TMP(ZSplitEvenProp, TSplitEvenProp<ZFIMPL>, MFermion);
 
 /******************************************************************************
  *                 TSplitEvenProp implementation                             *
