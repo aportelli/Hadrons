@@ -32,10 +32,10 @@ class QEDBurgerLongPar: Serializable
 {
 public:
     GRID_SERIALIZABLE_CLASS_MEMBERS(QEDBurgerLongPar,
-                                    int,         radius,
                                     std::string, q,
                                     std::string, photon,
-                                    std::string, origin);
+                                    int,         radius,
+                                    std::string, output);
 };
 
 template <typename FImpl, typename VType>
@@ -52,12 +52,13 @@ public:
     // destructor
     virtual ~TQEDBurgerLong(void) {};
     // dependency relation
-    virtual std::vector<std::string> getInput(void);
-    virtual std::vector<std::string> getOutput(void);
+    virtual std::vector<std::string> getInput(void) override;
+    virtual std::vector<std::string> getOutput(void) override;
+    virtual std::vector<std::string> getOutputFiles(void) override;
     // setup
-    virtual void setup(void);
+    virtual void setup(void) override;
     // execution
-    virtual void execute(void);
+    virtual void execute(void) override;
 };
 
 MODULE_REGISTER_TMP(QEDBurgerLong, ARG(TQEDBurgerLong<FIMPL, vComplex>), MContraction);
@@ -88,6 +89,17 @@ std::vector<std::string> TQEDBurgerLong<FImpl, VType>::getOutput(void)
     return out;
 }
 
+template <typename FImpl, typename VType>
+std::vector<std::string> TQEDBurgerLong<FImpl, VType>::getOutputFiles(void)
+{
+    std::vector<std::string> output = {};
+    
+    if (!par().output.empty())
+        output.push_back(resultFilename(par().output));
+    
+    return output;
+}
+
 // setup ///////////////////////////////////////////////////////////////////////
 template <typename FImpl, typename VType>
 void TQEDBurgerLong<FImpl, VType>::setup(void)
@@ -113,6 +125,11 @@ void TQEDBurgerLong<FImpl, VType>::setup(void)
 template <typename FImpl, typename VType>
 void TQEDBurgerLong<FImpl, VType>::execute(void)
 {
+    // Get env variables
+    const PropagatorField& q   = envGet(PropagatorField, par().q);
+    std::cout << "Using photon '" << par().photon << "'" << std::endl;
+    const EmField&         Ax  = envGet(EmField, par().photon);
+
     Gamma Gmu[] = 
     {
         Gamma(Gamma::Algebra::GammaX),
@@ -120,10 +137,6 @@ void TQEDBurgerLong<FImpl, VType>::execute(void)
         Gamma(Gamma::Algebra::GammaZ),
         Gamma(Gamma::Algebra::GammaT),
     };
-
-    // Get position-space photon
-    std::cout << "Using photon '" << par().photon << "'" << std::endl;
-    const EmField& Ax = envGet(EmField, par().photon);
 
     // Hacky way to create feynman photon gauge field from photon field
     envGetTmp(EmField, Gx);
@@ -135,11 +148,22 @@ void TQEDBurgerLong<FImpl, VType>::execute(void)
     pokeLorentz(em_buffer, peekLorentz(em_buffer,2)*peekLorentz(em_buffer,2), 2);
     pokeLorentz(em_buffer, peekLorentz(em_buffer,3)*peekLorentz(em_buffer,3), 3);
     fft.FFT_all_dim(Gx, em_buffer, FFT::backward);
-
-    auto& out = envGet(HadronsSerializable, getName());
+    
+    // Calculate the Burger in Feynman gauge
+    // The Feynman gauge photon propagator is delta^{mu,nu}/k^2, so we only need
+    // to compute terms where mu == nu.
+    Gamma Gamma5(Gamma::Algebra::Gamma5);
+    envGetTmp(LatticeComplex, burger_lattice);
+    burger_lattice = Zero();
+    for (int mu=0; mu<Nd; ++mu)
+        burger_lattice += peekLorentz(Gx,mu)*Burger(q, Gmu[mu], Gmu[mu], Gamma5);
+    
+    // If a non-negative radius was specified, cut out any sites within that radius
+    // around the origin from the final result.
+    RealD burger;
     if (par().radius >= 0)
     {
-        // Compute the distance from the origin for each lattice site.
+        // First, compute the distance from the origin for each lattice site.
         // To do this, replace the coordinates of sites larger than half the
         // size of the lattice with their negative equivalents.
         // As long as the radial cut is closer to the origin than the opposing
@@ -162,58 +186,21 @@ void TQEDBurgerLong<FImpl, VType>::execute(void)
             radial_dist_sq   += tmp_intbuffer;
         }
 
-        // Prepare to shift the propagator back to the source origin
-        // in order to measure the contraction distance we will split
-        // the diagram at.
-        Coordinate origin = strToVec<int>(par().origin);
-
-        const PropagatorField& q = envGet(PropagatorField, par().q);
-        // Shift the photon field and distance-measurements to the same origin as q
-        for (int mu=0;mu<Nd;mu++)
-        {
-            radial_dist_sq  = Cshift(radial_dist_sq, mu, -origin[mu]);
-            Gx              = Cshift(Gx,             mu, -origin[mu]);
-        }
-
-        // Calculate the Burger in Feynman gauge
-        // The Feynman gauge photon propagator is delta^{mu,nu}/k^2, so we only need
-        // to compute terms where mu == nu.
-        Gamma Gamma5(Gamma::Algebra::Gamma5);
-        envGetTmp(LatticeComplex, burger_lattice);
-        burger_lattice = Zero();
-        for (int mu=0; mu<Nd; ++mu)
-            burger_lattice += peekLorentz(Gx,mu)*Burger(q, Gmu[mu], Gmu[mu], Gamma5);
-
-        // Get the split-field results.
+        // Perform the lattice sum, ignoring all sites within the specified radius.
         envGetTmp(LatticeComplex, tmp_cbuffer);
-        tmp_cbuffer     = ComplexD(0.0, 0.0);
-        RealD burger    = toReal(sum(where(radial_dist_sq  > static_cast<Integer>(par().radius*par().radius),burger_lattice,tmp_cbuffer)));
-         // TODO: Remove this, exists for comparison against SD module
-        RealD burger_sd = toReal(sum(where(radial_dist_sq <= static_cast<Integer>(par().radius*par().radius),burger_lattice,tmp_cbuffer)));
-        LOG(Message) << "burger ld: " << std::setprecision(15) << burger << std::endl;
-        LOG(Message) << "burger sd: " << std::setprecision(15) << burger_sd << std::endl; // For comparison against SD module
-        LOG(Message) << "burger:    " << std::setprecision(15) << burger+burger_sd << std::endl;
-        
-        out = burger;
+        tmp_cbuffer = ComplexD(0.0, 0.0);
+        burger      = toReal(sum(where(radial_dist_sq  > static_cast<Integer>(par().radius*par().radius),burger_lattice,tmp_cbuffer)));
     }
     else
     {
-        PropagatorField q = envGet(PropagatorField, par().q);
-        Coordinate origin = strToVec<int>(par().origin);
-        // Shift the photon field to the same origin as q
-        for (int mu=0;mu<Nd;mu++)
-            Gx = Cshift(Gx, mu, -origin[mu]);
-
-        Gamma Gamma5(Gamma::Algebra::Gamma5);
-        envGetTmp(LatticeComplex, burger_lattice);
-        burger_lattice = Zero();
-        for (int mu=0; mu<Nd; ++mu)
-            burger_lattice += peekLorentz(Gx,mu)*Burger(q, Gmu[mu], Gmu[mu], Gamma5);
-        RealD burger = toReal(sum(burger_lattice));
-        LOG(Message) << "burger: " << std::setprecision(15) << burger << std::endl;
-        
-        out = burger;
+        // Perform the full lattice sum.
+        burger = toReal(sum(burger_lattice));
     }
+    LOG(Message) << "burger: " << std::setprecision(15) << burger << std::endl;
+    
+    saveResult(par().output, "burger", burger);
+    auto& out = envGet(HadronsSerializable, getName());
+    out = burger;
 }
 #undef Burger
 
