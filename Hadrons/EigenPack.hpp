@@ -30,7 +30,7 @@
 
 #include <Hadrons/Global.hpp>
 #include <Hadrons/LatticeUtilities.hpp>
-#include <Grid/algorithms/iterative/Deflation.h>
+#include <Grid/algorithms/deflation/Deflation.h>
 #include <Grid/algorithms/iterative/LocalCoherenceLanczos.h>
 
 BEGIN_HADRONS_NAMESPACE
