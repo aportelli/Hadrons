@@ -18,7 +18,7 @@ class SaveTimeMomentumPar: Serializable
 {
 public:
     GRID_SERIALIZABLE_CLASS_MEMBERS(SaveTimeMomentumPar,
-                                    std::string, field,
+                                    std::string, tmomField,
                                     std::string, momentum,
                                     std::string, output);
 };
@@ -64,7 +64,7 @@ TSaveTimeMomentum<Field>::TSaveTimeMomentum(const std::string name)
 template <typename Field>
 std::vector<std::string> TSaveTimeMomentum<Field>::getInput(void)
 {
-    std::vector<std::string> in = {par().field};
+    std::vector<std::string> in = {par().tmomField};
     
     return in;
 }
@@ -95,33 +95,23 @@ template <typename Field>
 void TSaveTimeMomentum<Field>::setup(void)
 {
     envCreate(HadronsSerializable, getName(), 1, 0);
-    envTmpLat(Field, "fftBuf");
 }
 
 // execution ///////////////////////////////////////////////////////////////////
 template <typename Field>
 void TSaveTimeMomentum<Field>::execute(void)
 {
-    auto &field = envGet(Field, par().field);
-    envGetTmp(Field, fftBuf);
-    GridBase *g = field.Grid();
+    auto &field = envGet(Field, par().tmomField);
     unsigned int nd = env().getNd(), nt = env().getDim(Tp);
-    assert(g->Nd() == nd);
-    FFT fft(dynamic_cast<GridCartesian *>(g));
-    Coordinate mask(nd, 1), site(nd);
+    Coordinate site(nd);
     std::vector<int> mom = strToVec<int>(par().momentum);
     Result result;
 
-    startTimer("FFT");
     if (mom.size() != env().getNd() - 1)
     {
         HADRONS_ERROR(Size, "momentum has " + std::to_string(mom.size())
                       + " components (must have " + std::to_string(env().getNd() - 1) + ")");
     }
-    mask[Tp] = 0;
-    fft.FFT_dim_mask(fftBuf, field, mask, FFT::forward);
-    stopTimer("FFT");
-    startTimer("peek sites");
     result.corr.resize(nt);
     unsigned int j = 0;
     Site f;
@@ -139,10 +129,7 @@ void TSaveTimeMomentum<Field>::execute(void)
         peekSite(result.corr[t], field, site);
     }
     result.info.momentum = mom;
-    stopTimer("peek sites");
-    startTimer("I/O");
     saveResult(par().output, "meson", result);
-    stopTimer("I/O");
     auto &out = envGet(HadronsSerializable, getName());
     out = result;
 }
