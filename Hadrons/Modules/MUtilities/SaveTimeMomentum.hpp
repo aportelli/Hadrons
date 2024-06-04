@@ -49,7 +49,7 @@ public:
     virtual void execute(void);
 };
 
-MODULE_REGISTER_TMP(SaveEmFieldMomentumLine, TSaveTimeMomentum<TEmFieldGenerator<vComplex>::GaugeField>, MUtilities);
+MODULE_REGISTER_TMP(SaveEmFieldTimeMomentum, TSaveTimeMomentum<TEmFieldGenerator<vComplex>::GaugeField>, MUtilities);
 
 /******************************************************************************
  *                 TSaveTimeMomentum implementation                             *
