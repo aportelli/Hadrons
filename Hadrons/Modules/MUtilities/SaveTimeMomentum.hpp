@@ -32,7 +32,7 @@ public:
     public:
         GRID_SERIALIZABLE_CLASS_MEMBERS(Metadata, std::vector<int>, momentum);
     };
-    typedef typename Field::scalar_type Site;
+    typedef typename Field::scalar_object Site;
     typedef Correlator<Metadata, Site> Result;
 public:
     // constructor
