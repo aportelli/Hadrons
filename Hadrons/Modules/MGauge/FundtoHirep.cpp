@@ -30,46 +30,6 @@ using namespace Grid;
 using namespace Hadrons;
 using namespace MGauge;
 
-// constructor /////////////////////////////////////////////////////////////////
-template <class Rep>
-TFundtoHirep<Rep>::TFundtoHirep(const std::string name)
-: Module<FundtoHirepPar>(name)
-{}
-
-// dependencies/products ///////////////////////////////////////////////////////
-template <class Rep>
-std::vector<std::string> TFundtoHirep<Rep>::getInput(void)
-{
-    std::vector<std::string> in = {par().gaugeconf};
-
-    return in;
-}
-
-template <class Rep>
-std::vector<std::string> TFundtoHirep<Rep>::getOutput(void)
-{
-    std::vector<std::string> out = {getName()};
-
-    return out;
-}
-
-// setup ///////////////////////////////////////////////////////////////////////
-template <typename Rep>
-void TFundtoHirep<Rep>::setup(void)
-{
-    envCreateLat(Rep::LatticeField, getName());
-}
-
-// execution ///////////////////////////////////////////////////////////////////
-template <class Rep>
-void TFundtoHirep<Rep>::execute(void)
-{
-    LOG(Message) << "Transforming Representation" << std::endl;
-
-    auto &U    = envGet(LatticeGaugeField, par().gaugeconf);
-    auto &URep = envGet(Rep::LatticeField, getName());
-
-    Rep TargetRepresentation(U._grid);
-    TargetRepresentation.update_representation(U);
-    URep = TargetRepresentation.U;
-}
+template class MGauge::TFundtoHirep<AdjointRepresentation>;
+template class MGauge::TFundtoHirep<TwoIndexSymmetricRepresentation>;
+template class MGauge::TFundtoHirep<TwoIndexAntiSymmetricRepresentation>;
