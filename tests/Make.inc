@@ -1,8 +1,11 @@
-tests-local: Test_QED_Local Test_QED Test_diskvector Test_exact_distil Test_free_prop Test_hadrons_meson_3pt Test_hadrons_spectrum Test_sigma_to_nucleon Test_stoch_distil Test_xi_to_sigma
-EXTRA_PROGRAMS = Test_QED_Local Test_QED Test_diskvector Test_exact_distil Test_free_prop Test_hadrons_meson_3pt Test_hadrons_spectrum Test_sigma_to_nucleon Test_stoch_distil Test_xi_to_sigma
+tests-local: Test_conserved_bilinear Test_QED_Local Test_QED Test_diskvector Test_exact_distil Test_free_prop Test_hadrons_meson_3pt Test_hadrons_spectrum Test_sigma_to_nucleon Test_stoch_distil Test_xi_to_sigma
+EXTRA_PROGRAMS = Test_conserved_bilinear Test_QED_Local Test_QED Test_diskvector Test_exact_distil Test_free_prop Test_hadrons_meson_3pt Test_hadrons_spectrum Test_sigma_to_nucleon Test_stoch_distil Test_xi_to_sigma
 
-Test_QED_Local_SOURCES=Test_QED.cc
-Test_QED_LDADD=-lHadrons -lGrid
+Test_conserved_bilinear_SOURCES=Test_conserved_bilinear.cc
+Test_conserved_bilinear_LDADD=-lHadrons -lGrid
+
+Test_QED_Local_SOURCES=Test_QED_Local.cc
+Test_QED_Local_LDADD=-lHadrons -lGrid
 
 Test_QED_SOURCES=Test_QED.cc
 Test_QED_LDADD=-lHadrons -lGrid
