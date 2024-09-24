@@ -31,7 +31,7 @@ BEGIN_MODULE_NAMESPACE(MContraction)
 class QEDBurgerShortPar: Serializable
 {
 public:
-    GRID_SERIALIZABLE_ENUM(SymmetryMode, undef, none, 0, exact, 1, approximate, 2, approximateT, 3);
+    GRID_SERIALIZABLE_ENUM(SymmetryMode, undef, none, 0, exact, 1, approximate, 2);
 
     GRID_SERIALIZABLE_CLASS_MEMBERS(QEDBurgerShortPar,
                                     std::string,  sources,
@@ -176,12 +176,6 @@ std::vector<Coordinate> TQEDBurgerShort<FImpl, VType>::generateShiftVectors(int 
                     shifts.push_back(r);
                 break;
             }
-            case QEDBurgerShortPar::SymmetryMode::approximateT:
-            {
-                if (this->isInUsedLatticeOrthantPair(r))
-                    shifts.push_back(r);
-                break;
-            }
         }
     }
     return shifts;
@@ -212,18 +206,6 @@ double TQEDBurgerShort<FImpl, VType>::symmetryFactor(const Coordinate& s, QEDBur
             // in the coordinate axes.
             double factor = 1;
             for (int mu=0; mu < Nd; ++mu)
-            {
-                if (s[mu]!=0)
-                    factor *= 2;
-            }
-            return factor;
-        }
-        case QEDBurgerShortPar::SymmetryMode::approximateT:
-        {
-            // A site will have as many duplicates as elements that are not 0, since the vector is reflected
-            // in the coordinate axes.
-            double factor = 1;
-            for (int mu=0; mu < 3; ++mu)
             {
                 if (s[mu]!=0)
                     factor *= 2;
