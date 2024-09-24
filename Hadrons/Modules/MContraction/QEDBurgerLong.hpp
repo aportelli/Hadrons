@@ -33,7 +33,7 @@ class QEDBurgerLongPar: Serializable
 public:
     GRID_SERIALIZABLE_CLASS_MEMBERS(QEDBurgerLongPar,
                                     std::string, q,
-                                    std::string, photon,
+                                    std::string, emField,
                                     int,         radius,
                                     std::string, output);
 };
@@ -76,7 +76,7 @@ TQEDBurgerLong<FImpl, VType>::TQEDBurgerLong(const std::string name)
 template <typename FImpl, typename VType>
 std::vector<std::string> TQEDBurgerLong<FImpl, VType>::getInput(void)
 {
-    std::vector<std::string> in = {par().q, par().photon};
+    std::vector<std::string> in = {par().q, par().emField};
     
     return in;
 }
@@ -126,9 +126,9 @@ template <typename FImpl, typename VType>
 void TQEDBurgerLong<FImpl, VType>::execute(void)
 {
     // Get env variables
-    const PropagatorField& q   = envGet(PropagatorField, par().q);
-    std::cout << "Using photon '" << par().photon << "'" << std::endl;
-    const EmField&         Ax  = envGet(EmField, par().photon);
+    std::cout << "Using emField '" << par().emField << "'" << std::endl;
+    const PropagatorField& q        = envGet(PropagatorField, par().q);
+    const EmField&         em_field = envGet(EmField, par().emField);
 
     Gamma Gmu[] = 
     {
@@ -138,11 +138,11 @@ void TQEDBurgerLong<FImpl, VType>::execute(void)
         Gamma(Gamma::Algebra::GammaT),
     };
 
-    // Hacky way to create feynman photon gauge field from photon field
+    // Construct photon prop from weights
     envGetTmp(EmField, Gx);
     envGetTmp(EmField, em_buffer);
     envGetTmp(FFT,     fft);
-    fft.FFT_all_dim(em_buffer, Ax, FFT::forward);
+    fft.FFT_all_dim(em_buffer, em_field, FFT::forward);
     pokeLorentz(em_buffer, peekLorentz(em_buffer,0)*peekLorentz(em_buffer,0), 0);
     pokeLorentz(em_buffer, peekLorentz(em_buffer,1)*peekLorentz(em_buffer,1), 1);
     pokeLorentz(em_buffer, peekLorentz(em_buffer,2)*peekLorentz(em_buffer,2), 2);
@@ -196,6 +196,9 @@ void TQEDBurgerLong<FImpl, VType>::execute(void)
         // Perform the full lattice sum.
         burger = toReal(sum(burger_lattice));
     }
+
+    burger *= -1; // Account for i^2
+    
     LOG(Message) << "burger: " << std::setprecision(15) << burger << std::endl;
     
     saveResult(par().output, "burger", burger);

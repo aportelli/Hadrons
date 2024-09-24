@@ -242,7 +242,7 @@ void TEmFieldGenerator<VType>::operator()(GaugeField &out, const ScalarField &we
     FFT                fft(dynamic_cast<GridCartesian *>(g_));
     double             vol = g_->gSites();
 
-    sqrtW = sqrt(weight);//sqrt(vol)*sqrt(weight);
+    sqrtW = sqrt(vol)*sqrt(weight);
     for(unsigned int mu = 0; mu < nd_; mu++)
     {
       pokeLorentz(a, sqrtW, mu);

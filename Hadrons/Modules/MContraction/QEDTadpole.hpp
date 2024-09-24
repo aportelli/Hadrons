@@ -9,7 +9,7 @@
 BEGIN_HADRONS_NAMESPACE
 
 /******************************************************************************
- *                         QEDTadpole                                 *
+ *                               QEDTadpole                                   *
  ******************************************************************************/
 BEGIN_MODULE_NAMESPACE(MContraction)
 
@@ -17,8 +17,11 @@ class QEDTadpolePar: Serializable
 {
 public:
     GRID_SERIALIZABLE_CLASS_MEMBERS(QEDTadpolePar,
-                                    std::string, q,
-                                    std::string, photon)
+                                    std::string, loop_x,
+                                    std::string, loop_y,
+                                    std::string, loop_z,
+                                    std::string, loop_t,
+                                    std::string, emField);
 };
 
 template <typename FImpl, typename VType>
@@ -46,7 +49,7 @@ public:
 MODULE_REGISTER_TMP(QEDTadpole, ARG(TQEDTadpole<FIMPL, vComplex>), MContraction);
 
 /******************************************************************************
- *                 TQEDTadpole implementation                             *
+ *                     TQEDTadpole implementation                             *
  ******************************************************************************/
 // constructor /////////////////////////////////////////////////////////////////
 template <typename FImpl, typename VType>
@@ -58,7 +61,7 @@ TQEDTadpole<FImpl, VType>::TQEDTadpole(const std::string name)
 template <typename FImpl, typename VType>
 std::vector<std::string> TQEDTadpole<FImpl, VType>::getInput(void)
 {
-    std::vector<std::string> in = {par().q, par().photon};
+    std::vector<std::string> in = {par().loop_x, par().loop_y, par().loop_z, par().loop_t, par().emField};
     
     return in;
 }
@@ -75,10 +78,11 @@ std::vector<std::string> TQEDTadpole<FImpl, VType>::getOutput(void)
 template <typename FImpl, typename VType>
 void TQEDTadpole<FImpl, VType>::setup(void)
 {
+    envCreateLat(EmField, getName());
     envTmp(FFT,            "fft",         1, env().getGrid());
-    envTmp(EmField,        "Ak",          1, envGetGrid(EmField));
-    envTmp(LatticeComplex, "tmpcomplex",  1, envGetGrid(FermionField));
-    envTmp(LatticeComplex, "tmpcomplex2", 1, envGetGrid(FermionField));
+    envTmp(EmField,        "Gk",          1, envGetGrid(EmField));
+    envTmp(LatticeComplex, "tmpcomplex",  1, envGetGrid(LatticeComplex));
+    envTmp(LatticeComplex, "tmpcomplex2", 1, envGetGrid(LatticeComplex));   
 }
 
 // execution ///////////////////////////////////////////////////////////////////
@@ -95,39 +99,37 @@ void TQEDTadpole<FImpl, VType>::execute(void)
 
     LOG(Message) << "Creating Tadpole field in the Feynman Gauge" << std::endl;
 
-    // Get position-space photon
-    std::cout << "Using photon '" << par().photon << "'" << std::endl;
-    const EmField& Ax = envGet(EmField, par().photon);
-
-    // Convert photon to momentum-space
-    envGetTmp(EmField, Ak);
-    fft.FFT_all_dim(Ak, Ax, FFT::forward);
-
     // Fetch env variables
-    const PropagatorField& q = envGet(PropagatorField, par().q);
+    const ComplexField& qx = envGet(ComplexField, par().loop_x);
+    const ComplexField& qy = envGet(ComplexField, par().loop_y);
+    const ComplexField& qz = envGet(ComplexField, par().loop_z);
+    const ComplexField& qt = envGet(ComplexField, par().loop_t);
+    const ComplexField* q[4] = {&qx, &qy, &qz, &qt};
+
+    const EmField& Gx = envGet(EmField, par().emField);
+    envGetTmp(EmField, Gk);
     envGetTmp(LatticeComplex, tmpcomplex);
     envGetTmp(LatticeComplex, tmpcomplex2);
 
-    // Feynman gauge: photon propagator is delta^{mu, nu}/k^2.
+    LOG(Message) << "Using emField '" << par().emField << "'" << std::endl;
+
+    // Convert emField to momentum-space
+    fft.FFT_all_dim(Gk, Gx, FFT::forward);
+
+    // Feynman gauge: emField propagator is delta^{mu, nu}/k^2.
     // Therefore we only need to compute cases where mu=nu.
     EmField& out = envGet(EmField, getName());
-    double factor = 1 / env().getVolume();
-    for (int mu=0; mu<4; mu++)
+    for (int mu=0; mu<Nd; mu++)
     {
-      // Contract quark loop
-      tmpcomplex = trace(q*Gamma(Gmu[mu]));
+        // Convolve with emField propagator by multiplying in momentum-space
+        fft.FFT_all_dim(tmpcomplex2, *q[mu], FFT::forward);
+        const auto& em_val = peekLorentz(Gk,mu);
+        tmpcomplex = tmpcomplex2 * (em_val * em_val);
+        fft.FFT_all_dim(tmpcomplex2,tmpcomplex,FFT::backward);
+        tmpcomplex = tmpcomplex2;
 
-      // Convolve with photon propagator by multiplying in momentum-space
-      fft.FFT_all_dim(tmpcomplex2, tmpcomplex, FFT::forward);
-      const auto& em_val = peekLorentz(Ak,mu);
-      tmpcomplex = tmpcomplex2 * (em_val * em_val);
-      fft.FFT_all_dim(tmpcomplex2,tmpcomplex,FFT::backward);
-
-      // Remove volume factor from FFT
-      tmpcomplex = tmpcomplex2 * factor;
-
-      pokeLorentz(out, tmpcomplex, mu);
-    }
+        pokeLorentz(out, tmpcomplex, mu);
+    }   
 }
 
 END_MODULE_NAMESPACE

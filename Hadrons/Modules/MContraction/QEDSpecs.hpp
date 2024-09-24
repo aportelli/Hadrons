@@ -34,7 +34,7 @@ public:
     GRID_SERIALIZABLE_CLASS_MEMBERS(QEDSpecsPar,
                                     std::string, q1,
                                     std::string, q2,
-                                    std::string, photon,
+                                    std::string, emField,
                                     std::string, output)
 };
 
@@ -77,7 +77,7 @@ TQEDSpecs<FImpl, VType>::TQEDSpecs(const std::string name)
 template <typename FImpl, typename VType>
 std::vector<std::string> TQEDSpecs<FImpl, VType>::getInput(void)
 {
-    std::vector<std::string> in = {par().q1, par().q2, par().photon};
+    std::vector<std::string> in = {par().q1, par().q2, par().emField};
     
     return in;
 }
@@ -106,7 +106,7 @@ template <typename FImpl, typename VType>
 void TQEDSpecs<FImpl, VType>::setup(void)
 {
     envTmp(FFT,            "fft",         1, env().getGrid());
-    envTmp(EmField,        "Ak",          1, envGetGrid(EmField));
+    envTmp(EmField,        "weight_k",    1, envGetGrid(EmField));
     envTmp(LatticeComplex, "tmpcomplex",  1, envGetGrid(FermionField));
     envTmp(LatticeComplex, "tmpcomplex2", 1, envGetGrid(FermionField));
     envTmp(LatticeReal,    "tmpreal",     1, envGetGrid(FermionField));
@@ -128,13 +128,13 @@ void TQEDSpecs<FImpl, VType>::execute(void)
 
     LOG(Message) << "Starting Specs contraction in Feynman Gauge" << std::endl;
 
-    // Get position-space photon
-    std::cout << "Using photon '" << par().photon << "'" << std::endl;
-    const EmField& Ax = envGet(EmField, par().photon);
+    // Get position-space emField
+    std::cout << "Using emField '" << par().emField << "'" << std::endl;
+    const EmField& weight = envGet(EmField, par().emField);
 
-    // Convert photon to momentum-space
-    envGetTmp(EmField, Ak);
-    fft.FFT_all_dim(Ak, Ax, FFT::forward);
+    // Convert emField to momentum-space
+    envGetTmp(EmField, weight_k);
+    fft.FFT_all_dim(weight_k, weight, FFT::forward);
 
     // Fetch env variables
     const PropagatorField& q1 = envGet(PropagatorField, par().q1);
@@ -156,7 +156,7 @@ void TQEDSpecs<FImpl, VType>::execute(void)
 
       // Convolve with photon propagator by multiplying in momentum-space
       fft.FFT_all_dim(tmpcomplex2, tmpcomplex, FFT::forward);
-      const auto& em_val = peekLorentz(Ak,mu);
+      const auto& em_val = peekLorentz(weight_k,mu);
       tmpcomplex = tmpcomplex2 * (em_val * em_val);
       fft.FFT_all_dim(tmpcomplex2,tmpcomplex,FFT::backward);
       
@@ -168,7 +168,6 @@ void TQEDSpecs<FImpl, VType>::execute(void)
 
       result += sum(tmpreal * tmpreal2);
     }
-    result *= 1/env().getVolume();
 
     LOG(Message) << "specs: " << result << std::endl;
 
