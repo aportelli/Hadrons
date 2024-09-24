@@ -24,12 +24,14 @@ fi
 if test x"$CXX" == x ; then
     CXX="`grid-config --cxx`"
 elif test "$CXX" != "`grid-config --cxx`" ; then
-    AC_MSG_WARN([CXX differs from that reported by grid-config])
+    GRID_CXX="`grid-config --cxx`"
+    AC_MSG_WARN([CXX differs from that reported by grid-config: "$CXX" vs "$GRID_CXX"])
 fi
 if test x"$CXXLD" == x ; then
     CXXLD="`grid-config --cxxld`"
 elif test "$CXXLD" != "`grid-config --cxxld`" ; then
-    AC_MSG_WARN([CXXLD differs from that reported by grid-config])
+    GRID_CXXLD="`grid-config --cxxld`"
+    AC_MSG_WARN([CXXLD differs from that reported by grid-config: "$CXXLD" vs "$GRID_CXXLD"])
 fi
 CXXFLAGS="$CXXFLAGS `grid-config --cxxflags`"
 CXXFLAGS="$AM_CXXFLAGS $CXXFLAGS"
