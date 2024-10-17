@@ -782,34 +782,35 @@ VirtualMachine::GarbageSchedule
 VirtualMachine::makeGarbageSchedule(const Program &p) const
 {
     GarbageSchedule freeProg;
-    
+    std::vector<std::set<unsigned int>> ref(env().getMaxAddress());
+    std::vector<unsigned int> creation(env().getMaxAddress());
+
     freeProg.resize(p.size());
-
-    // earliest time to destroy object ignoring dependencies
-    std::function<unsigned int(const unsigned int)> earliestTimeNoDep = 
-    [&](const unsigned int a)
+    for (unsigned int t = 0; t < p.size(); ++t)
     {
-        
-        auto pred = [a, this](const unsigned int b)
+        for (auto &in: module_[p[t]].input)
         {
-            auto &in = module_[b].input;
-            auto it  = std::find(in.begin(), in.end(), a);
-            
-            return (it != in.end()) or (b == env().getObjectModule(a));
-        };
-        auto it = std::find_if(p.rbegin(), p.rend(), pred);
-        assert(it != p.rend());
+            ref[in].insert(t);
+        }
+        for (auto &out: module_[p[t]].output)
+        {
+            creation[out] = t;
+        }
+    }
 
-        return std::distance(it, p.rend()) - 1;
-    };
-
-    // earliest time to destroy object (taking dependencies into account)
     std::function<unsigned int(const unsigned int)> earliestTime = 
     [&](const unsigned int a)
     {
         unsigned int t = 0;
 
-        t = std::max(t, earliestTimeNoDep(a));
+        if (ref[a].empty())
+        {
+            t = creation[a]; 
+        }
+        else
+        {
+            t = *(ref[a].rbegin());
+        }
         for (auto &d: env().getObjectDependencies(a))
         {
             t = std::max(t, earliestTime(d));
@@ -826,7 +827,7 @@ VirtualMachine::makeGarbageSchedule(const Program &p) const
         }
     }
 
-    return freeProg;
+     return freeProg;
 }
 
 // high-water memory function //////////////////////////////////////////////////
