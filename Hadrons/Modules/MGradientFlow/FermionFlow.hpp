@@ -61,21 +61,7 @@ class TFermionFlow: public Module<FermionFlowPar>
 public:
     BASIC_TYPE_ALIASES(FImpl,);
     GAUGE_TYPE_ALIASES(GImpl,);
-    class GaugeResult : Serializable
-    {
-    public:
-        GRID_SERIALIZABLE_CLASS_MEMBERS(GaugeResult,
-                                        std::vector<double>,    flowtime,
-                                        std::vector<double>,    plaquette,
-                                        std::vector<double>,    rectangle,
-                                        std::vector<double>,    clover,
-                                        std::vector<double>,    topocharge,
-                                        std::vector<double>,    action,
-                                        std::vector<ComplexD>,  polyakovX,
-                                        std::vector<ComplexD>,  polyakovY,
-                                        std::vector<ComplexD>,  polyakovZ,
-                                        std::vector<ComplexD>,  polyakovT);
-    };
+    typedef Evolution<FlowAction, GImpl, FImpl> EvolutionType;
 public:
     // constructor
     TFermionFlow(const std::string name);
@@ -168,6 +154,8 @@ void TFermionFlow<FImpl,GImpl,FlowAction>::setup(void)
         }
     }
     envCreate(HadronsSerializable, getName(), 1, 0);
+    envTmp(EvolutionType, "evolve", 1, envGetGrid(GaugeField), 3.0, par().step_size, 
+        -1.0, par().step_size);
 }
 
 // execution ///////////////////////////////////////////////////////////////////
@@ -202,6 +190,7 @@ void TFermionFlow<FImpl,GImpl,FlowAction>::execute(void)
 
     auto &out     = envGet(HadronsSerializable, getName());
     auto &Uresult = out.template hold<GaugeResult>();
+    envGetTmp(EvolutionType, evolve);
 
     auto &U   = envGet(GaugeField, par().gauge);
     auto &Uwf = envGet(GaugeField, getName()+"_U");
@@ -215,26 +204,26 @@ void TFermionFlow<FImpl,GImpl,FlowAction>::execute(void)
     
     // apply flow equations
     double flowt = 0.0;
-    Evolution<FlowAction> evolve(3.0, par().step_size, -1.0, par().step_size);
-    evolve.template gauge_status<GImpl,GaugeField,ComplexField,GaugeLinkField,GaugeResult>(Uwf,Uresult,flowt);
+    // Evolution<FlowAction> evolve(3.0, par().step_size, -1.0, par().step_size);
+    evolve.gauge_status(Uwf,Uresult,flowt);
     for (unsigned int step = 1; step <= par().steps; step++) {
         flowt += evolve.epsilon;
         std::stringstream ftt; ftt << std::fixed << std::setprecision(2) << flowt;
 
         // evolve gauge field 
         startTimer("gauge field flow time "+ftt.str());
-        std::vector<GaugeField> Wi = evolve.template evolve_gaugeFF<GImpl,GaugeField,GaugeLinkField>(Uwf,bc);
+        std::vector<GaugeField> &Wi = evolve.evolve_gaugeFF(Uwf,bc);
         stopTimer("gauge field flow time "+ftt.str());
 
         // measure gauge observables
-        evolve.template gauge_status<GImpl,GaugeField,ComplexField,GaugeLinkField,GaugeResult>(Uwf,Uresult,flowt);
+        evolve.gauge_status(Uwf,Uresult,flowt);
 
         // evolve propagators
         for (int i = 0; i < par().props.size(); i++) {
             std::string q = par().props[i];
             PropagatorField &qjwf = *env().template getObject<PropagatorField>(getName()+"_tmp_"+q+"_wf");
             startTimer("propagator "+q+" flow time "+ftt.str());
-            evolve.template laplace_flow<PropagatorField,GImpl,GaugeField,GaugeLinkField>(Wi[0],Wi[1],Wi[2],qjwf);
+            evolve.laplace_flow(Wi[0],Wi[1],Wi[2],qjwf);
             stopTimer("propagator "+q+" flow time "+ftt.str());
             if (( step % par().meas_interval == 0) || (step == par().steps)) {
                 std::string qo;

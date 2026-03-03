@@ -58,30 +58,13 @@ template <typename GImpl,typename FlowAction>
 class TGaugeFlow: public Module<GaugeFlowPar>
 {
 public:
-    INHERIT_GIMPL_TYPES(GImpl);
-    class Result : Serializable
-    {
-    public:
-        GRID_SERIALIZABLE_CLASS_MEMBERS(Result,
-                                        std::vector<double>,    flowtime,
-                                        std::vector<double>,    plaquette,
-                                        std::vector<double>,    rectangle,
-                                        std::vector<double>,    clover,
-                                        std::vector<double>,    topocharge,
-                                        std::vector<double>,    action,
-                                        std::vector<ComplexD>,  polyakovX,
-                                        std::vector<ComplexD>,  polyakovY,
-                                        std::vector<ComplexD>,  polyakovZ,
-                                        std::vector<ComplexD>,  polyakovT);
-    };
+    GAUGE_TYPE_ALIASES(GImpl,);
+    typedef Evolution<FlowAction, GImpl, FIMPL> EvolutionType;
 public:
     // constructor
     TGaugeFlow(const std::string name);
     // destructor
     virtual ~TGaugeFlow(void) {};
-    // run flow
-    virtual void runGaugeFlow(Evolution<FlowAction> &evolve, double &mTau);
-    virtual void setupGaugeFlow(FlowAction &SG);
     // dependency relation
     virtual std::vector<std::string> getInput(void);
     virtual std::vector<std::string> getOutput(void);
@@ -91,7 +74,16 @@ public:
     virtual void execute(void);
 };
 
-MODULE_REGISTER_TMP(WilsonFlow, ARG(TGaugeFlow<GIMPL,WilsonGaugeAction<GIMPL>>), MGradientFlow);
+// PlaqPlusRectangleAction is actually more optimised than WilsonGaugeAction
+template<class Gimpl>
+class WilsonAction : public RBCGaugeAction<Gimpl> {
+public:
+  INHERIT_GIMPL_TYPES(Gimpl);
+  WilsonAction(RealD beta) : RBCGaugeAction<Gimpl>(beta,0.0) {};
+  virtual std::string action_name(){return "WilsonAction";}
+};
+
+MODULE_REGISTER_TMP(WilsonFlow, ARG(TGaugeFlow<GIMPL,WilsonAction<GIMPL>>), MGradientFlow);
 MODULE_REGISTER_TMP(SymanzikFlow, ARG(TGaugeFlow<GIMPL,SymanzikGaugeAction<GIMPL>>), MGradientFlow);
 MODULE_REGISTER_TMP(ZeuthenFlow, ARG(TGaugeFlow<GIMPL,ZeuthenGaugeAction<GIMPL>>), MGradientFlow);
 MODULE_REGISTER_TMP(CustomFlow, ARG(TGaugeFlow<GIMPL,PlaqPlusRectangleAction<GIMPL>>), MGradientFlow);
@@ -126,67 +118,29 @@ std::vector<std::string> TGaugeFlow<GImpl,FlowAction>::getOutput(void)
 template <typename GImpl,typename FlowAction>
 void TGaugeFlow<GImpl,FlowAction>::setup(void)
 {
-    envCreateLat(GaugeField, getName()+"_U");
-    envCreate(HadronsSerializable, getName(), 1, 0);
-}
-
-// run flow ////////////////////////////////////////////////////////////////////
-template <typename GImpl,typename FlowAction>
-void TGaugeFlow<GImpl,FlowAction>::runGaugeFlow(Evolution<FlowAction> &evolve, double &mTau)
-{
-    auto &out    = envGet(HadronsSerializable, getName());
-    auto &result = out.template hold<Result>();
-
-    auto &U   = envGet(GaugeField, par().gauge);
-    auto &Uwf = envGet(GaugeField, getName()+"_U");
-    Uwf = U;
-
-    double flowt = 0.0;
-    evolve.template gauge_status<GImpl,GaugeField,ComplexField,GaugeLinkField,Result>(Uwf,result,flowt); 
-    // if steps = 0, give the status of gauge field without flowing
-    if (par().steps != 0) { 
-        if (mTau > 0) {
-            unsigned int step = 0;
-            do {
-                step++;
-                flowt += evolve.epsilon;
-                evolve.template evolve_gauge_adaptive<GImpl,GaugeField>(Uwf);
-                if (step % par().meas_interval == 0) {
-                    evolve.template gauge_status<GImpl,GaugeField,ComplexField,GaugeLinkField,Result>(Uwf,result,flowt);
-                }
-            } while (evolve.taus < mTau);
-        } else {
-            for (unsigned int step = 1; step <= par().steps; step++) {
-                flowt += evolve.epsilon;
-                evolve.template evolve_gauge<GImpl,GaugeField>(Uwf);
-                if (step % par().meas_interval == 0) {
-                    evolve.template gauge_status<GImpl,GaugeField,ComplexField,GaugeLinkField,Result>(Uwf,result,flowt);
-                }
-            }
-        }
-    }
-    saveResult(par().output,"gauge_obs",result);
-}
-
-template <typename GImpl,typename FlowAction>
-void TGaugeFlow<GImpl,FlowAction>::setupGaugeFlow(FlowAction &SG)
-{
-    std::string type = SG.action_name();
-    LOG(Message) << "Setting up " << type << " Flow on '" << par().gauge << "' with " << par().steps
-                 << " step" << ((par().steps != 1) ? "s." : ".") << std::endl;
-
     double mTau = -1.0;
     if(!par().maxTau.empty()) {
-        LOG(Message) << "Using adaptive algorithm with maxTau = " << par().maxTau << std::endl;
         mTau = std::stod(par().maxTau);
     }
-
+    envCreateLat(GaugeField, getName()+"_U");
+    envCreate(HadronsSerializable, getName(), 1, 0);
     if constexpr (std::is_same_v<FlowAction, PlaqPlusRectangleAction<GImpl>>) {
-        Evolution<FlowAction> evolve(std::stod(par().c_plaq), std::stod(par().c_rect), par().step_size, mTau, par().step_size);
-        runGaugeFlow(evolve,mTau);
+        envTmp(EvolutionType, "evolve", 1, envGetGrid(GaugeField), 
+            std::stod(par().c_plaq), std::stod(par().c_rect), par().step_size, 
+            mTau, par().step_size, this);
     } else {
-        Evolution<FlowAction> evolve(3.0, par().step_size, mTau, par().step_size);
-        runGaugeFlow(evolve,mTau);
+        envTmp(EvolutionType, "evolve", 1, envGetGrid(GaugeField), 3.0, 
+            par().step_size, mTau, par().step_size, this);
+    }
+    // create action -> if c_plaq and c_rect are used, called PlaqPlusRectangleAction
+    if constexpr (std::is_same_v<FlowAction, PlaqPlusRectangleAction<GImpl>>) {
+        if (par().c_plaq.empty() || par().c_plaq.empty()) {
+            std::cerr << "Error: to use PlaqPlusRectangleAction (CustomFlow), pass some value to both c_plaq and c_rect." << std::endl;
+            std::exit(EXIT_FAILURE);
+        }
+        envTmp(FlowAction, "action", 1, std::stod(par().c_plaq),std::stod(par().c_rect));  
+    } else {
+        envTmp(FlowAction, "action", 1, 3.0);
     }
 }
 
@@ -194,19 +148,64 @@ void TGaugeFlow<GImpl,FlowAction>::setupGaugeFlow(FlowAction &SG)
 template <typename GImpl,typename FlowAction>
 void TGaugeFlow<GImpl,FlowAction>::execute(void)
 {
-    // create action -> if c_plaq and c_rect are used, called PlaqPlusRectangleAction
-    if constexpr (std::is_same_v<FlowAction, PlaqPlusRectangleAction<GImpl>>) {
-        if (par().c_plaq.empty() || par().c_plaq.empty()) {
-            std::cerr << "Error: to use PlaqPlusRectangleAction (CustomFlow), pass some value to both c_plaq and c_rect." << std::endl;
-            std::exit(EXIT_FAILURE);
-        }
-        FlowAction SG = FlowAction(std::stod(par().c_plaq),std::stod(par().c_rect));
-        LOG(Message) << SG.LogParameters();
-        setupGaugeFlow(SG);
-    } else {
-        FlowAction SG = FlowAction(3.0);
-        setupGaugeFlow(SG);
+    envGetTmp(EvolutionType, evolve);
+    envGetTmp(FlowAction, action);
+    auto &out    = envGet(HadronsSerializable, getName());
+    auto &result = out.template hold<GaugeResult>();
+    auto &U   = envGet(GaugeField, par().gauge);
+    auto &Uwf = envGet(GaugeField, getName()+"_U");
+
+    double mTau = -1.0;
+    LOG(Message) << "Setting up gauge gradient flow on '" << par().gauge << "' with " << par().steps
+                 << " step" << ((par().steps != 1) ? "s." : ".") << std::endl;
+    if(!par().maxTau.empty()) {
+        LOG(Message) << "Using adaptive algorithm with maxTau = " << par().maxTau << std::endl;
+        mTau = std::stod(par().maxTau);
     }
+    std::cout << action.LogParameters();
+    
+    Uwf = U;
+    double flowt = 0.0;
+    LOG(Message) << "Step 0 (tau = "<< flowt << ")" << std::endl;
+    LOG(Message) << "Compute observables" << std::endl;
+    startTimer("observables");
+    evolve.gauge_status(Uwf,result,flowt);
+    stopTimer("observables"); 
+    // if steps = 0, give the status of gauge field without flowing
+    if (par().steps != 0) { 
+        if (mTau > 0) {
+            unsigned int step = 0;
+            do {
+                step++;
+                flowt += evolve.epsilon;
+                LOG(Message) << "Step " << step << " (tau = "<< flowt << ")" << std::endl;
+                startTimer("evolution");
+                evolve.evolve_gauge_adaptive(Uwf);
+                stopTimer("evolution");
+                if (step % par().meas_interval == 0) {
+                    LOG(Message) << "Compute observables" << std::endl;
+                    startTimer("observables");
+                    evolve.gauge_status(Uwf,result,flowt);
+                    stopTimer("observables"); 
+                }
+            } while (evolve.taus < mTau);
+        } else {
+            for (unsigned int step = 1; step <= par().steps; step++) {
+                flowt += evolve.epsilon;
+                LOG(Message) << "Step " << step << " (tau = "<< flowt << ")" << std::endl;
+                startTimer("evolution");
+                evolve.evolve_gauge(Uwf);
+                stopTimer("evolution");
+                if (step % par().meas_interval == 0) {
+                    LOG(Message) << "Compute observables" << std::endl;
+                    startTimer("observables");
+                    evolve.gauge_status(Uwf,result,flowt);
+                    stopTimer("observables");
+                }
+            }
+        }
+    }
+    saveResult(par().output,"gauge_obs",result);
 }
 
 END_MODULE_NAMESPACE

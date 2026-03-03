@@ -30,7 +30,7 @@ using namespace Grid;
 using namespace Hadrons;
 using namespace MGradientFlow;
 
-template class Grid::Hadrons::MGradientFlow::TGaugeFlow<GIMPL,WilsonGaugeAction<GIMPL>>;
+template class Grid::Hadrons::MGradientFlow::TGaugeFlow<GIMPL,WilsonAction<GIMPL>>;
 template class Grid::Hadrons::MGradientFlow::TGaugeFlow<GIMPL,SymanzikGaugeAction<GIMPL>>;
 template class Grid::Hadrons::MGradientFlow::TGaugeFlow<GIMPL,ZeuthenGaugeAction<GIMPL>>;
 template class Grid::Hadrons::MGradientFlow::TGaugeFlow<GIMPL,PlaqPlusRectangleAction<GIMPL>>;
