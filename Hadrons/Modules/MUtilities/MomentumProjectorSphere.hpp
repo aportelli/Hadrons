@@ -196,7 +196,7 @@ void TMomentumProjectorSphere<Field, ComplexField>::execute(void)
             LatticeCoordinate(coor, mu);
             ph = ph + (static_cast<Real>(p[mu]) / static_cast<Real>(env().getDim(mu))) * coor;
         }
-        ph = exp(static_cast<Real>(2*M_PI)*i*ph);
+        ph = exp(-static_cast<Real>(2*M_PI)*i*ph);
     }
     stopTimer("Phases");
 

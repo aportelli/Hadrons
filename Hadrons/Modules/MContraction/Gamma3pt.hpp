@@ -7,6 +7,7 @@
  * Author: Fionn O hOgain <fionn.o.hogain@ed.ac.uk>
  * Author: Lanny91 <andrew.lawson@gmail.com>
  * Author: Ryan Hill <rchrys.hill@gmail.com>
+ * Author: Teseo San Jose <teseo.sanjose@ed.ac.uk>
  *
  * Hadrons is free software: you can redistribute it and/or modify
  * it under the terms of the GNU General Public License as published by
@@ -35,30 +36,6 @@
 #include <Hadrons/ModuleFactory.hpp>
 #include <Hadrons/Serialization.hpp>
 #include <Grid/algorithms/blas/MomentumProject.h>
-
-
-// TODO: When traceColour and traceSpin are implemented in Grid, remove these lines
-NAMESPACE_BEGIN(Grid);
-
-#define GRID_UNOP(name)   name
-#define GRID_DEF_UNOP(op, name)						\
-  template <typename T1, typename std::enable_if<is_lattice<T1>::value||is_lattice_expr<T1>::value,T1>::type * = nullptr> \
-  inline auto op(const T1 &arg) ->decltype(LatticeUnaryExpression<GRID_UNOP(name),T1>(GRID_UNOP(name)(), arg)) \
-  {									\
-    return     LatticeUnaryExpression<GRID_UNOP(name),T1>(GRID_UNOP(name)(), arg); \
-  }
-
-GridUnopClass(UnaryTraceColour, traceIndex<ColourIndex>(a));
-GridUnopClass(UnaryTraceSpin, traceIndex<SpinIndex>(a));
-
-GRID_DEF_UNOP(traceColour, UnaryTraceColour);
-GRID_DEF_UNOP(traceSpin, UnaryTraceSpin);
-
-#undef GRID_UNOP
-#undef GRID_DEF_UNOP
-
-NAMESPACE_END(Grid);
-
 
 BEGIN_HADRONS_NAMESPACE
 
