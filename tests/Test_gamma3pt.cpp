@@ -1,5 +1,5 @@
 /*
- * Test_hadrons_spectrum.cpp, part of Hadrons (https://github.com/aportelli/Hadrons)
+ * Test_gamma3pt.cpp, part of Hadrons (https://github.com/aportelli/Hadrons)
  *
  * Copyright (C) 2015 - 2024
  *
@@ -18,7 +18,7 @@
  * You should have received a copy of the GNU General Public License
  * along with Hadrons.  If not, see <http://www.gnu.org/licenses/>.
  *
- * See the full license in the file "LICENSE" in the top level distribution 
+ * See the full license in the file "LICENSE" in the top level distribution
  * directory.
  */
 
@@ -44,7 +44,6 @@ int main(int argc, char *argv[])
     // run setup ///////////////////////////////////////////////////////////////
     Application              application;
     std::vector<std::string> flavour = {"l", "s"};
-    std::vector<std::string> flavour_baryon = {"l", "s"}; //needs to be a single character
     std::vector<double>      mass    = {.01, .04};
 
     // global parameters
@@ -54,25 +53,29 @@ int main(int argc, char *argv[])
     globalPar.trajCounter.step              = 20;
     globalPar.runId                         = "test";
     globalPar.database.restoreSchedule      = false;
-    globalPar.database.restoreModules       = false;
-    globalPar.database.restoreMemoryProfile = false;
     application.setPar(globalPar);
+
+    // phases for momentum projection
+    MUtilities::MPScalar::Par momProjPar;
+    momProjPar.maxFourier = 2;
+    application.createModule<MUtilities::MPScalar>("phases", momProjPar);
 
     // gauge field
     application.createModule<MGauge::Random>("gauge");
 
-    // sources
-    MSource::Wall::Par wallPar;
-    wallPar.mom = "0. 0. 0. 0.";
-    wallPar.tW = 0;
-    application.createModule<MSource::Wall>("wall0", wallPar);
-    wallPar.tW = 4;
-    application.createModule<MSource::Wall>("wall4", wallPar);
+    // wall source
+    MSource::Z2::Par z2Par;
+    z2Par.tA = 0;
+    z2Par.tB = 0;
+    application.createModule<MSource::Z2>("z20", z2Par);
 
-     // wall sink
-    MSink::Point::Par wallSinkPar;
-    wallSinkPar.mom = "0. 0. 0. 0.";
-    application.createModule<MSink::Point>("wallSink", wallSinkPar);
+    // point source
+    MSource::Point::Par pointPar;
+    pointPar.position = "0 0 0 4";
+    application.createModule<MSource::Point>("point4", pointPar);
+
+    // sink at the origin in space
+    application.createModule<MSink::Point0>("sink");
 
     // set fermion boundary conditions to be periodic space, antiperiodic time.
     std::string boundary = "1 1 1 -1";
@@ -101,39 +104,39 @@ int main(int argc, char *argv[])
         // propagators
         MFermion::GaugeProp::Par quarkPar;
         quarkPar.solver = "CG_" + flavour[i];
-        quarkPar.source = "wall0";
+        quarkPar.source = "z20";
         application.createModule<MFermion::GaugeProp>("Qw0_" + flavour[i], quarkPar);
-        quarkPar.source = "wall4";
-        application.createModule<MFermion::GaugeProp>("Qw4_" + flavour[i], quarkPar);
+        quarkPar.source = "point4";
+        application.createModule<MFermion::GaugeProp>("Qp4_" + flavour[i], quarkPar);
 
-       // sinked propagator
-       MSink::Smear::Par sinkedPropPar;
-       sinkedPropPar.q = "Qw0_" + flavour[i];
-       sinkedPropPar.sink = "wallSink";
-       application.createModule<MSink::Smear>("Qw0_" + flavour[i] + "_wall", sinkedPropPar);
+        // sinked propagator
+        MSink::Smear::Par snkPar;
+        snkPar.q = "Qw0_" + flavour[i];
+        snkPar.sink = "sink";
+        application.createModule<MSink::Smear>("Qw0_" + flavour[i] + "_sliced", snkPar);
     }
-    for (unsigned int iSpec = 0; iSpec < flavour.size(); ++iSpec)
-    for (unsigned int i = 0; i < flavour.size(); ++i)
-    for (unsigned int j = 0; j < flavour.size(); ++j)
-    {
-        MContraction::Gamma3pt::Par threePtPar;
 
-        threePtPar.gamma.sink = "Gamma5";
-        threePtPar.gamma.source = "Gamma5";
-        threePtPar.gamma.vertex = "GammaX GammaY GammaZ GammaT";
-        threePtPar.q1 = "Qw0_" + flavour[iSpec] + "_wall";
-        threePtPar.q2 = "Qw0_" + flavour[i];
-        threePtPar.q3 = "Qw4_" + flavour[j];
-        threePtPar.tSnk = 4;
-        threePtPar.output = "3pt/" + flavour[i] + "_" + flavour[j] + "_spec" 
-                            + flavour[iSpec];
-        threePtPar.save4d = false;
-        application.createModule<MContraction::Gamma3pt>("3pt_" + flavour[i] + "_" 
-            + flavour[j] + "_spec" + flavour[iSpec], threePtPar);
-    }
+    // Loop over all flavour combinations (it may not make sense physically)
+    for (unsigned int i=0; i<flavour.size(); ++i)
+        for (unsigned int j=0; j<flavour.size(); ++j)
+            for (unsigned int k=0; k<flavour.size(); ++k)
+            {
+                MContraction::Gamma3pt::Par threePtPar;
+                threePtPar.q1 = "Qw0_" + flavour[i] + "_sliced";
+                threePtPar.q2 = "Qw0_" + flavour[j];
+                threePtPar.q3 = "Qp4_" + flavour[k];
+                threePtPar.gamma = {    // gamma matrices in order (sink, vertex, source)
+                    "Gamma5 GammaX Gamma5",
+                    "GammaZ GammaY GammaX"
+                };
+                threePtPar.tSnk = 4;
+                threePtPar.momProjector = "phases";
+                threePtPar.output = "3pt/" + flavour[i] + "_" + flavour[j] + "_" + flavour[k];
+                application.createModule<MContraction::Gamma3pt>("3pt_" + flavour[i] + "_" + flavour[j] + "_" + flavour[k], threePtPar);
+            }
 
     // execution
-    application.saveParameterFile("spectrum.xml");
+    application.saveParameterFile("gamma3pt.xml");
     application.run();
 
     // epilogue
