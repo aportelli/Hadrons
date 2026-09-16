@@ -73,6 +73,44 @@ BEGIN_HADRONS_NAMESPACE
  *
  */
 
+/* The gamma and result formats used by this module have evolved.  The
+ * historical input
+ *
+ *   <options>
+ *     <q1>q1</q1>
+ *     <q2>q2</q2>
+ *     <q3>q3</q3>
+ *     <gamma>all</gamma>
+ *     <tSnk>16</tSnk>
+ *     <output>3pt</output>
+ *   </options>
+ *
+ * is equivalent to the current input
+ *
+ *   <options>
+ *     <q1>q1</q1>
+ *     <q2>q2</q2>
+ *     <q3>q3</q3>
+ *     <gamma>
+ *       <elem>Gamma5 all Gamma5</elem>
+ *     </gamma>
+ *     <tSnk>16</tSnk>
+ *     <momProjector></momProjector>
+ *     <output>3pt</output>
+ *   </options>
+ *
+ * Here each gamma entry is a space-separated "sink vertex source" triad.
+ * The token "all" expands to all positive-sign gamma matrices, and multiple
+ * entries may be supplied in the gamma vector.  Repeated gamma triads are
+ * removed.
+ *
+ * If momProjector is empty, the legacy path performs a spatial zero-momentum
+ * sum and stores one momentum entry, {0, 0, 0}.  Otherwise momProjector names
+ * a MomentumProject module and its '<name>_momList' output supplies the
+ * momentum axis.  The result contains the fields gamma, momentum, and corr,
+ * with corr indexed as [gamma][momentum][time].
+ */
+
  /******************************************************************************
  *                               Gamma3pt                                     *
  ******************************************************************************/

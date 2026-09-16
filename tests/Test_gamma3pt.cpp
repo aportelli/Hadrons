@@ -30,6 +30,64 @@
 using namespace Grid;
 using namespace Hadrons;
 
+BEGIN_HADRONS_NAMESPACE
+
+template <typename FImpl>
+class TUnitPropagator: public Module<NoPar>
+{
+public:
+    typedef typename FImpl::PropagatorField PropagatorField;
+
+    TUnitPropagator(const std::string name);
+    virtual ~TUnitPropagator(void) {};
+    virtual std::vector<std::string> getInput(void);
+    virtual std::vector<std::string> getOutput(void);
+protected:
+    virtual void setup(void);
+    virtual void execute(void);
+};
+
+template <typename FImpl>
+TUnitPropagator<FImpl>::TUnitPropagator(const std::string name)
+: Module<NoPar>(name)
+{}
+
+template <typename FImpl>
+std::vector<std::string> TUnitPropagator<FImpl>::getInput(void)
+{
+    return {};
+}
+
+template <typename FImpl>
+std::vector<std::string> TUnitPropagator<FImpl>::getOutput(void)
+{
+    return {getName()};
+}
+
+template <typename FImpl>
+void TUnitPropagator<FImpl>::setup(void)
+{
+    envCreateLat(PropagatorField, getName());
+}
+
+template <typename FImpl>
+void TUnitPropagator<FImpl>::execute(void)
+{
+    auto &prop = envGet(PropagatorField, getName());
+
+    prop = 1.;
+}
+
+END_HADRONS_NAMESPACE
+
+BEGIN_HADRONS_NAMESPACE
+BEGIN_MODULE_NAMESPACE(MTest)
+
+MODULE_REGISTER(UnitPropagator, TUnitPropagator<FIMPL>, MTest);
+
+END_MODULE_NAMESPACE
+END_HADRONS_NAMESPACE
+
 int main(int argc, char *argv[])
 {
     // initialization //////////////////////////////////////////////////////////
@@ -41,10 +99,7 @@ int main(int argc, char *argv[])
     HadronsLogDebug.Active(GridLogDebug.isActive());
     LOG(Message) << "Grid initialized" << std::endl;
 
-    // run setup ///////////////////////////////////////////////////////////////
     Application              application;
-    std::vector<std::string> flavour = {"l", "s"};
-    std::vector<double>      mass    = {.01, .04};
 
     // global parameters
     Application::GlobalPar globalPar;
@@ -54,6 +109,56 @@ int main(int argc, char *argv[])
     globalPar.runId                         = "test";
     globalPar.database.restoreSchedule      = false;
     application.setPar(globalPar);
+
+    // Test 1: analytic Gamma3pt contraction /////////////////////////////////
+    application.createModule<MTest::UnitPropagator>("unit_prop");
+    application.createModule<MSink::Point0>("unit_sink");
+
+    MSink::Smear::Par unitSinkPar;
+    unitSinkPar.q = "unit_prop";
+    unitSinkPar.sink = "unit_sink";
+    application.createModule<MSink::Smear>("unit_prop_sliced", unitSinkPar);
+
+    MContraction::Gamma3pt::Par unitGammaPar;
+    unitGammaPar.q1 = "unit_prop_sliced";
+    unitGammaPar.q2 = "unit_prop";
+    unitGammaPar.q3 = "unit_prop";
+    unitGammaPar.gamma = {"Identity Identity Identity"};
+    unitGammaPar.tSnk = 4;
+    unitGammaPar.output = "3pt/unit_propagator";
+    application.createModule<MContraction::Gamma3pt>("unit_gamma3pt", unitGammaPar);
+
+    LOG(Message) << "Unit-propagator expectation: zero-momentum correlator is "
+                 << "4 * Nc * spatial volume at every time slice; nonzero "
+                 << "momenta vanish." << std::endl;
+
+    // Test 2: analytic momentum projection /////////////////////////////////
+    MSource::MomentumPhase::Par planeWavePar;
+    planeWavePar.src = "unit_prop";
+    planeWavePar.mom = "1 0 0 0";
+    application.createModule<MSource::MomentumPhase>("unit_plane_wave", planeWavePar);
+
+    MUtilities::MPScalar::Par unitMomProjPar;
+    unitMomProjPar.maxFourier = 1;
+    application.createModule<MUtilities::MPScalar>("unit_phases", unitMomProjPar);
+
+    MContraction::Gamma3pt::Par planeWaveGammaPar;
+    planeWaveGammaPar.q1 = "unit_prop_sliced";
+    planeWaveGammaPar.q2 = "unit_prop";
+    planeWaveGammaPar.q3 = "unit_plane_wave";
+    planeWaveGammaPar.gamma = {"Identity Identity Identity"};
+    planeWaveGammaPar.tSnk = 4;
+    planeWaveGammaPar.momProjector = "unit_phases";
+    planeWaveGammaPar.output = "3pt/unit_plane_wave";
+    application.createModule<MContraction::Gamma3pt>("unit_plane_gamma3pt", planeWaveGammaPar);
+
+    LOG(Message) << "Plane-wave expectation: the correlator is nonzero only at "
+                 << "momentum (1, 0, 0), where it equals 4 * Nc * spatial "
+                 << "volume at every time slice." << std::endl;
+
+    // Test 3: full Gamma3pt workflow example ///////////////////////////////
+    std::vector<std::string> flavour = {"l", "s"};
+    std::vector<double>      mass    = {.01, .04};
 
     // phases for momentum projection
     MUtilities::MPScalar::Par momProjPar;
