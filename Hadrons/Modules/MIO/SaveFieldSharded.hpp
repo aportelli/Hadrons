@@ -124,7 +124,8 @@ void TSaveFieldSharded<Field>::execute(void)
 
     LOG(Message) << "Saving sharded field '" << par().name << "' using stem '" << par().fileStem << "'" << std::endl;
     LOG(Message) << "Field type: " << typeName<Field>() << std::endl;
-    writeShardedFile(fieldIoShardFilename(par().fileStem, grid->ThisRank()), field);
+    std::string filepath = resultFilename(par().fileStem + ".rank" + std::to_string(grid->ThisRank()), "shrd");
+    writeShardedFile(filepath, field);
 }
 
 END_MODULE_NAMESPACE

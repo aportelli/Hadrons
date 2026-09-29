@@ -122,7 +122,8 @@ void TLoadFieldSharded<Field>::execute(void)
 
     LOG(Message) << "Loading sharded field '" << par().name << "' using stem '" << par().fileStem << "'" << std::endl;
     LOG(Message) << "Field type: " << typeName<Field>() << std::endl;
-    readShardedFile(fieldIoShardFilename(par().fileStem, grid->ThisRank()), field);
+    std::string filepath = resultFilename(par().fileStem + ".rank" + std::to_string(grid->ThisRank()), "shrd");
+    readShardedFile(filepath, field);
 }
 
 END_MODULE_NAMESPACE

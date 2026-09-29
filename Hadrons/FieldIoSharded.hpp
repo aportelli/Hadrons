@@ -32,7 +32,6 @@
 
 BEGIN_HADRONS_NAMESPACE
 
-#define fieldIoShardFilename(x, rank) resultFilename(x + ".rank" + std::to_string(rank), "shrd")
 
 static constexpr inline uint32_t FIELDIOSHARDED_MAGIC_VALUE = 0x53485244; // 'SHRD'
 
