@@ -175,7 +175,7 @@ private:
         std::vector<Gamma::Algebra> allGammaSinks_;     // Vector of all gammas at the sink
         std::vector<Gamma::Algebra> allGammaVertices_;  // Vector of all gammas at the vertex
         std::vector<Gamma::Algebra> allGammaSources_;   // Vector of all gammas at the source
-        bool isLegacy_;
+        bool zeroMomentumOnly_;
 };
 
 MODULE_REGISTER_TMP(Gamma3pt, ARG(TGamma3pt<FIMPL, FIMPL, FIMPL>), MContraction);
@@ -239,7 +239,7 @@ void TGamma3pt<FImpl1, FImpl2, FImpl3>::setup(void)
  *      and sink). 'all' can be included either at source, vertex, and/or sink.
  */
 {
-    isLegacy_ = par().momProjector.empty();
+    zeroMomentumOnly_ = par().momProjector.empty();
 
     const unsigned int nd = env().getNd() - 1;
 
@@ -402,7 +402,7 @@ void TGamma3pt<FImpl1, FImpl2, FImpl3>::execute(void)
     result.gamma = allGammaComb_;
     result.corr.resize(allGammaComb_.size());
 
-    if (isLegacy_)
+    if (zeroMomentumOnly_)
     {
         result.momentum = {{0, 0, 0}};
     }
@@ -461,7 +461,7 @@ void TGamma3pt<FImpl1, FImpl2, FImpl3>::execute(void)
                 stopTimer("Trace");
 
                 startTimer("FT");
-                if (isLegacy_)
+                if (zeroMomentumOnly_)
                 {
                     sliceSum(contraction, fourierModes, Tp);
                 }
