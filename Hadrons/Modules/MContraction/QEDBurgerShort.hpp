@@ -503,7 +503,7 @@ void TQEDBurgerShort<FImpl, Field, VType>::execute(void)
                             tmp_cbuffer += localInnerProduct(shifted_noise,  closure(Gamma(Gmu[mu])*shifted_quark))
                                          * localInnerProduct(*noises[hit_i], closure(Gamma(Gmu[mu])*(*qs[hit_i])));
                         }
-                        tmp_cbuffer *= pSite;
+                        tmp_cbuffer *= -1.0 * pSite; // -1.0 accounts for i^2
                     }
                     else
                     {
