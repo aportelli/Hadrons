@@ -163,6 +163,13 @@ void TQEDBurgerShortPoint<FImpl, Field, VType>::execute(void)
     const Field& q   = envGet(Field, par().q  );
     const Field& eta = envGet(Field, par().eta);
     Coordinate coord(strToVec<int>(par().point));
+
+    Coordinate photonCoord(coord);
+    Coordinate latt_size = env().getDim();
+    photonCoord[0]=(coord[0]+latt_size[0])%latt_size[0];
+    photonCoord[1]=(coord[1]+latt_size[1])%latt_size[1];
+    photonCoord[2]=(coord[2]+latt_size[2])%latt_size[2];
+    photonCoord[3]=(coord[3]+latt_size[3])%latt_size[3];
     {
         envGetTmp(Field, shifted_quark);
         coordCshift(q, coord, shifted_quark);
@@ -186,7 +193,7 @@ void TQEDBurgerShortPoint<FImpl, Field, VType>::execute(void)
     for (int photon_prop_idx=0; photon_prop_idx < numPhotonProps; ++photon_prop_idx)
     {
         const PhotonProp& Gx = envGet(PhotonProp, par().photonProps[photon_prop_idx]);
-        peekSite(pSite, Gx, coord);
+        peekSite(pSite, Gx, photonCoord);
         
         startTimer("Total Contraction Time [Single Contraction]");
         fastBurger(propXtoY, propYtoX, pSite, tmp_cbuffer);
@@ -213,7 +220,7 @@ void TQEDBurgerShortPoint<FImpl, Field, VType>::execute(void)
     for (int photon_prop_idx=0; photon_prop_idx < numPhotonProps; ++photon_prop_idx)
     {
         const PhotonProp& Gx = envGet(PhotonProp, par().photonProps[photon_prop_idx]);
-        peekSite(pSite, Gx, coord);
+        peekSite(pSite, Gx, photonCoord);
         
         startTimer("Total Contraction Time [Summed Contraction]");
         fastBurger(propXtoY, propYtoX, pSite, tmp_cbuffer);
