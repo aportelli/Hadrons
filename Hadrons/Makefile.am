@@ -34,6 +34,7 @@ nobase_libHadrons_a_HEADERS = \
 	Exceptions.hpp            \
 	Factory.hpp               \
 	FieldIo.hpp               \
+	FieldIoSharded.hpp        \
 	GeneticScheduler.hpp      \
 	Global.hpp                \
 	Graph.hpp                 \
