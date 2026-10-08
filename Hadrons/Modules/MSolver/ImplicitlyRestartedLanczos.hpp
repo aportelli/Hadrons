@@ -108,11 +108,13 @@ void TImplicitlyRestartedLanczos<Field, FieldIo>::setup(void)
                  << " operator '" << par().op << "' (" << par().lanczosParams.Nstop
                  << " eigenvectors)..." << std::endl;
 
-    GridBase     *grid = nullptr, *gridIo = nullptr;
+    GridBase     *grid = nullptr, *gridIo = nullptr, *full_grid = nullptr;
     unsigned int Ls = env().getObjectLs(par().op);
     auto &op = envGet(Op, par().op);
 
     grid = getGrid<Field>(par().redBlack, Ls);
+    full_grid = getGrid<Field>(false, Ls);
+    
     if (typeHash<Field>() != typeHash<FieldIo>())
     {
         gridIo = getGrid<FieldIo>(par().redBlack, Ls);
@@ -130,6 +132,7 @@ void TImplicitlyRestartedLanczos<Field, FieldIo>::setup(void)
         par().lanczosParams.resid, par().lanczosParams.MaxIt, par().lanczosParams.betastp, 
         par().lanczosParams.MinRes);
     envTmp(Field, "src", Ls, grid);
+    envTmp(Field, "full_src", Ls, full_grid);
 }
 
 // execution ///////////////////////////////////////////////////////////////////
@@ -150,11 +153,20 @@ void TImplicitlyRestartedLanczos<Field, FieldIo>::execute(void)
     {
         gridIo = getGrid<FieldIo>(par().redBlack, Ls);
     }
-    gaussian(rng4d(), src);
+
     if (par().redBlack)
     {
-        src.Checkerboard() = Odd;
+        //For half-grid sources we cannot use the 4D rng for 5D fields because Grid internally creates and fills a full-grid field from the RNG's 4D grid and then pulls out the
+        //appropriate checkerboard, but this operation fails because the RNG's grid and the destination grid have different dimension. We can work around that by filling a full-grid 5D
+        //temporary then picking the checkerboard ourselves
+        envGetTmp(Field, full_src);
+        gaussian(rng4d(), full_src);
+	pickCheckerboard(Odd, src, full_src);
+    }else{
+        //For full-grid sources we can use the 4D RNG even for 5D fields; it will use the same random number for all s-slices
+        gaussian(rng4d(), src);
     }
+    
     irl.calc(epack.eval, epack.evec, src, nconv, false);
     epack.eval.resize(par().lanczosParams.Nstop);
     epack.evec.resize(par().lanczosParams.Nstop, grid);
