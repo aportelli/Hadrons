@@ -4,6 +4,7 @@
  * Copyright (C) 2015 - 2023
  *
  * Author: Antonin Portelli <antonin.portelli@me.com>
+ * Author: Teseo San Jose <teseo.sanjose@ed.ac.uk>
  *
  * Hadrons is free software: you can redistribute it and/or modify
  * it under the terms of the GNU General Public License as published by
@@ -18,7 +19,7 @@
  * You should have received a copy of the GNU General Public License
  * along with Hadrons.  If not, see <http://www.gnu.org/licenses/>.
  *
- * See the full license in the file "LICENSE" in the top level distribution 
+ * See the full license in the file "LICENSE" in the top level distribution
  * directory.
  */
 
@@ -35,7 +36,7 @@ BEGIN_HADRONS_NAMESPACE
 /******************************************************************************
  *                Point sink just picking the origin in space                 *
  *                                                                            *
- * e.g. sink(field(xvec, t)) = field(0, t)                                    * 
+ * e.g. sink(field(xvec, t)) = field(0, t)                                    *
  ******************************************************************************/
 BEGIN_MODULE_NAMESPACE(MSink)
 
@@ -62,6 +63,7 @@ public:
 };
 
 MODULE_REGISTER_TMP(ScalarPoint0, TPoint0<ScalarImplCR::Field>, MSink);
+MODULE_REGISTER_TMP(Point0, TPoint0<FIMPL::PropagatorField>, MSink);
 
 /******************************************************************************
  *                            TPoint0 implementation                          *
@@ -77,7 +79,7 @@ template <typename Field>
 std::vector<std::string> TPoint0<Field>::getInput(void)
 {
     std::vector<std::string> in;
-    
+
     return in;
 }
 
@@ -85,7 +87,7 @@ template <typename Field>
 std::vector<std::string> TPoint0<Field>::getOutput(void)
 {
     std::vector<std::string> out = {getName()};
-    
+
     return out;
 }
 
@@ -117,7 +119,7 @@ void TPoint0<Field>::execute(void)
             origin[nd - 1] = t;
             res[t] = peekSite(field, origin);
         }
-        
+
         return res;
     };
     envGet(SinkFn, getName()) = sink;
