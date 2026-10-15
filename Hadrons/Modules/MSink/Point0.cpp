@@ -18,12 +18,11 @@
  * You should have received a copy of the GNU General Public License
  * along with Hadrons.  If not, see <http://www.gnu.org/licenses/>.
  *
- * See the full license in the file "LICENSE" in the top level distribution
+ * See the full license in the file "LICENSE" in the top level distribution 
  * directory.
  */
 
 /*  END LEGAL */
-// #include <Hadrons/Modules/MSink/Point0.hpp>
 #include <Hadrons/Modules/MSink/Point0.hpp>
 
 using namespace Grid;
@@ -31,4 +30,3 @@ using namespace Hadrons;
 using namespace MSink;
 
 template class HADRONS_NAMESPACE::MSink::TPoint0<ScalarImplCR::Field>;
-template class HADRONS_NAMESPACE::MSink::TPoint0<FIMPL::PropagatorField>;
