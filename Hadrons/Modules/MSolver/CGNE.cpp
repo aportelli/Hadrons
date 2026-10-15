@@ -30,3 +30,4 @@ using namespace Hadrons;
 using namespace MSolver;
 
 template class HADRONS_NAMESPACE::MSolver::TCGNE<FIMPL>;
+template class HADRONS_NAMESPACE::MSolver::TCGNE<FIMPL, false>;

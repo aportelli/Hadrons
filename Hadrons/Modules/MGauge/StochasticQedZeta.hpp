@@ -118,7 +118,7 @@ void TStochasticQedZeta<VType>::execute(void)
     {
         LOG(Message) << "Caching stochastic QED_Zeta EM potential weights  (";
         std::cout << "zeta = " << par().zeta << ")" << std::endl;
-        gen.makeWeightsQedZeta(w, par().zeta);
+        gen.makeFeynmanPropQedZeta(w, par().zeta);
     }
     LOG(Message) << "Generating stochastic EM potential (gauge: " << par().gauge << ")" << std::endl;
     auto tr = gen.getGaugeTranform(par().gauge);

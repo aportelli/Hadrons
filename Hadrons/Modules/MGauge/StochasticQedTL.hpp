@@ -116,7 +116,7 @@ void TStochasticQedTL<VType>::execute(void)
     if (!weightDone_)
     {
         LOG(Message) << "Caching stochastic QED_TL EM potential weights" << std::endl;
-        gen.makeWeightsQedTL(w);
+        gen.makeFeynmanPropQedTL(w);
     }
     LOG(Message) << "Generating stochastic EM potential (gauge: " << par().gauge << ")" << std::endl;
     auto tr = gen.getGaugeTranform(par().gauge);

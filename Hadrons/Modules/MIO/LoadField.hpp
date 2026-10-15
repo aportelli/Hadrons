@@ -74,6 +74,7 @@ MODULE_REGISTER_TMP(LoadPropagatorIo32, ARG(TLoadField<FIMPL::PropagatorField, F
 #endif
 MODULE_REGISTER_TMP(LoadColourMatrixField, TLoadField<GIMPL::GaugeLinkField>, MIO);
 MODULE_REGISTER_TMP(LoadEmField, TLoadField<TEmFieldGenerator<vComplex>::GaugeField>, MIO);
+MODULE_REGISTER_TMP(LoadComplex, TLoadField<LatticeComplex>, MIO);
 
 /******************************************************************************
  *                 TLoadField implementation                             *

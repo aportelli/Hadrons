@@ -294,7 +294,6 @@ typedef XmlWriter ResultWriter;
 #endif
 
 // recursive mkdir
-#define MAX_PATH_LENGTH 512u
 int         mkdir(const std::string dirName);
 std::string basename(const std::string &s);
 std::string dirname(const std::string &s);

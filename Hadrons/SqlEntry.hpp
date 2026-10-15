@@ -331,7 +331,7 @@ SqlEntry::sqlType(void)
  ******************************************************************************/
 #define HADRONS_SQL_MEMBER(A, B)      HADRONS_NAMESPACE::CppType<A>::type B;
 #define HADRONS_SQL_BOOL_MEMBER(A, B) bool B{false};
-#define HADRONS_SQL_SCHEMA(A, B)      schema += std::string(#B) + " " + sqlType<A>() + ",";
+#define HADRONS_SQL_SCHEMA(A, B)      schema += "'" + std::string(#B) + "' " + sqlType<A>() + ",";
 #define HADRONS_SQL_INSERT(A, B)\
 if (nullify.B)\
 {\

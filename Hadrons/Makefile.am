@@ -34,6 +34,7 @@ nobase_libHadrons_a_HEADERS = \
 	Exceptions.hpp            \
 	Factory.hpp               \
 	FieldIo.hpp               \
+	FieldIoSharded.hpp        \
 	GeneticScheduler.hpp      \
 	Global.hpp                \
 	Graph.hpp                 \
@@ -42,6 +43,7 @@ nobase_libHadrons_a_HEADERS = \
 	Modules.hpp               \
 	ModuleFactory.hpp         \
 	NamedTensor.hpp           \
+	Random.hpp                \
 	Serialization.hpp         \
 	Solver.hpp                \
 	SqlEntry.hpp              \

@@ -61,10 +61,11 @@ public:
                                         bool,         restoreMemoryProfile,
                                         bool,         restoreSchedule,
                                         std::string,  statDbBase,
-                                        unsigned int, statDbPeriodMs);
+                                        unsigned int, statDbPeriodMs,
+                                        bool,         statDbAllRanks);
         DatabasePar(void): 
         restoreModules{false}, restoreMemoryProfile{false},
-        restoreSchedule{false}, statDbBase{""} {}
+        restoreSchedule{false}, statDbBase{""}, statDbAllRanks{false} {}
     };
 
     struct SchedulerPar: Serializable

@@ -124,7 +124,7 @@ void TStochasticQedL<VType>::execute(void)
         {
             LOG(Message) << "Improvement coefficients " << improvement << std::endl;
         }
-        gen.makeWeightsQedL(w, improvement);
+        gen.makeFeynmanPropQedL(w, improvement);
     }
     LOG(Message) << "Generating stochastic EM potential (gauge: " << par().gauge << ")" << std::endl;
     auto tr = gen.getGaugeTranform(par().gauge);

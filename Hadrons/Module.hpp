@@ -32,6 +32,7 @@
 
 #include <Hadrons/Global.hpp>
 #include <Hadrons/Database.hpp>
+#include <Hadrons/Random.hpp>
 #include <Hadrons/TimerArray.hpp>
 #include <Hadrons/VirtualMachine.hpp>
 
@@ -226,6 +227,7 @@ protected:
     // get RNGs seeded from module string
     GridParallelRNG &rng4d(void);
     GridSerialRNG &rngSerial(void);
+    HadronsSerialRNG & rngSerialHadrons(void);
     // result file utilities
     std::string resultFilename(const std::string stem, const std::string ext = resultFileExt) const;
     template <typename T>

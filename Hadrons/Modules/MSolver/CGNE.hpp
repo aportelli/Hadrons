@@ -48,7 +48,7 @@ public:
                                     std::string , guesser);
 };
 
-template <typename FImpl>
+template <typename FImpl, bool failIfNoConverge = true>
 class TCGNE: public Module<CGNEPar>
 {
 public:
@@ -70,19 +70,20 @@ public:
 };
 
 MODULE_REGISTER_TMP(CGNE, TCGNE<FIMPL>, MSolver);
+MODULE_REGISTER_TMP(CGNENoFail, ARG(TCGNE<FIMPL, false>), MSolver);
 
 /******************************************************************************
  *                           TCGNE implementation                             *
  ******************************************************************************/
 // constructor /////////////////////////////////////////////////////////////////
-template <typename FImpl>
-TCGNE<FImpl>::TCGNE(const std::string name)
+template <typename FImpl, bool failIfNoConverge>
+TCGNE<FImpl, failIfNoConverge>::TCGNE(const std::string name)
 : Module<CGNEPar>(name)
 {}
 
 // dependencies/products ///////////////////////////////////////////////////////
-template <typename FImpl>
-std::vector<std::string> TCGNE<FImpl>::getInput(void)
+template <typename FImpl, bool failIfNoConverge>
+std::vector<std::string> TCGNE<FImpl, failIfNoConverge>::getInput(void)
 {
     std::vector<std::string> in = {par().action};
     
@@ -94,16 +95,16 @@ std::vector<std::string> TCGNE<FImpl>::getInput(void)
     return in;
 }
 
-template <typename FImpl>
-std::vector<std::string> TCGNE<FImpl>::getOutput(void)
+template <typename FImpl, bool failIfNoConverge>
+std::vector<std::string> TCGNE<FImpl, failIfNoConverge>::getOutput(void)
 {
-    std::vector<std::string> out = {getName()};
+    std::vector<std::string> out = {getName(), getName() + "_subtract"};
     
     return out;
 }
 
-template <typename FImpl>
-DependencyMap TCGNE<FImpl>::getObjectDependencies(void)
+template <typename FImpl, bool failIfNoConverge>
+DependencyMap TCGNE<FImpl, failIfNoConverge>::getObjectDependencies(void)
 {
     DependencyMap dep;
 
@@ -119,8 +120,8 @@ DependencyMap TCGNE<FImpl>::getObjectDependencies(void)
 }
 
 // setup ///////////////////////////////////////////////////////////////////////
-template <typename FImpl>
-void TCGNE<FImpl>::setup(void)
+template <typename FImpl, bool failIfNoConverge>
+void TCGNE<FImpl, failIfNoConverge>::setup(void)
 {
     if (par().maxIteration == 0)
     {
@@ -149,7 +150,8 @@ void TCGNE<FImpl>::setup(void)
             FermionField                            guess(g), tmp(g);
             MdagMLinearOperator<FMat, FermionField> hermOp(mat);
             ConjugateGradient<FermionField>         cg(par().residual,
-                                                       par().maxIteration);
+                                                       par().maxIteration,
+                                                       failIfNoConverge);
             ZeroGuesser<FermionField>               defaultGuesser;
 
             guess = sol;
@@ -176,8 +178,8 @@ void TCGNE<FImpl>::setup(void)
 }
 
 // execution ///////////////////////////////////////////////////////////////////
-template <typename FImpl>
-void TCGNE<FImpl>::execute(void)
+template <typename FImpl, bool failIfNoConverge>
+void TCGNE<FImpl, failIfNoConverge>::execute(void)
 {}
 
 END_MODULE_NAMESPACE

@@ -28,12 +28,14 @@ fi
 if test x"$CXX" == x ; then
     CXX="`hadrons-config --cxx`"
 elif test "$CXX" != "`hadrons-config --cxx`" ; then
-    AC_MSG_WARN([CXX differs from that reported by hadrons-config])
+    HADRONS_CXX="`hadrons-config --cxx`"
+    AC_MSG_WARN([CXX differs from that reported by hadrons-config: "$CXX" vs "$HADRONS_CXX"])
 fi
 if test x"$CXXLD" == x ; then
     CXXLD="`hadrons-config --cxxld`"
 elif test "$CXXLD" != "`hadrons-config --cxxld`" ; then
-    AC_MSG_WARN([CXXLD differs from that reported by hadrons-config])
+    HADRONS_CXXLD="`hadrons-config --cxxld`"
+    AC_MSG_WARN([CXXLD differs from that reported by hadrons-config: "$CXXLD" vs "$HADRONS_CXXLD"])
 fi
 
 # Checks for programs.

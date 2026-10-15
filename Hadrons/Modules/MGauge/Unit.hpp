@@ -99,7 +99,7 @@ void TUnit<GImpl>::execute(void)
     LOG(Message) << "Creating unit gauge configuration" << std::endl;
     
     auto &U = envGet(GaugeField, getName());
-    GImpl::ColdConfiguration(rng4d(), U);
+    Group::ColdConfiguration(U);
 }
 
 END_MODULE_NAMESPACE

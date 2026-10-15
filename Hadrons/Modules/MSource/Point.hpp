@@ -32,6 +32,7 @@
 #include <Hadrons/Global.hpp>
 #include <Hadrons/Module.hpp>
 #include <Hadrons/ModuleFactory.hpp>
+#include <Hadrons/Serialization.hpp>
 
 BEGIN_HADRONS_NAMESPACE
 
@@ -76,6 +77,9 @@ protected:
     virtual void setup(void);
     // execution
     virtual void execute(void);
+
+    template<typename T>
+    std::vector<T> getEnvVector(const std::string& value);
 };
 
 MODULE_REGISTER_TMP(Point,       TPoint<FIMPL>,        MSource);
@@ -96,6 +100,11 @@ std::vector<std::string> TPoint<FImpl>::getInput(void)
 {
     std::vector<std::string> in;
     
+    if ((!isVector<int>(par().position)) && (!par().position.empty()))
+    {
+        in.push_back(par().position);
+    }
+
     return in;
 }
 
@@ -114,6 +123,33 @@ void TPoint<FImpl>::setup(void)
     envCreateLat(PropagatorField, getName());
 }
 
+template <typename FImpl>
+template<typename T>
+std::vector<T> TPoint<FImpl>::getEnvVector(const std::string& value)
+{
+    std::vector<T> res = strToVec<T>(value);
+    if (res.size() <= 1)
+    {
+        if (envHasType(std::vector<T>, value))
+        {
+            LOG(Message) << "Trying to retrieve std::vector<T>" << std::endl;
+            return envGet(std::vector<T>, value);
+        }
+        else if (envHasType(HadronsSerializable, value))
+        {
+            LOG(Message) << "Trying to retrieve HadronsSerializable" << std::endl;
+            auto &t = envGet(HadronsSerializable, value);
+            return t.template get<std::vector<T>>();
+        }
+        else
+        {
+            HADRONS_ERROR(Definition, "cannot interpret vector '" + value + "'");
+        }
+    }
+    LOG(Message) << "Trying to retrieve strToVec<T>" << std::endl;
+    return res;
+}
+
 // execution ///////////////////////////////////////////////////////////////////
 template <typename FImpl>
 void TPoint<FImpl>::execute(void)
@@ -121,7 +157,7 @@ void TPoint<FImpl>::execute(void)
     LOG(Message) << "Creating point source at position [" << par().position
                 << "]" << std::endl;
 
-    std::vector<int> position = strToVec<int>(par().position);
+    std::vector<int> position = getEnvVector<int>(par().position);
     auto             &src     = envGet(PropagatorField, getName());
     SitePropagator   id;
     

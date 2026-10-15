@@ -61,16 +61,16 @@ public:
     // get gauge transformation out of enum
     static TransformFn getGaugeTranform(const QedGauge gauge);
     // field generation using given weights
-    void operator()(GaugeField &out, GridParallelRNG &rng, const ScalarField &weight, 
+    void operator()(GaugeField &out, GridParallelRNG &rng, const ScalarField &feynmanProp, 
                     TransformFn momSpaceTransform = nullptr);
     // QED_L weights
-    void makeWeightsQedL(ScalarField &weight, std::vector<double> improvement = {});
+    void makeFeynmanPropQedL(ScalarField &feynmanProp, std::vector<double> improvement = {});
     // QED_TL weights
-    void makeWeightsQedTL(ScalarField &weight);
+    void makeFeynmanPropQedTL(ScalarField &feynmanProp);
     // QED_Zeta weights
-    void makeWeightsQedZeta(ScalarField &weight, const double zeta);
+    void makeFeynmanPropQedZeta(ScalarField &feynmanProp, const double zeta);
     // QED_M weights
-    void makeWeightsQedM(ScalarField &weight, const double mass);
+    void makeFeynmanPropQedM(ScalarField &feynmanProp, const double mass);
 private:
     GridBase       *g_;
     unsigned int   nd_;
@@ -207,14 +207,14 @@ TEmFieldGenerator<VType>::getGaugeTranform(const QedGauge gauge)
 // field generation using given weights ///////////////////////////////////////
 template <typename VType>
 void TEmFieldGenerator<VType>::operator()(GaugeField &out, GridParallelRNG &rng, 
-                                          const ScalarField &weight, TransformFn momSpaceTransform)
+                                          const ScalarField &feynmanProp, TransformFn momSpaceTransform)
 {
     ScalarField        r(g_), sqrtW(g_);
     GaugeField         aTilde(g_);
     FFT                fft(dynamic_cast<GridCartesian *>(g_));
     double             vol = g_->gSites();
 
-    sqrtW = sqrt(vol)*sqrt(weight);
+    sqrtW = sqrt(vol)*sqrt(feynmanProp);
     for(unsigned int mu = 0; mu < nd_; mu++)
     {
       gaussian(rng, r);
@@ -231,52 +231,52 @@ void TEmFieldGenerator<VType>::operator()(GaugeField &out, GridParallelRNG &rng,
 
 // QED_L weights //////////////////////////////////////////////////////////////
 template <typename VType>
-void TEmFieldGenerator<VType>::makeWeightsQedL(ScalarField &weight, 
-                                               std::vector<double> improvement)
+void TEmFieldGenerator<VType>::makeFeynmanPropQedL(ScalarField &feynmanProp, 
+                                                   std::vector<double> improvement)
 {
-    makeKHatSquared(weight);
-    pokeSite(one_, weight, zm_);
-    weight = latOne_/weight;
-    pokeSite(z_, weight, zm_);
+    makeKHatSquared(feynmanProp);
+    pokeSite(one_, feynmanProp, zm_);
+    feynmanProp = latOne_/feynmanProp;
+    pokeSite(z_, feynmanProp, zm_);
     makeSpatialNorm(spNrm_);
-    weight = where(spNrm_ == Integer(0), 0.*weight, weight);
+    feynmanProp = where(spNrm_ == Integer(0), 0.*feynmanProp, feynmanProp);
     for(int i = 0; i < improvement.size(); i++)
     {
       Real f = improvement[i] + 1;
-      weight = where(spNrm_ == Integer(i + 1), f*weight, weight);
+      feynmanProp = where(spNrm_ == Integer(i + 1), f*feynmanProp, feynmanProp);
     }
 }
 
 // QED_TL weights /////////////////////////////////////////////////////////////
 template <typename VType>
-void TEmFieldGenerator<VType>::makeWeightsQedTL(ScalarField &weight)
+void TEmFieldGenerator<VType>::makeFeynmanPropQedTL(ScalarField &feynmanProp)
 {
-    makeKHatSquared(weight);
-    pokeSite(one_, weight, zm_);
-    weight = latOne_/weight;
-    pokeSite(z_, weight, zm_);
+    makeKHatSquared(feynmanProp);
+    pokeSite(one_, feynmanProp, zm_);
+    feynmanProp = latOne_/feynmanProp;
+    pokeSite(z_, feynmanProp, zm_);
 }
 
 // QED_Zeta weights ///////////////////////////////////////////////////////////
 template <typename VType>
-void TEmFieldGenerator<VType>::makeWeightsQedZeta(ScalarField &weight, const double zeta)
+void TEmFieldGenerator<VType>::makeFeynmanPropQedZeta(ScalarField &feynmanProp, const double zeta)
 {
     auto l = g_->FullDimensions()[0];
     ComplexType zl(zeta*l, 0.), zm = 1./(zl*zl);
 
-    makeKHatSquared(weight);
+    makeKHatSquared(feynmanProp);
     makeSpatialNorm(spNrm_);
-    weight = where(spNrm_ == Integer(0), weight + zm*latOne_, weight);
-    weight = latOne_/weight;
+    feynmanProp = where(spNrm_ == Integer(0), feynmanProp + zm*latOne_, feynmanProp);
+    feynmanProp = latOne_/feynmanProp;
 }
 
 // QED_M weights //////////////////////////////////////////////////////////////
 template <typename VType>
-void TEmFieldGenerator<VType>::makeWeightsQedM(ScalarField &weight, const double m)
+void TEmFieldGenerator<VType>::makeFeynmanPropQedM(ScalarField &feynmanProp, const double m)
 {
-    makeKHatSquared(weight);
-    weight += m*m*latOne_;
-    weight = latOne_/weight;
+    makeKHatSquared(feynmanProp);
+    feynmanProp += m*m*latOne_;
+    feynmanProp = latOne_/feynmanProp;
 }
 
 END_HADRONS_NAMESPACE

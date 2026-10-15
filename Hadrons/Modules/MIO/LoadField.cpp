@@ -36,3 +36,5 @@ template class HADRONS_NAMESPACE::MIO::TLoadField<FIMPL::PropagatorField, FIMPLF
 #endif
 template class HADRONS_NAMESPACE::MIO::TLoadField<GIMPL::GaugeLinkField>;
 template class HADRONS_NAMESPACE::MIO::TLoadField<TEmFieldGenerator<vComplex>::GaugeField>;
+template class HADRONS_NAMESPACE::MIO::TLoadField<LatticeComplex>;
+

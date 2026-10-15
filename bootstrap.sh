@@ -13,7 +13,9 @@ echo '-- downloading SQLite...'
 wget ${sqlite_link}
 archive="$(basename ${sqlite_link})"
 folder="${archive%.*}"
-echo "${sha256} ${archive}" | sha256sum --check
+tmp="$(mktemp)"
+echo "${sha256} ${archive}"  > "${tmp}"
+sha256sum -c "${tmp}"
 unzip "${archive}"
 mkdir -p Hadrons/sqlite/
 mv "${folder}"/sqlite3* Hadrons/sqlite/

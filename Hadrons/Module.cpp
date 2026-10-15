@@ -170,3 +170,19 @@ GridSerialRNG & ModuleBase::rngSerial(void)
 
     return r;
 }
+
+HadronsSerialRNG & ModuleBase::rngSerialHadrons(void)
+{
+    auto &r = *env().getHadronsSerialRng();
+    const std::string seed = getSeed();
+
+    if (seed != seed_)
+    {
+        seed_ = seed;
+        LOG(Message) << "Seeding Hadrons Serial RNG " << &r << " with string '" 
+                     << seed_ << "'" << std::endl;
+        r.SeedUniqueString(seed_);
+    }
+
+    return r;
+}

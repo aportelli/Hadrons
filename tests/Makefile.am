@@ -9,9 +9,11 @@ EXTRA_PROGRAMS = \
   Test_diskvector           \
   Test_em_field             \
   Test_exact_distil         \
+  Test_fermion_flow			\
   Test_field_io             \
   Test_free_prop            \
   Test_gamma3pt             \
+  Test_gradient_flow		\
   Test_hadrons_meson_3pt    \
   Test_hadrons_spectrum     \
   Test_highfreq_stat        \
@@ -45,6 +47,9 @@ Test_em_field_LDADD=-lHadrons -lGrid
 Test_exact_distil_SOURCES=Test_exact_distil.cpp
 Test_exact_distil_LDADD=-lHadrons -lGrid
 
+Test_fermion_flow_SOURCES=Test_fermion_flow.cpp
+Test_fermion_flow_LDADD=-lHadrons -lGrid
+
 Test_field_io_SOURCES=Test_field_io.cpp
 Test_field_io_LDADD=-lHadrons -lGrid
 
@@ -53,6 +58,9 @@ Test_free_prop_LDADD=-lHadrons -lGrid
 
 Test_gamma3pt_SOURCES=Test_gamma3pt.cpp
 Test_gamma3pt_LDADD=-lHadrons -lGrid
+
+Test_gradient_flow_SOURCES=Test_gradient_flow.cpp
+Test_gradient_flow_LDADD=-lHadrons -lGrid
 
 Test_hadrons_meson_3pt_SOURCES=Test_hadrons_meson_3pt.cpp
 Test_hadrons_meson_3pt_LDADD=-lHadrons -lGrid

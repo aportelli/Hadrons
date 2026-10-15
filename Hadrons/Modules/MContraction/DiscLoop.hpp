@@ -7,6 +7,7 @@
  * Author: Fionn O hOgain <fionn.o.hogain@ed.ac.uk>
  * Author: Lanny91 <andrew.lawson@gmail.com>
  * Author: Ryan Hill <rchrys.hill@gmail.com>
+ * Author: Raoul Hodgson <raoul.hodgson@desy.de>
  *
  * Hadrons is free software: you can redistribute it and/or modify
  * it under the terms of the GNU General Public License as published by
@@ -64,6 +65,7 @@ public:
                                     std::string,              q_loop,
                                     std::string,              gammas,
                                     std::vector<std::string>, mom,
+                                    bool,                     trace,
                                     std::string,              output);
 };
 
@@ -124,6 +126,8 @@ template <typename FImpl>
 std::vector<std::string> TDiscLoop<FImpl>::getOutput(void)
 {
     std::vector<std::string> out = {getName()};
+    if (par().trace)
+        out.push_back(getName() + "_trace");
     
     return out;
 }
@@ -158,9 +162,18 @@ void TDiscLoop<FImpl>::setup(void)
             mom_[i][j] = (mom_[i][j] + env().getDim(j)) % env().getDim(j);
         }
     }
-    envTmpLat(PropagatorField, "ftBuf");
     envTmpLat(PropagatorField, "op");
+    envTmpLat(LatticeComplex,  "coor");
+    envTmpLat(LatticeComplex,  "ph");
     envCreate(HadronsSerializable, getName(), 1, 0);
+
+    if (par().trace)
+    {
+        std::vector<Gamma::Algebra> gammaList;
+        parseGammaString(gammaList);
+        const unsigned int ngam = gammaList.size();
+        envCreate(std::vector<ComplexField>, getName() + "_trace", 1, mom_.size() * ngam, envGetGrid(ComplexField));
+    }
 }
 
 template <typename FImpl>
@@ -193,50 +206,55 @@ void TDiscLoop<FImpl>::execute(void)
                  << "." << std::endl;
 
     const unsigned int                 nt      = env().getDim(Tp);
-    const unsigned int                 nd      = env().getDim().size();
     const unsigned int                 nmom    = mom_.size();
     auto                               &q_loop = envGet(PropagatorField, par().q_loop);
     std::vector<Gamma::Algebra>        gammaList;
-    SitePropagator                     buf;
     std::vector<std::vector<SlicedOp>> slicedOp;
     std::vector<std::vector<Result>>   result;
-    FFT                                fft(envGetGrid(PropagatorField));
-    std::vector<int>                   dMask(nd, 1);
 
-    dMask[nd - 1] = 0;
-    envGetTmp(PropagatorField, ftBuf);
     envGetTmp(PropagatorField, op);
+    envGetTmp(LatticeComplex,  coor);
+    envGetTmp(LatticeComplex,  ph);
     parseGammaString(gammaList);
     const unsigned int ngam = gammaList.size();
     result.resize(ngam);
+    slicedOp.resize(ngam);
     for (unsigned int g = 0; g < ngam; ++g)
     {
         result[g].resize(nmom);
+        slicedOp[g].resize(nmom);
         for (unsigned int m = 0; m < nmom; ++m)
         {
             result[g][m].gamma = gammaList[g];
             result[g][m].mom   = mom_[m];
             result[g][m].corr.resize(nt);
+            slicedOp[g][m].resize(nt);
         }
     }
 
-    slicedOp.resize(ngam);
-    for (unsigned int g = 0; g < ngam; ++g)
+    Complex i(0.0,1.0);
+    for (unsigned int m = 0; m < nmom; ++m)
     {
-        Gamma gamma(gammaList[g]);
-        op = gamma*q_loop;
-        fft.FFT_dim_mask(ftBuf, op, dMask, FFT::forward);
-        slicedOp[g].resize(nmom);
-        for (unsigned int m = 0; m < nmom; ++m)
+        auto p = strToVec<Real>(par().mom[m]);
+        ph = Zero();
+        for(unsigned int mu = 0; mu < p.size(); mu++)
         {
-            auto qt = mom_[m];
-            qt.resize(nd);
-            slicedOp[g][m].resize(nt);
-            for (unsigned int t = 0; t < nt; ++t)
+            LatticeCoordinate(coor, mu);
+            ph = ph + (p[mu]/env().getDim(mu))*coor;
+        }
+        ph = exp((Real)(2*M_PI)*(-i)*ph);
+
+        for (unsigned int g = 0; g < ngam; ++g)
+        {
+            Gamma gamma(gammaList[g]);
+            op = gamma*q_loop*ph;
+
+            sliceSum(op,slicedOp[g][m],Tp);
+            if (par().trace)
             {
-                qt[nd - 1] = t;
-                peekSite(buf, ftBuf, qt);
-                slicedOp[g][m][t] = buf;
+                unsigned int flat_idx = m * ngam + g;
+                std::vector<ComplexField>& trace_fields = envGet(std::vector<ComplexField>, getName() + "_trace");
+                trace_fields.at(flat_idx) = trace(op);
             }
         }
     }

@@ -152,17 +152,11 @@ void TEigenPackLCCompress<FImpl, nBasis, FImplIo>::execute(void)
 
     coarsePack.record = finePack.record;
 
-    LOG(Message) << "Copying lowest " << sizeFine << " fine vectors as basis" << std::endl;
+    LOG(Message) << "Copying lowest " << sizeFine << " fine vectors for basis generation" << std::endl;
     for (unsigned int i=0; i<sizeFine; i++)
     {
         coarsePack.eval[i] = finePack.eval[i];
         coarsePack.evec[i] = finePack.evec[i];
-    }
-
-    if (!par().output.empty())
-    {
-        LOG(Message) << "Write " << sizeFine << " fine basis vectors" << std::endl;
-        coarsePack.writeFine(par().output, par().multiFile, vm().getTrajectory());
     }
 
     auto blockSize = strToVec<int>(par().blockSize);
@@ -174,6 +168,12 @@ void TEigenPackLCCompress<FImpl, nBasis, FImplIo>::execute(void)
     blockOrthonormalize(innerProduct,coarsePack.evec);
     LOG(Message) <<" Block Gramm-Schmidt pass 2"<<std::endl;
     blockOrthonormalize(innerProduct,coarsePack.evec);
+
+    if (!par().output.empty())
+    {
+        LOG(Message) << "Write " << sizeFine << " fine basis vectors" << std::endl;
+        coarsePack.writeFine(par().output, par().multiFile, vm().getTrajectory());
+    }
 
     LOG(Message) << "Projecting " << sizeCoarse << " coarse eigenvectors" << std::endl;
     for (unsigned int i=0; i<finePack.evec.size(); i++)
@@ -188,8 +188,6 @@ void TEigenPackLCCompress<FImpl, nBasis, FImplIo>::execute(void)
         LOG(Message) << "Write " << sizeCoarse << " coarse vectors" << std::endl;
         coarsePack.writeCoarse(par().output, par().multiFile, vm().getTrajectory());
     }
-
-
 }
 
 END_MODULE_NAMESPACE

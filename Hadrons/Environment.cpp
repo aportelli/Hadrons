@@ -178,6 +178,16 @@ GridSerialRNG * Environment::getSerialRng(void)
     return rngSerial_.get();
 }
 
+HadronsSerialRNG * Environment::getHadronsSerialRng(void)
+{
+    if (rngSerialHadrons_ == nullptr)
+    {
+        rngSerialHadrons_.reset(new HadronsSerialRNG());
+    }
+
+    return rngSerialHadrons_.get();
+}
+
 // general memory management ///////////////////////////////////////////////////
 void Environment::addObject(const std::string name, const int moduleAddress)
 {

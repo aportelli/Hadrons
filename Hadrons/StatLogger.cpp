@@ -195,8 +195,14 @@ void StatLogger::logDeviceMemory(const GridTime::rep time)
     Mem               buf;
     DeviceMemoryEntry e;
 
+    size_t free_byte=0;
+    size_t total_byte=0;
+#ifdef GRID_CUDA_NOUVM
+    cudaMemGetInfo( &free_byte, &total_byte ) ;
+#endif
+
     e.time                  = time;
-    e.totalCurrent          = 0;
+    e.totalCurrent          = total_byte-free_byte;
     e.envCurrent            = 0;
     e.gridCurrent           = MemoryManager::DeviceBytes;
     e.gridCacheCurrent      = MemoryManager::DeviceCacheBytes();

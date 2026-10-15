@@ -24,6 +24,7 @@
       <statDbBase>./foo</statDbBase>
       <!-- statistics DB sampling interval in ms -->
       <statDbPeriodMs>500</statDbPeriodMs>
+      <statDbAllRanks>false</statDbAllRanks>
     </database>
     <!-- genetic scheduler parameters -->
     <genetic>

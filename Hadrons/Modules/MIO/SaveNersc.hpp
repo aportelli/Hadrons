@@ -41,6 +41,7 @@ BEGIN_HADRONS_NAMESPACE
  fileStem      Namestem of the file to write the gauge field to
  ensembleLabel Label of the ensemble. Recommended this includes
                a suffix identifying this as gauge-fixed and which gauge
+ ensembleId    Label of the collaboration.
  ******************************************************************************/
 
 
@@ -52,7 +53,8 @@ public:
     GRID_SERIALIZABLE_CLASS_MEMBERS(SaveNerscPar,
                                     std::string, gauge,
                                     std::string, fileStem,
-                                    std::string, ensembleLabel);
+                                    std::string, ensembleLabel,
+                                    std::string, ensembleId);
 };
 
 template <typename GImpl>
@@ -114,7 +116,7 @@ void TSaveNersc<GImpl>::execute(void)
 
     auto &U = envGet(GaugeField, par().gauge);
     makeFileDir(fileName, U.Grid());
-    NerscIO::writeConfiguration(U, fileName, par().ensembleLabel);
+    NerscIO::writeConfiguration(U, fileName, par().ensembleLabel, par().ensembleId, vm().getTrajectory());
 }
 
 END_MODULE_NAMESPACE

@@ -26,6 +26,9 @@
 
 #include <Hadrons/Global.hpp>
 
+#include <cerrno>
+#include <filesystem>
+
 using namespace Grid;
 using namespace Hadrons;
 using namespace std::chrono_literals;
@@ -99,37 +102,23 @@ const std::string Hadrons::resultFileExt = "xml";
 // recursive mkdir /////////////////////////////////////////////////////////////
 int Hadrons::mkdir(const std::string dirName)
 {
-    if (!dirName.empty() and access(dirName.c_str(), R_OK|W_OK|X_OK))
+    if (!dirName.empty())
     {
-        mode_t mode755;
-        char   tmp[MAX_PATH_LENGTH];
-        char   *p = NULL;
-        size_t len;
+        std::error_code ec;
 
-        mode755 = S_IRWXU|S_IRGRP|S_IXGRP|S_IROTH|S_IXOTH;
-
-        snprintf(tmp, sizeof(tmp), "%s", dirName.c_str());
-        len = strlen(tmp);
-        if(tmp[len - 1] == '/')
+        std::filesystem::create_directories(dirName, ec);
+        if (ec)
         {
-            tmp[len - 1] = 0;
+            errno = ec.value();
+            return -1;
         }
-        for(p = tmp + 1; *p; p++)
+        if (access(dirName.c_str(), R_OK|W_OK|X_OK))
         {
-            if(*p == '/')
-            {
-                *p = 0;
-                ::mkdir(tmp, mode755);
-                *p = '/';
-            }
+            return -1;
         }
+    }
 
-        return ::mkdir(tmp, mode755);
-    }
-    else
-    {
-        return 0;
-    }
+    return 0;
 }
 
 std::string Hadrons::basename(const std::string &s)

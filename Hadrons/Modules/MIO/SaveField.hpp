@@ -84,6 +84,7 @@ MODULE_REGISTER_TMP(SavePropagatorIo32, ARG(TSaveField<FIMPL::PropagatorField, F
 #endif
 MODULE_REGISTER_TMP(SaveColourMatrixField, TSaveField<GIMPL::GaugeLinkField>, MIO);
 MODULE_REGISTER_TMP(SaveEmField, TSaveField<TEmFieldGenerator<vComplex>::GaugeField>, MIO);
+MODULE_REGISTER_TMP(SaveComplex, TSaveField<LatticeComplex>, MIO);
 
 /******************************************************************************
  *                 TSaveField implementation                             *
