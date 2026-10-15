@@ -37,8 +37,14 @@ public:
     virtual void setup(void);
     // execution
     virtual void execute(void);
+private:
+    void doFft(Field &out, const Field &in, const std::vector<int> &mask, 
+               bool backward);
+private:
+    bool isVector_;
 };
 
+MODULE_REGISTER_TMP(ScalarFFT, TFFT<SIMPL::ComplexField>, MUtilities);
 MODULE_REGISTER_TMP(EmFieldFFT, TFFT<TEmFieldGenerator<vComplex>::GaugeField>, MUtilities);
 MODULE_REGISTER_TMP(FeynmanPropFFT, TFFT<TEmFieldGenerator<vComplex>::ScalarField>, MUtilities);
 
@@ -72,33 +78,70 @@ std::vector<std::string> TFFT<Field>::getOutput(void)
 template <typename Field>
 void TFFT<Field>::setup(void)
 {
-    envCreateLat(Field, getName());
+    isVector_ = envHasType(std::vector<Field>, par().field);
+    if (isVector_)
+    {
+        auto &field = envGet(std::vector<Field>, par().field);
+        if (field.size() == 0)
+        {
+            HADRONS_ERROR(Size, "input field vector is empty");
+        }
+        envCreate(std::vector<Field>, getName(), 1, field.size(), field[0].Grid());
+    }
+    else
+    {
+        envCreateLat(Field, getName());
+    }
 }
 
 // execution ///////////////////////////////////////////////////////////////////
 template <typename Field>
-void TFFT<Field>::execute(void)
+inline void TFFT<Field>::doFft(Field &out, const Field &in, 
+                               const std::vector<int> &mask, bool backward)
 {
-    auto &field = envGet(Field, par().field);
-    auto &out = envGet(Field, getName());
-    GridBase *g = field.Grid();
-    unsigned int nd = env().getNd(), nt = env().getDim(Tp);
+    GridBase *g = in.Grid();
     FFT fft(dynamic_cast<GridCartesian *>(g));
-    std::vector<int> maskv = strToVec<int>(par().dimMask);
-    Coordinate mask(maskv);
+    Coordinate maskc(mask);
+    unsigned int nd = env().getNd();
 
     if (g->Nd() != nd)
     {
         HADRONS_ERROR(Size, "input field has the wrong number of dimensions");
     }
-    if (maskv.size() != nd)
+    fft.FFT_dim_mask(out, in, maskc, backward ? FFT::backward : FFT::forward);
+}
+
+template <typename Field>
+void TFFT<Field>::execute(void)
+{
+    std::vector<int> mask = strToVec<int>(par().dimMask);
+
+    if (mask.size() != env().getNd())
     {
         HADRONS_ERROR(Size, "dimension mask has the wrong number of components");
     }
-    LOG(Message) << "Performing FFT on field '" << par().field << "'" << std::endl;
-    LOG(Message) << "Dimension mask: " << maskv << std::endl;
+    LOG(Message) << "Dimension mask: " << mask << std::endl;
     LOG(Message) << "     Direction: " << (par().backward ? "backward" : "forward") << std::endl;
-    fft.FFT_dim_mask(out, field, mask, par().backward ? FFT::backward : FFT::forward);
+    if (isVector_)
+    {
+        auto &field = envGet(std::vector<Field>, par().field);
+        auto &out = envGet(std::vector<Field>, getName());
+
+        LOG(Message) << "Input '" << par().field << "' is a vector of " << field.size() 
+                     << " field(s)" << std::endl;
+        for (unsigned int i = 0; i < field.size(); ++i)
+        {
+            LOG(Message) << "Performing FFT on component " << i << std::endl;
+            doFft(out[i], field[i], mask, par().backward);
+        }
+    }
+    else
+    {
+        auto &field = envGet(Field, par().field);
+        auto &out = envGet(Field, getName());
+        LOG(Message) << "Performing FFT on field '" << par().field << "'" << std::endl;
+        doFft(out, field, mask, par().backward);
+    }
 }
 
 END_MODULE_NAMESPACE
